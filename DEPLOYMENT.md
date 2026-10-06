@@ -329,3 +329,51 @@ docker compose up -d --build
 ```
 All tasks, projects, notes, and audit history will be completely restored.
 
+---
+
+### 9.5 Disk Space Caps & Log Retention (Systemd Journal & Docker)
+
+To prevent logs and temporary files from silently accumulating and exhausting NVMe storage over years of 24/7 autonomous runtime:
+
+#### 1. Cap Systemd Journal Size (100MB Hard Cap)
+Ubuntu's default `systemd-journald` configuration can grow up to 4GB or 10% of total filesystem size. Cap it strictly to **100MB**:
+
+```bash
+# Set SystemMaxUse in journald configuration
+sudo mkdir -p /etc/systemd/journald.conf.d
+cat << 'EOF' | sudo tee /etc/systemd/journald.conf.d/00-disk-cap.conf
+[Journal]
+SystemMaxUse=100M
+SystemKeepFree=1G
+RuntimeMaxUse=50M
+MaxRetentionSec=1month
+EOF
+
+# Restart journal daemon and vacuum old entries immediately
+sudo systemctl restart systemd-journald
+sudo journalctl --vacuum-size=100M
+```
+
+Verify the active journal disk consumption:
+```bash
+journalctl --disk-usage
+```
+
+#### 2. Docker Log Rotation (10MB x 3 Retention)
+`docker-compose.yml` is pre-configured with json-file log rotation:
+```yaml
+logging:
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+```
+This guarantees container stdout/stderr logs will never exceed **30MB** total across rotations.
+
+#### 3. Automatic APT Cache Cleaning
+Keep package cache lean after security updates:
+```bash
+sudo apt clean
+sudo apt autoremove -y
+```
+

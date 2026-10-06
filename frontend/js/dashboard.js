@@ -182,48 +182,98 @@ const Dashboard = {
     this.renderGreeting();
   },
 
+  typewriterGreetingTimer: null,
+  typewriterCharIndex: 0,
+  typewriterPhraseIndex: 0,
+  isTypewriterDeleting: false,
+
   renderGreeting() {
+    this.startTypewriterGreeting();
+  },
+
+  startTypewriterGreeting() {
+    if (this.typewriterGreetingTimer) {
+      clearTimeout(this.typewriterGreetingTimer);
+      this.typewriterGreetingTimer = null;
+    }
     const greetingEl = document.getElementById("greetingText");
     const subtextEl = document.getElementById("greetingSubtext");
     const chipEl = document.getElementById("nameDisplayChip");
     if (!greetingEl) return;
+    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
 
     const hour = new Date().getHours();
-    let phrase = "";
+    let phrases = [];
     let sub = "Ready to log and track your day.";
 
     if (hour >= 5 && hour < 12) {
-      const morningPhrases = [
+      phrases = [
         `Good morning, ${this.userName}.`,
         `Hi, Me! Ready to conquer today?`,
         `First coffee, then tasks, ${this.userName}.`,
-        `Fresh day ahead, ${this.userName}.`
+        `Fresh start, sharp mind, ${this.userName}.`,
+        `Morning momentum begins now.`
       ];
-      phrase = morningPhrases[Math.floor(Math.random() * morningPhrases.length)];
       sub = "Morning momentum begins now.";
     } else if (hour >= 12 && hour < 18) {
-      const afternoonPhrases = [
+      phrases = [
         `Working hard, or hardly working, ${this.userName}?`,
         `Good afternoon, ${this.userName}. Keep the pace.`,
         `Midday check-in, ${this.userName}. Focus on the essentials.`,
-        `Hi, Me! Knocking out those errands?`
+        `Hi, Me! Knocking out those errands?`,
+        `Deep work window active.`
       ];
-      phrase = afternoonPhrases[Math.floor(Math.random() * afternoonPhrases.length)];
       sub = "Deep work window active.";
-    } else {
-      const eveningPhrases = [
-        `Burning the midnight oil, ${this.userName}?`,
+    } else if (hour >= 18 && hour < 23) {
+      phrases = [
         `Evening status report, ${this.userName}.`,
         `Wrapping things up, ${this.userName}?`,
-        `Hi, Me! Preparing for a smooth tomorrow.`
+        `Hi, Me! Preparing for a smooth tomorrow.`,
+        `Review your progress and close out open loops.`
       ];
-      phrase = eveningPhrases[Math.floor(Math.random() * eveningPhrases.length)];
       sub = "Review your progress and close out open loops.";
+    } else {
+      phrases = [
+        `Burning the midnight oil, ${this.userName}?`,
+        `Late night silence, deep thoughts, ${this.userName}.`,
+        `Night owl hours active. Remember to rest.`
+      ];
+      sub = "Quiet focus hours. Wrap up soon.";
     }
 
-    greetingEl.textContent = phrase;
     if (subtextEl) subtextEl.textContent = sub;
-    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
+
+    this.typewriterPhraseIndex = this.typewriterPhraseIndex % phrases.length;
+    this.typewriterCharIndex = 0;
+    this.isTypewriterDeleting = false;
+
+    const tick = () => {
+      const currentPhrase = phrases[this.typewriterPhraseIndex];
+      if (!currentPhrase) return;
+
+      if (!this.isTypewriterDeleting) {
+        this.typewriterCharIndex++;
+        greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
+        if (this.typewriterCharIndex >= currentPhrase.length) {
+          this.isTypewriterDeleting = true;
+          this.typewriterGreetingTimer = setTimeout(tick, 4500);
+          return;
+        }
+        this.typewriterGreetingTimer = setTimeout(tick, 45);
+      } else {
+        this.typewriterCharIndex--;
+        greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
+        if (this.typewriterCharIndex <= 0) {
+          this.isTypewriterDeleting = false;
+          this.typewriterPhraseIndex = (this.typewriterPhraseIndex + 1) % phrases.length;
+          this.typewriterGreetingTimer = setTimeout(tick, 600);
+          return;
+        }
+        this.typewriterGreetingTimer = setTimeout(tick, 25);
+      }
+    };
+
+    tick();
   },
 
   async promptEditUserName() {
@@ -1204,17 +1254,24 @@ const Dashboard = {
     const title = prompt(`Enter new task for project "${projectName}":`);
     if (!title || !title.trim()) return;
     try {
-      const res = await fetch("/api/ingest", {
+      const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: `${title.trim()} [${projectName}]` })
+        body: JSON.stringify({
+          title: title.trim(),
+          project_name: projectName,
+          tier: "focus"
+        })
       });
       if (res.ok) {
         App.showToast(`Task added to ${projectName}!`);
         await this.refresh();
+      } else {
+        App.showToast("Failed to create task", true);
       }
     } catch (e) {
       console.error(e);
+      App.showToast("Network error creating task", true);
     }
   },
 
@@ -1545,9 +1602,18 @@ const Dashboard = {
             div.style.borderRadius = "8px";
             div.style.border = "1px solid var(--card-border)";
             div.style.marginBottom = "8px";
+            div.style.cursor = "pointer";
+            div.title = "Click/tap to inspect and edit in modal";
+            div.onclick = (e) => {
+              if (e.target.closest("button")) return;
+              EntityModal.open("unorganized", item.id);
+            };
 
             div.innerHTML = `
-              <div style="font-weight: 700; margin-bottom: 4px; font-size: 13.5px;">"${this.escapeHtml(item.raw_input)}"</div>
+              <div style="font-weight: 700; margin-bottom: 4px; font-size: 13.5px; display: flex; justify-content: space-between; align-items: flex-start;">
+                <span>"${this.escapeHtml(item.raw_input)}"</span>
+                <span style="font-size: 10px; color: var(--text-muted); font-weight: 400;">Tap to edit ↗</span>
+              </div>
               <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
                 Routing note: ${item.reasoning || 'Uncertain routing'}
               </div>
@@ -1556,6 +1622,7 @@ const Dashboard = {
                 <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'trivial', '${this.escapeHtml(item.raw_input)}')">⚡ Trivial</button>
                 <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
                 <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
+                <button class="action-icon-btn" onclick="EntityModal.open('unorganized', ${item.id})" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit</button>
               </div>
             `;
             permanentList.appendChild(div);
@@ -1584,9 +1651,19 @@ const Dashboard = {
           div.style.padding = "14px";
           div.style.borderRadius = "8px";
           div.style.border = "1px solid var(--card-border)";
+          div.style.cursor = "pointer";
+          div.title = "Click/tap to inspect and edit in modal";
+          div.onclick = (e) => {
+            if (e.target.closest("button")) return;
+            Dashboard.closeUnorganizedModal();
+            EntityModal.open("unorganized", item.id);
+          };
 
           div.innerHTML = `
-            <div style="font-weight: 700; margin-bottom: 6px; font-size: 14px;">"${this.escapeHtml(item.raw_input)}"</div>
+            <div style="font-weight: 700; margin-bottom: 6px; font-size: 14px; display: flex; justify-content: space-between; align-items: flex-start;">
+              <span>"${this.escapeHtml(item.raw_input)}"</span>
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: 400;">Tap to edit ↗</span>
+            </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
               Routing note: ${item.reasoning || 'Uncertain routing'}
             </div>
@@ -1595,6 +1672,7 @@ const Dashboard = {
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'trivial', '${this.escapeHtml(item.raw_input)}')">⚡ Trivial Errands</button>
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
+              <button class="action-icon-btn" onclick="Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit Details</button>
             </div>
           `;
           listContainer.appendChild(div);
@@ -1710,23 +1788,35 @@ const Dashboard = {
     const projectRow = document.getElementById("manualProjectRow");
     const dateRow = document.getElementById("manualDateRow");
     const colorRow = document.getElementById("manualProjectColorRow");
+    const categoryRow = document.getElementById("manualProjectCategoryRow");
     const titleLabel = document.getElementById("manualInputTitleLabel");
     const dateLabel = document.getElementById("manualInputDateLabel");
 
     if (type === "project") {
       if (projectRow) projectRow.style.display = "none";
       if (dateRow) dateRow.style.display = "none";
+      if (categoryRow) categoryRow.style.display = "block";
       if (colorRow) colorRow.style.display = "block";
       if (titleLabel) titleLabel.textContent = "Project Name *";
+
+      const paletteContainer = document.getElementById("manualColorPalette");
+      if (paletteContainer && paletteContainer.children.length === 0) {
+        const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#e11d48", "#84cc16"];
+        paletteContainer.innerHTML = palette.map(hex => `
+          <button type="button" style="width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--card-border); background: ${hex}; cursor: pointer;" onclick="document.getElementById('manualInputColor').value='${hex}'; App.haptic('light');"></button>
+        `).join('');
+      }
     } else if (type === "event") {
       if (projectRow) projectRow.style.display = "block";
       if (dateRow) dateRow.style.display = "block";
+      if (categoryRow) categoryRow.style.display = "none";
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Event Title *";
       if (dateLabel) dateLabel.textContent = "Event Date & Time (YYYY-MM-DD HH:MM) *";
     } else if (type === "reminder") {
       if (projectRow) projectRow.style.display = "none";
       if (dateRow) dateRow.style.display = "block";
+      if (categoryRow) categoryRow.style.display = "none";
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Reminder Note *";
       if (dateLabel) dateLabel.textContent = "Reminder Date (YYYY-MM-DD or HH:MM)";
@@ -1734,6 +1824,7 @@ const Dashboard = {
       // focus or trivial task
       if (projectRow) projectRow.style.display = "block";
       if (dateRow) dateRow.style.display = "block";
+      if (categoryRow) categoryRow.style.display = "none";
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Task Title *";
       if (dateLabel) dateLabel.textContent = "Due Date / Time (24hr Military)";
@@ -1787,6 +1878,7 @@ const Dashboard = {
     const projectInput = document.getElementById("manualInputProject");
     const dateInput = document.getElementById("manualInputDate");
     const colorInput = document.getElementById("manualInputColor");
+    const categoryInput = document.getElementById("manualInputCategory");
 
     const title = titleInput ? titleInput.value.trim() : "";
     if (!title) {
@@ -1806,16 +1898,22 @@ const Dashboard = {
       dueDate = `${this.selectedDate} 12:00`;
     }
     const color = (colorInput && colorInput.value) ? colorInput.value : "#3b82f6";
+    const category = (categoryInput && categoryInput.value) ? categoryInput.value : "External";
 
     try {
       if (this.currentManualType === "project") {
         const res = await fetch("/api/projects", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: title, description, color })
+          body: JSON.stringify({ name: title, description, color, category })
         });
         if (res.ok) {
-          App.showToast(`📁 Project "${title}" created!`);
+          App.showToast(`📁 Project "${title}" (${category}) created!`);
+          this.closeManualCreateModal();
+          await this.refresh();
+          if (typeof Exploded !== "undefined") Exploded.refresh();
+          if (typeof Mindmap !== "undefined") Mindmap.refresh();
+          return;
         } else {
           const err = await res.json();
           App.showToast(err.detail || "Error creating project", true);

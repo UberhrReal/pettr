@@ -15,10 +15,14 @@ Entities:
 4. "project": A new high-level initiative or major endeavor.
 5. "unorganized": Used ONLY if the input is completely ambiguous or incomprehensible.
 
-Matching Projects:
-- You are provided with a list of CURRENT ACTIVE PROJECTS.
-- If the input belongs to or mentions an existing project, specify that project name.
-- If the input introduces a clearly new project name (e.g. "Make CAD for Social Science 1D"), set project_name to "Social Science 1D" and is_new_project to true.
+Matching Projects & Compound Commands:
+- If the input belongs to or mentions an existing project, specify that project_name.
+- If the input introduces or explicitly creates a new project (e.g. "New project: 'CALYPSO-2'", "Start project 'CALYPSO-2'"):
+  - Set project_name to the project name.
+  - Set is_new_project to true.
+  - Set project_category to "School" (if academic, courses, homework, prof, exams) or "External" (work, personal projects, CAD, business). Default is "External".
+  - If a task is also specified (e.g. "add first task due today at 9: Draft user journey map"), set entity_type to "task", title to the clean task title ("Draft user journey map"), and task_tier to "focus" or "trivial".
+- Tasks attached to a project do NOT require a deadline.
 
 Output MUST be valid JSON adhering strictly to this schema:
 {
@@ -26,6 +30,7 @@ Output MUST be valid JSON adhering strictly to this schema:
   "title": "<clean summary title without temporal phrases>",
   "description": "<optional details or empty string>",
   "project_name": "<project name or null>",
+  "project_category": "School" | "External" | null,
   "is_new_project": false,
   "task_tier": "focus" | "trivial" | null,
   "confidence": 0.0 - 1.0,
@@ -42,6 +47,49 @@ def heuristic_classify(cleaned_text: str,
     """
     text = cleaned_text.strip()
     lower = text.lower()
+
+    # 0. Check explicit compound project creation pattern:
+    # e.g. "New project: 'CALYPSO-2', add first task due today at 9: Draft user journey map"
+    # or "New project: CALYPSO-2, add first task: ..."
+    compound_match = re.search(
+        r'\b(?:new|create|start)\s+project\s*[:\-]?\s*(?:[\'\"`]([^\'\"`]+)[\'\"`]|([A-Za-z0-9\-_\. ]+?))\s*(?:,\s*|\s+-\s+|\s+and\s+|\s*:\s*|$)(?:add\s+(?:first\s+)?task\s*(?:due\s+[^:]+)?[:\-]?\s*)?(.*)',
+        text,
+        re.IGNORECASE
+    )
+    if compound_match:
+        cand_proj = (compound_match.group(1) or compound_match.group(2)).strip(' \'\":,')
+        rest_part = compound_match.group(3).strip(' \'\":,') if compound_match.group(3) else ""
+        if cand_proj and len(cand_proj) <= 40:
+            school_cues = r'\b(class|course|prof|professor|exam|homework|study|lecture|thesis|semester|assignment|module|school)\b'
+            cat = "School" if re.search(school_cues, lower) else "External"
+
+            if rest_part:
+                task_title = re.sub(r'^(?:add\s+(?:first\s+)?task\s*[:\-]?\s*|due\s+[^:]+:\s*)', '', rest_part, flags=re.IGNORECASE).strip(' :-,')
+                if not task_title:
+                    task_title = rest_part
+                return {
+                    "entity_type": "task",
+                    "title": task_title,
+                    "description": "",
+                    "project_name": cand_proj,
+                    "project_category": cat,
+                    "is_new_project": True,
+                    "task_tier": "focus",
+                    "confidence": 0.95,
+                    "reasoning": f"Compound command: create project '{cand_proj}' ({cat}) with initial focus task"
+                }
+            else:
+                return {
+                    "entity_type": "project",
+                    "title": cand_proj,
+                    "description": "",
+                    "project_name": cand_proj,
+                    "project_category": cat,
+                    "is_new_project": True,
+                    "task_tier": None,
+                    "confidence": 0.95,
+                    "reasoning": f"Create new project '{cand_proj}' ({cat})"
+                }
 
     # 1. Project detection from prefix pattern, active projects, or preposition cues
     matched_project = None
@@ -188,6 +236,7 @@ Return JSON classification:"""
                     "title": parsed.get("title") or cleaned_text,
                     "description": parsed.get("description", ""),
                     "project_name": parsed.get("project_name"),
+                    "project_category": parsed.get("project_category"),
                     "is_new_project": bool(parsed.get("is_new_project", False)),
                     "task_tier": parsed.get("task_tier"),
                     "confidence": float(parsed.get("confidence", 0.9)),

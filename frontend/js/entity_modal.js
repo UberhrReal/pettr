@@ -1,6 +1,7 @@
 /**
  * PETTR Universal Entity Detail & Re-sorting Modal
  * Allows inspecting, adding extra details to, and reclassifying any tracked item.
+ * Supports Project color tags, School/External categories, and Unorganized Queue manual triage.
  */
 const EntityModal = {
   currentEntity: null,
@@ -21,13 +22,15 @@ const EntityModal = {
       this.currentEntity = data.entity;
       await this.render();
       document.getElementById("entityModalOverlay").style.display = "flex";
+      App.renderIcons();
     } catch (err) {
       console.error("Error opening entity modal:", err);
     }
   },
 
   close() {
-    document.getElementById("entityModalOverlay").style.display = "none";
+    const overlay = document.getElementById("entityModalOverlay");
+    if (overlay) overlay.style.display = "none";
     this.currentEntity = null;
   },
 
@@ -37,17 +40,27 @@ const EntityModal = {
 
     // Load active projects for dropdown
     const projRes = await fetch("/api/projects");
-    const projects = await projRes.json();
+    const projects = projRes.ok ? await projRes.json() : [];
 
-    document.getElementById("entityModalTitle").value = e.title || e.name || "";
-    document.getElementById("entityModalDesc").value = e.description || e.details || "";
+    // Title & description (supporting unorganized raw input)
+    const titleVal = e.title || e.name || e.raw_input || "";
+    const descVal = e.description || e.details || (type === "unorganized" && e.reasoning ? `[Unorganized Routing Note: ${e.reasoning}]` : "");
+    document.getElementById("entityModalTitle").value = titleVal;
+    document.getElementById("entityModalDesc").value = descVal;
     
     // Set type switcher buttons
-    const activeTier = e.tier || (type === "task" ? "focus" : null);
+    let activeType = type;
+    let activeTier = e.tier || (type === "task" ? "focus" : null);
+
+    if (type === "unorganized") {
+      activeType = e.suggested_type || "task";
+      activeTier = e.suggested_tier || "focus";
+    }
+
     document.querySelectorAll(".type-pill-btn").forEach(btn => {
       const targetType = btn.dataset.type;
       const targetTier = btn.dataset.tier;
-      if (targetType === type && (!targetTier || targetTier === activeTier)) {
+      if (targetType === activeType && (!targetTier || targetTier === activeTier)) {
         btn.classList.add("active");
       } else {
         btn.classList.remove("active");
@@ -57,16 +70,17 @@ const EntityModal = {
     // Populate projects dropdown
     const projSelect = document.getElementById("entityModalProject");
     projSelect.innerHTML = '<option value="">-- No Project (Standalone) --</option>';
+    const assignedProj = e.project_name || e.suggested_project || (type === "project" ? e.name : null);
     projects.forEach(p => {
       const opt = document.createElement("option");
       opt.value = p.name;
-      opt.textContent = p.name;
-      if (e.project_name === p.name || e.name === p.name) opt.selected = true;
+      opt.textContent = `${(p.category || 'External') === 'School' ? '🎓' : '🌐'} ${p.name}`;
+      if (assignedProj === p.name) opt.selected = true;
       projSelect.appendChild(opt);
     });
 
     // Date / Time
-    const rawDate = e.due_date || e.start_time || e.reminder_date || "";
+    const rawDate = e.due_date || e.start_time || e.reminder_date || e.parsed_date || "";
     const dateInput = document.getElementById("entityModalDueDate");
     dateInput.value = this.formatForInput(rawDate);
 
@@ -78,6 +92,30 @@ const EntityModal = {
     const recurrenceSelect = document.getElementById("entityModalRecurrence");
     if (recurrenceSelect) {
       recurrenceSelect.value = e.recurrence || "";
+    }
+
+    // Project Category & Color Tag Row
+    const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
+    if (projectOptsRow) {
+      if (activeType === "project") {
+        projectOptsRow.style.display = "block";
+        const catSelect = document.getElementById("entityModalCategory");
+        if (catSelect) catSelect.value = e.category || "External";
+
+        const colorPicker = document.getElementById("entityModalColorPicker");
+        if (colorPicker) colorPicker.value = e.color || "#3b82f6";
+
+        // Render Quick Color Palette
+        const paletteContainer = document.getElementById("entityModalColorPalette");
+        if (paletteContainer) {
+          const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#e11d48", "#84cc16"];
+          paletteContainer.innerHTML = palette.map(hex => `
+            <button type="button" style="width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--card-border); background: ${hex}; cursor: pointer; transition: transform 0.1s ease;" onclick="document.getElementById('entityModalColorPicker').value='${hex}'; App.haptic('light');"></button>
+          `).join('');
+        }
+      } else {
+        projectOptsRow.style.display = "none";
+      }
     }
   },
 
@@ -142,11 +180,16 @@ const EntityModal = {
   selectType(btn) {
     document.querySelectorAll(".type-pill-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
+    const targetType = btn.dataset.type;
+    const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
+    if (projectOptsRow) {
+      projectOptsRow.style.display = targetType === "project" ? "block" : "none";
+    }
   },
 
   async saveChanges() {
     const activeBtn = document.querySelector(".type-pill-btn.active");
-    const toType = activeBtn ? activeBtn.dataset.type : this.fromType;
+    const toType = activeBtn ? activeBtn.dataset.type : (this.fromType === "unorganized" ? "task" : this.fromType);
     const toTier = activeBtn ? activeBtn.dataset.tier || "focus" : "focus";
 
     const title = document.getElementById("entityModalTitle").value.trim();
@@ -163,6 +206,15 @@ const EntityModal = {
     const recurrenceEl = document.getElementById("entityModalRecurrence");
     const recurrence = recurrenceEl ? (recurrenceEl.value.trim() || null) : null;
 
+    let color = null;
+    let category = null;
+    if (toType === "project") {
+      const catSelect = document.getElementById("entityModalCategory");
+      if (catSelect) category = catSelect.value || "External";
+      const colorPicker = document.getElementById("entityModalColorPicker");
+      if (colorPicker) color = colorPicker.value || null;
+    }
+
     try {
       const res = await fetch("/api/entities/reclassify", {
         method: "POST",
@@ -177,7 +229,9 @@ const EntityModal = {
           tier: toTier,
           due_date: dueDate,
           status: status,
-          recurrence: recurrence
+          recurrence: recurrence,
+          color: color,
+          category: category
         })
       });
 
@@ -185,11 +239,15 @@ const EntityModal = {
       if (res.ok) {
         App.showToast("Changes saved successfully!");
         this.close();
-        // Refresh active tab views
-        Dashboard.refresh();
+        if (this.fromType === "unorganized" && typeof Dashboard !== "undefined") {
+          Dashboard.closeUnorganizedModal();
+        }
+        // Refresh active views
+        if (typeof Dashboard !== "undefined") Dashboard.refresh();
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
+        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
       } else {
         alert(data.detail || "Error updating item.");
       }
@@ -205,16 +263,23 @@ const EntityModal = {
       let endpoint = `/api/tasks/${this.fromId}`;
       if (this.fromType === "event") endpoint = `/api/events/${this.fromId}`;
       else if (this.fromType === "reminder") endpoint = `/api/reminders/${this.fromId}`;
+      else if (this.fromType === "project") endpoint = `/api/projects/${this.fromId}`;
 
-      await fetch(endpoint, { method: "DELETE" });
-      App.showToast("Item deleted.");
-      this.close();
-      Dashboard.refresh();
-      if (typeof Timeline !== "undefined") Timeline.refresh();
-      if (typeof Mindmap !== "undefined") Mindmap.refresh();
-      if (typeof Exploded !== "undefined") Exploded.refresh();
+      const res = await fetch(endpoint, { method: "DELETE" });
+      if (res.ok) {
+        App.showToast("Item deleted.");
+        this.close();
+        if (typeof Dashboard !== "undefined") Dashboard.refresh();
+        if (typeof Timeline !== "undefined") Timeline.refresh();
+        if (typeof Mindmap !== "undefined") Mindmap.refresh();
+        if (typeof Exploded !== "undefined") Exploded.refresh();
+        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
+      } else {
+        App.showToast("Failed to delete item.", true);
+      }
     } catch (err) {
       console.error(err);
+      App.showToast("Network error deleting item.", true);
     }
   }
 };

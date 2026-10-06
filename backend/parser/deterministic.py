@@ -103,6 +103,58 @@ def parse_deterministic_date(text: str, ref_datetime: Optional[datetime.datetime
             "flag": 3
         }
 
+    # 1b. Smart Upcoming Time Resolver (e.g. "due today at 9", "at 9", "tonight at 8")
+    time_explicit_regex = re.compile(
+        r'\b(?:due\s+)?(today|tonight|tomorrow)?\s*(?:due\s+)?(?:at|by)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b',
+        re.IGNORECASE
+    )
+    time_match = time_explicit_regex.search(original_text)
+    if time_match:
+        day_word, h_str, m_str, ampm = time_match.group(1), time_match.group(2), time_match.group(3), time_match.group(4)
+        h = int(h_str)
+        minute = int(m_str) if m_str else 0
+        if 0 <= h <= 24 and 0 <= minute <= 59:
+            day_offset = 0
+            is_tonight = False
+            if day_word:
+                dw = day_word.lower()
+                if dw == "tomorrow":
+                    day_offset = 1
+                elif dw == "tonight":
+                    is_tonight = True
+
+            target_date = ref_datetime.date() + datetime.timedelta(days=day_offset)
+
+            if ampm:
+                if ampm.lower() == "pm" and h < 12:
+                    h += 12
+                elif ampm.lower() == "am" and h == 12:
+                    h = 0
+            elif is_tonight and h < 12:
+                h += 12
+            else:
+                # Discern whether it refers to 9am or 9pm based on current time
+                if target_date == ref_datetime.date() and h < 12:
+                    candidate_am = datetime.datetime.combine(target_date, datetime.time(h, minute))
+                    if candidate_am <= ref_datetime:
+                        # Morning hour has already passed today -> must be an upcoming evening time
+                        h += 12
+
+            final_dt = datetime.datetime.combine(target_date, datetime.time(min(h, 23), minute))
+            cleaned_text = original_text[:time_match.start()] + original_text[time_match.end():]
+            cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip(' .,;:-')
+            flag = 3 if day_word else 2
+            return {
+                "has_date": True,
+                "datetime": final_dt,
+                "datetime_str": final_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                "is_recurring": False,
+                "rrule": None,
+                "matched_token": time_match.group(0),
+                "cleaned_text": cleaned_text,
+                "flag": flag
+            }
+
     # 2. Check for explicit NLP date/time spans using parsedatetime
     nlp_results = cal.nlp(original_text, sourceTime=ref_datetime)
     

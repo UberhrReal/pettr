@@ -98,6 +98,9 @@
       </div>
 
       <div class="header-right-controls">
+        <button class="action-icon-btn mobile-simplified-btn" id="mobileSimplifiedBtn" onclick="SimplifiedMode.toggle()" title="Simplified Mode (Today Focus)">
+          <i data-lucide="zap" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> <span class="mobile-simplified-btn-text">Simplified</span>
+        </button>
         <button class="action-icon-btn evening-debrief-trigger" id="eveningDebriefHeaderBtn" onclick="EveningDebrief.open()" title="Evening Debrief (Accessible after 18:00 or when done)" style="display:none; color: var(--focus-indigo); font-weight:600;">
           <i data-lucide="moon-star" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Debrief
         </button>
@@ -503,10 +506,20 @@
     <section id="tabExploded" class="tab-pane">
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Exploded View: Global Project Pool & Backlog</h2>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Exploded View: Global Project Pool & Backlog</h2>
+            <span class="panel-count-badge" id="explodedProjectCountBadge" style="font-size: 11px; padding: 3px 8px; font-weight: 600;">0 Projects</span>
+          </div>
           <span style="font-size: 13px; font-weight: 300; color: var(--text-muted);">Interactive mindmap tree or structured project cards</span>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <!-- Card Pool Category Filter Group (visible in cards mode) -->
+          <div class="scale-switch-group" id="explodedPoolFilters" style="display: none;">
+            <button class="exploded-pool-filter-btn active" onclick="Exploded.setPoolFilter('split', this)" title="Side-by-side School & External pools"><i data-lucide="columns" style="width:12px;height:12px;"></i> Split</button>
+            <button class="exploded-pool-filter-btn" onclick="Exploded.setPoolFilter('all', this)">All</button>
+            <button class="exploded-pool-filter-btn" onclick="Exploded.setPoolFilter('school', this)">🎓 School</button>
+            <button class="exploded-pool-filter-btn" onclick="Exploded.setPoolFilter('external', this)">🌐 External</button>
+          </div>
           <div class="scale-switch-group">
             <button class="exploded-view-toggle-btn active" data-view="mindmap"><i data-lucide="sparkles" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Constellation Cloud</button>
             <button class="exploded-view-toggle-btn" data-view="cards"><i data-lucide="layout-grid" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project Cards</button>
@@ -522,8 +535,10 @@
           <button class="action-icon-btn" onclick="Mindmap.resetView()" title="Center & Reset View"><i data-lucide="locate" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Recenter</button>
           <button class="action-icon-btn" onclick="Mindmap.toggleRotation()" id="mindmapOrbitBtn" title="Toggle Auto-Orbit"><i data-lucide="pause" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Pause Orbit</button>
           <div class="scale-switch-group" style="padding: 2px;">
-            <button class="action-icon-btn cluster-filter-btn active" onclick="Mindmap.setFilter('all', this)" style="border: none; font-size: 11px;">All Branches</button>
+            <button class="action-icon-btn cluster-filter-btn active" onclick="Mindmap.setFilter('all', this)" style="border: none; font-size: 11px;">All</button>
             <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('projects', this)" style="border: none; font-size: 11px;">Projects</button>
+            <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('school', this)" style="border: none; font-size: 11px;">🎓 School</button>
+            <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('external', this)" style="border: none; font-size: 11px;">🌐 External</button>
             <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('tasks', this)" style="border: none; font-size: 11px;">Tasks</button>
             <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('events', this)" style="border: none; font-size: 11px;">Events</button>
             <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('reminders', this)" style="border: none; font-size: 11px;">Reminders</button>
@@ -573,12 +588,6 @@
             <button class="timeline-scale-btn active" data-scale="day"><i data-lucide="calendar" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Day</button>
             <button class="timeline-scale-btn" data-scale="month"><i data-lucide="calendar-range" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Month</button>
             <button class="timeline-scale-btn" data-scale="year"><i data-lucide="bar-chart-2" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Year</button>
-          </div>
-
-          <!-- Sample Data Controls -->
-          <div style="display: flex; gap: 8px;">
-            <button class="action-icon-btn" onclick="Timeline.seedSampleData()" style="color: var(--text-main); font-weight: 600;" title="Populate realistic demo items across all 7 days of the week"><i data-lucide="database" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Seed Week Demo Data</button>
-            <button class="action-icon-btn" onclick="Timeline.clearSampleData()" style="color: var(--urgent-orange);" title="Purge seeded demo items"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Clear Demo Data</button>
           </div>
         </div>
       </div>
@@ -1281,6 +1290,25 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           </select>
         </div>
       </div>
+      <!-- Project Category & Color Tag Row -->
+      <div id="entityModalProjectOptionsRow" style="display: none; border-top: 1px solid var(--card-border); padding-top: 12px; margin-top: 6px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Category *</label>
+            <select id="entityModalCategory" class="modal-input">
+              <option value="External">🌐 External / Personal</option>
+              <option value="School">🎓 School / Academic</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Color Tag</label>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <input type="color" id="entityModalColorPicker" value="#3b82f6" style="width: 38px; height: 34px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
+              <div id="entityModalColorPalette" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
         <button class="action-icon-btn" onclick="EntityModal.deleteEntity()" style="color: var(--urgent-orange); padding: 8px 14px;"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Delete Item</button>
         <div style="display: flex; gap: 10px;">
@@ -1346,9 +1374,19 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </div>
 
       <!-- Project Specific Fields -->
+      <div id="manualProjectCategoryRow" style="display: none; margin-bottom: 10px;">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Category *</label>
+        <select id="manualInputCategory" class="modal-input">
+          <option value="External">🌐 External / Personal</option>
+          <option value="School">🎓 School / Academic</option>
+        </select>
+      </div>
       <div id="manualProjectColorRow" style="display: none;">
-        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Accent Color</label>
-        <input type="color" id="manualInputColor" value="#3b82f6" style="width: 44px; height: 36px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent;">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Accent Color Tag</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="color" id="manualInputColor" value="#3b82f6" style="width: 44px; height: 36px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
+          <div id="manualColorPalette" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+        </div>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
@@ -1577,6 +1615,36 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     </div>
   </div>
 
+  <!-- Simplified Mode Slide-Over Overlay (Mobile Only) -->
+  <div id="simplifiedModeOverlay" class="simplified-mode-overlay" style="display: none;">
+    <div class="simplified-mode-card">
+      <div class="simplified-mode-header">
+        <div class="simplified-mode-title-group">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="simplified-mode-badge"><i data-lucide="zap" style="width: 12px; height: 12px;"></i> Simplified Focus</span>
+            <span class="simplified-mode-live-pill font-mono" id="simplifiedClock">--:--</span>
+          </div>
+          <h2 class="simplified-mode-title">Today's Agenda</h2>
+          <span class="simplified-mode-subtitle" id="simplifiedModeCount">0 items for today</span>
+        </div>
+        <button class="action-icon-btn simplified-mode-close-btn" onclick="SimplifiedMode.close()" title="Exit Simplified Mode">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+
+      <div class="simplified-mode-hint-bar">
+        <i data-lucide="arrow-up-down" style="width: 13px; height: 13px;"></i>
+        <span>Touch &amp; drag <strong>≡</strong> to reorder. Syncs priority directly to dashboard.</span>
+      </div>
+
+      <div class="simplified-mode-body">
+        <div id="simplifiedModeList" class="simplified-mode-list">
+          <!-- Today's reorderable tasks, events, reminders, and active projects injected here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1588,6 +1656,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <script src="/static/js/timeline.js?v=5.5"></script>
   <script src="/static/js/mindmap.js?v=5.5"></script>
   <script src="/static/js/dashboard.js?v=5.5"></script>
+  <script src="/static/js/simplified_mode.js?v=5.5"></script>
   <script src="/static/js/exploded.js?v=5.5"></script>
   <script src="/static/js/notes.js?v=5.5"></script>
   <script src="/static/js/history.js?v=5.5"></script>

@@ -1,5 +1,6 @@
 import sqlite3
 import json
+import random
 import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -12,6 +13,21 @@ DEFAULT_DB_PATH = DEFAULT_DATA_DIR / "pettr.sqlite"
 def resolve_db_path(db_path: Optional[Path] = None) -> Path:
     return Path(db_path) if db_path is not None else Path(DEFAULT_DB_PATH)
 
+def run_migrations(conn: sqlite3.Connection) -> None:
+    """Safely applies non-breaking schema migrations to existing databases."""
+    try:
+        conn.execute("ALTER TABLE projects ADD COLUMN completed_at TIMESTAMP")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE reminders ADD COLUMN recurrence TEXT")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE projects ADD COLUMN category TEXT DEFAULT 'External'")
+    except Exception:
+        pass
+
 def get_connection(db_path: Optional[Path] = None, auto_init: bool = True) -> sqlite3.Connection:
     """Creates a connection with WAL mode, normal synchronous durability, and row factory enabled."""
     resolved_path = resolve_db_path(db_path)
@@ -22,11 +38,13 @@ def get_connection(db_path: Optional[Path] = None, auto_init: bool = True) -> sq
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("PRAGMA foreign_keys=ON;")
     
-    # Auto-initialize tables if not present
+    # Auto-initialize tables if not present, and run migrations
     if auto_init:
         table_exists = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='projects'").fetchone()
         if not table_exists:
             init_db(resolved_path)
+        else:
+            run_migrations(conn)
         
     return conn
 
@@ -40,6 +58,7 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             name TEXT UNIQUE NOT NULL,
             description TEXT DEFAULT '',
             color TEXT DEFAULT '#3b82f6',
+            category TEXT DEFAULT 'External', -- School, External
             status TEXT DEFAULT 'active', -- active, completed, archived
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -129,6 +148,10 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             pass
         try:
             conn.execute("ALTER TABLE reminders ADD COLUMN recurrence TEXT")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE projects ADD COLUMN category TEXT DEFAULT 'External'")
         except Exception:
             pass
 
@@ -240,45 +263,84 @@ def compute_urgency(due_date_str: Optional[str], ref_datetime: Optional[datetime
 
 # --- Project Operations ---
 
-def get_or_create_project(name: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+PROJECT_PALETTE = [
+    "#3b82f6",  # Electric Blue
+    "#10b981",  # Emerald Green
+    "#f59e0b",  # Amber Orange
+    "#8b5cf6",  # Purple Violet
+    "#ec4899",  # Neon Pink
+    "#06b6d4",  # Cyan Blue
+    "#f97316",  # Deep Sunset Orange
+    "#14b8a6",  # Vibrant Teal
+    "#e11d48",  # Rose Red
+    "#84cc16",  # Lime Green
+    "#6366f1",  # Indigo
+    "#d946ef",  # Fuchsia
+]
+
+def get_untaken_project_color(db_path: Optional[Path] = None) -> str:
+    """Returns a random untaken color from the palette, or random choice if all are taken."""
+    conn = get_connection(db_path)
+    rows = conn.execute("SELECT color FROM projects WHERE status = 'active'").fetchall()
+    taken = {r["color"].lower() for r in rows if r["color"]}
+    untaken = [c for c in PROJECT_PALETTE if c.lower() not in taken]
+    if untaken:
+        return random.choice(untaken)
+    return random.choice(PROJECT_PALETTE)
+
+def get_or_create_project(name: str, category: str = "External", db_path: Optional[Path] = None) -> Dict[str, Any]:
     clean_name = name.strip()
+    # Support callers passing db_path as second positional argument: get_or_create_project(name, db_path)
+    if isinstance(category, Path):
+        db_path = category
+        category = "External"
+    elif isinstance(category, str) and (category.endswith(".sqlite") or "/" in category or "\\" in category):
+        db_path = Path(category)
+        category = "External"
+
     conn = get_connection(db_path)
     with conn:
         row = conn.execute("SELECT * FROM projects WHERE LOWER(name) = LOWER(?)", (clean_name,)).fetchone()
         if row:
             return dict(row)
-        cursor = conn.execute("INSERT INTO projects (name) VALUES (?)", (clean_name,))
+        auto_color = get_untaken_project_color(db_path)
+        valid_cat = "School" if str(category).strip().lower() == "school" else "External"
+        cursor = conn.execute("INSERT INTO projects (name, color, category) VALUES (?, ?, ?)", (clean_name, auto_color, valid_cat))
         new_row = conn.execute("SELECT * FROM projects WHERE id = ?", (cursor.lastrowid,)).fetchone()
         return dict(new_row)
 
 def create_project(name: str,
                    description: str = "",
-                   color: str = "#3b82f6",
+                   color: Optional[str] = None,
+                   category: str = "External",
                    initial_task: Optional[str] = None,
                    db_path: Optional[Path] = None) -> Dict[str, Any]:
-    """Manually creates a new project with optional initial task and accent color."""
+    """Manually creates a new project with optional initial task, category ('School' or 'External'), and accent color."""
     clean_name = name.strip()
     if not clean_name:
         raise ValueError("Project name cannot be empty")
+    valid_cat = "School" if str(category).strip().lower() == "school" else "External"
     conn = get_connection(db_path)
     with conn:
         row = conn.execute("SELECT * FROM projects WHERE LOWER(name) = LOWER(?)", (clean_name,)).fetchone()
+        assigned_color = color if color and color != "#3b82f6" else (row["color"] if row and row["color"] else get_untaken_project_color(db_path))
         if row:
             conn.execute("""
                 UPDATE projects 
                 SET description = CASE WHEN ? != '' THEN ? ELSE description END,
                     color = ?,
+                    category = ?,
                     status = 'active',
                     completed_at = NULL,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """, (description, description, color, row["id"]))
+            """, (description, description, assigned_color, valid_cat, row["id"]))
             proj_id = row["id"]
         else:
             cursor = conn.execute("""
-                INSERT INTO projects (name, description, color, status)
-                VALUES (?, ?, ?, 'active')
-            """, (clean_name, description, color))
+                INSERT INTO projects (name, description, color, category, status)
+                VALUES (?, ?, ?, ?, 'active')
+            """, (clean_name, description, assigned_color, valid_cat))
             proj_id = cursor.lastrowid
 
         if initial_task and initial_task.strip():
@@ -291,6 +353,19 @@ def create_project(name: str,
 
         new_row = conn.execute("SELECT * FROM projects WHERE id = ?", (proj_id,)).fetchone()
         return dict(new_row)
+
+def delete_project(project_id: int, delete_tasks: bool = False, db_path: Optional[Path] = None) -> bool:
+    """Permanently deletes a project. If delete_tasks is True, subtasks are removed; otherwise unlinked."""
+    conn = get_connection(db_path)
+    with conn:
+        if delete_tasks:
+            conn.execute("DELETE FROM tasks WHERE project_id = ?", (project_id,))
+            conn.execute("DELETE FROM events WHERE project_id = ?", (project_id,))
+        else:
+            conn.execute("UPDATE tasks SET project_id = NULL WHERE project_id = ?", (project_id,))
+            conn.execute("UPDATE events SET project_id = NULL WHERE project_id = ?", (project_id,))
+        conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    return True
 
 def complete_project(project_id: int, complete_subtasks: bool = True, db_path: Optional[Path] = None) -> bool:
     """Wraps up a project, marking it completed and completing open subtasks."""
@@ -350,7 +425,7 @@ def create_task(title: str,
     conn = get_connection(db_path)
     project_id = None
     if project_name:
-        proj = get_or_create_project(project_name, db_path)
+        proj = get_or_create_project(project_name, db_path=db_path)
         project_id = proj["id"]
 
     task_id = None
@@ -558,7 +633,7 @@ def create_event(title: str,
     conn = get_connection(db_path)
     project_id = None
     if project_name:
-        proj = get_or_create_project(project_name, db_path)
+        proj = get_or_create_project(project_name, db_path=db_path)
         project_id = proj["id"]
 
     with conn:
@@ -981,11 +1056,20 @@ def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:
     # All active reminders
     reminders = conn.execute("SELECT r.*, t.title as task_title FROM reminders r LEFT JOIN tasks t ON r.task_id = t.id WHERE r.is_done = 0 ORDER BY r.created_at ASC").fetchall()
 
+    school_count = sum(1 for p in projects_with_tasks if (p.get("category") or "External").lower() == "school")
+    external_count = sum(1 for p in projects_with_tasks if (p.get("category") or "External").lower() != "school")
+    stats = {
+        "total_projects": len(projects_with_tasks),
+        "school_count": school_count,
+        "external_count": external_count
+    }
+
     return {
         "projects": projects_with_tasks,
         "standalone_tasks": unassigned_tasks,
         "events": [dict(e) for e in events],
-        "reminders": [dict(r) for r in reminders]
+        "reminders": [dict(r) for r in reminders],
+        "stats": stats
     }
 
 # --- Entity Detail & Re-sorting / Conversion Operations ---
@@ -1030,11 +1114,13 @@ def reclassify_entity(from_type: str,
                       due_date: Optional[str] = None,
                       status: str = "pending",
                       recurrence: Optional[str] = None,
+                      color: Optional[str] = None,
+                      category: Optional[str] = None,
                       db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Edits an entity or converts it between Task, Event, Reminder, and Project.
     Allows complete manual re-sorting if the automatic engine got it wrong.
-    Supports setting and changing recurrence rules.
+    Supports setting and changing recurrence rules, project color tags, and School/External categories.
     """
     conn = get_connection(db_path)
     clean_from = from_type.lower()
@@ -1042,7 +1128,7 @@ def reclassify_entity(from_type: str,
 
     project_id = None
     if project_name:
-        proj = get_or_create_project(project_name, db_path)
+        proj = get_or_create_project(project_name, category=category or "External", db_path=db_path)
         project_id = proj["id"]
 
     # Case 1: In-place update within the same entity type
@@ -1065,7 +1151,12 @@ def reclassify_entity(from_type: str,
                     WHERE id = ?
                 """, (title, description, rem_date, recurrence, from_id))
             elif clean_to == "project":
-                conn.execute("UPDATE projects SET name = ?, description = ? WHERE id = ?", (title, description, from_id))
+                valid_cat = "School" if category and category.lower() == "school" else ("External" if category else None)
+                conn.execute("""
+                    UPDATE projects 
+                    SET name = ?, description = ?, color = COALESCE(?, color), category = COALESCE(?, category), updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, (title, description, color, valid_cat, from_id))
 
         if clean_to == "task":
             return {"status": "success", "entity_type": "task", "entity": get_task_by_id(from_id, db_path)}
@@ -1094,7 +1185,8 @@ def reclassify_entity(from_type: str,
         rem_date = due_date.split(" ")[0] if due_date else None
         new_entity = create_reminder(title=title, details=description, reminder_date=rem_date, db_path=db_path)
     elif clean_to == "project":
-        new_entity = get_or_create_project(title, db_path)
+        valid_cat = "School" if category and category.lower() == "school" else "External"
+        new_entity = create_project(name=title, description=description, color=color, category=valid_cat, db_path=db_path)
 
     return {"status": "success", "entity_type": clean_to, "entity": new_entity}
 

@@ -8,7 +8,7 @@ from backend import database
 import re
 from typing import Tuple
 
-def check_date_validity(raw_text: str, temporal_data: Dict[str, Any], entity_type: str) -> Tuple[bool, str]:
+def check_date_validity(raw_text: str, temporal_data: Dict[str, Any], entity_type: str, project_name: Optional[str] = None) -> Tuple[bool, str]:
     """
     Validates that if a date/time was specified, it is valid and has at least a set day.
     If an invalid date format or out-of-bounds day/month/time is detected, or if a time
@@ -59,9 +59,12 @@ def check_date_validity(raw_text: str, temporal_data: Dict[str, Any], entity_typ
         if not re.search(r'\b(today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b', raw_lower):
             return False, "Time specified without at least a set day"
 
-    # 6. Tasks and Events strictly require a set day or deadline
-    if entity_type in ("task", "event") and not temporal_data.get("has_date"):
-        return False, "No specified day or deadline — sent to unorganised queue for review"
+    # 6. Standalone Tasks and Events strictly require a set day or deadline
+    # BUT: Project tasks do NOT need a due date to belong to their project!
+    if entity_type == "task" and not project_name and not temporal_data.get("has_date"):
+        return False, "Standalone task has no specified day or deadline — sent to unorganised queue for review"
+    if entity_type == "event" and not temporal_data.get("has_date"):
+        return False, "Scheduled event requires a date or time"
 
     return True, ""
 
@@ -134,7 +137,7 @@ async def process_user_input(raw_input: str,
     reasoning = classification.get("reasoning", "")
 
     # Date Validation & Required Set Day Enforcement
-    is_date_valid, date_invalid_reason = check_date_validity(clean_raw, temporal_data, entity_type)
+    is_date_valid, date_invalid_reason = check_date_validity(clean_raw, temporal_data, entity_type, project_name=project_name)
     if not is_date_valid:
         confidence = 0.4
         reasoning = f"Uncertain date/time: {date_invalid_reason}. Sent to unorganised queue for manual review."
@@ -175,11 +178,12 @@ async def process_user_input(raw_input: str,
     created_entity = None
 
     # Handle Project auto-registration to global pool
+    project_cat = classification.get("project_category") or "External"
     if project_name:
-        database.get_or_create_project(project_name, db_path)
+        database.get_or_create_project(project_name, category=project_cat, db_path=db_path)
 
     if entity_type == "project":
-        created_entity = database.get_or_create_project(title, db_path)
+        created_entity = database.get_or_create_project(title, category=project_cat, db_path=db_path)
         target_id = created_entity["id"]
 
     elif entity_type == "event":

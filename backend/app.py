@@ -87,6 +87,8 @@ class ReclassifyRequest(BaseModel):
     due_date: Optional[str] = None
     status: Optional[str] = "pending"
     recurrence: Optional[str] = None
+    color: Optional[str] = None
+    category: Optional[str] = None
 
 class ProfileUpdateRequest(BaseModel):
     user_name: str
@@ -94,7 +96,8 @@ class ProfileUpdateRequest(BaseModel):
 class CreateProjectRequest(BaseModel):
     name: str
     description: Optional[str] = ""
-    color: Optional[str] = "#3b82f6"
+    color: Optional[str] = None
+    category: Optional[str] = "External"
     initial_task: Optional[str] = None
 
 class CreateTaskRequest(BaseModel):
@@ -376,10 +379,17 @@ async def create_project_endpoint(req: CreateProjectRequest):
     created = database.create_project(
         name=req.name,
         description=req.description or "",
-        color=req.color or "#3b82f6",
+        color=req.color,
+        category=req.category or "External",
         initial_task=req.initial_task
     )
     return {"status": "success", "project": created}
+
+@app.delete("/api/projects/{project_id}", dependencies=[Depends(auth.require_auth)])
+async def delete_project_endpoint(project_id: int):
+    """Permanently deletes a project and unlinks subtasks."""
+    database.delete_project(project_id)
+    return {"status": "success", "success": True}
 
 @app.post("/api/projects/{project_id}/complete", dependencies=[Depends(auth.require_auth)])
 async def complete_project_endpoint(project_id: int):
@@ -500,7 +510,9 @@ async def reclassify_item(req: ReclassifyRequest):
         tier=req.tier or "focus",
         due_date=req.due_date,
         status=req.status or "pending",
-        recurrence=req.recurrence
+        recurrence=req.recurrence,
+        color=req.color,
+        category=req.category
     )
     return result
 

@@ -177,6 +177,84 @@ const Mindmap = {
       this.hoveredNode = null;
       this.hideTooltip();
     });
+
+    // Touch Controls (Mobile Ergonomics & Orbit Gestures)
+    c.style.touchAction = "none";
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let touchMoved = false;
+    let lastPinchDist = null;
+
+    c.addEventListener("touchstart", (e) => {
+      this.hideTooltip();
+      if (e.touches.length === 1) {
+        this.isDragging = true;
+        touchMoved = false;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        lastTouchX = touchStartX;
+        lastTouchY = touchStartY;
+      } else if (e.touches.length === 2) {
+        this.isDragging = false;
+        lastPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: false });
+
+    c.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1 && this.isDragging) {
+        const curX = e.touches[0].clientX;
+        const curY = e.touches[0].clientY;
+        const dx = curX - lastTouchX;
+        const dy = curY - lastTouchY;
+        if (Math.hypot(curX - touchStartX, curY - touchStartY) > 8) {
+          touchMoved = true;
+        }
+        this.rotY += dx * 0.01;
+        this.rotX += dy * 0.01;
+        this.rotX = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, this.rotX));
+        lastTouchX = curX;
+        lastTouchY = curY;
+      } else if (e.touches.length === 2 && lastPinchDist !== null) {
+        touchMoved = true;
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const factor = currentDist / (lastPinchDist || currentDist);
+        this.zoom = Math.min(Math.max(this.zoom * factor, 0.45), 2.8);
+        lastPinchDist = currentDist;
+      }
+    }, { passive: false });
+
+    c.addEventListener("touchend", (e) => {
+      this.isDragging = false;
+      lastPinchDist = null;
+      if (!touchMoved) {
+        // Clean tap detected -> hit test node
+        const rect = c.getBoundingClientRect();
+        const tapX = lastTouchX - rect.left;
+        const tapY = lastTouchY - rect.top;
+        const clicked = this.findNodeAt(tapX, tapY);
+        if (clicked) {
+          if (clicked.type === "unorganized") {
+            Dashboard.openUnorganizedModal();
+          } else {
+            EntityModal.open(clicked.type, clicked.id);
+          }
+        }
+      }
+    });
+
+    c.addEventListener("touchcancel", () => {
+      this.isDragging = false;
+      lastPinchDist = null;
+    });
   },
 
   toggleRotation() {
@@ -244,6 +322,12 @@ const Mindmap = {
 
   isNodeVisible(node) {
     if (this.activeFilter === "all") return true;
+    if (this.activeFilter === "school") {
+      return node.category === "School" || node.projectCategory === "School";
+    }
+    if (this.activeFilter === "external") {
+      return node.category === "External" || node.projectCategory === "External";
+    }
     if (this.activeFilter === "projects") {
       return node.cluster === "projects";
     }
@@ -315,72 +399,85 @@ const Mindmap = {
       return { x, y, z };
     };
 
-    // 1. Projects and Project Subtasks: Sector phi in [0.10, 1.45]
+    // 1. Projects and Project Subtasks: Segregated into School and External sectors
     const projects = data.projects || [];
-    const pCount = projects.length;
-    projects.forEach((p, pIdx) => {
-      const pPhi = 0.15 + (pIdx / Math.max(pCount, 1)) * 1.25;
-      const pTheta = 0; // Outer equator of the torus tube
-      const pCoords = getTorusCoords(pPhi, pTheta, 0);
+    const schoolProjects = projects.filter(p => (p.category || "External").toLowerCase() === "school");
+    const externalProjects = projects.filter(p => (p.category || "External").toLowerCase() !== "school");
 
-      const tasksCount = (p.tasks || []).length;
-      const pColor = p.color || "#8b5cf6";
-      const pNode = {
-        id: p.id,
-        type: "project",
-        cluster: "projects",
-        title: p.name,
-        description: p.description || "",
-        projectName: p.name,
-        tasksCount: tasksCount,
-        x: pCoords.x,
-        y: pCoords.y,
-        z: pCoords.z,
-        radius: 8.5,
-        color: pColor,
-        glowColor: this.hexToRgba(pColor, 0.5)
-      };
-      this.nodes.push(pNode);
+    const positionProjectCluster = (projList, startPhi, phiSpan, baseTheta, isSchool) => {
+      const count = projList.length;
+      projList.forEach((p, pIdx) => {
+        const pPhi = startPhi + (pIdx / Math.max(count, 1)) * phiSpan;
+        const pTheta = baseTheta;
+        const pCoords = getTorusCoords(pPhi, pTheta, 0);
 
-      // Child subtasks orbiting along the torus tube around the project
-      const tasks = p.tasks || [];
-      tasks.forEach((t, tIdx) => {
-        const tTheta = ((tIdx + 1) * 1.35) % (Math.PI * 2);
-        const tPhi = pPhi + Math.sin(tIdx * 1.4) * 0.09;
-        const tOffset = Math.cos(tIdx * 1.8) * 16;
-        const tCoords = getTorusCoords(tPhi, tTheta, tOffset);
-
-        const isCompleted = t.status === "completed";
-        const isUrgent = t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high");
-        const tColor = isCompleted ? "#a1a1aa" : (isUrgent ? "#FF4500" : (t.tier === "focus" ? "#6366f1" : "#10b981"));
-
-        const tNode = {
-          id: t.id,
-          type: "task",
+        const tasksCount = (p.tasks || []).length;
+        const pColor = p.color || (isSchool ? "#ec4899" : "#3b82f6");
+        const pNode = {
+          id: p.id,
+          type: "project",
           cluster: "projects",
-          title: t.title,
-          description: t.description || "",
-          dueDate: t.due_date_military || t.due_date || "",
-          status: t.status || "pending",
+          category: isSchool ? "School" : "External",
+          title: p.name,
+          description: p.description || "",
           projectName: p.name,
-          tier: t.tier,
-          isUrgent: isUrgent,
-          x: tCoords.x,
-          y: tCoords.y,
-          z: tCoords.z,
-          radius: isUrgent ? 7.0 : 5.5,
-          color: tColor,
-          glowColor: this.hexToRgba(tColor, isUrgent ? 0.75 : 0.45)
+          tasksCount: tasksCount,
+          x: pCoords.x,
+          y: pCoords.y,
+          z: pCoords.z,
+          radius: 9.0,
+          color: pColor,
+          glowColor: this.hexToRgba(pColor, 0.55)
         };
-        this.nodes.push(tNode);
-        this.links.push({
-          from: pNode,
-          to: tNode,
-          color: this.hexToRgba(pColor, 0.25),
-          cluster: "projects"
+        this.nodes.push(pNode);
+
+        // Child subtasks orbiting along the torus tube around the project
+        const tasks = p.tasks || [];
+        tasks.forEach((t, tIdx) => {
+          const tTheta = pTheta + ((tIdx + 1) * 1.35) % (Math.PI * 2);
+          const tPhi = pPhi + Math.sin(tIdx * 1.4) * 0.08;
+          const tOffset = Math.cos(tIdx * 1.8) * 16;
+          const tCoords = getTorusCoords(tPhi, tTheta, tOffset);
+
+          const isCompleted = t.status === "completed";
+          const isUrgent = t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high");
+          const tColor = isCompleted ? "#a1a1aa" : (isUrgent ? "#FF4500" : (t.tier === "focus" ? "#6366f1" : "#10b981"));
+
+          const tNode = {
+            id: t.id,
+            type: "task",
+            cluster: "projects",
+            category: isSchool ? "School" : "External",
+            projectCategory: isSchool ? "School" : "External",
+            title: t.title,
+            description: t.description || "",
+            dueDate: t.due_date_military || t.due_date || "",
+            status: t.status || "pending",
+            projectName: p.name,
+            tier: t.tier,
+            isUrgent: isUrgent,
+            x: tCoords.x,
+            y: tCoords.y,
+            z: tCoords.z,
+            radius: isUrgent ? 7.0 : 5.5,
+            color: tColor,
+            glowColor: this.hexToRgba(tColor, isUrgent ? 0.75 : 0.45)
+          };
+          this.nodes.push(tNode);
+          this.links.push({
+            from: pNode,
+            to: tNode,
+            color: this.hexToRgba(pColor, 0.3),
+            cluster: "projects"
+          });
         });
       });
-    });
+    };
+
+    // Position School projects in sector 1 (upper hemisphere)
+    positionProjectCluster(schoolProjects, 0.12, 0.55, 0.65, true);
+    // Position External projects in sector 2 (lower/equatorial hemisphere)
+    positionProjectCluster(externalProjects, 0.78, 0.65, -0.65, false);
 
     // 2. Standalone Focus Tasks: Sector phi in [1.60, 2.75]
     const standaloneTasks = data.standalone_tasks || [];
