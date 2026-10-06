@@ -13,7 +13,7 @@ A 24/7 self-hosted, lightweight personal productivity hub designed to run on a l
   - Safe Heuristic Fallback: Automatically kicks in if the local model is offline.
   - **Unorganized Queue**: Automatic safety net if classification is uncertain.
 - **Intelligent Classification & Organization**:
-  - **Projects**: Auto-added to the global pool on first mention (e.g. `"Social Science 1D"`, `"IDEA-1 Concept"`).
+  - **Projects**: Auto-added to the global pool on first mention (e.g. `"Social Science 1D"`, `"IDEA-1 Concept"`), categorized into **School** 🎓 and **External** 🌐 pools with distinct untaken colors.
   - **Tasks**: Divided into **Focus** (deep work, exams, CAD, design) and **Trivial** (errands, chores, parcel pickup).
   - **Urgency Color Coding**:
     - 🟧 **Bright Orange**: Due within $\le 2$ days ($\le 48\text{h}$) or overdue.
@@ -22,7 +22,10 @@ A 24/7 self-hosted, lightweight personal productivity hub designed to run on a l
   - **Drag-and-Drop Reordering**: Hold and drag `≡` on each day to reorder priority.
   - **Events & Reminders**: Dedicated daily sections; reminders can be appended under tasks.
 - **Top Daily Briefing**: Active focus/trivial counts, events, and a concise "Tomorrow's Outlook" blurb.
-- **Exploded View**: Bird's-eye view of all projects, progress bars, and standalone backlog items.
+- **Exploded View (Global Project Pool)**:
+  - **3D Constellation Cloud**: Interactive force-directed spherical graph visualizing project clusters and task dependencies with full mobile touch rotation and pinch-to-zoom.
+  - **Structured Project Cards**: Progress bars, collapsible descriptions, task backlogs, and category-first sorting (`🎓 School 1st`, `🌐 External 1st`, `A–Z`).
+- **Mobile Simplified Mode**: Lightweight, clutter-free mobile view presenting only today's tasks, events, and reminders with full drag-to-rearrange support.
 - **Notes Tab**: Auto-saving scratchpad with a 1-click **"Send to PETTR Parser"** button.
 - **Audit History**: Complete log of how deterministic parsing and LLM classification routed every raw input.
 - **Weekly Google Drive Backup**: Automated weekly `.zip` archive containing a clean SQLite snapshot, human-readable Markdown digest, and JSON export.
@@ -50,19 +53,34 @@ For running PETTR and a lightweight local LLM 24/7 smoothly at home:
 
 - **Production (24/7 Ubuntu Server / Docker)**: See the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) for full guide (hardware jumper tuning, Tailscale mesh, native Ollama bridge, Docker Compose, systemd, and rclone).
   ```bash
-  git clone <YOUR_GIT_REPO> ~/pettr
+  git clone https://github.com/UberhrReal/pettr.git ~/pettr
   cd ~/pettr
   docker compose up -d --build
   ```
-- **Local Dev / Windows Host**:
-  ```powershell
-  cd C:\Users\User\.gemini\antigravity\scratch\pettr
-  .\run_server.bat
-  ```
-  Or via Python virtual environment:
-  ```powershell
-  .\venv\Scripts\python.exe run_server.py
-  ```
+- **Local Development (Windows / macOS / Linux)**:
+  1. Clone repository and navigate into the folder:
+     ```bash
+     git clone https://github.com/UberhrReal/pettr.git
+     cd pettr
+     ```
+  2. Create a virtual environment and install dependencies:
+     ```bash
+     python -m venv venv
+     # Windows:
+     .\venv\Scripts\activate
+     # macOS/Linux:
+     source venv/bin/activate
+
+     pip install -r requirements.txt
+     ```
+  3. Start the application:
+     ```bash
+     # Windows batch launcher:
+     .\run_server.bat
+
+     # Or run directly via Python:
+     python run_server.py
+     ```
 
 Open your browser to:
 - **Local:** `http://127.0.0.1:8000`
