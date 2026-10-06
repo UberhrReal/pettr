@@ -438,24 +438,38 @@ async def resolve_unorganized(item_id: int, req: ResolveUnorganizedRequest):
     if not row:
         raise HTTPException(status_code=404, detail="Item not found")
 
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    effective_due_date = req.due_date or row["parsed_date"] or f"{today_str} 23:59:00"
+
+    # Historical lock protection: cannot triage unorganized items into locked past days
+    try:
+        check_date = datetime.date.fromisoformat(effective_due_date.split("T")[0].split(" ")[0])
+        if check_date < datetime.date.today():
+            effective_due_date = f"{today_str} 23:59:00"
+    except (ValueError, TypeError):
+        pass
+
+    assigned_project = req.project_name or row["suggested_project"]
+
     created = None
     if req.entity_type == "task":
         created = database.create_task(
             title=req.title,
             tier=req.tier or "focus",
-            project_name=req.project_name,
-            due_date=req.due_date
+            project_name=assigned_project,
+            due_date=effective_due_date
         )
     elif req.entity_type == "event":
         created = database.create_event(
             title=req.title,
-            start_time=req.due_date or str(database.datetime.datetime.now()),
-            project_name=req.project_name
+            start_time=effective_due_date,
+            project_name=assigned_project
         )
     elif req.entity_type == "reminder":
+        rem_date = effective_due_date.split(" ")[0] if effective_due_date else today_str
         created = database.create_reminder(
             title=req.title,
-            reminder_date=req.due_date.split(" ")[0] if req.due_date else None
+            reminder_date=rem_date
         )
     elif req.entity_type == "project":
         created = database.get_or_create_project(req.title)

@@ -1178,12 +1178,25 @@ def reclassify_entity(from_type: str,
 
     # Now create new row into destination table cleanly
     new_entity = None
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    effective_due_date = due_date
+    if clean_from == "unorganized":
+        if not effective_due_date and not project_name:
+            effective_due_date = f"{today_str} 23:59:00"
+        elif effective_due_date:
+            try:
+                check_date = datetime.date.fromisoformat(effective_due_date.split("T")[0].split(" ")[0])
+                if check_date < datetime.date.today():
+                    effective_due_date = f"{today_str} 23:59:00"
+            except (ValueError, TypeError):
+                pass
+
     if clean_to == "task":
-        new_entity = create_task(title=title, description=description, project_name=project_name, tier=tier, due_date=due_date, recurrence=recurrence, db_path=db_path)
+        new_entity = create_task(title=title, description=description, project_name=project_name, tier=tier, due_date=effective_due_date, recurrence=recurrence, db_path=db_path)
     elif clean_to == "event":
-        new_entity = create_event(title=title, description=description, project_name=project_name, start_time=due_date or str(datetime.datetime.now()), recurrence=recurrence, db_path=db_path)
+        new_entity = create_event(title=title, description=description, project_name=project_name, start_time=effective_due_date or str(datetime.datetime.now()), recurrence=recurrence, db_path=db_path)
     elif clean_to == "reminder":
-        rem_date = due_date.split(" ")[0] if due_date else None
+        rem_date = effective_due_date.split(" ")[0] if effective_due_date else None
         new_entity = create_reminder(title=title, details=description, reminder_date=rem_date, db_path=db_path)
     elif clean_to == "project":
         valid_cat = "School" if category and category.lower() == "school" else "External"

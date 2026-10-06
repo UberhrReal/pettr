@@ -1690,13 +1690,20 @@ const Dashboard = {
 
   async resolveUnorg(id, entityType, tier, title) {
     try {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      // Never route triage into locked historical past days
+      const targetDate = this.isPastDay() ? todayStr : (this.selectedDate || todayStr);
+      const targetDueDate = `${targetDate} 23:59:00`;
+
       await fetch(`/api/unorganized/${id}/resolve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           entity_type: entityType,
           tier: tier,
-          title: title
+          title: title,
+          due_date: targetDueDate
         })
       });
       App.showToast("Item sorted successfully!");

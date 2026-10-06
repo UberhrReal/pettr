@@ -120,3 +120,64 @@ async def test_natural_language_project_task_no_date(temp_db):
     # Project task should not be forced into unorganized queue even without a due date
     unorg = conn.execute("SELECT * FROM unorganized_queue WHERE status = 'pending'").fetchall()
     assert len(unorg) == 0
+
+def test_unorganized_triage_defaults_to_today_and_locks_past(temp_db, monkeypatch):
+    """Verify that triaging unorganized items defaults to today's date and locks historical past days."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    from backend import auth
+    token = auth.record_successful_login("testclient")
+    client = TestClient(app)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Add item to unorganized queue with no date
+    unorg_item = database.add_to_unorganized_queue(
+        raw_input="buy safety glasses for workshop",
+        suggested_type="task",
+        suggested_tier="focus",
+        db_path=temp_db
+    )
+    assert unorg_item["id"] is not None
+
+    # 2. Resolve via API without providing due_date (e.g. clicking Focus button on dashboard)
+    res = client.post(
+        f"/api/unorganized/{unorg_item['id']}/resolve",
+        headers=headers,
+        json={
+            "entity_type": "task",
+            "tier": "focus",
+            "title": "buy safety glasses for workshop"
+        }
+    )
+    assert res.status_code == 200
+    created = res.json()["entity"]
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    assert today_str in created["due_date"]
+
+    # Verify task appears in get_tasks_for_day for today
+    today_tasks = database.get_tasks_for_day(datetime.date.today(), db_path=temp_db)
+    focus_titles = [t["title"] for t in today_tasks["focus"]]
+    assert "buy safety glasses for workshop" in focus_titles
+
+    # 3. Add second unorganized item with a past parsed date (e.g. yesterday)
+    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    unorg_item_past = database.add_to_unorganized_queue(
+        raw_input="overdue errand from yesterday",
+        parsed_date=f"{yesterday} 10:00:00",
+        db_path=temp_db
+    )
+
+    # 4. Resolve it - historical lock should protect yesterday and route to today
+    res2 = client.post(
+        f"/api/unorganized/{unorg_item_past['id']}/resolve",
+        headers=headers,
+        json={
+            "entity_type": "task",
+            "tier": "focus",
+            "title": "overdue errand from yesterday"
+        }
+    )
+    assert res2.status_code == 200
+    created2 = res2.json()["entity"]
+    assert today_str in created2["due_date"]
+    assert str(yesterday) not in created2["due_date"]
+

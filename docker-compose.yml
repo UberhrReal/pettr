@@ -15,6 +15,7 @@ services:
       - PETTR_IN_DOCKER=1
       - OLLAMA_URL=http://host.docker.internal:11434
       - PYTHONUNBUFFERED=1
+      - TZ=${PETTR_TZ:-Asia/Singapore}
     volumes:
       # Persistent bind mounts on host (zero data loss across restarts & container updates)
       - ./data:/app/data

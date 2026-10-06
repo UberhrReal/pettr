@@ -201,7 +201,18 @@ const EntityModal = {
     const description = document.getElementById("entityModalDesc").value;
     const projectName = document.getElementById("entityModalProject").value || null;
     const dueDateRaw = document.getElementById("entityModalDueDate").value.trim();
-    const dueDate = dueDateRaw ? dueDateRaw.replace("T", " ") : null;
+    let dueDate = dueDateRaw ? dueDateRaw.replace("T", " ") : null;
+
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (this.fromType === "unorganized") {
+      if (!dueDate && toType === "task" && !projectName) {
+        dueDate = `${todayStr} 23:59:00`;
+      } else if (dueDate && dueDate.split(" ")[0] < todayStr) {
+        dueDate = `${todayStr} 23:59:00`;
+      }
+    }
+
     const status = document.getElementById("entityModalStatus").value;
     const recurrenceEl = document.getElementById("entityModalRecurrence");
     const recurrence = recurrenceEl ? (recurrenceEl.value.trim() || null) : null;
