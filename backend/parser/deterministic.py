@@ -278,3 +278,46 @@ def extract_priority(text: str) -> Tuple[str, str, Optional[str]]:
 
     return s, "normal", None
 
+EXPLICIT_ENTITY_REGEX = re.compile(
+    r'^\s*(?:'
+    r'(?P<event>event|appointment|meeting|calendar\s+item|sched(?:uled)?\s+event)'
+    r'|(?P<reminder>reminder|memo|note\s+to\s+self|remind\s+me(?:\s+to)?)'
+    r'|(?P<focus_task>focus\s+task|deep\s+work(?:\s+task)?)'
+    r'|(?P<trivial_task>trivial\s+(?:task|errand)|errand|chore)'
+    r'|(?P<task>task|todo)'
+    r')\b\s*[:\-]?(?:\s+)?',
+    re.IGNORECASE
+)
+
+def extract_explicit_entity_intent(text: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Detects if the user explicitly commanded an entity type at the start of their input.
+    e.g. "Event today 2pm meet Jodan" -> (cleaned="today 2pm meet Jodan", entity_type="event", tier=None)
+         "Event: meet Jodan for OpenRocket tutorial" -> ("meet Jodan for OpenRocket tutorial", "event", None)
+         "Reminder: buy groceries" -> ("buy groceries", "reminder", None)
+         "Focus task: design chassis" -> ("design chassis", "task", "focus")
+    Returns (cleaned_text, explicit_entity_type, explicit_tier).
+    """
+    s = text.strip()
+    m = EXPLICIT_ENTITY_REGEX.match(s)
+    if not m:
+        return s, None, None
+    
+    cleaned = s[m.end():].strip(' .,;:-')
+    # If stripping leaves an empty string, revert to original
+    if not cleaned:
+        return s, None, None
+    
+    if m.group("event"):
+        return cleaned, "event", None
+    elif m.group("reminder"):
+        return cleaned, "reminder", None
+    elif m.group("focus_task"):
+        return cleaned, "task", "focus"
+    elif m.group("trivial_task"):
+        return cleaned, "task", "trivial"
+    elif m.group("task"):
+        return cleaned, "task", None
+    
+    return s, None, None
+

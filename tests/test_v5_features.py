@@ -240,3 +240,62 @@ def test_event_edit_and_status_preservation(temp_db, monkeypatch):
     day_events_post = database.get_events_for_day(today, db_path=temp_db)
     assert len(day_events_post) == 0
 
+@pytest.mark.anyio
+async def test_explicit_event_command_intent(temp_db):
+    """
+    Test that explicit entity command 'Event today 2pm meet Jodan for OpenRocket tutorial'
+    creates an event at 2pm without hallucinating/creating 'OpenRocket tutorial' as a new project.
+    """
+    ref_now = datetime.datetime(2026, 10, 7, 10, 0, 0)
+    user_input = "Event today 2pm meet Jodan for OpenRocket tutorial"
+    result = await process_user_input(user_input, ref_datetime=ref_now, db_path=temp_db)
+
+    assert result["status"] == "success"
+    assert result["entity_type"] == "event"
+    event = result["entity"]
+    assert event["title"] == "Meet Jodan for OpenRocket tutorial"
+    assert "2026-10-07 14:00:00" in event["start_time"]
+
+    # Verify no accidental project was created
+    projects = database.get_all_projects(temp_db)
+    assert not any("OpenRocket" in p["name"] for p in projects)
+
+@pytest.mark.anyio
+async def test_natural_meeting_phrasing_without_explicit_prefix(temp_db):
+    """
+    Test that natural phrasing 'meet Jodan for OpenRocket tutorial today 2pm'
+    is classified as an event and does not treat 'OpenRocket tutorial' as a project.
+    """
+    ref_now = datetime.datetime(2026, 10, 7, 10, 0, 0)
+    user_input = "meet Jodan for OpenRocket tutorial today 2pm"
+    result = await process_user_input(user_input, ref_datetime=ref_now, db_path=temp_db)
+
+    assert result["status"] == "success"
+    assert result["entity_type"] == "event"
+    event = result["entity"]
+    assert event["title"] == "Meet Jodan for OpenRocket tutorial"
+    assert "2026-10-07 14:00:00" in event["start_time"]
+
+    # Verify no accidental project was created
+    projects = database.get_all_projects(temp_db)
+    assert not any("OpenRocket" in p["name"] for p in projects)
+
+@pytest.mark.anyio
+async def test_explicit_task_and_reminder_commands(temp_db):
+    """Test explicit 'Reminder:' and 'Focus task:' commands."""
+    ref_now = datetime.datetime(2026, 10, 7, 10, 0, 0)
+
+    # 1. Reminder
+    res1 = await process_user_input("Reminder: bring spare ESC cables tomorrow", ref_datetime=ref_now, db_path=temp_db)
+    assert res1["status"] == "success"
+    assert res1["entity_type"] == "reminder"
+    assert "Bring spare ESC cables" in res1["entity"]["title"]
+
+    # 2. Focus task
+    res2 = await process_user_input("Focus task: write propulsion report due tomorrow", ref_datetime=ref_now, db_path=temp_db)
+    assert res2["status"] == "success"
+    assert res2["entity_type"] == "task"
+    assert res2["entity"]["tier"] == "focus"
+    assert "Write propulsion report" in res2["entity"]["title"]
+
+

@@ -11,10 +11,16 @@ Your job is to understand natural language logs and transform them into structur
 Entities:
 1. "task": An actionable todo.
    - tier: "focus" (deep work, studying, design, exams, CAD, coding, complex reports, hardware) OR "trivial" (errands, chores, quick calls, picking up parcels, purchasing items, groceries).
-2. "event": A scheduled appointment, class, or meeting at a specific time.
+2. "event": A scheduled appointment, class, session, workshop, or meeting at a specific time (e.g. "meet Jodan for OpenRocket tutorial", "dentist at 2pm", "call with Sarah").
 3. "reminder": A short informational note to self that may attach to a task later (e.g. "Class administered by Prof Collins", "Bring spare batteries").
 4. "project": A new high-level initiative or major endeavor.
 5. "unorganized": Used ONLY if the input is completely incoherent or meaningless gibberish.
+
+Key Rules:
+- If the user explicitly commands an entity type or tier (e.g. "Event ...", "Task ...", "Reminder ...", "Focus task ..."), respect that entity_type and tier unconditionally.
+- Scheduled appointments and meetings ("meet X", "meeting with X", "call with X", "coffee with X") with dates/times are ALWAYS "event" entities, NOT tasks.
+- Purpose or topic phrases in meetings (e.g. "meet Jodan for OpenRocket tutorial", "lunch with Dave for project review") are part of the event title/topic, NOT a new project to create. NEVER infer or create a new project from meeting topics.
+- Strict Project Rule: NEVER create or infer a new project from prepositional phrases like "for <Phrase>" or "on <Phrase>" unless explicitly tagged with the word "project" (e.g. "project Phoenix", "for project Apollo") or matching an existing project in the active projects list.
 
 Natural Language Project Task Patterns:
 - Users frequently log tasks under projects using natural phrasing:
@@ -30,6 +36,9 @@ Natural Language Project Task Patterns:
 - Tasks attached to a project do NOT require a deadline and MUST NEVER be classified as unorganized.
 
 Few-Shot Examples:
+Input: "Meet Jodan for OpenRocket tutorial"
+Output: {"entity_type": "event", "title": "Meet Jodan for OpenRocket tutorial", "project_name": null, "is_new_project": false, "task_tier": null, "confidence": 0.98, "reasoning": "Scheduled meeting event with Jodan"}
+
 Input: "Project iDeA-1 new task purchase esp32"
 Output: {"entity_type": "task", "title": "purchase esp32", "project_name": "iDeA-1", "is_new_project": false, "task_tier": "trivial", "confidence": 0.95, "reasoning": "Task 'purchase esp32' under project 'iDeA-1'"}
 
@@ -58,13 +67,51 @@ Output MUST be valid JSON adhering strictly to this schema:
 
 def heuristic_classify(cleaned_text: str,
                        has_date: bool,
-                       active_projects: List[str]) -> Dict[str, Any]:
+                       active_projects: Optional[List[str]] = None,
+                       explicit_entity_type: Optional[str] = None,
+                       explicit_tier: Optional[str] = None) -> Dict[str, Any]:
     """
     Fast rule-based classifier used as an instant offline fallback
     when Ollama is not yet running or during initial setup.
     """
+    active_projects = active_projects or []
     text = cleaned_text.strip()
     lower = text.lower()
+
+    # If the user explicitly commanded an entity type at the start of input
+    if explicit_entity_type == "event":
+        matched_proj = None
+        for ap in active_projects:
+            if ap and re.search(rf'\b(?:project\s+)?{re.escape(ap)}\b', text, re.IGNORECASE):
+                matched_proj = ap
+                break
+        return {
+            "entity_type": "event",
+            "title": text,
+            "description": "",
+            "project_name": matched_proj,
+            "is_new_project": False,
+            "task_tier": None,
+            "confidence": 0.98,
+            "reasoning": f"Explicitly commanded event: '{text}'"
+        }
+
+    if explicit_entity_type == "reminder":
+        matched_proj = None
+        for ap in active_projects:
+            if ap and re.search(rf'\b(?:project\s+)?{re.escape(ap)}\b', text, re.IGNORECASE):
+                matched_proj = ap
+                break
+        return {
+            "entity_type": "reminder",
+            "title": text,
+            "description": "",
+            "project_name": matched_proj,
+            "is_new_project": False,
+            "task_tier": None,
+            "confidence": 0.95,
+            "reasoning": f"Explicitly commanded reminder: '{text}'"
+        }
 
     # 0a. Explicit project task pattern:
     # "Project <Name> (new) task <Task>" or "Project: <Name> - <Task>" or "Project <Name>: <Task>"
@@ -93,7 +140,7 @@ def heuristic_classify(cleaned_text: str,
             school_cues = r'\b(class|course|prof|professor|exam|homework|study|lecture|thesis|semester|assignment|module|school)\b'
             cat = "School" if re.search(school_cues, lower) else "External"
             focus_cues = r'\b(exam|study|design|cad|model|thesis|paper|report|write|build|develop|analysis|research|code|program)\b'
-            tier = "focus" if re.search(focus_cues, clean_task.lower()) else ("trivial" if len(clean_task.split()) <= 4 else "focus")
+            tier = explicit_tier or ("focus" if re.search(focus_cues, clean_task.lower()) else ("trivial" if len(clean_task.split()) <= 4 else "focus"))
 
             return {
                 "entity_type": "task",
@@ -131,7 +178,7 @@ def heuristic_classify(cleaned_text: str,
             school_cues = r'\b(class|course|prof|professor|exam|homework|study|lecture|thesis|semester|assignment|module|school)\b'
             cat = "School" if re.search(school_cues, lower) else "External"
             focus_cues = r'\b(exam|study|design|cad|model|thesis|paper|report|write|build|develop|analysis|research|code|program)\b'
-            tier = "focus" if re.search(focus_cues, clean_task.lower()) else ("trivial" if len(clean_task.split()) <= 4 else "focus")
+            tier = explicit_tier or ("focus" if re.search(focus_cues, clean_task.lower()) else ("trivial" if len(clean_task.split()) <= 4 else "focus"))
 
             return {
                 "entity_type": "task",
@@ -171,7 +218,7 @@ def heuristic_classify(cleaned_text: str,
                     "project_name": cand_proj,
                     "project_category": cat,
                     "is_new_project": True,
-                    "task_tier": "focus",
+                    "task_tier": explicit_tier or "focus",
                     "confidence": 0.95,
                     "reasoning": f"Compound command: create project '{cand_proj}' ({cat}) with initial focus task"
                 }
@@ -188,7 +235,45 @@ def heuristic_classify(cleaned_text: str,
                     "reasoning": f"Create new project '{cand_proj}' ({cat})"
                 }
 
-    # 1. Project detection from prefix pattern, active projects, or preposition cues
+    # 1. Check for reminders (e.g. "administered by...", "note to self:", "remember that...")
+    if re.search(r'\b(administered by|remember to|remember that|note:|note to self|bring |dont forget)\b', lower):
+        return {
+            "entity_type": "reminder",
+            "title": text,
+            "description": "",
+            "project_name": None,
+            "is_new_project": False,
+            "task_tier": None,
+            "confidence": 0.85,
+            "reasoning": "Heuristic matched reminder phrasing"
+        }
+
+    # 2. Check for events (e.g. "meeting", "class", "doctor appointment", "dentist", "meet Jodan", "call with")
+    event_keywords = (
+        r'\b(?:'
+        r'event|meeting|appointment|call\s+with|sync\s+with|interview|class|flight|lecture|'
+        r'tutorial|session|workshop|hangout|lunch\s+with|dinner\s+with|coffee\s+with|catch\s+up\s+with|'
+        r'doctor|dentist|meet\s+[a-z0-9_\-]+'
+        r')\b'
+    )
+    if re.search(event_keywords, lower) and has_date:
+        matched_proj = None
+        for ap in active_projects:
+            if ap and re.search(rf'\b(?:project\s+)?{re.escape(ap)}\b', text, re.IGNORECASE):
+                matched_proj = ap
+                break
+        return {
+            "entity_type": "event",
+            "title": text,
+            "description": "",
+            "project_name": matched_proj,
+            "is_new_project": False,
+            "task_tier": None,
+            "confidence": 0.92,
+            "reasoning": "Heuristic matched scheduled event with date/time"
+        }
+
+    # 3. Project detection from prefix pattern, active projects, or preposition cues (Tasks)
     matched_project = None
     is_new = False
     cleaned_task_title = text
@@ -222,44 +307,22 @@ def heuristic_classify(cleaned_text: str,
                     cleaned_task_title = sub_text
                 break
             
-    # C. Check pattern like "for <Project>" or "project <Project>"
+    # C. Check pattern like "for project <Project>" or "project <Project>" or module/course codes
     if not matched_project:
-        proj_match = re.search(r'\b(?:for|on|project)\s+([A-Z0-9][A-Za-z0-9\s\-]{2,25})\b', text)
+        proj_match = re.search(r'\b(?:for\s+project|project)\s+([A-Z0-9][A-Za-z0-9\s\-]{2,25})\b', text, re.IGNORECASE)
+        if not proj_match:
+            # Module/course code pattern: e.g. "for Social Science 1D" or "for IDEA-1 Concept"
+            proj_match = re.search(r'\b(?:for|on)\s+([A-Z0-9][A-Za-z0-9\s\-]{1,25}?(?:[0-9]+[A-Za-z]?|[A-Za-z]+[0-9]+|Concept|Phase|T\d+|1D)\b[A-Za-z0-9\s\-]{0,10})', text)
+
         if proj_match:
             candidate = proj_match.group(1).strip()
             # Exclude common false positives
             if candidate.lower() not in ("tomorrow", "today", "tonight", "myself", "dinner", "lunch", "breakfast"):
                 matched_project = candidate
                 is_new = True
-                sub_text = re.sub(r'\b(?:for|on|project)\s+' + re.escape(candidate), '', text, flags=re.IGNORECASE).strip(' :-,')
+                sub_text = re.sub(r'\b(?:for\s+project|project|for|on)\s+' + re.escape(candidate), '', text, flags=re.IGNORECASE).strip(' :-,')
                 if sub_text:
                     cleaned_task_title = sub_text
-
-    # 2. Check for reminders (e.g. "administered by...", "note to self:", "remember that...")
-    if re.search(r'\b(administered by|remember to|remember that|note:|note to self|bring |dont forget)\b', lower):
-        return {
-            "entity_type": "reminder",
-            "title": text,
-            "description": "",
-            "project_name": matched_project,
-            "is_new_project": is_new,
-            "task_tier": None,
-            "confidence": 0.85,
-            "reasoning": "Heuristic matched reminder phrasing"
-        }
-
-    # 3. Check for events (e.g. "meeting", "class", "doctor appointment", "dentist", "lunch with")
-    if re.search(r'\b(meeting|appointment|call with|sync with|interview|class|flight|lecture)\b', lower) and has_date:
-        return {
-            "entity_type": "event",
-            "title": text,
-            "description": "",
-            "project_name": matched_project,
-            "is_new_project": is_new,
-            "task_tier": None,
-            "confidence": 0.90,
-            "reasoning": "Heuristic matched scheduled event with date"
-        }
 
     # 4. Check for tasks: Focus vs Trivial
     # Focus keywords: exam, study, design, cad, code, program, write paper, report, thesis, analysis, research
@@ -267,7 +330,10 @@ def heuristic_classify(cleaned_text: str,
     # Trivial keywords: trash, parcel, package, laundry, grocery, groceries, buy, milk, dishes, clean, pickup, pick up
     trivial_keywords = r'\b(trash|parcel|package|laundry|groceries|grocery|buy|clean|dishes|pickup|pick up|mail|errand)\b'
 
-    if re.search(focus_keywords, lower):
+    if explicit_tier:
+        tier = explicit_tier
+        confidence = 0.95
+    elif re.search(focus_keywords, lower):
         tier = "focus"
         confidence = 0.92
     elif re.search(trivial_keywords, lower):
@@ -293,7 +359,9 @@ async def classify_with_llm(cleaned_text: str,
                            has_date: bool,
                            extracted_date_str: Optional[str],
                            active_projects: List[str],
-                           timeout_seconds: float = 12.0) -> Dict[str, Any]:
+                           timeout_seconds: float = 12.0,
+                           explicit_entity_type: Optional[str] = None,
+                           explicit_tier: Optional[str] = None) -> Dict[str, Any]:
     """
     Classifies intent using local Ollama model with structured JSON enforcement.
     Falls back seamlessly to the heuristic classifier if Ollama is unreachable.
@@ -302,11 +370,18 @@ async def classify_with_llm(cleaned_text: str,
     ollama_url = os.environ.get("OLLAMA_URL") or config.get("ollama_url", "http://localhost:11434")
     model_name = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model", "llama3.2:3b")
 
-    prompt = f"""Current active projects: {json.dumps(active_projects)}
-Has extracted date/time: {has_date} ({extracted_date_str or 'none'})
-Input text: "{cleaned_text}"
-
-Return JSON classification:"""
+    prompt_lines = [
+        f"Current active projects: {json.dumps(active_projects)}",
+        f"Has extracted date/time: {has_date} ({extracted_date_str or 'none'})"
+    ]
+    if explicit_entity_type:
+        prompt_lines.append(f"Explicit user commanded entity type: {explicit_entity_type}")
+    if explicit_tier:
+        prompt_lines.append(f"Explicit user commanded task tier: {explicit_tier}")
+    prompt_lines.append(f'Input text: "{cleaned_text}"')
+    prompt_lines.append("")
+    prompt_lines.append("Return JSON classification:")
+    prompt = "\n".join(prompt_lines)
 
     payload = {
         "model": model_name,
@@ -329,7 +404,7 @@ Return JSON classification:"""
                 parsed = json.loads(raw_response)
                 
                 # Validate schema fields
-                entity_type = parsed.get("entity_type", "task")
+                entity_type = explicit_entity_type or parsed.get("entity_type", "task")
                 if entity_type not in ("project", "task", "event", "reminder", "unorganized"):
                     entity_type = "task"
 
@@ -340,10 +415,20 @@ Return JSON classification:"""
                     cleaned_title = raw_title
 
                 proj_name = parsed.get("project_name")
+                is_new_proj = bool(parsed.get("is_new_project", False))
+                # If entity is an event, prevent spurious new project creation unless explicitly commanded
+                if entity_type == "event" and is_new_proj:
+                    if not re.search(rf'\bproject\s+{re.escape(proj_name or "")}\b', cleaned_text, re.IGNORECASE):
+                        proj_name = None
+                        is_new_proj = False
+
                 conf = float(parsed.get("confidence", 0.9))
-                # If a project is identified, ensure confidence is high so pipeline doesn't route to unorganized
-                if proj_name and entity_type == "task":
+                if explicit_entity_type:
                     conf = max(conf, 0.95)
+                elif proj_name and entity_type == "task":
+                    conf = max(conf, 0.95)
+
+                task_tier = explicit_tier or parsed.get("task_tier")
 
                 return {
                     "entity_type": entity_type,
@@ -351,8 +436,8 @@ Return JSON classification:"""
                     "description": parsed.get("description", ""),
                     "project_name": proj_name,
                     "project_category": parsed.get("project_category"),
-                    "is_new_project": bool(parsed.get("is_new_project", False)),
-                    "task_tier": parsed.get("task_tier"),
+                    "is_new_project": is_new_proj,
+                    "task_tier": task_tier,
                     "confidence": conf,
                     "reasoning": parsed.get("reasoning", "Classified by local LLM"),
                     "engine": f"ollama ({model_name})"
@@ -361,6 +446,12 @@ Return JSON classification:"""
         pass
 
     # Fallback to deterministic heuristic classifier
-    heuristic_res = heuristic_classify(cleaned_text, has_date, active_projects)
+    heuristic_res = heuristic_classify(
+        cleaned_text,
+        has_date,
+        active_projects,
+        explicit_entity_type=explicit_entity_type,
+        explicit_tier=explicit_tier
+    )
     heuristic_res["engine"] = "heuristic_fallback"
     return heuristic_res

@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
-from backend.parser.deterministic import parse_deterministic_date, extract_priority
+from backend.parser.deterministic import parse_deterministic_date, extract_priority, extract_explicit_entity_intent
 from backend.parser.llm_classifier import classify_with_llm
 from backend import database
 
@@ -92,14 +92,22 @@ async def process_user_input(raw_input: str,
     if not clean_raw:
         return {"status": "error", "message": "Input cannot be empty."}
 
+    # Stage 0: Detect explicit entity declaration (e.g. "Event today 2pm...", "Reminder: ...", "Task: ...")
+    text_after_explicit, explicit_type, explicit_tier = extract_explicit_entity_intent(clean_raw)
+    input_for_date_parsing = text_after_explicit if explicit_type else clean_raw
+
     # Stage 1: Deterministic Date Parsing
-    temporal_data = parse_deterministic_date(clean_raw, ref_datetime=ref_datetime)
+    temporal_data = parse_deterministic_date(input_for_date_parsing, ref_datetime=ref_datetime)
     has_date = temporal_data["has_date"]
     due_date_str = temporal_data["datetime_str"]
     is_recurring = temporal_data["is_recurring"]
     rrule = temporal_data["rrule"]
     matched_token = temporal_data["matched_token"]
     cleaned_text = temporal_data["cleaned_text"]
+
+    # If explicit type wasn't at the very start of raw, check if it was inside cleaned_text
+    if not explicit_type:
+        cleaned_text, explicit_type, explicit_tier = extract_explicit_entity_intent(cleaned_text)
 
     # If caller explicitly provided `today`, and no date was in text, set today as the target date
     if not has_date and today is not None:
@@ -111,9 +119,13 @@ async def process_user_input(raw_input: str,
     # Stage 1b: Natural Language Priority Extraction
     cleaned_text, priority_placement, priority_token = extract_priority(cleaned_text)
 
-    # If the text is empty after stripping date and priority (e.g. user just typed "Tonight 2359 high priority")
+    # If the text is empty after stripping date and priority
     if not cleaned_text:
-        cleaned_text = clean_raw
+        cleaned_text = input_for_date_parsing or clean_raw
+
+    # Capitalize title cleanly
+    if cleaned_text:
+        cleaned_text = cleaned_text[0].upper() + cleaned_text[1:]
 
     # Stage 2: Intent Classification
     active_projects = [p["name"] for p in database.get_all_projects(db_path)]
@@ -121,18 +133,23 @@ async def process_user_input(raw_input: str,
         cleaned_text=cleaned_text,
         has_date=has_date,
         extracted_date_str=due_date_str,
-        active_projects=active_projects
+        active_projects=active_projects,
+        explicit_entity_type=explicit_type,
+        explicit_tier=explicit_tier
     )
 
-    entity_type = classification.get("entity_type", "task")
+    entity_type = explicit_type or classification.get("entity_type", "task")
     raw_title = classification.get("title", cleaned_text)
-    # Ensure title is stripped of any remaining priority tokens
-    title, _, _ = extract_priority(raw_title)
-    if not title:
-        title = raw_title
+    # Ensure title is stripped of any remaining priority tokens or leading entity type labels
+    clean_candidate, _, _ = extract_priority(raw_title)
+    clean_candidate, _, _ = extract_explicit_entity_intent(clean_candidate)
+    title = clean_candidate if clean_candidate else raw_title
+    if title:
+        title = title[0].upper() + title[1:]
+
     project_name = classification.get("project_name")
     is_new_project = classification.get("is_new_project", False)
-    task_tier = classification.get("task_tier") or "focus"
+    task_tier = explicit_tier or classification.get("task_tier") or "focus"
     confidence = classification.get("confidence", 0.9)
     reasoning = classification.get("reasoning", "")
 
