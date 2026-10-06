@@ -94,3 +94,29 @@ async def test_compound_nlp_project_and_task(temp_db):
     task = tasks[0]
     assert "Draft user journey map" in task["title"]
     assert "21:00:00" in task["due_date"]
+
+@pytest.mark.anyio
+async def test_natural_language_project_task_no_date(temp_db):
+    """Test natural language logging: 'Project iDeA-1 new task purchase esp32' creates task under project without routing to unorganized."""
+    # Pre-create project iDeA-1
+    database.create_project("iDeA-1", category="External", db_path=temp_db)
+
+    # User command: "Project iDeA-1 new task purchase esp32"
+    user_input = "Project iDeA-1 new task purchase esp32"
+    result = await process_user_input(user_input, db_path=temp_db)
+
+    assert result["status"] == "success"
+    assert result["entity_type"] == "task"
+
+    conn = database.get_connection(temp_db)
+    proj = conn.execute("SELECT * FROM projects WHERE name = 'iDeA-1'").fetchone()
+    assert proj is not None
+
+    tasks = conn.execute("SELECT * FROM tasks WHERE project_id = ?", (proj["id"],)).fetchall()
+    assert len(tasks) == 1
+    task = tasks[0]
+    # Cleaned task title should be 'purchase esp32'
+    assert task["title"].lower().strip() == "purchase esp32"
+    # Project task should not be forced into unorganized queue even without a due date
+    unorg = conn.execute("SELECT * FROM unorganized_queue WHERE status = 'pending'").fetchall()
+    assert len(unorg) == 0

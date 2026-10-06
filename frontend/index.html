@@ -520,6 +520,12 @@
             <button class="exploded-pool-filter-btn" onclick="Exploded.setPoolFilter('school', this)">🎓 School</button>
             <button class="exploded-pool-filter-btn" onclick="Exploded.setPoolFilter('external', this)">🌐 External</button>
           </div>
+          <!-- Card Pool Sorting Group (visible in cards mode) -->
+          <div class="scale-switch-group" id="explodedSortGroup" style="display: none;" title="Sort project cards">
+            <button class="exploded-sort-btn active" id="sortBtnSchool" onclick="Exploded.setCardSort('school_first', this)">🎓 School 1st</button>
+            <button class="exploded-sort-btn" id="sortBtnExternal" onclick="Exploded.setCardSort('external_first', this)">🌐 External 1st</button>
+            <button class="exploded-sort-btn" id="sortBtnAlpha" onclick="Exploded.setCardSort('name', this)">A–Z</button>
+          </div>
           <div class="scale-switch-group">
             <button class="exploded-view-toggle-btn active" data-view="mindmap"><i data-lucide="sparkles" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Constellation Cloud</button>
             <button class="exploded-view-toggle-btn" data-view="cards"><i data-lucide="layout-grid" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project Cards</button>

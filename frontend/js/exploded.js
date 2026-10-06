@@ -5,12 +5,14 @@
  */
 const Exploded = {
   activeView: "mindmap", // "mindmap" or "cards"
-  cardFilter: "all",     // "all", "school", "external", "split"
+  cardFilter: "split",   // "split", "all", "school", "external"
+  cardSort: localStorage.getItem("pettr_exploded_card_sort") || "school_first", // "school_first", "external_first", "name"
   collapsedDescs: new Set(),
   lastData: null,
 
   async init() {
     this.bindControls();
+    this.updateSortButtonsUI();
     if (typeof Mindmap !== "undefined") {
       await Mindmap.init();
     }
@@ -32,11 +34,15 @@ const Exploded = {
     const mindmapContainer = document.getElementById("mindmapViewContainer");
     const cardsWrapper = document.getElementById("explodedCardsWrapper");
     const cardsContainer = document.getElementById("explodedGrid");
+    const poolFilters = document.getElementById("explodedPoolFilters");
+    const sortGroup = document.getElementById("explodedSortGroup");
 
     if (viewName === "mindmap") {
       if (mindmapContainer) mindmapContainer.style.display = "block";
       if (cardsWrapper) cardsWrapper.style.display = "none";
       if (cardsContainer) cardsContainer.style.display = "none";
+      if (poolFilters) poolFilters.style.display = "none";
+      if (sortGroup) sortGroup.style.display = "none";
       if (typeof Mindmap !== "undefined") {
         Mindmap.resize();
         Mindmap.draw();
@@ -45,19 +51,47 @@ const Exploded = {
       if (mindmapContainer) mindmapContainer.style.display = "none";
       if (cardsWrapper) cardsWrapper.style.display = "flex";
       if (cardsContainer) cardsContainer.style.display = "grid";
+      if (poolFilters) poolFilters.style.display = "inline-flex";
+      if (sortGroup) sortGroup.style.display = "inline-flex";
+      this.updateSortButtonsUI();
       if (this.lastData) {
         this.render(this.lastData);
       }
     }
   },
 
-  setCardFilter(filterName, btnEl) {
+  setPoolFilter(filterName, btnEl) {
     this.cardFilter = filterName;
-    document.querySelectorAll(".project-filter-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".exploded-pool-filter-btn").forEach(b => b.classList.remove("active"));
     if (btnEl) btnEl.classList.add("active");
     if (this.lastData) {
       this.render(this.lastData);
     }
+  },
+
+  setCardFilter(filterName, btnEl) {
+    this.setPoolFilter(filterName, btnEl);
+  },
+
+  setCardSort(sortType, btnEl) {
+    this.cardSort = sortType;
+    try {
+      localStorage.setItem("pettr_exploded_card_sort", sortType);
+    } catch (e) {}
+    this.updateSortButtonsUI();
+    if (this.lastData) {
+      this.render(this.lastData);
+    }
+  },
+
+  updateSortButtonsUI() {
+    const btnSchool = document.getElementById("sortBtnSchool");
+    const btnExt = document.getElementById("sortBtnExternal");
+    const btnAlpha = document.getElementById("sortBtnAlpha");
+
+    if (btnSchool) btnSchool.classList.toggle("active", this.cardSort === "school_first");
+    if (btnExt) btnExt.classList.toggle("active", this.cardSort === "external_first");
+    if (btnAlpha) btnAlpha.classList.toggle("active", this.cardSort === "name");
   },
 
   toggleDesc(projectId) {
@@ -133,54 +167,77 @@ const Exploded = {
     if (!grid) return;
     grid.innerHTML = "";
 
-    const allProjects = data.projects || [];
-    const schoolProjects = allProjects.filter(p => (p.category || "External").toLowerCase() === "school");
-    const extProjects = allProjects.filter(p => (p.category || "External").toLowerCase() !== "school");
+    const allProjects = [...(data.projects || [])];
+
+    // Helper sort function for a list of projects based on this.cardSort
+    const sortProjectsList = (list) => {
+      return [...list].sort((a, b) => {
+        if (this.cardSort === "name") {
+          return (a.name || "").localeCompare(b.name || "");
+        }
+        const aSchool = (a.category || "External").toLowerCase() === "school";
+        const bSchool = (b.category || "External").toLowerCase() === "school";
+        if (this.cardSort === "school_first") {
+          if (aSchool !== bSchool) return aSchool ? -1 : 1;
+        } else if (this.cardSort === "external_first") {
+          if (aSchool !== bSchool) return aSchool ? 1 : -1;
+        }
+        return (a.name || "").localeCompare(b.name || "");
+      });
+    };
+
+    const schoolProjects = sortProjectsList(allProjects.filter(p => (p.category || "External").toLowerCase() === "school"));
+    const extProjects = sortProjectsList(allProjects.filter(p => (p.category || "External").toLowerCase() !== "school"));
 
     // Case 1: Side-by-side segregated pools
     if (this.cardFilter === "split") {
       grid.style.display = "grid";
       grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(320px, 1fr))";
 
-      // Pool 1: School Projects
-      const schoolCol = document.createElement("div");
-      schoolCol.style.display = "flex";
-      schoolCol.style.flexDirection = "column";
-      schoolCol.style.gap = "14px";
-      schoolCol.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--card-border);">
-          <span style="font-weight: 800; font-size: 14px; color: var(--accent-cyan); display: flex; align-items: center; gap: 6px;">
-            🎓 School Projects Pool
-          </span>
-          <span class="panel-count-badge">${schoolProjects.length}</span>
-        </div>
-      `;
-      if (schoolProjects.length === 0) {
-        schoolCol.innerHTML += '<div style="font-size: 13px; color: var(--text-muted); padding: 16px 0; text-align: center;">No school projects currently.</div>';
-      } else {
-        schoolProjects.forEach(p => schoolCol.appendChild(this.buildProjectCard(p)));
-      }
-      grid.appendChild(schoolCol);
+      const firstCol = this.cardSort === "external_first" ? {
+        title: "🌐 External Projects Pool",
+        colorVar: "var(--focus-indigo)",
+        projects: extProjects,
+        emptyMsg: "No external projects currently."
+      } : {
+        title: "🎓 School Projects Pool",
+        colorVar: "var(--accent-cyan)",
+        projects: schoolProjects,
+        emptyMsg: "No school projects currently."
+      };
 
-      // Pool 2: External Projects
-      const extCol = document.createElement("div");
-      extCol.style.display = "flex";
-      extCol.style.flexDirection = "column";
-      extCol.style.gap = "14px";
-      extCol.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--card-border);">
-          <span style="font-weight: 800; font-size: 14px; color: var(--focus-indigo); display: flex; align-items: center; gap: 6px;">
-            🌐 External Projects Pool
-          </span>
-          <span class="panel-count-badge">${extProjects.length}</span>
-        </div>
-      `;
-      if (extProjects.length === 0) {
-        extCol.innerHTML += '<div style="font-size: 13px; color: var(--text-muted); padding: 16px 0; text-align: center;">No external projects currently.</div>';
-      } else {
-        extProjects.forEach(p => extCol.appendChild(this.buildProjectCard(p)));
-      }
-      grid.appendChild(extCol);
+      const secondCol = this.cardSort === "external_first" ? {
+        title: "🎓 School Projects Pool",
+        colorVar: "var(--accent-cyan)",
+        projects: schoolProjects,
+        emptyMsg: "No school projects currently."
+      } : {
+        title: "🌐 External Projects Pool",
+        colorVar: "var(--focus-indigo)",
+        projects: extProjects,
+        emptyMsg: "No external projects currently."
+      };
+
+      [firstCol, secondCol].forEach(colData => {
+        const col = document.createElement("div");
+        col.style.display = "flex";
+        col.style.flexDirection = "column";
+        col.style.gap = "14px";
+        col.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--card-border);">
+            <span style="font-weight: 800; font-size: 14px; color: ${colData.colorVar}; display: flex; align-items: center; gap: 6px;">
+              ${colData.title}
+            </span>
+            <span class="panel-count-badge">${colData.projects.length}</span>
+          </div>
+        `;
+        if (colData.projects.length === 0) {
+          col.innerHTML += `<div style="font-size: 13px; color: var(--text-muted); padding: 16px 0; text-align: center;">${colData.emptyMsg}</div>`;
+        } else {
+          colData.projects.forEach(p => col.appendChild(this.buildProjectCard(p)));
+        }
+        grid.appendChild(col);
+      });
 
     } else {
       // Standard Grid View (Filtered by all, school, or external)
@@ -192,6 +249,8 @@ const Exploded = {
         filteredProjects = schoolProjects;
       } else if (this.cardFilter === "external") {
         filteredProjects = extProjects;
+      } else {
+        filteredProjects = sortProjectsList(allProjects);
       }
 
       if (filteredProjects.length === 0) {
@@ -233,7 +292,8 @@ const Exploded = {
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     const isCollapsed = this.collapsedDescs.has(p.id);
     const isSchool = (p.category || "External").toLowerCase() === "school";
-    const categoryBadge = isSchool ? "🎓 School" : "🌐 External";
+    const categoryBadgeClass = isSchool ? "category-badge-school" : "category-badge-external";
+    const categoryLabel = isSchool ? "🎓 School" : "🌐 External";
     const pColor = p.color || (isSchool ? "#ec4899" : "#3b82f6");
 
     const card = document.createElement("div");
@@ -244,7 +304,7 @@ const Exploded = {
         <div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span class="project-card-title">${this.escapeHtml(p.name)}</span>
-            <span class="project-tag" style="background: ${pColor}22; color: ${pColor}; border-color: ${pColor}55;">${categoryBadge}</span>
+            <span class="${categoryBadgeClass}">${categoryLabel}</span>
           </div>
           ${p.description ? `
             <div style="margin-top: 4px;">
