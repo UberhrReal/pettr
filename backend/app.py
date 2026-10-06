@@ -335,6 +335,14 @@ async def update_event_status_endpoint(event_id: int, req: UpdateEventStatusRequ
         raise HTTPException(status_code=404, detail="Event not found")
     return {"status": "success", "event": updated}
 
+@app.delete("/api/events/{event_id}", dependencies=[Depends(auth.require_auth)])
+async def delete_event_endpoint(event_id: int):
+    """Deletes an event."""
+    conn = database.get_connection()
+    with conn:
+        conn.execute("DELETE FROM events WHERE id = ?", (event_id,))
+    return {"status": "success"}
+
 @app.get("/api/reminders", dependencies=[Depends(auth.require_auth)])
 async def get_reminders(date: Optional[str] = None):
     target = datetime.date.fromisoformat(date) if date else None
@@ -361,6 +369,14 @@ async def toggle_reminder(reminder_id: int):
     conn = database.get_connection()
     with conn:
         conn.execute("UPDATE reminders SET is_done = CASE WHEN is_done = 1 THEN 0 ELSE 1 END WHERE id = ?", (reminder_id,))
+    return {"status": "success"}
+
+@app.delete("/api/reminders/{reminder_id}", dependencies=[Depends(auth.require_auth)])
+async def delete_reminder_endpoint(reminder_id: int):
+    """Deletes a reminder."""
+    conn = database.get_connection()
+    with conn:
+        conn.execute("DELETE FROM reminders WHERE id = ?", (reminder_id,))
     return {"status": "success"}
 
 # --- Exploded View & Projects Routes ---

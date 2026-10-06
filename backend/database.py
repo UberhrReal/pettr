@@ -154,6 +154,10 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             conn.execute("ALTER TABLE projects ADD COLUMN category TEXT DEFAULT 'External'")
         except Exception:
             pass
+        try:
+            conn.execute("UPDATE events SET status = 'scheduled' WHERE status = 'pending'")
+        except Exception:
+            pass
 
 def format_military_time(dt_val: Any, include_date: bool = False) -> str:
     """Converts any datetime, time, or timestamp string to 24-hour military format (HH:MM or YYYY-MM-DD HH:MM)."""
@@ -672,7 +676,7 @@ def get_events_for_day(target_date: Optional[datetime.date] = None, db_path: Opt
         SELECT e.*, p.name as project_name
         FROM events e
         LEFT JOIN projects p ON e.project_id = p.id
-        WHERE date(e.start_time) = date(?) AND e.status IN ('scheduled', 'completed')
+        WHERE date(e.start_time) = date(?) AND e.status IN ('scheduled', 'completed', 'pending')
         ORDER BY CASE WHEN e.status = 'completed' THEN 1 ELSE 0 END ASC, e.start_time ASC
     """, (date_str,)).fetchall()
     
@@ -1052,7 +1056,7 @@ def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:
         unassigned_tasks.append(td)
 
     # All upcoming events
-    events = conn.execute("SELECT e.*, p.name as project_name FROM events e LEFT JOIN projects p ON e.project_id = p.id WHERE e.status = 'scheduled' ORDER BY e.start_time ASC").fetchall()
+    events = conn.execute("SELECT e.*, p.name as project_name FROM events e LEFT JOIN projects p ON e.project_id = p.id WHERE e.status IN ('scheduled', 'pending') ORDER BY e.start_time ASC").fetchall()
     
     # All active reminders
     reminders = conn.execute("SELECT r.*, t.title as task_title FROM reminders r LEFT JOIN tasks t ON r.task_id = t.id WHERE r.is_done = 0 ORDER BY r.created_at ASC").fetchall()
@@ -1136,15 +1140,20 @@ def reclassify_entity(from_type: str,
     if clean_from == clean_to:
         with conn:
             if clean_to == "task":
+                task_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "pending")
                 conn.execute("""
                     UPDATE tasks SET title = ?, description = ?, project_id = ?, tier = ?, due_date = ?, status = ?, recurrence = ?
                     WHERE id = ?
-                """, (title, description, project_id, tier, due_date, status, recurrence, from_id))
+                """, (title, description, project_id, tier, due_date, task_status, recurrence, from_id))
             elif clean_to == "event":
+                event_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "scheduled")
+                event_time = due_date or str(datetime.datetime.now())
+                if event_time and len(event_time) == 16:
+                    event_time += ":00"
                 conn.execute("""
                     UPDATE events SET title = ?, description = ?, project_id = ?, start_time = ?, status = ?, recurrence = ?
                     WHERE id = ?
-                """, (title, description, project_id, due_date or str(datetime.datetime.now()), status, recurrence, from_id))
+                """, (title, description, project_id, event_time, event_status, recurrence, from_id))
             elif clean_to == "reminder":
                 rem_date = due_date.split(" ")[0] if due_date else None
                 conn.execute("""
@@ -1192,9 +1201,20 @@ def reclassify_entity(from_type: str,
                 pass
 
     if clean_to == "task":
+        task_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "pending")
         new_entity = create_task(title=title, description=description, project_name=project_name, tier=tier, due_date=effective_due_date, recurrence=recurrence, db_path=db_path)
+        if task_status != "pending":
+            update_task_status(new_entity["id"], task_status, db_path=db_path)
+            new_entity["status"] = task_status
     elif clean_to == "event":
-        new_entity = create_event(title=title, description=description, project_name=project_name, start_time=effective_due_date or str(datetime.datetime.now()), recurrence=recurrence, db_path=db_path)
+        event_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "scheduled")
+        event_time = effective_due_date or str(datetime.datetime.now())
+        if event_time and len(event_time) == 16:
+            event_time += ":00"
+        new_entity = create_event(title=title, description=description, project_name=project_name, start_time=event_time, recurrence=recurrence, db_path=db_path)
+        if event_status != "scheduled":
+            update_event_status(new_entity["id"], event_status, db_path=db_path)
+            new_entity["status"] = event_status
     elif clean_to == "reminder":
         rem_date = effective_due_date.split(" ")[0] if effective_due_date else None
         new_entity = create_reminder(title=title, details=description, reminder_date=rem_date, db_path=db_path)

@@ -86,7 +86,19 @@ const EntityModal = {
 
     // Status
     const statusSelect = document.getElementById("entityModalStatus");
-    statusSelect.value = e.status || "pending";
+    if (activeType === "event") {
+      statusSelect.innerHTML = `
+        <option value="scheduled">Scheduled</option>
+        <option value="completed">Completed</option>
+      `;
+      statusSelect.value = (e.status === "completed") ? "completed" : "scheduled";
+    } else {
+      statusSelect.innerHTML = `
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+      `;
+      statusSelect.value = (e.status === "completed") ? "completed" : "pending";
+    }
 
     // Recurrence
     const recurrenceSelect = document.getElementById("entityModalRecurrence");
@@ -178,17 +190,34 @@ const EntityModal = {
   },
 
   selectType(btn) {
-    document.querySelectorAll(".type-pill-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("#entityModalOverlay .type-pill-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     const targetType = btn.dataset.type;
     const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
     if (projectOptsRow) {
       projectOptsRow.style.display = targetType === "project" ? "block" : "none";
     }
+    const statusSelect = document.getElementById("entityModalStatus");
+    if (statusSelect) {
+      const isCompleted = statusSelect.value === "completed";
+      if (targetType === "event") {
+        statusSelect.innerHTML = `
+          <option value="scheduled">Scheduled</option>
+          <option value="completed">Completed</option>
+        `;
+        statusSelect.value = isCompleted ? "completed" : "scheduled";
+      } else {
+        statusSelect.innerHTML = `
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        `;
+        statusSelect.value = isCompleted ? "completed" : "pending";
+      }
+    }
   },
 
   async saveChanges() {
-    const activeBtn = document.querySelector(".type-pill-btn.active");
+    const activeBtn = document.querySelector("#entityModalOverlay .type-pill-btn.active");
     const toType = activeBtn ? activeBtn.dataset.type : (this.fromType === "unorganized" ? "task" : this.fromType);
     const toTier = activeBtn ? activeBtn.dataset.tier || "focus" : "focus";
 
@@ -202,6 +231,9 @@ const EntityModal = {
     const projectName = document.getElementById("entityModalProject").value || null;
     const dueDateRaw = document.getElementById("entityModalDueDate").value.trim();
     let dueDate = dueDateRaw ? dueDateRaw.replace("T", " ") : null;
+    if (dueDate && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(dueDate)) {
+      dueDate += ":00";
+    }
 
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -213,7 +245,13 @@ const EntityModal = {
       }
     }
 
-    const status = document.getElementById("entityModalStatus").value;
+    const rawStatus = document.getElementById("entityModalStatus").value;
+    let status = rawStatus;
+    if (toType === "event") {
+      status = (rawStatus === "completed") ? "completed" : "scheduled";
+    } else if (toType === "task") {
+      status = (rawStatus === "completed") ? "completed" : "pending";
+    }
     const recurrenceEl = document.getElementById("entityModalRecurrence");
     const recurrence = recurrenceEl ? (recurrenceEl.value.trim() || null) : null;
 

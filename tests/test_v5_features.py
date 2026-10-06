@@ -181,3 +181,62 @@ def test_unorganized_triage_defaults_to_today_and_locks_past(temp_db, monkeypatc
     assert today_str in created2["due_date"]
     assert str(yesterday) not in created2["due_date"]
 
+def test_event_edit_and_status_preservation(temp_db, monkeypatch):
+    """Verify that editing an event in entity modal preserves active status, updates time, and remains visible in get_events."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    from backend import auth
+    token = auth.record_successful_login("testclient")
+    client = TestClient(app)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    today = datetime.date.today()
+    today_str = today.strftime("%Y-%m-%d")
+
+    # 1. Create an event scheduled for today 14:00
+    ev = database.create_event(
+        title="Weekly Lab Review",
+        start_time=f"{today_str} 14:00:00",
+        db_path=temp_db
+    )
+    assert ev["id"] is not None
+    assert ev["status"] == "scheduled"
+
+    # 2. Simulate editing the event (even if user edits nothing or sends status='pending' from legacy UI)
+    edit_res = client.post(
+        "/api/entities/reclassify",
+        headers=headers,
+        json={
+            "from_type": "event",
+            "from_id": ev["id"],
+            "to_type": "event",
+            "title": "Weekly Lab Review (Edited)",
+            "description": "Updated room number",
+            "project_name": None,
+            "tier": "focus",
+            "due_date": f"{today_str} 15:30",
+            "status": "pending"  # Crucial test: legacy modal sent "pending"
+        }
+    )
+    assert edit_res.status_code == 200
+    updated_ev = edit_res.json()["entity"]
+    assert updated_ev["title"] == "Weekly Lab Review (Edited)"
+    assert updated_ev["status"] == "scheduled"  # Correctly normalized to scheduled
+    assert f"{today_str} 15:30" in updated_ev["start_time"]
+
+    # 3. Verify event is returned by get_events_for_day
+    day_events = database.get_events_for_day(today, db_path=temp_db)
+    event_titles = [e["title"] for e in day_events]
+    assert "Weekly Lab Review (Edited)" in event_titles
+
+    # 4. Verify briefing still includes the event in events_today
+    briefing = database.get_daily_briefing(today, db_path=temp_db)
+    apt_titles = [a["title"] for a in briefing["events_today"]]
+    assert "Weekly Lab Review (Edited)" in apt_titles
+
+    # 5. Verify DELETE /api/events/{id} works
+    del_res = client.delete(f"/api/events/{ev['id']}", headers=headers)
+    assert del_res.status_code == 200
+
+    day_events_post = database.get_events_for_day(today, db_path=temp_db)
+    assert len(day_events_post) == 0
+
