@@ -212,23 +212,120 @@ Docker will:
 
 ## 9. Backup & Disaster Recovery
 
-### Manual Backup
-- In the PETTR UI: Go to **Settings** -> Click **`[Create Backup Now]`**.
-- Or via terminal:
+PETTR uses a 3-2-1 backup strategy:
+1. **Local Persistent Storage**: SQLite database in `./data/pettr.sqlite`.
+2. **Local Archived Snapshots**: Automated weekly zip snapshots in `./backups/`.
+3. **Offsite Cloud Sync**: Encrypted, automatic Google Drive sync via `rclone`.
+
+---
+
+### 9.1 In-App & Local Backups
+
+- **Automated**: PETTR runs an internal scheduled task every 7 days creating `PETTR_<dd_mm_yyyy>.zip` containing:
+  - `pettr.sqlite`: SQLite online backup snapshot
+  - `PETTR_summary.md`: Human-readable markdown digest
+  - `PETTR_export.json`: Full structured JSON export
+- **Manual Trigger**: Go to **Settings** -> Click **`[Create Backup Now]`**, or run via terminal:
   ```bash
   docker compose exec pettr python -c "from backend.backup import run_backup; print(run_backup())"
   ```
 
-### Restoring from Backup
-If you ever need to restore your database on a new machine:
+---
+
+### 9.2 Offsite Google Drive Sync via `rclone` & Cron
+
+For headless Ubuntu servers without a graphical web browser, `rclone` provides lightweight, reliable syncing directly to Google Drive.
+
+#### Step 1: Install `rclone` and `cron`
+Ubuntu Server 24.04 Minimal may omit cron:
 ```bash
-# 1. Stop container
-docker compose down
-
-# 2. Extract snapshot from backup zip
-unzip backups/PETTR_25_09_2026.zip pettr.sqlite -d data/
-
-# 3. Restart container
-docker compose up -d
+sudo apt update
+sudo apt install -y rclone cron
+sudo systemctl enable --now cron
 ```
-All tasks, projects, notes, and history will be fully restored.
+
+#### Step 2: Configure Google Drive Remote (`rclone config`)
+Run the interactive configuration:
+```bash
+rclone config
+```
+1. Type `n` for **New remote**.
+2. Name: `gdrive`
+3. Storage type: `drive` (Google Drive).
+4. Leave `client_id` and `client_secret` blank (press **Enter** twice).
+5. Scope: `1` (Full access).
+6. Leave `root_folder_id` and `service_account_file` blank (press **Enter** twice).
+7. Advanced config: `n`.
+8. **Use web browser to automatically authenticate with Google?**: Type **`n`** (*Headless mode*).
+9. Follow the on-screen prompt: open the provided URL on your phone or desktop browser, authorize Google Drive access, and copy-paste the resulting authorization code into your terminal.
+10. Configure as Team Drive: `n`.
+11. Confirm and save (`y`), then quit (`q`).
+
+#### Step 3: Test Manual Sync
+Test copying local backups to a `PETTR-Backups` folder in Google Drive:
+```bash
+rclone copy ~/pettr/backups gdrive:PETTR-Backups -v
+```
+Verify that the `PETTR-Backups` directory appears in your Google Drive with the latest `.zip` archive.
+
+#### Step 4: Automate Nightly Sync via Crontab
+Open your crontab:
+```bash
+crontab -e
+```
+Add a nightly job (e.g. 3:30 AM) with a 15-minute file age buffer to avoid uploading during an active write:
+```cron
+30 3 * * * /usr/bin/rclone copy /home/YOUR_USERNAME/pettr/backups gdrive:PETTR-Backups --min-age 15m >> /home/YOUR_USERNAME/rclone_backup.log 2>&1
+```
+*(Replace `YOUR_USERNAME` with your actual Linux user, e.g. from `whoami`).*
+
+Verify execution by checking the log:
+```bash
+cat ~/rclone_backup.log
+```
+
+---
+
+### 9.3 System Time Synchronization (NTP & RTC)
+
+Cloud APIs (such as Google OAuth2) require server clocks to be accurate within ~5 minutes. Abrupt power cuts or uninitialized RTCs can cause clock drift:
+
+```bash
+# Check current time, timezone, and RTC status
+timedatectl
+
+# Set correct timezone
+sudo timedatectl set-timezone Asia/Singapore
+
+# If systemd-timesyncd is missing on minimal installs:
+sudo apt install -y systemd-timesyncd
+sudo systemctl enable --now systemd-timesyncd
+
+# Write system time to hardware clock (RTC)
+sudo apt install -y util-linux-extra
+sudo hwclock --systohc
+```
+
+---
+
+### 9.4 Disaster Recovery & Restoration
+
+To restore PETTR on a new server or recover from hardware failure:
+
+```bash
+# 1. Clone repository and initialize folders
+git clone <YOUR_GIT_REPO> ~/pettr
+cd ~/pettr
+mkdir -p data config backups
+
+# 2. Download the latest backup from Google Drive (or copy from local backups)
+rclone copy gdrive:PETTR-Backups backups/ -v
+
+# 3. Extract the SQLite database snapshot
+unzip backups/PETTR_DD_MM_YYYY.zip pettr.sqlite -d data/
+
+# 4. Launch PETTR
+docker compose up -d --build
+```
+All tasks, projects, notes, and audit history will be completely restored.
+

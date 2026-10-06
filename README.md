@@ -36,59 +36,76 @@ For running PETTR and a lightweight local LLM 24/7 smoothly at home:
 
 | Component | Recommendation | Why |
 |---|---|---|
-| **CPU** | **Intel N100** / **N97** (e.g. Beelink S12 Pro, GMKtec G3, Minisforum UN100) or **AMD Ryzen 5 5500U/5560U** | Extremely low power draw (6W - 15W TDP idle/low load). Intel N100 runs ~$130-$160 USD and handles 3B quantized LLMs at ~8-15 tokens/sec. |
-| **RAM** | **16 GB DDR4/DDR5** | 3B models need ~2.5 GB of RAM. 16 GB leaves ample headroom for Windows, background services, Tailscale, and PETTR without swap. |
-| **Storage** | **256 GB - 512 GB NVMe SSD** | Fast boot, silent operation, plenty of room for SQLite and Ollama model weights (~2 GB). |
-| **OS** | Windows 11 Home / Pro or Ubuntu Server | Windows runs Tailscale and Google Drive for Desktop out of the box. |
+| **Form Factor** | **Shuttle XPC Slim DH610** or Mini PC (Beelink, GMKtec, Minisforum) | Shuttle DH610 features dual Intel NICs (1G + 2.5G), ICE twin-fan heatpipe cooling, and hardware always-on jumper (`JP01`). |
+| **CPU** | **Intel Core i3-12100 / 12th Gen** or **Intel N100 / N97** | High single-thread speed for SQLite, AVX2 support for Ollama 3B inference (~15-25 tok/s), ultra-low idle wattage (~8-12W). |
+| **RAM** | **16 GB DDR4/DDR5** (Dual-Channel) | 3B models need ~2.5 GB of RAM. 16 GB leaves ample headroom for Linux/Docker, Tailscale, Ollama, and SQLite caching without swap. |
+| **Storage** | **256 GB - 512 GB NVMe SSD** | Fast boot, silent operation, plenty of room for WAL-mode SQLite and local model weights. |
+| **OS** | **Ubuntu Server 24.04 LTS** (Recommended) or Windows 11 | Ubuntu + Docker Compose provides zero-maintenance 24/7 reliability, automated cron rclone sync, and instant container updates. |
 
 ---
 
 ## Setup & Quickstart
 
-### 1. Launching PETTR
-On the host PC:
-```powershell
-cd C:\Users\User\.gemini\antigravity\scratch\pettr
-.\run_server.bat
-```
-Or with Python:
-```powershell
-.\venv\Scripts\python.exe run_server.py
-```
+### Deployment Options
+
+- **Production (24/7 Ubuntu Server / Docker)**: See the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) for full guide (hardware jumper tuning, Tailscale mesh, native Ollama bridge, Docker Compose, systemd, and rclone).
+  ```bash
+  git clone <YOUR_GIT_REPO> ~/pettr
+  cd ~/pettr
+  docker compose up -d --build
+  ```
+- **Local Dev / Windows Host**:
+  ```powershell
+  cd C:\Users\User\.gemini\antigravity\scratch\pettr
+  .\run_server.bat
+  ```
+  Or via Python virtual environment:
+  ```powershell
+  .\venv\Scripts\python.exe run_server.py
+  ```
+
 Open your browser to:
 - **Local:** `http://127.0.0.1:8000`
-- **Tailscale (from phone/laptop):** `http://<your-pc-tailscale-name>:8000`
+- **Tailscale (from phone/laptop):** `http://<your-tailscale-name>:8000` or `http://100.x.y.z:8000`
 
-### 2. Default PIN
+### Default PIN
 - Default 4-digit code: **`1234`**
 - Change your PIN anytime in **Settings** (when connected directly on the host PC) or via CLI:
   ```powershell
-  .\venv\Scripts\python.exe -m backend.cli set-pin 5678
+  python -m backend.cli set-pin 5678
   ```
 
-### 3. Local LLM (Ollama) Setup
+### Local LLM (Ollama) Setup
 To use local model classification, install Ollama:
-1. Download from [ollama.com](https://ollama.com) or run:
-   ```powershell
-   winget install Ollama.Ollama
-   ```
-2. Pull the recommended fast 3B model:
-   ```powershell
-   ollama pull llama3.2:3b
-   ```
-   *(Alternative fast model: `ollama pull qwen2.5:3b`)*
-3. Once running, PETTR will automatically route intent classification through Ollama with structured JSON outputs.
+- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
+- **Windows**: `winget install Ollama.Ollama`
 
-### 4. Tailscale Remote Access
-1. Download Tailscale on your mini PC and log in (`tailscale up`).
-2. Install Tailscale on your phone and laptop and log into the same account.
-3. Access PETTR from anywhere on your phone by navigating to your mini PC's MagicDNS address or 100.x Tailnet IP:
-   `http://minipc:8000`
+Pull the recommended fast 3B model:
+```bash
+ollama pull llama3.2:3b
+```
+PETTR will automatically detect Ollama and route task intent classification through structured JSON schemas.
 
-### 5. Google Drive Weekly Backup (Option A)
-1. Install **Google Drive for Desktop** on the host PC.
-2. In `config/pettr_config.json`, set `backup_dir` to your Google Drive sync folder:
-   ```json
-   "backup_dir": "G:\\My Drive\\PETTR_Backups"
-   ```
-3. PETTR will automatically generate `PETTR_<dd_mm_yyyy>.zip` weekly, or click **"📦 Backup to Google Drive Now"** in the Settings tab anytime.
+### Tailscale Remote Access
+1. Install Tailscale on your server (`sudo tailscale up` on Linux or via desktop app).
+2. Install Tailscale on your mobile phone / remote laptop and log into the same Tailnet.
+3. Access PETTR securely from anywhere without port forwarding.
+
+### Automated Cloud Backups (3-2-1 Strategy)
+
+- **Option A: Headless Linux (`rclone` + cron) — Recommended for 24/7 servers**:
+  Configure `rclone` with Google Drive and add a nightly cron sync:
+  ```bash
+  # Test sync
+  rclone copy ~/pettr/backups gdrive:PETTR-Backups -v
+
+  # Nightly cron (via crontab -e)
+  30 3 * * * /usr/bin/rclone copy /home/$USER/pettr/backups gdrive:PETTR-Backups --min-age 15m >> /home/$USER/rclone_backup.log 2>&1
+  ```
+- **Option B: Windows (Google Drive for Desktop)**:
+  Install Google Drive for Desktop and set `backup_dir` in `config/pettr_config.json`:
+  ```json
+  "backup_dir": "G:\\My Drive\\PETTR_Backups"
+  ```
+- **In-App Trigger**: Click **"📦 Create Backup Now"** in the Settings tab to instantly generate and archive a timestamped `.zip` containing the SQLite database, JSON export, and Markdown digest.
+
