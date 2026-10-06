@@ -483,9 +483,10 @@ def update_task_order(task_ids: List[int], db_path: Optional[Path] = None) -> No
 def update_task_status(task_id: int, status: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     """Updates status and completed_at timestamp for a task."""
     conn = get_connection(db_path)
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with conn:
         if status == "completed":
-            conn.execute("UPDATE tasks SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?", (status, task_id))
+            conn.execute("UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?", (status, now_str, task_id))
         else:
             conn.execute("UPDATE tasks SET status = ?, completed_at = NULL WHERE id = ?", (status, task_id))
     return get_task_by_id(task_id, db_path)

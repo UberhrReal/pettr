@@ -1881,28 +1881,31 @@ body {
   letter-spacing: 0.02em;
 }
 
-.exploded-sort-btn {
-  background: var(--bg-primary);
-  border: 1px solid var(--card-border);
+.exploded-pool-filter-btn, .exploded-sort-btn {
+  background: transparent;
   color: var(--text-muted);
+  border: none;
   font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 5px 11px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.exploded-sort-btn:hover {
-  background: var(--bg-tertiary);
+.exploded-pool-filter-btn:hover, .exploded-sort-btn:hover {
+  background: var(--bg-secondary);
   color: var(--text-main);
 }
 
-.exploded-sort-btn.active {
-  background: var(--accent-cyan);
-  color: #000;
-  border-color: var(--accent-cyan);
+.exploded-pool-filter-btn.active, .exploded-sort-btn.active {
+  background: var(--bg-primary);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
   font-weight: 700;
 }
 

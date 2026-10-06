@@ -892,18 +892,6 @@ const App = {
     }
   },
 
-  navigateToGlobalProjects() {
-    this.switchTab("exploded");
-    const btn = document.querySelector('.cluster-filter-btn[data-cluster="projects"]');
-    if (typeof Mindmap !== "undefined") {
-      Mindmap.setFilter("projects", btn);
-    }
-    const projectsSection = document.getElementById("explodedProjectsSection");
-    if (projectsSection) {
-      projectsSection.scrollIntoView({ behavior: "smooth" });
-    }
-  },
-
   pinRevealed: false,
   cachedPin: "••••",
 
