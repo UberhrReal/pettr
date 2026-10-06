@@ -589,6 +589,9 @@ const App = {
     document.querySelectorAll(".nav-tabs .tab-btn").forEach(btn => {
       if (btn.dataset.tab === tabName) {
         btn.classList.add("active");
+        try {
+          btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        } catch (_) {}
       } else {
         btn.classList.remove("active");
       }

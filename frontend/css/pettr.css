@@ -3895,4 +3895,540 @@ body {
   padding-top: 14px;
 }
 
+/* ==========================================================================
+   Comprehensive Mobile Optimization & Tactile Touch Interface (< 768px)
+   ========================================================================== */
+
+/* Universal Touch & Safe Area Foundations */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+  /* --- App Header & Top Bar --- */
+  .app-header {
+    padding: calc(10px + var(--safe-top)) 12px 6px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .app-header.header-compact {
+    padding: calc(7px + var(--safe-top)) 12px 5px 12px;
+  }
+
+  .header-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  /* Compact Sleek Brand */
+  .brand-centre {
+    order: 1;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0;
+  }
+
+  .brand-title {
+    font-size: 21px;
+    letter-spacing: 0.2em;
+    text-indent: 0.2em;
+  }
+
+  .app-header.header-compact .brand-title {
+    font-size: 17px;
+    letter-spacing: 0.16em;
+  }
+
+  .brand-full-name {
+    display: none !important; /* Hide long subtitle on mobile for cleanliness */
+  }
+
+  .brand-tagline-carousel {
+    display: none !important; /* Hide tagline on mobile */
+  }
+
+  /* Controls & Pills */
+  .header-right-controls {
+    order: 2;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .header-left-pills {
+    order: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cmd-palette-trigger-btn {
+    display: none !important; /* Shift+K shortcut hidden on mobile touch */
+  }
+
+  .status-pill {
+    font-size: 10.5px;
+    padding: 4px 9px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-clock-pill {
+    font-size: 10.5px;
+    padding: 4px 8px;
+  }
+
+  .theme-switcher-control {
+    padding: 2px;
+  }
+
+  .theme-btn {
+    padding: 4px 7px;
+    font-size: 11px;
+  }
+
+  .action-icon-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  /* --- Horizontally Scrollable Native-Feel Tab Navigation --- */
+  .header-nav-row {
+    padding-bottom: 2px;
+    width: 100%;
+    overflow: hidden;
+    justify-content: flex-start;
+  }
+
+  .nav-tabs {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 3px 4px;
+    gap: 4px;
+    justify-content: flex-start;
+    border-radius: 10px;
+  }
+
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    gap: 5px;
+    min-height: 34px;
+    border-radius: 7px;
+  }
+
+  /* --- Main Content Container & Master Wrapper --- */
+  .main-content {
+    width: 100%;
+    padding: 10px 8px calc(48px + var(--safe-bottom)) 8px;
+  }
+
+  .dashboard-master-wrapper {
+    padding: 14px 10px 22px 10px;
+    border-radius: 14px;
+    margin-bottom: 18px;
+  }
+
+  /* --- Greeting & Live Mission Clock Widget --- */
+  .greeting-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .greeting-user-block {
+    text-align: left;
+  }
+
+  .greeting-text {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+
+  .greeting-subtext {
+    font-size: 13px;
+  }
+
+  .mission-clock-widget {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+  }
+
+  .mission-clock-time-display {
+    justify-content: center;
+  }
+
+  .mission-clock-digit {
+    font-size: 30px;
+  }
+
+  .mission-clock-sec {
+    font-size: 20px;
+  }
+
+  .mission-clock-pulse-colon {
+    font-size: 26px;
+  }
+
+  /* --- Working Panels & Grid Layout --- */
+  .dashboard-overview-row {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .dashboard-dynamic-panels {
+    gap: 14px;
+  }
+
+  .dynamic-panel {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .column-card {
+    padding: 12px 12px;
+    border-radius: 12px;
+  }
+
+  .column-header-row {
+    margin-bottom: 10px;
+  }
+
+  .column-title {
+    font-size: 14px;
+  }
+
+  .dynamic-grid-list {
+    grid-template-columns: 1fr !important;
+    gap: 6px;
+  }
+
+  /* --- Task Items & Touch Ergonomics --- */
+  .task-item {
+    padding: 10px 10px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .task-checkbox {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .task-title {
+    font-size: 13.5px;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .task-meta {
+    gap: 5px;
+    margin-top: 3px;
+  }
+
+  /* Always visible actions on mobile (no hover on phones) */
+  .task-actions {
+    opacity: 0.9 !important;
+    gap: 2px;
+  }
+
+  .task-action-btn {
+    padding: 6px;
+    min-width: 30px;
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .drag-handle {
+    padding: 4px 2px;
+    font-size: 15px;
+  }
+
+  /* --- Executive Snapshot / Morning Briefing Window --- */
+  .briefing-showcase-window {
+    padding: 14px 12px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+  }
+
+  .briefing-showcase-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .briefing-dual-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .briefing-formatted-pane {
+    padding: 12px 12px;
+    max-height: 380px;
+  }
+
+  .briefing-visual-container {
+    font-size: 13px;
+  }
+
+  /* --- Settings Tab Responsive --- */
+  #tabSettings .column-card {
+    padding: 14px 12px;
+  }
+
+  #tabSettings .column-card input[type="text"],
+  #tabSettings .column-card input[type="password"] {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  #tabSettings div[style*="display: flex; gap: 10px;"] {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  #tabSettings .quick-submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* --- Notes Tab Responsive --- */
+  .notes-layout {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .notes-sidebar {
+    max-height: 220px;
+  }
+
+  /* --- Timeline Horizontal Scrolling Ergonomics --- */
+  .unified-timeline-container {
+    padding: 14px 12px;
+    -webkit-overflow-scrolling: touch;
+    min-height: 480px;
+  }
+}
+
+/* ==========================================================================
+   Narrow Mobile Screens (< 540px)
+   ========================================================================== */
+@media (max-width: 540px) {
+  /* Natural Language Command Bar */
+  .quick-input-container {
+    width: 100%;
+  }
+
+  .quick-input-box {
+    padding: 11px 95px 11px 12px !important;
+    font-size: 13.5px;
+    border-radius: 10px;
+  }
+
+  .quick-actions-cluster {
+    right: 5px;
+    gap: 4px;
+  }
+
+  .direct-entry-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+  }
+
+  .direct-entry-label {
+    display: none !important;
+  }
+
+  .voice-input-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+  }
+
+  .quick-submit-btn {
+    padding: 7px 11px !important;
+    font-size: 12px !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+  }
+
+  .quick-submit-btn span {
+    display: none; /* Icon-first clean submit on narrow viewports */
+  }
+
+  .log-key-hint {
+    display: none !important;
+  }
+
+  .input-hint {
+    font-size: 11px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  /* Bottom-Sheet Style Modals */
+  .modal-overlay {
+    padding: 6px;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    padding: 18px 14px;
+    max-height: 88vh;
+    overflow-y: auto;
+    border-radius: 18px 18px 8px 8px;
+    border-bottom: none;
+    animation: modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .type-pill-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .type-pill-btn {
+    padding: 5px 8px;
+    font-size: 11.5px;
+    flex: 1;
+    text-align: center;
+  }
+
+  /* PIN Lock Card */
+  .pin-card {
+    padding: 24px 16px;
+    max-width: 325px;
+    border-radius: 18px;
+  }
+
+  .pin-logo {
+    font-size: 26px;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+
+  .pin-keypad {
+    gap: 9px;
+  }
+
+  .key-btn {
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
+  }
+
+  /* Focus Cockpit Card */
+  .cockpit-card {
+    width: 98%;
+    padding: 16px 12px;
+    gap: 12px;
+    max-height: 92vh;
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+
+  .cockpit-task-title {
+    font-size: 16px;
+  }
+
+  .cockpit-timer-digits {
+    font-size: 40px;
+  }
+
+  .ambient-buttons-cluster {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Evening Debrief Card */
+  .debrief-card {
+    padding: 16px 12px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+
+  .debrief-scorecard {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .debrief-score-stat {
+    border-right: none;
+    border-bottom: 1px solid var(--card-border);
+    padding-right: 0;
+    padding-bottom: 8px;
+  }
+
+  .score-large-num {
+    font-size: 28px;
+  }
+
+  .debrief-triage-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .debrief-triage-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Command Palette on Small Screens */
+  .cmd-palette-overlay {
+    padding-top: 5vh;
+  }
+
+  .cmd-palette-box {
+    width: 95%;
+    border-radius: 12px;
+  }
+}
+
 
