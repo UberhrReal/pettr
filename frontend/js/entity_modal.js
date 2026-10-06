@@ -313,12 +313,16 @@ const EntityModal = {
       if (this.fromType === "event") endpoint = `/api/events/${this.fromId}`;
       else if (this.fromType === "reminder") endpoint = `/api/reminders/${this.fromId}`;
       else if (this.fromType === "project") endpoint = `/api/projects/${this.fromId}`;
+      else if (this.fromType === "unorganized") endpoint = `/api/unorganized/${this.fromId}`;
 
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
         App.showToast("Item deleted.");
         this.close();
-        if (typeof Dashboard !== "undefined") Dashboard.refresh();
+        if (typeof Dashboard !== "undefined") {
+          Dashboard.refresh();
+          Dashboard.closeUnorganizedModal();
+        }
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();

@@ -1623,6 +1623,7 @@ const Dashboard = {
                 <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
                 <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
                 <button class="action-icon-btn" onclick="EntityModal.open('unorganized', ${item.id})" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit</button>
+                <button class="action-icon-btn" onclick="Dashboard.deleteUnorg(${item.id})" style="color: var(--urgent-orange); font-weight: 600;" title="Delete this item">🗑️ Delete</button>
               </div>
             `;
             permanentList.appendChild(div);
@@ -1673,6 +1674,7 @@ const Dashboard = {
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
               <button class="action-icon-btn" onclick="Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit Details</button>
+              <button class="action-icon-btn" onclick="Dashboard.deleteUnorg(${item.id})" style="color: var(--urgent-orange); font-weight: 600;" title="Delete this item">🗑️ Delete</button>
             </div>
           `;
           listContainer.appendChild(div);
@@ -1686,6 +1688,25 @@ const Dashboard = {
 
   closeUnorganizedModal() {
     document.getElementById("unorganizedModal").style.display = "none";
+  },
+
+  async deleteUnorg(id) {
+    if (!confirm("Are you sure you want to delete this unorganized item?")) return;
+    try {
+      const res = await fetch(`/api/unorganized/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        App.showToast("Item deleted from queue.");
+        this.closeUnorganizedModal();
+        await this.refresh();
+        if (typeof Timeline !== "undefined") Timeline.refresh();
+        if (typeof Mindmap !== "undefined") Mindmap.refresh();
+      } else {
+        App.showToast("Failed to delete item.", true);
+      }
+    } catch (err) {
+      console.error(err);
+      App.showToast("Network error deleting item.", true);
+    }
   },
 
   async resolveUnorg(id, entityType, tier, title) {

@@ -293,6 +293,7 @@ def extract_explicit_entity_intent(text: str) -> Tuple[str, Optional[str], Optio
     """
     Detects if the user explicitly commanded an entity type at the start of their input.
     e.g. "Event today 2pm meet Jodan" -> (cleaned="today 2pm meet Jodan", entity_type="event", tier=None)
+         "meeting with space faculty this evening 7pm" -> (cleaned="meeting with space faculty this evening 7pm", entity_type="event", tier=None)
          "Event: meet Jodan for OpenRocket tutorial" -> ("meet Jodan for OpenRocket tutorial", "event", None)
          "Reminder: buy groceries" -> ("buy groceries", "reminder", None)
          "Focus task: design chassis" -> ("design chassis", "task", "focus")
@@ -303,21 +304,29 @@ def extract_explicit_entity_intent(text: str) -> Tuple[str, Optional[str], Optio
     if not m:
         return s, None, None
     
-    cleaned = s[m.end():].strip(' .,;:-')
+    raw_match = m.group(0)
+    has_separator = any(sep in raw_match for sep in (":", "-"))
+    after = s[m.end():].strip(' .,;:-')
     # If stripping leaves an empty string, revert to original
-    if not cleaned:
+    if not after:
         return s, None, None
+
+    # If user typed "meeting with..." or "appointment with..." without a colon/dash,
+    # preserve the full phrase in the title rather than stripping it to "with..."
+    if not has_separator and after.lower().startswith("with "):
+        if m.group("event"):
+            return s, "event", None
     
     if m.group("event"):
-        return cleaned, "event", None
+        return after, "event", None
     elif m.group("reminder"):
-        return cleaned, "reminder", None
+        return after, "reminder", None
     elif m.group("focus_task"):
-        return cleaned, "task", "focus"
+        return after, "task", "focus"
     elif m.group("trivial_task"):
-        return cleaned, "task", "trivial"
+        return after, "task", "trivial"
     elif m.group("task"):
-        return cleaned, "task", None
+        return after, "task", None
     
     return s, None, None
 

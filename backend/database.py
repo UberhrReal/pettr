@@ -750,6 +750,13 @@ def get_unorganized_items(db_path: Optional[Path] = None) -> List[Dict[str, Any]
     rows = conn.execute("SELECT * FROM unorganized_queue WHERE status = 'pending' ORDER BY created_at DESC").fetchall()
     return [dict(r) for r in rows]
 
+def delete_unorganized_item(item_id: int, db_path: Optional[Path] = None) -> bool:
+    """Permanently deletes an unorganized queue item by ID."""
+    conn = get_connection(db_path)
+    with conn:
+        cursor = conn.execute("DELETE FROM unorganized_queue WHERE id = ?", (item_id,))
+        return cursor.rowcount > 0
+
 # --- Notes Operations ---
 
 def get_notes(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:

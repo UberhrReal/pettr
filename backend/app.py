@@ -495,6 +495,13 @@ async def resolve_unorganized(item_id: int, req: ResolveUnorganizedRequest):
 
     return {"status": "success", "entity": created}
 
+@app.delete("/api/unorganized/{item_id}", dependencies=[Depends(auth.require_auth)])
+async def delete_unorganized_item_endpoint(item_id: int):
+    success = database.delete_unorganized_item(item_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Unorganized item not found")
+    return {"status": "success", "message": "Item deleted from unorganized queue"}
+
 # --- Backup Route ---
 
 @app.post("/api/backup/now", dependencies=[Depends(auth.require_auth)])

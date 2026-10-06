@@ -298,4 +298,52 @@ async def test_explicit_task_and_reminder_commands(temp_db):
     assert res2["entity"]["tier"] == "focus"
     assert "Write propulsion report" in res2["entity"]["title"]
 
+@pytest.mark.anyio
+async def test_meeting_with_faculty_this_evening(temp_db):
+    """
+    Test that 'meeting with space faculty this evening 7pm' creates an event at 19:00:00
+    with title 'Meeting with space faculty' and is not routed to the unorganized queue.
+    """
+    ref_now = datetime.datetime(2026, 10, 7, 10, 0, 0)
+    user_input = "meeting with space faculty this evening 7pm"
+    result = await process_user_input(user_input, ref_datetime=ref_now, db_path=temp_db)
+
+    assert result["status"] == "success"
+    assert result["entity_type"] == "event"
+    event = result["entity"]
+    assert event["title"] == "Meeting with space faculty"
+    assert "2026-10-07 19:00:00" in event["start_time"]
+    assert event["project_name"] is None
+
+def test_delete_unorganized_item_api(temp_db, monkeypatch):
+    """Verify DELETE /api/unorganized/{id} removes an item from the unorganized queue."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    from backend import auth
+    token = auth.record_successful_login("testclient")
+    client = TestClient(app)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    item = database.add_to_unorganized_queue(
+        raw_input="unintelligible scrap 999",
+        parsed_date=None,
+        suggested_type="task",
+        suggested_tier="focus",
+        suggested_project=None,
+        reasoning="Test unorganized item",
+        confidence=0.3,
+        db_path=temp_db
+    )
+    assert item["id"] is not None
+
+    items_before = database.get_unorganized_items(temp_db)
+    assert any(i["id"] == item["id"] for i in items_before)
+
+    del_res = client.delete(f"/api/unorganized/{item['id']}", headers=headers)
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "success"
+
+    items_after = database.get_unorganized_items(temp_db)
+    assert not any(i["id"] == item["id"] for i in items_after)
+
+
 
