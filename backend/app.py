@@ -586,6 +586,13 @@ async def test_llm_ping():
 
 # --- Static Frontend Serving ---
 
+@app.middleware("http")
+async def add_cache_control_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.endswith((".css", ".js")) or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 @app.get("/")
@@ -593,4 +600,7 @@ async def root():
     index_file = FRONTEND_DIR / "index.html"
     if not index_file.exists():
         return JSONResponse({"status": "PETTR backend online. Frontend initializing..."})
-    return FileResponse(str(index_file))
+    return FileResponse(
+        str(index_file),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+    )
