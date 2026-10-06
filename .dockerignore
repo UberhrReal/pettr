@@ -1,0 +1,14 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+tests/
+scratch/
+.git/
+.gitignore
+*.sqlite*
+backups/*.zip
+data/

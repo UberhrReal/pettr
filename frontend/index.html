@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PETTR - Personal Errands, Task Tracker & Repository</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=4.9">
+  <!-- Lucide Icons & Three.js Libraries -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <!-- Pseudo-3D Top-Down Propagating Wave Background Canvas -->
+  <canvas id="bgWaveCanvas"></canvas>
+
+  <!-- 4-Digit PIN Lock Screen Overlay -->
+  <div id="pinLockOverlay" class="pin-overlay">
+    <div class="pin-card">
+      <div class="pin-logo">PETTR</div>
+      <div class="pin-subtitle font-light">Self-Hosted Task Tracker & Repository</div>
+      
+      <div id="pinLockoutBanner" class="pin-lockout-banner">
+        Rate limited. Please wait <span id="lockoutTimer">60</span>s...
+      </div>
+
+      <div class="pin-dots">
+        <div class="pin-dot" id="dot0"></div>
+        <div class="pin-dot" id="dot1"></div>
+        <div class="pin-dot" id="dot2"></div>
+        <div class="pin-dot" id="dot3"></div>
+      </div>
+
+      <div class="pin-keypad">
+        <button class="key-btn" onclick="PinLock.enterDigit('1')">1</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('2')">2</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('3')">3</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('4')">4</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('5')">5</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('6')">6</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('7')">7</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('8')">8</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('9')">9</button>
+        <button class="key-btn action" onclick="PinLock.clearAll()">CLR</button>
+        <button class="key-btn" onclick="PinLock.enterDigit('0')">0</button>
+        <button class="key-btn action" onclick="PinLock.backspace()">⌫</button>
+      </div>
+
+      <div id="pinErrorMsg" class="pin-error-banner"></div>
+    </div>
+  </div>
+
+  <!-- Real-Time Network & Sync Alert Banner -->
+  <div id="networkSyncBanner" class="network-sync-banner" style="display: none;">
+    <div class="network-sync-content">
+      <span class="network-sync-icon" id="networkSyncIcon"><i data-lucide="wifi-off"></i></span>
+      <div class="network-sync-text">
+        <span class="network-sync-title" id="networkSyncTitle">Tailscale Disconnected</span>
+        <span class="network-sync-sub" id="networkSyncSub">Local node offline or un-synced. Changes may not reflect across other devices.</span>
+      </div>
+    </div>
+    <div class="network-sync-actions">
+      <span class="network-sync-time" id="networkSyncLastSeen">Last synced: Just now</span>
+      <button class="network-sync-btn" onclick="App.retryNetworkSync()"><i data-lucide="refresh-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Reconnect &amp; Sync</button>
+    </div>
+  </div>
+
+  <!-- Main App Header Shell -->
+  <header class="app-header">
+    <!-- Top Brand Row: Centred title, left status, right controls -->
+    <div class="header-top-row">
+      <div class="header-left-pills">
+        <div class="status-pill" id="systemStatusPill">
+          <span class="status-dot"></span>
+          <span id="statusText">Tailscale Ready</span>
+        </div>
+        <div class="header-clock-pill" id="headerClockPill" title="Live Mission Time">
+          <span class="header-clock-pulse"></span>
+          <span id="headerClockDigits" class="font-mono">--:--:--</span>
+        </div>
+        <button class="status-pill cmd-palette-trigger-btn" onclick="CommandPalette.open()" title="Command Palette (Shift+K or Alt+K or \)">
+          <i data-lucide="terminal" style="width:11px;height:11px;opacity:0.8;"></i> <span class="font-mono" style="font-size:10.5px;">Shift+K</span>
+        </button>
+      </div>
+
+      <!-- Central Brand Block -->
+      <div class="brand-centre">
+        <div class="brand-title">PETTR</div>
+        <div class="brand-full-name">Personal Errands, Task Tracker &amp; Repository</div>
+        <div class="brand-tagline-carousel" id="heroDynamicTagline">
+          Autonomous node · 100% private Tailscale mesh
+        </div>
+      </div>
+
+      <div class="header-right-controls">
+        <button class="action-icon-btn evening-debrief-trigger" id="eveningDebriefHeaderBtn" onclick="EveningDebrief.open()" title="Evening Debrief (Accessible after 18:00 or when done)" style="display:none; color: var(--focus-indigo); font-weight:600;">
+          <i data-lucide="moon-star" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Debrief
+        </button>
+        <!-- Theme Switcher (Auto Solar, Light, Dark) -->
+        <div class="theme-switcher-control" id="themeSwitcherControl">
+          <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Day/Night Cycle"><i data-lucide="sun-moon"></i> Auto</button>
+          <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light Mode"><i data-lucide="sun"></i></button>
+          <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode"><i data-lucide="moon"></i></button>
+        </div>
+        <button class="action-icon-btn lock-btn" onclick="App.logout()" title="Lock Session"><i data-lucide="lock" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Lock</button>
+      </div>
+    </div>
+
+    <!-- Nav Tab Row -->
+    <div class="header-nav-row">
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="dashboard">
+          <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
+        </button>
+        <button class="tab-btn" data-tab="timeline">
+          <i data-lucide="clock-3"></i> <span>Timeline</span>
+        </button>
+        <button class="tab-btn" data-tab="exploded">
+          <i data-lucide="orbit"></i> <span>Exploded View</span>
+        </button>
+        <button class="tab-btn" data-tab="notes">
+          <i data-lucide="file-text"></i> <span>Notes</span>
+        </button>
+        <button class="tab-btn" data-tab="history">
+          <i data-lucide="archive"></i> <span>History</span>
+        </button>
+        <button class="tab-btn" data-tab="settings">
+          <i data-lucide="settings"></i> <span>Settings</span>
+        </button>
+        <button class="tab-btn" data-tab="guide">
+          <i data-lucide="book-open"></i> <span>Guide</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Areas -->
+  <main class="main-content">
+
+    <!-- Tab 1: Dashboard (Panoramic 3-Column Desktop Layout) -->
+    <section id="tabDashboard" class="tab-pane active">
+
+      <!-- Master Elevated Console Card -->
+      <div class="dashboard-master-wrapper">
+
+        <!-- Quick Natural Language Command Bar with Dynamic Greeting -->
+        <section class="quick-input-section" id="quickInputSection">
+          <div class="greeting-container">
+            <div class="greeting-user-block">
+              <div>
+                <div class="greeting-text" id="greetingText">Hi, Me!</div>
+                <div class="greeting-subtext" id="greetingSubtext">Ready to log and track your day.</div>
+              </div>
+            </div>
+
+            <!-- Nicely Animated Live Mission Clock -->
+            <div class="mission-clock-widget" id="missionClockWidget">
+              <div class="mission-clock-top">
+                <div class="mission-clock-status">
+                  <span class="mission-beacon-dot"></span>
+                  <span class="mission-clock-badge-title">MISSION CLOCK</span>
+                </div>
+                <button type="button" class="mission-clock-tz" id="missionClockTz" onclick="App.promptSetTimezone()" title="Click to manually adjust timezone (Travel Mode)">
+                  <i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i>
+                  <span id="missionClockTzText">UTC+8 · SGT</span>
+                </button>
+              </div>
+              <div class="mission-clock-time-display">
+                <span class="mission-clock-digit" id="missionClockHours">--</span>
+                <span class="mission-clock-pulse-colon">:</span>
+                <span class="mission-clock-digit" id="missionClockMinutes">--</span>
+                <span class="mission-clock-pulse-colon">:</span>
+                <span class="mission-clock-digit mission-clock-sec" id="missionClockSeconds">--</span>
+                <span class="mission-clock-meridiem" id="missionClockMeridiem">--</span>
+              </div>
+              <div class="mission-clock-subbar">
+                <div class="mission-clock-calendar">
+                  <i data-lucide="calendar" style="width:11px;height:11px;opacity:0.7;"></i>
+                  <span id="missionClockDateStr">LIVE</span>
+                </div>
+                <div class="mission-clock-track">
+                  <div class="mission-clock-progress-bar" id="missionClockProgressBar"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prominent Unorganized Alert Banner (Fallback) -->
+          <div id="unorgAlertBanner" class="unorg-alert-banner" style="display: none; max-width: 1200px; margin: 0 auto 16px auto;">
+            <div>
+              <div class="unorg-alert-title">
+                <i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--urgent-orange);"></i>
+                <span>Action Required: <span id="unorgBannerCount">0</span> Unorganized Items</span>
+              </div>
+              <div class="unorg-alert-desc">
+                Inputs need your manual confirmation to route into Tasks, Events, or Reminders.
+              </div>
+            </div>
+            <button class="quick-submit-btn" style="position: static; transform: none; background: #ea580c;" onclick="Dashboard.openUnorganizedModal()">
+              Triage Now →
+            </button>
+          </div>
+
+          <div class="quick-input-container">
+            <div class="quick-input-wrapper">
+              <input type="text" id="quickInput" class="quick-input-box" 
+                     placeholder="Log anything naturally... e.g. 'Work on design for IDEA-1 Concept. Tonight 2359'" 
+                     autocomplete="off">
+              <div class="quick-actions-cluster">
+                <button class="voice-input-btn" id="voiceInputBtn" onclick="App.toggleVoiceInput()" title="Voice Input (Speech-to-Text)" type="button">
+                  <i data-lucide="mic"></i>
+                </button>
+                <button class="action-icon-btn direct-entry-btn" onclick="Dashboard.openManualCreateModal()" title="Directly add a task, event, reminder, or project without natural language parsing" type="button">
+                  <i data-lucide="plus-circle" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;"></i> <span class="direct-entry-label">+ Direct Entry</span>
+                </button>
+                <button class="quick-submit-btn" id="quickSubmitBtn" onclick="App.submitLog()" type="button"><span id="quickSubmitBtnText">Log</span> <kbd class="log-key-hint">↵</kbd></button>
+              </div>
+            </div>
+            <div class="input-hint">
+              <span><i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Press <kbd style="background: var(--bg-tertiary); border: 1px solid var(--card-border); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono);">/</kbd> anywhere to focus. Voice input & natural language priority supported.</span>
+              <span id="unorgBadge" style="display:none; color: var(--urgent-orange); font-weight: 700; cursor: pointer;" onclick="Dashboard.openUnorganizedModal()"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-2px;"></i> Unorganized Queue (<span id="unorgCount">0</span>)</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Active Category Filter Indicator -->
+        <div id="filterActiveBar" class="filter-active-bar">
+          <span id="filterActiveLabel">Filtering by: Category</span>
+        <button class="filter-clear-btn" onclick="Dashboard.clearFilter()"><i data-lucide="x" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show All Items</button>
+      </div>
+
+      <!-- Dashboard Day Navigator (Future Preview & Historical Review) -->
+      <div class="dashboard-date-navigator" id="dashboardDateNav">
+        <div class="date-nav-controls">
+          <button class="date-step-btn" onclick="Dashboard.navigateDay(-1)" title="Previous Day">
+            <i data-lucide="chevron-left" style="width:14px;height:14px;"></i> Prev Day
+          </button>
+          <div class="date-current-badge" id="dashboardDateCurrentBadge">
+            <i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-cyan);"></i>
+            <span id="dashboardSelectedDateLabel">Today</span>
+            <span class="date-status-tag tag-today" id="dashboardDateStatusTag">LIVE TODAY</span>
+          </div>
+          <button class="date-step-btn" onclick="Dashboard.navigateDay(1)" title="Next Day">
+            Next Day <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+          </button>
+        </div>
+        <div class="date-nav-actions">
+          <button class="action-icon-btn jump-today-btn" id="dashboardJumpTodayBtn" onclick="Dashboard.jumpToToday()" style="display:none;" title="Return to Current Day">
+            <i data-lucide="rotate-ccw" style="width:12px;height:12px;"></i> Jump to Today
+          </button>
+        </div>
+      </div>
+
+      <!-- Historical Locked Record Banner -->
+      <div id="dashboardLockedArchiveBanner" class="day-status-banner locked-banner" style="display:none;">
+        <i data-lucide="lock" style="width:15px;height:15px;"></i>
+        <span><strong>Historical Record (Locked):</strong> You are viewing an archived past day (<span id="lockedArchiveDateText"></span>). Tasks are preserved and uneditable to ensure productivity score integrity.</span>
+      </div>
+
+      <!-- Future Scheduled Preview Banner -->
+      <div id="dashboardFuturePreviewBanner" class="day-status-banner future-banner" style="display:none;">
+        <i data-lucide="sparkles" style="width:15px;height:15px;"></i>
+        <span><strong>Scheduled Preview:</strong> Planning ahead for <span id="futurePreviewDateText"></span>. Tasks can be added and pre-edited, while completion tracking stays inactive until the date arrives.</span>
+      </div>
+
+      <!-- Full-Width Snapshot Window & Tasking Priority -->
+      <div class="briefing-showcase-window" id="briefingShowcaseWindow">
+        <div class="briefing-showcase-header">
+          <div class="briefing-showcase-title">
+            <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="compass" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Snapshot</span>
+            <span id="briefingShowcaseDate" style="font-size: 13px; font-weight: 500; color: var(--text-muted);">Today</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="action-icon-btn" id="eveningDebriefDashBtn" onclick="EveningDebrief.open()" title="Evening Debrief (Accessible after 18:00 or when work is done)" style="display:none; font-size:12px; color:var(--focus-indigo); font-weight:600;"><i data-lucide="moon-star" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Evening Debrief</button>
+            <button class="action-icon-btn" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Markdown to clipboard"><i data-lucide="copy" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;"></i> Copy Brief</button>
+          </div>
+        </div>
+
+        <div class="briefing-dual-layout">
+          <!-- Left: Rich Formatted Morning Snapshot -->
+          <div class="briefing-formatted-pane" id="briefingFormattedPane">
+            <pre id="briefingRichContent" class="briefing-rich-content" style="display:none;">Loading executive brief...</pre>
+            <div id="briefingVisualContainer" class="briefing-visual-container">Loading executive brief...</div>
+          </div>
+
+          <!-- Right: Segregated Tasking Priority Sequence List -->
+          <div class="daily-order-container" id="dailyOrderContainer">
+            <div class="daily-order-header">
+              <div>
+                <div class="daily-order-title">
+                  <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="list-ordered" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Tasking Priority</span>
+                  <span class="stat-pill" id="dailyOrderCountBadge">0 in sequence</span>
+                </div>
+                <div class="daily-order-subtitle">Drag &amp; drop tasks, projects, or events here to lock in your exact execution order.</div>
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button class="action-icon-btn" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit" style="font-size: 11px; padding: 2px 8px; color: var(--focus-indigo); border-color: rgba(99, 102, 241, 0.4);"><i data-lucide="zap" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Focus Cockpit</button>
+                <button class="action-icon-btn" onclick="Dashboard.clearDailyOrder()" title="Reset order" style="font-size: 11px; padding: 2px 7px;"><i data-lucide="rotate-ccw" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Reset</button>
+              </div>
+            </div>
+            
+            <div class="daily-order-slots-list" id="dailyOrderSlotsList">
+              <!-- Dynamically populated slots -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permanent Collapsible Unorganised Queue Panel -->
+      <div class="unorg-permanent-panel" id="unorgPermanentPanel">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="alert-triangle" style="width:15px;height:15px;color:var(--urgent-orange);"></i>
+            <span style="font-weight: 700; font-size: 14px; color: var(--text-main);">Unorganised Queue</span>
+            <span class="stat-pill" style="padding: 2px 8px; font-size: 11px; background: var(--urgent-orange-bg); color: var(--urgent-orange); border-color: #fed7aa;">
+              <span id="unorgPermanentCount">0</span> pending
+            </span>
+          </div>
+          <button class="action-icon-btn" id="unorgCollapseBtn" onclick="Dashboard.toggleUnorgCollapse()" style="font-size: 12px; font-weight: 600;">
+            ◨ Hide to Side
+          </button>
+        </div>
+        <div class="unorg-panel-body" style="margin-top: 14px;">
+          <div id="unorgPermanentList">
+            <!-- Injected by checkUnorganized() -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Overview Row: Daily Metrics & Time-Anchored Appointments -->
+      <div class="dashboard-overview-row">
+        <!-- Daily Overview & Progress Ring -->
+        <div class="summary-panel-card" id="summaryPanelCard">
+          <div class="summary-top-row">
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--text-main);" id="overviewCardTitle">Productivity &amp; Tracking</div>
+              <span id="briefingDate" style="font-size: 12px; font-weight: 500; color: var(--text-muted);">Today</span>
+            </div>
+            <div class="overview-mode-switcher">
+              <button type="button" class="overview-mode-btn active" id="ovBtnToday" onclick="Dashboard.switchOverviewMode('today')">Today</button>
+              <button type="button" class="overview-mode-btn" id="ovBtnWeek" onclick="Dashboard.switchOverviewMode('week')">Weekly</button>
+              <button type="button" class="overview-mode-btn" id="ovBtnMonth" onclick="Dashboard.switchOverviewMode('month')">Monthly</button>
+            </div>
+          </div>
+
+          <!-- 1. Today View: Ring + Pills + Tomorrow Outlook -->
+          <div id="overviewTodayContainer">
+            <div class="progress-ring-container">
+              <svg class="progress-ring-svg">
+                <circle class="progress-ring-circle-bg" cx="27" cy="27" r="22"></circle>
+                <circle class="progress-ring-circle" id="progressRingCircle" cx="27" cy="27" r="22" stroke-dasharray="138.23" stroke-dashoffset="138.23"></circle>
+              </svg>
+              <div>
+                <div class="progress-ring-text" id="progressRingText">0%</div>
+                <div class="progress-ring-subtext" id="progressRingSubtext">0 of 0 tasks completed today</div>
+              </div>
+            </div>
+
+            <div class="summary-pills-row">
+              <div class="stat-pill" data-filter="focus" title="Click to view only Focus Tasks">
+                <i data-lucide="crosshair" style="width:13px;height:13px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus: <span class="stat-num" id="statFocus">0</span>
+              </div>
+              <div class="stat-pill" data-filter="trivial" title="Click to view only Trivial Tasks">
+                <i data-lucide="check-square" style="width:13px;height:13px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial: <span class="stat-num" id="statTrivial">0</span>
+              </div>
+              <div class="stat-pill" data-filter="events" title="Click to view today's events">
+                <i data-lucide="calendar" style="width:13px;height:13px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Events: <span class="stat-num" id="statEvents">0</span>
+              </div>
+              <div class="stat-pill" data-filter="projects" title="Click to scroll to Multi-Step Projects">
+                <i data-lucide="folder" style="width:13px;height:13px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Projects: <span class="stat-num" id="statProjects">0</span>
+              </div>
+              <div class="stat-pill" data-filter="reminders" title="Click to view reminders">
+                <i data-lucide="bell" style="width:13px;height:13px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders: <span class="stat-num" id="statReminders">0</span>
+              </div>
+              <div class="stat-pill unorg-pill" id="statPillUnorg" data-filter="unorganized" style="display: none;" title="Click to triage unorganized queue">
+                <i data-lucide="alert-circle" style="width:13px;height:13px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Unorganized: <span class="stat-num" id="statUnorg">0</span>
+              </div>
+            </div>
+
+            <div class="tomorrow-blurb" id="tomorrowBlurb" style="margin-top: 14px; font-size: 12px; color: var(--text-muted); padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--card-border); line-height: 1.5;">
+              Tomorrow: Clear slate ahead.
+            </div>
+          </div>
+
+          <!-- 2. Weekly View: 7-Day Completion Bars -->
+          <div id="overviewWeekContainer" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Daily Task Completion (Mon - Sun)</span>
+              <span id="weekProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% avg</span>
+            </div>
+            <div class="productivity-week-grid" id="productivityWeekGrid">
+              <!-- Injected by Dashboard.renderProductivityWeek() -->
+            </div>
+            <div id="weekProductivitySummary" style="font-size: 11.5px; color: var(--text-muted); padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+              Loading weekly productivity...
+            </div>
+          </div>
+
+          <!-- 3. Monthly View: Monthly Progress & Streak -->
+          <div id="overviewMonthContainer" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span id="monthProductivityTitle" style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Monthly Performance</span>
+              <span id="monthProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% completed</span>
+            </div>
+            <div class="project-progress-bar" style="height: 7px; margin-bottom: 12px;">
+              <div class="project-progress-fill" id="monthProgressFill" style="width: 0%;"></div>
+            </div>
+            <div id="monthProductivityDetails" style="font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+              Loading monthly overview...
+            </div>
+          </div>
+        </div>
+
+        <!-- Scheduled Events Grid -->
+        <div class="column-card" id="eventsCardSection">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Today's Scheduled Events</h3>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('event')" style="font-size: 11px; font-weight: 600;" title="Directly add scheduled event">+ Add Event</button>
+              <span style="font-size: 12px; color: var(--text-muted);">24hr Military</span>
+            </div>
+          </div>
+          <div id="eventsList" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Events injected here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- The 4 Main Dynamic Scaling Working Panels -->
+      <div class="dashboard-dynamic-panels" id="dashboardDynamicPanels">
+
+        <!-- Panel 1: Projects Today -->
+        <div class="column-card dynamic-panel" id="projectsCardSection">
+          <div class="column-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 class="column-title"><i data-lucide="folder" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Projects Today</h3>
+              <span class="panel-count-badge" id="badgeCountProjects">0 projects</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('project')" style="font-size: 11px; font-weight: 600;" title="Create new project">+ New Project</button>
+              <button class="action-icon-btn" onclick="App.navigateToGlobalProjects()" style="font-size: 11px; font-weight: 600;" title="View all ongoing projects in Exploded View">All Ongoing Projects →</button>
+            </div>
+          </div>
+          <div id="projectsList" class="dashboard-projects-section">
+            <!-- Projects injected here -->
+          </div>
+        </div>
+
+        <!-- Panel 2: Focus Tasks (Deep Work) -->
+        <div class="column-card dynamic-panel" id="focusCardSection">
+          <div class="column-header">
+            <h3 class="column-title focus-title"><i data-lucide="crosshair" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus Tasks (Deep Work)</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus')" style="font-size: 11px; font-weight: 600;" title="Directly add deep work focus task">+ Add Focus Task</button>
+              <span class="panel-count-badge" id="badgeCountFocus">0 tasks</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Drag ≡</span>
+            </div>
+          </div>
+          <div class="task-list dynamic-grid-list" id="focusTasksList" data-tier="focus">
+            <!-- Focus tasks injected here -->
+          </div>
+        </div>
+
+        <!-- Panel 3: Trivial Tasks (Quick Errands) -->
+        <div class="column-card dynamic-panel" id="trivialCardSection">
+          <div class="column-header">
+            <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Tasks (Quick Errands)</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick errand">+ Add Errand</button>
+              <span class="panel-count-badge" id="badgeCountTrivial">0 tasks</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Drag ≡</span>
+            </div>
+          </div>
+          <div class="task-list dynamic-grid-list" id="trivialTasksList" data-tier="trivial">
+            <!-- Trivial tasks injected here -->
+          </div>
+        </div>
+
+        <!-- Panel 4: Reminders for Today -->
+        <div class="column-card dynamic-panel" id="remindersCardSection">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="bell" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders for Today</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('reminder')" style="font-size: 11px; font-weight: 600;" title="Directly add reminder">+ Add Reminder</button>
+              <span class="panel-count-badge" id="badgeCountReminders">0 notes</span>
+            </div>
+          </div>
+          <div id="remindersList" class="dynamic-grid-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Reminders injected here -->
+          </div>
+        </div>
+
+      </div>
+    </div> <!-- /.dashboard-master-wrapper -->
+    </section>
+
+    <!-- Tab 2: Exploded View (Interactive Mindmap & Project Cards) -->
+    <section id="tabExploded" class="tab-pane">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Exploded View: Global Project Pool & Backlog</h2>
+          <span style="font-size: 13px; font-weight: 300; color: var(--text-muted);">Interactive mindmap tree or structured project cards</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div class="scale-switch-group">
+            <button class="exploded-view-toggle-btn active" data-view="mindmap"><i data-lucide="sparkles" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Constellation Cloud</button>
+            <button class="exploded-view-toggle-btn" data-view="cards"><i data-lucide="layout-grid" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project Cards</button>
+          </div>
+          <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('project')">+ New Project</button>
+          <button class="action-icon-btn" onclick="Exploded.refresh()"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
+        </div>
+      </div>
+      
+      <!-- Interactive Mindmap Tree Container -->
+      <div id="mindmapViewContainer" class="mindmap-container">
+        <div class="mindmap-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="action-icon-btn" onclick="Mindmap.resetView()" title="Center & Reset View"><i data-lucide="locate" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Recenter</button>
+          <button class="action-icon-btn" onclick="Mindmap.toggleRotation()" id="mindmapOrbitBtn" title="Toggle Auto-Orbit"><i data-lucide="pause" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Pause Orbit</button>
+          <div class="scale-switch-group" style="padding: 2px;">
+            <button class="action-icon-btn cluster-filter-btn active" onclick="Mindmap.setFilter('all', this)" style="border: none; font-size: 11px;">All Branches</button>
+            <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('projects', this)" style="border: none; font-size: 11px;">Projects</button>
+            <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('tasks', this)" style="border: none; font-size: 11px;">Tasks</button>
+            <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('events', this)" style="border: none; font-size: 11px;">Events</button>
+            <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('reminders', this)" style="border: none; font-size: 11px;">Reminders</button>
+          </div>
+        </div>
+        <canvas id="mindmapCanvas"></canvas>
+
+        <!-- Rich Hover Inspection Tooltip Overlay -->
+        <div id="mindmapTooltip" class="mindmap-tooltip">
+          <div class="mindmap-tooltip-title" id="mindmapTooltipTitle">Item Title</div>
+          <div class="mindmap-tooltip-meta" id="mindmapTooltipMeta"></div>
+          <div class="mindmap-tooltip-desc" id="mindmapTooltipDesc"></div>
+          <div style="margin-top: 8px; font-size: 10px; color: var(--text-dim); text-align: right;">Click node to edit or re-sort</div>
+        </div>
+
+        <div style="position: absolute; bottom: 12px; left: 16px; font-size: 11px; color: var(--text-dim); pointer-events: none;">
+          <i data-lucide="mouse-pointer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Drag canvas to Orbit in 3D · Scroll to Zoom · Hover for metadata · Click node to Edit/Inspect
+        </div>
+      </div>
+
+      <!-- Structured Project Cards Grid -->
+      <div class="exploded-grid" id="explodedGrid" style="display: none;">
+        <!-- Exploded project cards injected here -->
+      </div>
+    </section>
+
+    <!-- Tab 3: Timeline (Graphic Line & Detailed List) -->
+    <section id="tabTimeline" class="tab-pane">
+      <div class="timeline-header-bar">
+        <div class="timeline-nav-group">
+          <h2 id="timelineDisplayTitle" style="min-width: 220px; font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Timeline</h2>
+          <button class="action-icon-btn" onclick="Timeline.navigate(-1)">◀ Prev</button>
+          <button class="action-icon-btn" onclick="Timeline.jumpToToday()">Today</button>
+          <button class="action-icon-btn" onclick="Timeline.navigate(1)">Next ▶</button>
+        </div>
+
+        <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+          <!-- View Switcher: Merged Graphic Timeline & Detailed List -->
+          <div class="scale-switch-group">
+            <button class="timeline-view-btn active" data-view="unified" data-legacy-view="ruler" title="Merged ruler spine with graphic cards above and below"><i data-lucide="git-commit" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Graphic Timeline</button>
+            <span style="display:none;" data-view="ruler"></span>
+            <button class="timeline-view-btn" data-view="list"><i data-lucide="list" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Detailed List</button>
+          </div>
+
+          <!-- Scale Switcher: Day, Month, Year -->
+          <div class="scale-switch-group">
+            <button class="timeline-scale-btn active" data-scale="day"><i data-lucide="calendar" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Day</button>
+            <button class="timeline-scale-btn" data-scale="month"><i data-lucide="calendar-range" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Month</button>
+            <button class="timeline-scale-btn" data-scale="year"><i data-lucide="bar-chart-2" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Year</button>
+          </div>
+
+          <!-- Sample Data Controls -->
+          <div style="display: flex; gap: 8px;">
+            <button class="action-icon-btn" onclick="Timeline.seedSampleData()" style="color: var(--text-main); font-weight: 600;" title="Populate realistic demo items across all 7 days of the week"><i data-lucide="database" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Seed Week Demo Data</button>
+            <button class="action-icon-btn" onclick="Timeline.clearSampleData()" style="color: var(--urgent-orange);" title="Purge seeded demo items"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Clear Demo Data</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="timelineContentContainer" class="column-card" style="min-height: 480px;">
+        <!-- Timeline rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- Tab 4: Notes -->
+    <section id="tabNotes" class="tab-pane">
+      <div class="notes-container">
+        <div class="notes-sidebar">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 15px; font-weight: 700;">Scratchpad</h3>
+            <button class="action-icon-btn" onclick="Notes.createNewNote()" style="font-weight: 700; color: var(--text-main);">+ New</button>
+          </div>
+          <div id="notesListSidebar" style="display: flex; flex-direction: column; gap: 6px;">
+            <!-- Notes list injected here -->
+          </div>
+        </div>
+        <div class="notes-editor-card">
+          <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Note Title...">
+          <textarea id="noteContentArea" class="notes-textarea" placeholder="Type your thoughts, raw ideas, or meeting notes freely without sorting..."></textarea>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="noteSaveStatus" style="font-size: 12px; color: var(--text-muted);">Auto-saved</span>
+            <div style="display: flex; gap: 10px;">
+              <button class="action-icon-btn" onclick="Notes.parseCurrentNote()" style="font-weight: 600; color: var(--text-main);">
+                <i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Send to PETTR Parser
+              </button>
+              <button class="action-icon-btn" onclick="Notes.deleteCurrentNote()" style="color: var(--urgent-orange);">Delete Note</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 5: History -->
+    <section id="tabHistory" class="tab-pane">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Archive & Completed History</h2>
+          <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Repository of wrapped-up projects, finished tasks, dismissed reminders, and raw ingestion logs.</p>
+        </div>
+        <button class="action-icon-btn" onclick="History.refresh()"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
+      </div>
+
+      <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Panel 1: Completed Projects -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="check-circle-2" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Completed Projects</h3>
+            <span class="panel-count-badge" id="historyCountProjects">0 completed</span>
+          </div>
+          <div id="historyProjectsList" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Completed projects injected here -->
+          </div>
+        </div>
+
+        <!-- Panel 2: Completed Tasks -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Completed Tasks</h3>
+            <span class="panel-count-badge" id="historyCountTasks">0 completed</span>
+          </div>
+          <div id="historyTasksList" class="dynamic-grid-list" style="--grid-cols: repeat(auto-fill, minmax(300px, 1fr));">
+            <!-- Completed tasks injected here -->
+          </div>
+        </div>
+
+        <!-- Panel 3: Inactive & Completed Reminders -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="archive" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Inactive &amp; Completed Reminders</h3>
+            <span class="panel-count-badge" id="historyCountReminders">0 archived</span>
+          </div>
+          <div id="historyRemindersList" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Inactive reminders injected here -->
+          </div>
+        </div>
+
+        <!-- Panel 4: Ingestion Audit Log (Collapsible) -->
+        <div class="column-card history-panel">
+          <div class="column-header" style="cursor: pointer;" onclick="History.toggleAuditLog()">
+            <h3 class="column-title"><i data-lucide="file-text" style="width:15px;height:15px;color:var(--text-muted);display:inline-block;vertical-align:-1px;"></i> Processing &amp; Ingestion Audit Log</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="panel-count-badge" id="historyCountAudit">0 entries</span>
+              <button class="action-icon-btn" id="auditLogToggleBtn" style="font-size: 11px;">▾ Toggle Log</button>
+            </div>
+          </div>
+          <div id="historyTableContainer" style="overflow-x: auto; margin-top: 10px; display: none;">
+            <!-- Audit table injected here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 6: Settings -->
+    <section id="tabSettings" class="tab-pane">
+      <div style="max-width: 750px; display: flex; flex-direction: column; gap: 20px;">
+        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">PETTR Configuration & Host Management</h2>
+        
+        <!-- Personal Profile Card -->
+        <div class="column-card">
+          <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Personal Profile & Display Name</h3>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+            Customize the name PETTR uses to greet and address you on the dashboard.
+          </p>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Hong Rong)" class="modal-input" style="max-width: 260px;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
+          </div>
+          <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
+        </div>
+
+        <!-- PIN Change & Inspection Card -->
+        <div class="column-card">
+          <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Security PIN Management</h3>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+            To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
+          </p>
+
+          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Current Active PIN</div>
+              <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 3px; color: var(--text-main);">••••</div>
+            </div>
+            <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Change 4-Digit PIN</div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="password" id="newPinInput" maxlength="4" placeholder="New 4-Digit PIN" 
+                   style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; width: 180px; font-size: 16px; letter-spacing: 4px; text-align: center;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
+          </div>
+          <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
+        </div>
+
+        <!-- Ollama Local LLM Integration & Diagnostics Card -->
+        <div class="column-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+            <div>
+              <h3 style="font-size: 15px; font-weight: 700;"><i data-lucide="cpu" style="width:16px;height:16px;color:var(--focus-indigo);display:inline-block;vertical-align:-2px;"></i> Local LLM Engine (Ollama Integration)</h3>
+              <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
+                Connect to local Ollama on this mini PC for 100% offline, zero-cloud intent understanding.
+              </p>
+            </div>
+            <div id="llmStatusPill" class="network-badge offline">
+              <span class="network-dot"></span>
+              <span id="llmStatusText">Checking...</span>
+            </div>
+          </div>
+
+          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <span style="font-size: 12px; color: var(--text-muted);">Active Classifier Model:</span>
+                <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <select id="llmModelSelect" class="modal-input" style="padding: 4px 8px; font-size: 12px; max-width: 180px;" onchange="App.selectLlmModel(this.value)">
+                  <option value="llama3.2:3b">llama3.2:3b</option>
+                </select>
+                <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;">⚡ Test Latency</button>
+              </div>
+            </div>
+            <div id="llmTestResult" style="font-size: 12px; color: var(--text-muted);"></div>
+          </div>
+
+          <!-- Quick Beginner Walkthrough Accordion -->
+          <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
+            <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
+            <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
+              <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install the Windows installer.</li>
+                <li><strong>Pull your first fast model</strong>: Open PowerShell on this PC and run:<br>
+                  <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
+                  <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
+                </li>
+                <li><strong>Always-on 24/7</strong>: Ollama automatically runs in the system tray at <code>http://127.0.0.1:11434</code>.</li>
+                <li><strong>Zero Configuration</strong>: PETTR automatically detects it! When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
+              </ol>
+            </div>
+          </details>
+        </div>
+
+        <!-- Google Drive Backup Card -->
+        <div class="column-card">
+          <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Weekly Google Drive Autosave</h3>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+            Backs up every 7 days as <code>PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your full SQLite database, readable Markdown digest, and JSON dump.
+          </p>
+          <div style="display: flex; gap: 10px;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Backup to Google Drive Now</button>
+          </div>
+          <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
+        </div>
+
+        <!-- Tailscale & Node Information -->
+        <div class="column-card">
+          <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Tailscale 24/7 Access Information</h3>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
+            <br>
+            <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; color: var(--text-main); display: inline-block; margin-top: 6px;">http://&lt;your-tailscale-pc-name&gt;:8000</code>
+            <br>
+            No router ports are opened, ensuring 100% private data isolation.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 7: In-App User & Deployment Guide -->
+    <section id="tabGuide" class="tab-pane">
+      <div class="guide-container">
+        <!-- Sticky Sidebar Navigation -->
+        <aside class="guide-sidebar">
+          <button class="guide-nav-link active" onclick="App.switchGuideSection('quickstart', this)">
+            <i data-lucide="rocket"></i> <span>Quick Start &amp; Ingestion</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('cockpit', this)">
+            <i data-lucide="clock"></i> <span>Mission Clock &amp; Focus</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('snapshot', this)">
+            <i data-lucide="list-ordered"></i> <span>Snapshot &amp; Priority</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('command', this)">
+            <i data-lucide="terminal"></i> <span>Command Palette</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('debrief', this)">
+            <i data-lucide="moon-star"></i> <span>Evening Debrief</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('deployment', this)">
+            <i data-lucide="server"></i> <span>Ubuntu &amp; Docker Setup</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('ai-voice', this)">
+            <i data-lucide="bot"></i> <span>Local AI &amp; Voice Input</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('hardware', this)">
+            <i data-lucide="cpu"></i> <span>Shuttle DH610 Optimization</span>
+          </button>
+          <button class="guide-nav-link" onclick="App.switchGuideSection('persistence', this)">
+            <i data-lucide="shield-check"></i> <span>Zero Data Loss &amp; Backup</span>
+          </button>
+        </aside>
+
+        <!-- Main Guide Content Panes -->
+        <div class="guide-content">
+
+          <!-- Section 1: Quick Start -->
+          <div id="guideSection_quickstart" class="guide-section-card">
+            <h2 class="guide-editorial-title"><i data-lucide="compass"></i> Quick Start &amp; Daily Workflow</h2>
+            <p class="guide-lead">
+              PETTR is designed for high-focus execution. Log thoughts at stream of consciousness, and let the system organize tasks, projects, events, and reminders in real-time.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Natural Language &amp; Priority Ingestion
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Type any task naturally into the quick log bar. Priority words are automatically mapped and stripped:
+              </p>
+              <div class="guide-code-block">
+Review propulsion test telemetry tonight 2359 top priority
+Schedule CAD model review Friday 1500 high priority
+Order 3D printer filament whenever
+              </div>
+              <p style="font-size: 12.5px; color: var(--text-muted);">
+                • <code>top priority</code> / <code>p0</code>: Ranks item into Position #1 and shifts other tasks down.<br>
+                • <code>high priority</code>: Places item in the upper quartile of pending focus tasks.<br>
+                • <code>whenever</code> / <code>lowest priority</code>: Routes to the bottom of the backlog.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Voice Speech-to-Text Input
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Tap the microphone icon <i data-lucide="mic" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;"></i> in the quick input bar to speak. PETTR streams real-time speech transcription directly into the box with tactile haptics. Tap again to stop and submit with Enter.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">3</span> Horizontal Swipeable Ruler Timeline
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Switch to the <strong>Timeline</strong> tab to view your day mapped across an interactive 24-hour ruler. A glowing orange vertical beam slides across the ruler tracking current time in real-time. Scroll with your mouse wheel anywhere over the timeline to smoothly pan time forward and backward, or swipe horizontally on trackpads. Tap any hour label to jump immediately to that point in the day.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">4</span> 3D Point-Cloud Exploded View
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The <strong>Exploded View</strong> renders your entire personal repository inside a slow-rotating 3D celestial sphere. Task and project clusters illuminate with electric tag colors, with particle scale and brightness reflecting project activity. Drag to orbit, wheel to zoom, and click any star node to inspect or re-sort.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section: Mission Clock & Focus Cockpit -->
+          <div id="guideSection_cockpit" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="clock"></i> Mission Clock &amp; Focus Cockpit</h2>
+            <p class="guide-lead">
+              Precision timekeeping meets distraction-free deep work execution with client-side procedural sound generation.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Welcome Splash &amp; Dynamic Header Compaction
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The top header opens with an expansive editorial title, full acronym breakdown, and rotating tagline carousel. As you scroll down into your tasks, the header smoothly compacts into a sleek, blurred-glass navigation pill with zero layout jitter.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Live Mission Clock &amp; Travel Mode
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The dashboard features a live 24-hour military Mission Clock with running progress second-bar and formatted date. When traveling across time zones:
+                <br>• Click the timezone badge or globe icon on the clock to open the <strong>Travel Mode</strong> selector.
+                <br>• Choose from popular worldwide hubs (Tokyo, London, Paris, New York, Singapore) or input any IANA timezone (e.g., <code>Europe/Berlin</code>).
+                <br>• Click <em>Reset to System Local</em> at any time to restore your host's local clock.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">3</span> Context-Aware Header Mini Clock
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                A compact digital time pill is built directly into the sticky top navigation header. To prevent redundant visual clutter, this mini clock remains <strong>strictly hidden</strong> while the main Mission Clock is visible in your viewport. It activates automatically only when you scroll past the main clock or navigate to secondary tabs (Timeline, Exploded View, History, Notes, Guide).
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">4</span> Focus Cockpit &amp; Sprint Intervals
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Click <strong>Focus Mode</strong> on any task card or launch it from the Command Palette to enter full-screen execution. Choose between <strong>25m Sprint</strong> (Pomodoro), <strong>50m Deep Work</strong>, <strong>90m Ultradian</strong>, or open-ended <strong>Stopwatch</strong> mode.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">5</span> 100% Offline Ambient Sound Deck
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The Focus Cockpit features a client-side procedural sound generator built entirely on the HTML5 Web Audio API:
+                <br>• <strong>Brown Noise (1/f²)</strong>: Deep, warm low-frequency rumble ideal for heavy technical problem solving.
+                <br>• <strong>Pink Noise (1/f)</strong>: Balanced waterfall frequency curve for reading and writing flow.
+                <br>• <strong>Synthesized Rain</strong>: Soft band-filtered white noise texture simulating rainfall against a windowpane.
+                <br><em>Zero network requests, zero audio file downloads, and zero cloud tracking—operates seamlessly completely offline.</em>
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">6</span> Fleeting Thoughts Scratchpad
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Avoid context switching when a distracting idea strikes mid-sprint. Jot thoughts into the in-cockpit scratchpad, then click <em>Save to Task</em> to automatically append them as structured notes on the active task without interrupting your timer.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section: Snapshot & Tasking Priority -->
+          <div id="guideSection_snapshot" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="list-ordered"></i> Snapshot &amp; Tasking Priority</h2>
+            <p class="guide-lead">
+              Clear mental clutter with structured morning briefings and dynamic drag-and-drop task sequencing.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Structured Snapshot Breakdown
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The Snapshot widget presents an executive morning overview cleanly divided into four distinct categories:
+                <br>• <strong>Focus Tasks</strong>: High-impact P0 goals requiring sustained mental focus.
+                <br>• <strong>Trivial Tasks</strong>: Low cognitive friction quick errands and administrative items.
+                <br>• <strong>Scheduled Events</strong>: Time-bound appointments showing military start/end hours.
+                <br>• <strong>Reminders</strong>: Plain-text unmovable alert list for ambient situational awareness.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Dynamic Drag-and-Drop Tasking Priority
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The <strong>Tasking Priority</strong> list displays your active focus tasks numbered in their exact execution sequence (#1, #2, #3...).
+                <br>• <strong>Drag to Re-order</strong>: Grab any task card by its drag handle or card body and move it up or down in the sequence.
+                <br>• <strong>Instant Persistence</strong>: As soon as you drop an item into a new slot, the updated sequence is immediately saved to the SQLite database.
+                <br>• <strong>Distinct Urgency Icons</strong>: Focus tasks display a high-contrast crosshair target icon <i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> to clearly distinguish them from standard checkboxes and priority numbers.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section: Command Palette & Keybinds -->
+          <div id="guideSection_command" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="terminal"></i> Command Palette &amp; Keyboard Mastery</h2>
+            <p class="guide-lead">
+              Navigate, search, and execute actions at lightning speed without ever lifting your hands from the keyboard.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Activating the Omni-Search Palette
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Press any of the following hotkeys from anywhere in PETTR, or click the <span class="font-mono" style="padding:2px 6px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:4px;">Shift+K</span> pill in the top header:
+              </p>
+              <div class="guide-code-block">
+Shift+K   • Universal shortcut (reliable on all browsers &amp; operating systems)
+Alt+K     • Alternate modifier shortcut
+Ctrl+P    • Quick-open hotkey (familiar to VS Code / Sublime users)
+\         • Single backslash shortcut (when not typing in an input field)
+              </div>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Unified Cross-Repository Search
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Start typing to instantly query across all items in your system with real-time scoring:
+                <br>• <strong>Active Tasks</strong>: Filter by title, priority tier, or project tag.
+                <br>• <strong>Projects</strong>: Jump straight to any active project and view attached tasks.
+                <br>• <strong>Markdown Notes</strong>: Search note headers, tags, and body excerpts.
+                <br>• <strong>Navigation &amp; Actions</strong>: Switch tabs, launch Focus Cockpit, run Evening Debrief, or switch themes (Auto / Light / Dark).
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">3</span> Global Quick Input Focus (<kbd>/</kbd>)
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Pressing <kbd>/</kbd> from any tab immediately navigates back to the Dashboard and places your cursor inside the natural language quick log input.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section: Evening Debrief -->
+          <div id="guideSection_debrief" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="moon-star"></i> Evening Debrief</h2>
+            <p class="guide-lead">
+              A structured daily ritual to close open loops, roll unfinished tasks, and reflect on key milestones.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Daily Availability &amp; Access
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The debrief button <i data-lucide="moon-star" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> in the top-right header automatically becomes active and highlights at <strong>18:00 hrs</strong> (6:00 PM) each day. If you wrap up work earlier, you can launch the debrief at any time via the Command Palette (<kbd>Shift+K</kbd> → <em>"Run Evening Debrief"</em>).
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Daily Scorecard &amp; Loop Audit
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                The debrief scorecard computes your completion percentage and audited ratio of completed items against total planned tasks for the date.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">3</span> Rapid Loop Triage &amp; One-Click Rollover
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Review all unfinished tasks in a single glance:
+                <br>• <strong>Roll to Tomorrow</strong>: Push individual tasks to tomorrow's schedule without rewriting them.
+                <br>• <strong>Roll All Remaining</strong>: One-click button to migrate all unclosed tasks forward in batch.
+                <br>• <strong>Complete Now</strong>: Check off tasks completed away from your desk.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">4</span> One-Line Retrospective Logging
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Record your closing takeaway or tap quick retrospective chips (<em>"Deep flow achieved"</em>, <em>"Targets conquered"</em>, <em>"Steady pacing"</em>, <em>"Need rest"</em>). When saved, your reflection is stored in the historical ledger alongside your completion scorecard to build long-term momentum.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section 2: Deployment Guide -->
+          <div id="guideSection_deployment" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="server"></i> Shuttle DH610 &amp; Ubuntu 24.04 LTS Deployment</h2>
+            <p class="guide-lead">
+              Step-by-step deployment guide for running PETTR in a Docker container on Ubuntu Server with native Tailscale and host Ollama AI integration.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Install Tailscale on Ubuntu Host
+              </h4>
+              <div class="guide-code-block">
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+              </div>
+              <p style="font-size: 12.5px; color: var(--text-muted);">
+                Binds <code>0.0.0.0:8000</code>. On your phone or laptop on your Tailnet, open <code>http://&lt;shuttle-machine-name&gt;:8000</code>.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Configure Host Ollama for Docker Bridge
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Install native Ollama and allow internal Docker bridge connections:
+              </p>
+              <div class="guide-code-block">
+curl -fsSL https://ollama.com/install.sh | sh
+sudo mkdir -p /etc/systemd/system/ollama.service.d
+echo -e '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0:11434"\nEnvironment="OLLAMA_ORIGINS=*"' | sudo tee /etc/systemd/system/ollama.service.d/override.conf
+sudo systemctl daemon-reload &amp;&amp; sudo systemctl restart ollama
+ollama pull llama3.2:3b
+              </div>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">3</span> Deploy with Docker Compose
+              </h4>
+              <div class="guide-code-block">
+cd ~/pettr
+docker compose up -d --build
+              </div>
+              <p style="font-size: 12.5px; color: var(--text-muted);">
+                Docker automatically binds host volumes <code>./data</code>, <code>./config</code>, and <code>./backups</code>, ensuring zero data loss across container updates.
+              </p>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">4</span> Seamless Git Updates
+              </h4>
+              <div class="guide-code-block">
+git pull
+docker compose up -d --build
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: AI & Voice Input -->
+          <div id="guideSection_ai-voice" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="bot"></i> Offline AI &amp; Voice Input Architecture</h2>
+            <p class="guide-lead">
+              PETTR operates under a zero-failure hybrid architecture: 100% private, 100% offline, zero cloud reliance.
+            </p>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                Deterministic Date &amp; Priority Parsing (Always Online)
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Dates, times, recurrence rules (RRULE), and priority intents are extracted deterministically with regex and parsedatetime. This guarantees sub-millisecond parsing latency and 100% deterministic predictability without needing any neural model.
+              </p>
+            </div>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                Local Ollama 3B Intent &amp; Project Classification
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                When Ollama is running on the host, PETTR feeds the cleaned context to <code>llama3.2:3b</code> (or <code>qwen2.5:3b</code>) to detect multi-step projects, categorize focus vs trivial tiers, and route uncertain entries into the Unorganized Safety Queue.
+              </p>
+            </div>
+          </div>
+
+          <!-- Section 4: Hardware Optimization -->
+          <div id="guideSection_hardware" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="cpu"></i> Shuttle DH610 &amp; Intel 12th Gen Tuning</h2>
+            <p class="guide-lead">
+              Configuring the Intel Core i3 12th Gen (4C/8T) and Shuttle DH610 industrial slim chassis for silent, 24/7 low-power operation.
+            </p>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                Recommended Hardware, BIOS &amp; Linux Settings
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                • <strong>Hardware Always-On Jumper (JP01)</strong>: Set the physical <code>JP01</code> jumper on the Shuttle motherboard to pins 1-2. This forces the system to power on immediately whenever AC power is connected, ensuring 100% headless boot recovery even if the CMOS battery is exhausted.<br>
+                • <strong>BIOS AC Power Loss</strong>: In BIOS under <em>Advanced -> Power Management Configuration</em>, verify <em>Restore AC Power Loss</em> is set to <code>Power On</code>.<br>
+                • <strong>Shuttle Smart Fan Profile</strong>: Under <em>Advanced -> Smart Fan</em>, set the profile to <code>Ultra-Low Mode</code> or <code>Smart Mode</code>. Shuttle's dual-heatpipe ICE cooling module with twin 60mm fans keeps the i3 under 45°C whisper-quietly.<br>
+                • <strong>Dual Intel LAN (1GbE + 2.5GbE)</strong>: Plug your primary network cable into the Intel 2.5GbE port for highest local throughput and Tailscale mesh routing.<br>
+                • <strong>Intel P-State Energy Bias</strong>: Ubuntu 24.04 (Kernel 6.8+) automatically uses the native <code>intel_pstate</code> driver. Set Energy Performance Preference (EPP) to <code>balance_power</code> for ~7-10W idle draw:
+              </p>
+              <div class="guide-code-block">
+echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: Zero Data Loss & Backups -->
+          <div id="guideSection_persistence" class="guide-section-card" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="shield-check"></i> Zero Data Loss Architecture</h2>
+            <p class="guide-lead">
+              Engineered with industrial SQLite persistence, WAL journaling, and automated compressed snapshots.
+            </p>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                SQLite WAL (Write-Ahead Logging) Durability
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                PETTR initializes SQLite with <code>PRAGMA journal_mode=WAL;</code> and <code>PRAGMA synchronous=NORMAL;</code>. Every write is verified before response. In the event of a sudden power outage or kernel panic, SQLite automatically replays the uncommitted WAL logs upon reboot with zero table corruption.
+              </p>
+            </div>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                Persistent Host Bind Mounts
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Your database (<code>./data/pettr.sqlite</code>), configuration (<code>./config/pettr_config.json</code>), and backups (<code>./backups/PETTR_*.zip</code>) reside directly on your host NVMe SSD. Rebuilding or pruning Docker containers will never touch or erase your stored data.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Universal Entity Detail & Re-Sorting Modal -->
+  <div id="entityModalOverlay" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main);">Item Details & Re-classification</h3>
+        <button class="action-icon-btn" onclick="EntityModal.close()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+      </div>
+      <div>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Classification & Urgency Tier</label>
+        <div class="type-pill-switcher">
+          <button class="type-pill-btn active" data-type="task" data-tier="focus" onclick="EntityModal.selectType(this)"><i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Focus Task</button>
+          <button class="type-pill-btn" data-type="task" data-tier="trivial" onclick="EntityModal.selectType(this)"><i data-lucide="check-square" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Trivial Task</button>
+          <button class="type-pill-btn" data-type="event" onclick="EntityModal.selectType(this)"><i data-lucide="calendar" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Event</button>
+          <button class="type-pill-btn" data-type="reminder" onclick="EntityModal.selectType(this)"><i data-lucide="bell" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
+          <button class="type-pill-btn" data-type="project" onclick="EntityModal.selectType(this)"><i data-lucide="folder" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project</button>
+        </div>
+      </div>
+      <div>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Title</label>
+        <input type="text" id="entityModalTitle" class="modal-input" placeholder="Item title...">
+      </div>
+      <div>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Notes / Extra Details</label>
+        <textarea id="entityModalDesc" class="modal-input" style="height: 90px; resize: vertical;" placeholder="Add notes, specifications, context..."></textarea>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Assigned Project</label>
+          <select id="entityModalProject" class="modal-input">
+            <option value="">-- No Project --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Due Date &amp; Time (24hr Military)</label>
+          <div class="date-picker-group">
+            <input type="datetime-local" id="entityModalDueDate" class="modal-input modal-datetime-input">
+            <div class="date-presets-row">
+              <button type="button" class="preset-chip" onclick="EntityModal.setPreset('today_12')">Today 12:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setPreset('today_18')">Today 18:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setPreset('tonight_2359')">Tonight 23:59</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setPreset('tomorrow_09')">Tomorrow 09:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setPreset('tomorrow_18')">Tomorrow 18:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setPreset('in_2_days')">In 2 Days</button>
+              <button type="button" class="preset-chip clear" onclick="EntityModal.setPreset('clear')">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Status</label>
+          <select id="entityModalStatus" class="modal-input">
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Recurrence Schedule</label>
+          <select id="entityModalRecurrence" class="modal-input">
+            <option value="">None (One-time)</option>
+            <option value="FREQ=DAILY">Daily</option>
+            <option value="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Weekdays (Mon-Fri)</option>
+            <option value="FREQ=WEEKLY">Weekly</option>
+            <option value="FREQ=MONTHLY">Monthly</option>
+          </select>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <button class="action-icon-btn" onclick="EntityModal.deleteEntity()" style="color: var(--urgent-orange); padding: 8px 14px;"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Delete Item</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="action-icon-btn" onclick="EntityModal.close()" style="padding: 8px 16px;">Cancel</button>
+          <button class="quick-submit-btn" style="position: static; transform: none;" onclick="EntityModal.saveChanges()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Manual Item Creation Modal -->
+  <div id="manualCreateModalOverlay" class="modal-overlay" style="display: none;" onclick="if(event.target===this) Dashboard.closeManualCreateModal()">
+    <div class="modal-card" style="max-width: 520px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main);">+ Manual Item Creation</h3>
+        <button class="action-icon-btn" onclick="Dashboard.closeManualCreateModal()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+      </div>
+
+      <div>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Select Entity Type</label>
+        <div class="type-pill-switcher" id="manualCreateTypeSwitcher">
+          <button type="button" class="type-pill-btn active" data-type="focus" onclick="Dashboard.selectManualType('focus')"><i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Focus Task</button>
+          <button type="button" class="type-pill-btn" data-type="trivial" onclick="Dashboard.selectManualType('trivial')"><i data-lucide="check-square" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Trivial Errand</button>
+          <button type="button" class="type-pill-btn" data-type="event" onclick="Dashboard.selectManualType('event')"><i data-lucide="calendar" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Event</button>
+          <button type="button" class="type-pill-btn" data-type="reminder" onclick="Dashboard.selectManualType('reminder')"><i data-lucide="bell" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
+          <button type="button" class="type-pill-btn" data-type="project" onclick="Dashboard.selectManualType('project')"><i data-lucide="folder" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project</button>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="manualInputTitleLabel">Title *</label>
+        <input type="text" id="manualInputTitle" class="modal-input" placeholder="e.g. Derive Kalman filter equations">
+      </div>
+
+      <div>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Description / Notes (Optional)</label>
+        <textarea id="manualInputDesc" class="modal-input" style="height: 70px; resize: vertical;" placeholder="Additional specifications, links, or context..."></textarea>
+      </div>
+
+      <!-- Project Selection (Tasks & Events) -->
+      <div id="manualProjectRow">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Attach to Project</label>
+        <select id="manualInputProject" class="modal-input">
+          <option value="">-- No Project (Standalone) --</option>
+        </select>
+      </div>
+
+      <!-- Date & Time (Tasks, Events, Reminders) -->
+      <div id="manualDateRow">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="manualInputDateLabel">Scheduled Date / Time (24hr Military)</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="datetime-local" id="manualInputDate" class="modal-input">
+        </div>
+        <div class="preset-chips-container" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('today_12')">Today 12:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('today_18')">Today 18:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('tonight_2359')">Tonight 23:59</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('tomorrow_09')">Tomorrow 09:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('tomorrow_18')">Tomorrow 18:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('in_2_days')">In 2 Days</button>
+          <button type="button" class="preset-chip clear" onclick="Dashboard.setManualDatePreset('clear')"><i data-lucide="x" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Clear</button>
+        </div>
+      </div>
+
+      <!-- Project Specific Fields -->
+      <div id="manualProjectColorRow" style="display: none;">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Accent Color</label>
+        <input type="color" id="manualInputColor" value="#3b82f6" style="width: 44px; height: 36px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent;">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+        <button class="action-icon-btn" onclick="Dashboard.closeManualCreateModal()">Cancel</button>
+        <button class="quick-submit-btn" style="position: static; transform: none;" onclick="Dashboard.submitManualCreate()">Create Item</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unorganized Queue Modal -->
+  <div id="unorganizedModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 550px;">
+      <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganized Queue Triaging</h3>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+        The system routed these inputs here for your manual confirmation:
+      </p>
+      <div id="unorganizedModalList" style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto;">
+        <!-- Injected pending items -->
+      </div>
+      <div style="margin-top: 16px; text-align: right;">
+        <button class="action-icon-btn" onclick="Dashboard.closeUnorganizedModal()" style="padding: 8px 16px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timezone Setting Modal (Mission Clock / Travel Mode) -->
+  <div id="timezoneModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) App.closeTimezoneModal()">
+    <div class="modal-card" style="max-width: 480px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="globe" style="width: 16px; height: 16px; color: var(--accent-cyan);"></i> Mission Clock Timezone
+        </h3>
+        <button class="action-icon-btn" onclick="App.closeTimezoneModal()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+        Configure your current operational time zone for travel or remote sync. This instantly adjusts the live Mission Clock and header clock.
+      </p>
+
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Common Global Hubs</label>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('UTC')">UTC (Universal)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('Asia/Singapore')">Singapore (SGT / UTC+8)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('Asia/Tokyo')">Tokyo (JST / UTC+9)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('Europe/London')">London (GMT/BST)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('America/New_York')">New York (EST/EDT)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('America/Los_Angeles')">Los Angeles (PST/PDT)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('Asia/Dubai')">Dubai (GST / UTC+4)</button>
+          <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('Australia/Sydney')">Sydney (AEST / UTC+10)</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Custom IANA Timezone (e.g. Europe/Paris, Asia/Hong_Kong)</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="customTimezoneInput" class="modal-input" placeholder="e.g. Europe/Paris" style="flex: 1;">
+          <button type="button" class="quick-submit-btn" style="position: static; transform: none; white-space: nowrap;" onclick="App.applyCustomTimezoneInput()">Apply</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 14px;">
+        <button class="action-icon-btn" onclick="App.resetTimezoneToLocal()" style="font-size: 12px;">
+          <i data-lucide="rotate-ccw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Reset to System Local
+        </button>
+        <button class="action-icon-btn" onclick="App.closeTimezoneModal()" style="padding: 6px 16px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tactical Command Palette Modal (Ctrl+K) -->
+  <div id="commandPaletteModal" class="modal-overlay cmd-palette-overlay" style="display: none;" onclick="if(event.target===this) CommandPalette.close()">
+    <div class="cmd-palette-box">
+      <div class="cmd-palette-search-row">
+        <i data-lucide="search" style="width: 17px; height: 17px; color: var(--text-dim); margin-left: 4px;"></i>
+        <input type="text" id="commandPaletteInput" class="cmd-palette-input" placeholder="Type a command, search tasks, notes, or jump to tab..." oninput="CommandPalette.onInput(this.value)">
+        <kbd class="cmd-key-esc" onclick="CommandPalette.close()">ESC</kbd>
+      </div>
+      <div class="cmd-palette-results" id="commandPaletteResults">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="cmd-palette-footer">
+        <div class="cmd-footer-hints">
+          <span><kbd>Shift+K</kbd> / <kbd>Alt+K</kbd> / <kbd>\</kbd></span>
+          <span><kbd>↑</kbd> <kbd>↓</kbd> Navigate</span>
+          <span><kbd>↵</kbd> Select</span>
+          <span><kbd>ESC</kbd> Close</span>
+        </div>
+        <span class="cmd-footer-brand font-mono">PETTR OMNI-SEARCH</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Focus Cockpit Modal (Deep Work Execution & Ambient Sound Deck) -->
+  <div id="focusCockpitModal" class="modal-overlay cockpit-overlay" style="display: none;">
+    <div class="cockpit-card">
+      <div class="cockpit-header">
+        <div class="cockpit-header-left">
+          <span class="cockpit-live-dot"></span>
+          <span class="cockpit-badge-title">FOCUS COCKPIT // SPRINT IN PROGRESS</span>
+        </div>
+        <button class="action-icon-btn cockpit-close-btn" onclick="FocusCockpit.close()" title="Exit Cockpit (Esc)"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+      </div>
+
+      <div class="cockpit-target-banner">
+        <div class="cockpit-target-meta">
+          <span class="project-tag" id="cockpitTaskProject">General</span>
+          <span class="urgency-badge focus" id="cockpitTaskUrgency">FOCUS</span>
+        </div>
+        <h2 class="cockpit-task-title" id="cockpitTaskTitle">Deep Work Focus Sprint</h2>
+      </div>
+
+      <div class="cockpit-timer-section" id="cockpitTimerContainer">
+        <div class="cockpit-timer-digits" id="cockpitTimerDigits">25:00</div>
+        <div class="cockpit-progress-track">
+          <div class="cockpit-progress-fill" id="cockpitProgressFill"></div>
+        </div>
+
+        <div class="cockpit-presets-row">
+          <button type="button" class="cockpit-preset-chip active" data-min="25" onclick="FocusCockpit.setPreset(25)">25m Sprint</button>
+          <button type="button" class="cockpit-preset-chip" data-min="50" onclick="FocusCockpit.setPreset(50)">50m Deep Work</button>
+          <button type="button" class="cockpit-preset-chip" data-min="90" onclick="FocusCockpit.setPreset(90)">90m Ultradian</button>
+          <button type="button" class="cockpit-preset-chip" data-mode="stopwatch" onclick="FocusCockpit.setStopwatchMode()">Stopwatch</button>
+        </div>
+
+        <div class="cockpit-controls-row">
+          <button type="button" class="quick-submit-btn cockpit-action-btn primary" id="cockpitPlayBtn" onclick="FocusCockpit.toggleTimer()" style="position: static; transform: none; display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="play" style="width:16px;height:16px;"></i> Start Sprint
+          </button>
+          <button type="button" class="action-icon-btn cockpit-action-btn" onclick="FocusCockpit.resetTimer()" title="Reset Timer">
+            <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i> Reset
+          </button>
+        </div>
+      </div>
+
+      <div class="cockpit-ambient-deck">
+        <div class="ambient-deck-header">
+          <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="headphones" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Offline Ambient Sound Generator</span>
+          <div class="ambient-volume-wrap">
+            <i data-lucide="volume-2" style="width:12px;height:12px;opacity:0.6;"></i>
+            <input type="range" id="cockpitVolumeSlider" min="0" max="1" step="0.05" value="0.35" oninput="FocusCockpit.setVolume(this.value)" class="ambient-vol-slider" title="Volume">
+          </div>
+        </div>
+        <div class="ambient-buttons-cluster">
+          <button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType('none')">Mute</button>
+          <button type="button" class="ambient-sound-btn" data-sound="brown" onclick="FocusCockpit.setSoundType('brown')" title="1/f² Deep Warmth Rumble">Brown Noise</button>
+          <button type="button" class="ambient-sound-btn" data-sound="pink" onclick="FocusCockpit.setSoundType('pink')" title="1/f Waterfall Frequency">Pink Noise</button>
+          <button type="button" class="ambient-sound-btn" data-sound="rain" onclick="FocusCockpit.setSoundType('rain')" title="Soft Rainfall Hiss">Rain / Soft Static</button>
+        </div>
+      </div>
+
+      <div class="cockpit-scratchpad-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Fleeting Thoughts Scratchpad</label>
+          <button type="button" class="action-icon-btn" onclick="FocusCockpit.saveScratchpadToNotes()" style="font-size: 11px; padding: 2px 8px;">Save to Task</button>
+        </div>
+        <textarea id="cockpitScratchpad" class="cockpit-scratchpad-input" placeholder="Capture fleeting thoughts without breaking flow state..."></textarea>
+      </div>
+
+      <div class="cockpit-footer-actions">
+        <button type="button" class="action-icon-btn" onclick="FocusCockpit.close()">Minimize</button>
+        <button type="button" class="quick-submit-btn complete-task-btn" style="position: static; transform: none;" onclick="FocusCockpit.completeCurrentTask()">
+          <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Mark Completed &amp; Advance →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Evening Debrief Modal -->
+  <div id="eveningDebriefModal" class="modal-overlay debrief-overlay" style="display: none;" onclick="if(event.target===this) EveningDebrief.close()">
+    <div class="modal-card debrief-card" style="max-width: 580px;">
+      <div class="debrief-header">
+        <div>
+          <div class="debrief-badge font-mono"><i data-lucide="moon-star" style="width:13px;height:13px;color:var(--focus-indigo);"></i> EVENING DEBRIEF</div>
+          <h2 class="debrief-title" id="debriefDateStr">Today's Wrap-Up</h2>
+        </div>
+        <button class="action-icon-btn" onclick="EveningDebrief.close()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+      </div>
+
+      <div class="debrief-scorecard">
+        <div class="debrief-score-stat">
+          <div class="score-large-num" id="debriefScoreRate">--%</div>
+          <div class="score-subtext" id="debriefScoreCount">-- of -- completed</div>
+        </div>
+        <div class="debrief-score-desc">
+          Daily loops audit. Review what got done, quickly triage unclosed targets, and log your closing takeaway.
+        </div>
+      </div>
+
+      <div class="debrief-section">
+        <div class="debrief-section-title-row">
+          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Unclosed Loops (Rapid Triage)</span>
+          <button type="button" class="action-icon-btn" id="debriefBulkRollBtn" onclick="EveningDebrief.rollAllRemainingToTomorrow()" style="font-size: 11px; padding: 2px 8px;">
+            <i data-lucide="arrow-right-circle" style="width:11px;height:11px;"></i> Roll All to Tomorrow
+          </button>
+        </div>
+
+        <div id="debriefZeroLoopsNotice" class="debrief-zero-loops" style="display: none;">
+          <i data-lucide="sparkles" style="width:18px;height:18px;color:var(--normal-green);"></i>
+          <span>All scheduled tasks for today are completed! Zero open loops.</span>
+        </div>
+
+        <div class="debrief-pending-list" id="debriefPendingList">
+          <!-- Dynamically populated rows -->
+        </div>
+      </div>
+
+      <div class="debrief-section">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px; font-weight: 600;">
+          One-Line Retrospective / Key Win
+        </label>
+        <input type="text" id="debriefRetroInput" class="modal-input" placeholder="e.g. Cleared Kalman filter architecture, stayed focused despite meetings">
+        <div class="debrief-tags-row">
+          <button type="button" class="preset-chip" onclick="EveningDebrief.applyQuickRetroTag('Deep flow achieved')">Deep flow</button>
+          <button type="button" class="preset-chip" onclick="EveningDebrief.applyQuickRetroTag('Targets conquered')">Targets conquered</button>
+          <button type="button" class="preset-chip" onclick="EveningDebrief.applyQuickRetroTag('Steady pacing')">Steady pacing</button>
+          <button type="button" class="preset-chip" onclick="EveningDebrief.applyQuickRetroTag('Need early rest')">Need rest</button>
+        </div>
+      </div>
+
+      <div class="debrief-footer">
+        <button class="action-icon-btn" onclick="EveningDebrief.close()" style="padding: 8px 16px;">Keep Open</button>
+        <button class="quick-submit-btn" style="position: static; transform: none; background: #6366f1; display: inline-flex; align-items: center; gap: 6px;" onclick="EveningDebrief.sealDayAndWrapUp()">
+          <i data-lucide="moon" style="width:13px;height:13px;"></i> Seal Day &amp; Wrap Up
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="/static/js/pin_lock.js?v=4.9"></script>
+  <script src="/static/js/drag_drop.js?v=4.9"></script>
+  <script src="/static/js/wave_canvas.js?v=4.9"></script>
+  <script src="/static/js/entity_modal.js?v=4.9"></script>
+  <script src="/static/js/timeline.js?v=4.9"></script>
+  <script src="/static/js/mindmap.js?v=4.9"></script>
+  <script src="/static/js/dashboard.js?v=4.9"></script>
+  <script src="/static/js/exploded.js?v=4.9"></script>
+  <script src="/static/js/notes.js?v=4.9"></script>
+  <script src="/static/js/history.js?v=4.9"></script>
+  <script src="/static/js/command_palette.js?v=4.9"></script>
+  <script src="/static/js/focus_cockpit.js?v=4.9"></script>
+  <script src="/static/js/evening_debrief.js?v=4.9"></script>
+  <script src="/static/js/app.js?v=4.9"></script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+import datetime
+from pathlib import Path
+from typing import Dict, Any, Optional
+from backend.parser.deterministic import parse_deterministic_date, extract_priority
+from backend.parser.llm_classifier import classify_with_llm
+from backend import database
+
+import re
+from typing import Tuple
+
+def check_date_validity(raw_text: str, temporal_data: Dict[str, Any], entity_type: str) -> Tuple[bool, str]:
+    """
+    Validates that if a date/time was specified, it is valid and has at least a set day.
+    If an invalid date format or out-of-bounds day/month/time is detected, or if a time
+    was specified without a set day, returns (False, reason).
+    """
+    raw_lower = raw_text.lower()
+
+    # 1. Invalid calendar day/month numbers (e.g. 32/13, 99/99)
+    slash_dates = re.findall(r'\b(\d{1,4})[/-](\d{1,2})(?:[/-](\d{1,4}))?\b', raw_text)
+    for parts in slash_dates:
+        nums = [int(p) for p in parts if p]
+        if any(n > 31 for n in nums if n < 100):
+            return False, f"Invalid date numbers in '{'/'.join(parts)}' (out of range)"
+        if len(nums) == 2 and nums[0] > 12 and nums[1] > 12:
+            return False, f"Invalid date: no valid month in '{'/'.join(parts)}'"
+
+    # 2. Check invalid day numbers for specific months (e.g. Feb 30, Apr 31)
+    month_days = {
+        "jan": 31, "january": 31, "feb": 29, "february": 29,
+        "mar": 31, "march": 31, "apr": 30, "april": 30,
+        "may": 31, "jun": 30, "june": 30, "jul": 31, "july": 31,
+        "aug": 31, "august": 31, "sep": 30, "september": 30,
+        "oct": 31, "october": 31, "nov": 30, "november": 30,
+        "dec": 31, "december": 31
+    }
+    for m_name, max_d in month_days.items():
+        m1 = re.search(rf'\b{m_name}\s+(\d{{1,2}})(?:st|nd|rd|th)?\b', raw_lower)
+        if m1 and int(m1.group(1)) > max_d:
+            return False, f"Invalid calendar day for {m_name.capitalize()}: {m1.group(1)} (max {max_d})"
+        m2 = re.search(rf'\b(\d{{1,2}})(?:st|nd|rd|th)?\s+(?:of\s+)?{m_name}\b', raw_lower)
+        if m2 and int(m2.group(1)) > max_d:
+            return False, f"Invalid calendar day for {m_name.capitalize()}: {m2.group(1)} (max {max_d})"
+
+    # 3. Invalid times (e.g. 25:00, 14:75)
+    time_matches = re.findall(r'\b(\d{1,2}):(\d{2})\b', raw_text)
+    for hh, mm in time_matches:
+        if int(hh) > 24 or int(mm) > 59:
+            return False, f"Invalid time specified: {hh}:{mm}"
+
+    # 4. Date cue present but unparseable
+    date_cues = re.search(r'\b(due\s+on|due\s+by|deadline\s+is|scheduled\s+for|on\s+date)\s+([^\s,]+)', raw_lower)
+    if date_cues and not temporal_data.get("has_date"):
+        return False, f"Unparseable date following '{date_cues.group(1)}'"
+
+    # 5. Missing set day: time-only specified without a set day (parsedatetime flag == 2)
+    # e.g., user said "at 14:00" or "at 3pm" without saying today, tomorrow, or a date
+    if temporal_data.get("has_date") and temporal_data.get("flag") == 2:
+        if not re.search(r'\b(today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b', raw_lower):
+            return False, "Time specified without at least a set day"
+
+    # 6. Tasks and Events strictly require a set day or deadline
+    if entity_type in ("task", "event") and not temporal_data.get("has_date"):
+        return False, "No specified day or deadline — sent to unorganised queue for review"
+
+    return True, ""
+
+
+async def process_user_input(raw_input: str,
+                             ref_datetime: Optional[datetime.datetime] = None,
+                             db_path: Optional[Path] = None,
+                             today: Optional[datetime.date] = None) -> Dict[str, Any]:
+    """
+    Main 3-stage hybrid ingestion pipeline:
+    1. Deterministic temporal extraction (never uses LLM for dates/times)
+    2. Deterministic priority extraction & title cleaning
+    3. LLM / Heuristic intent & project classification (strict JSON schema)
+    4. Business logic execution (urgency, priority order, project pool, unorganized safety queue)
+    5. Audit trail logging to history
+    """
+    db_path = database.resolve_db_path(db_path)
+    if ref_datetime is None:
+        if today is not None:
+            ref_datetime = datetime.datetime.combine(today, datetime.time(12, 0, 0))
+        else:
+            ref_datetime = datetime.datetime.now()
+
+    clean_raw = raw_input.strip()
+    if not clean_raw:
+        return {"status": "error", "message": "Input cannot be empty."}
+
+    # Stage 1: Deterministic Date Parsing
+    temporal_data = parse_deterministic_date(clean_raw, ref_datetime=ref_datetime)
+    has_date = temporal_data["has_date"]
+    due_date_str = temporal_data["datetime_str"]
+    is_recurring = temporal_data["is_recurring"]
+    rrule = temporal_data["rrule"]
+    matched_token = temporal_data["matched_token"]
+    cleaned_text = temporal_data["cleaned_text"]
+
+    # If caller explicitly provided `today`, and no date was in text, set today as the target date
+    if not has_date and today is not None:
+        has_date = True
+        due_date_str = f"{today.strftime('%Y-%m-%d')} 23:59:00"
+        temporal_data["has_date"] = True
+        temporal_data["datetime_str"] = due_date_str
+
+    # Stage 1b: Natural Language Priority Extraction
+    cleaned_text, priority_placement, priority_token = extract_priority(cleaned_text)
+
+    # If the text is empty after stripping date and priority (e.g. user just typed "Tonight 2359 high priority")
+    if not cleaned_text:
+        cleaned_text = clean_raw
+
+    # Stage 2: Intent Classification
+    active_projects = [p["name"] for p in database.get_all_projects(db_path)]
+    classification = await classify_with_llm(
+        cleaned_text=cleaned_text,
+        has_date=has_date,
+        extracted_date_str=due_date_str,
+        active_projects=active_projects
+    )
+
+    entity_type = classification.get("entity_type", "task")
+    raw_title = classification.get("title", cleaned_text)
+    # Ensure title is stripped of any remaining priority tokens
+    title, _, _ = extract_priority(raw_title)
+    if not title:
+        title = raw_title
+    project_name = classification.get("project_name")
+    is_new_project = classification.get("is_new_project", False)
+    task_tier = classification.get("task_tier") or "focus"
+    confidence = classification.get("confidence", 0.9)
+    reasoning = classification.get("reasoning", "")
+
+    # Date Validation & Required Set Day Enforcement
+    is_date_valid, date_invalid_reason = check_date_validity(clean_raw, temporal_data, entity_type)
+    if not is_date_valid:
+        confidence = 0.4
+        reasoning = f"Uncertain date/time: {date_invalid_reason}. Sent to unorganised queue for manual review."
+        entity_type = "unorganized"
+
+    # Stage 3: Routing & Business Logic
+    # Safety Net: If confidence is low or marked unorganized
+    if confidence < 0.60 or entity_type == "unorganized":
+        unorg_item = database.add_to_unorganized_queue(
+            raw_input=clean_raw,
+            parsed_date=due_date_str,
+            suggested_type=entity_type,
+            suggested_tier=task_tier,
+            suggested_project=project_name,
+            reasoning=reasoning,
+            confidence=confidence,
+            db_path=db_path
+        )
+        database.log_history(
+            raw_input=clean_raw,
+            extracted_date=due_date_str,
+            llm_classification=classification,
+            target_entity_type="unorganized",
+            target_entity_id=unorg_item["id"],
+            status="unorganized",
+            db_path=db_path
+        )
+        return {
+            "status": "unorganized",
+            "message": "Entry placed in Unorganized Queue for manual review.",
+            "reasoning": reasoning,
+            "item": unorg_item,
+            "temporal": temporal_data,
+            "classification": classification
+        }
+
+    target_id = None
+    created_entity = None
+
+    # Handle Project auto-registration to global pool
+    if project_name:
+        database.get_or_create_project(project_name, db_path)
+
+    if entity_type == "project":
+        created_entity = database.get_or_create_project(title, db_path)
+        target_id = created_entity["id"]
+
+    elif entity_type == "event":
+        start_time = due_date_str if due_date_str else ref_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        created_entity = database.create_event(
+            title=title,
+            start_time=start_time,
+            description=classification.get("description", ""),
+            project_name=project_name,
+            recurrence=rrule,
+            db_path=db_path
+        )
+        target_id = created_entity["id"]
+
+    elif entity_type == "reminder":
+        rem_date = due_date_str.split(" ")[0] if due_date_str else ref_datetime.strftime("%Y-%m-%d")
+        created_entity = database.create_reminder(
+            title=title,
+            details=classification.get("description", ""),
+            reminder_date=rem_date,
+            db_path=db_path
+        )
+        target_id = created_entity["id"]
+
+    else: # Default: Task
+        created_entity = database.create_task(
+            title=title,
+            description=classification.get("description", ""),
+            project_name=project_name,
+            tier=task_tier,
+            due_date=due_date_str,
+            due_date_raw=matched_token,
+            recurrence=rrule,
+            priority_placement=priority_placement,
+            db_path=db_path
+        )
+        target_id = created_entity["id"]
+
+    # Stage 4: History Logging
+    database.log_history(
+        raw_input=clean_raw,
+        extracted_date=due_date_str,
+        llm_classification=classification,
+        target_entity_type=entity_type,
+        target_entity_id=target_id,
+        status="success",
+        db_path=db_path
+    )
+
+    return {
+        "status": "success",
+        "entity_type": entity_type,
+        "entity": created_entity,
+        "temporal": temporal_data,
+        "classification": classification
+    }

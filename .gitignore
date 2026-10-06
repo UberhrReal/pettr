@@ -1,0 +1,30 @@
+# Python bytecode & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+
+# Testing & scratch caches
+.pytest_cache/
+.coverage
+htmlcov/
+scratch/
+
+# Runtime databases & backups (never commit private databases or keys)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+data/
+backups/*.zip
+config/pettr_config.json
+
+# OS & Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/

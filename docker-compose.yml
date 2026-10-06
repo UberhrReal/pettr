@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  pettr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pettr-app
+    restart: unless-stopped
+    ports:
+      # Exposes 8000 on all interfaces (host localhost + Tailscale mesh)
+      - "8000:8000"
+    environment:
+      - PETTR_DATA_DIR=/app/data
+      - PETTR_CONFIG_DIR=/app/config
+      - PETTR_BACKUP_DIR=/app/backups
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Persistent bind mounts on host (zero data loss across restarts & container updates)
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./backups:/app/backups
+    extra_hosts:
+      # Bridges internal Docker traffic to Ubuntu host native Ollama daemon
+      - "host.docker.internal:host-gateway"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
