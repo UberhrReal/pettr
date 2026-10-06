@@ -1,5 +1,5 @@
 services:
-  pettr:
+  pettr-app:
     build:
       context: .
       dockerfile: Dockerfile
