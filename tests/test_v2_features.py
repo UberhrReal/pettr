@@ -17,6 +17,35 @@ def test_network_status_structure():
     assert "hostname" in status
     assert "lan_ip" in status
 
+def test_tailscale_ip_detection():
+    assert network.is_tailscale_ip("100.115.92.42") is True
+    assert network.is_tailscale_ip("100.64.0.1") is True
+    assert network.is_tailscale_ip("100.127.255.254") is True
+    assert network.is_tailscale_ip("192.168.1.50") is False
+    assert network.is_tailscale_ip("172.18.0.2") is False
+    assert network.is_tailscale_ip("127.0.0.1") is False
+
+def test_network_status_with_request_header(monkeypatch):
+    monkeypatch.setattr(network, "_query_tailscale_socket", lambda: None)
+    monkeypatch.setattr(network, "_query_tailscale_cli", lambda: None)
+    monkeypatch.setattr(network, "_detect_linux_tailscale_interface", lambda: None)
+
+    class DummyRequest:
+        def __init__(self, headers):
+            self.headers = headers
+
+    # When accessed via Tailscale IP
+    req_ip = DummyRequest({"host": "100.115.92.42:8000"})
+    res_ip = network.get_network_status(request=req_ip)
+    assert res_ip["connected"] is True
+    assert res_ip["tailscale_ip"] == "100.115.92.42"
+
+    # When accessed via MagicDNS
+    req_dns = DummyRequest({"host": "pettr-server.tailnet.ts.net:8000"})
+    res_dns = network.get_network_status(request=req_dns)
+    assert res_dns["connected"] is True
+    assert res_dns["dns_name"] == "pettr-server.tailnet.ts.net"
+
 def test_entity_reclassification_and_conversion(temp_db):
     # 1. Create a focus task
     task = database.create_task(

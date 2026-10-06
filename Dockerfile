@@ -27,12 +27,8 @@ COPY config/ ./config/
 COPY frontend/ ./frontend/
 COPY run_server.py .
 
-# Create persistent storage directories with proper permissions
-RUN mkdir -p /app/data /app/config /app/backups && \
-    useradd -u 1000 -m pettruser && \
-    chown -R pettruser:pettruser /app
-
-USER pettruser
+# Create persistent storage directories
+RUN mkdir -p /app/data /app/config /app/backups
 
 # Binds to 0.0.0.0:8000 for local and Tailscale access
 EXPOSE 8000

@@ -486,7 +486,7 @@ const App = {
           pill.title = `MagicDNS: ${data.dns_name || 'N/A'} (Host: ${data.hostname})`;
           pill.onclick = null;
         }
-        if (text) text.textContent = `Tailscale: ${data.tailscale_ip}`;
+        if (text) text.textContent = `Tailscale: ${data.tailscale_ip || data.dns_name || 'Online'}`;
         this.hideNetworkSyncBanner();
       } else if (data.state === "NeedsLogin") {
         if (pill) {
@@ -505,8 +505,10 @@ const App = {
           pill.title = "Tailscale is inactive. Run 'tailscale up' on host PC.";
           pill.onclick = null;
         }
-        if (text) text.textContent = `Host LAN: ${data.lan_ip}`;
-        this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on local host LAN (${data.lan_ip}). Remote updates from other devices won't synchronize until Tailscale connects.`, false);
+        const isContainer = data.is_container || (data.lan_ip && data.lan_ip.startsWith("172."));
+        if (text) text.textContent = isContainer ? `Container: ${data.lan_ip}` : `Host LAN: ${data.lan_ip}`;
+        const lanLabel = isContainer ? "internal container network" : "local host LAN";
+        this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on ${lanLabel} (${data.lan_ip}). Remote updates from other devices won't synchronize until Tailscale connects.`, false);
       }
     } catch (err) {
       console.warn("Network check error:", err);

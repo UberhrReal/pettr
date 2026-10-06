@@ -465,9 +465,9 @@ async def manual_backup():
 # --- Network & Tailscale Live Diagnostics ---
 
 @app.get("/api/network/status")
-async def get_network_diagnostics():
+async def get_network_diagnostics(request: Request):
     """Returns live Tailscale connection status, local LAN IP, and MagicDNS name."""
-    return network.get_network_status()
+    return network.get_network_status(request=request)
 
 # --- Rich Text Morning Briefing ---
 

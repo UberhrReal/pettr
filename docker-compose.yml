@@ -14,6 +14,7 @@ services:
       - PETTR_DATA_DIR=/app/data
       - PETTR_CONFIG_DIR=/app/config
       - PETTR_BACKUP_DIR=/app/backups
+      - PETTR_IN_DOCKER=1
       - OLLAMA_URL=http://host.docker.internal:11434
       - PYTHONUNBUFFERED=1
     volumes:
@@ -21,6 +22,8 @@ services:
       - ./data:/app/data
       - ./config:/app/config
       - ./backups:/app/backups
+      # Mount host Tailscale LocalAPI socket for zero-config mesh status & MagicDNS detection
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
     extra_hosts:
       # Bridges internal Docker traffic to Ubuntu host native Ollama daemon
       - "host.docker.internal:host-gateway"
