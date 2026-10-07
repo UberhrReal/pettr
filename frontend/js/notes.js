@@ -77,6 +77,21 @@ const Notes = {
           document.execCommand("insertHTML", false, "&nbsp;&nbsp;&nbsp;&nbsp;");
         }
       });
+
+      // Keep track of active selection & update toolbar state
+      ['keyup', 'mouseup', 'touchend'].forEach(evt => {
+        editor.addEventListener(evt, () => {
+          this.saveSelection();
+          this.updateToolbarState();
+        });
+      });
+
+      document.addEventListener("selectionchange", () => {
+        if (document.activeElement === editor || editor.contains(window.getSelection()?.anchorNode)) {
+          this.saveSelection();
+          this.updateToolbarState();
+        }
+      });
     }
   },
 
@@ -225,9 +240,56 @@ const Notes = {
     if (typeof Dashboard !== "undefined") await Dashboard.refresh();
   },
 
+  savedRange: null,
+
+  saveSelection() {
+    const editor = document.getElementById("noteContentArea");
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor) {
+      const range = sel.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer)) {
+        this.savedRange = range.cloneRange();
+      }
+    }
+  },
+
+  restoreSelection() {
+    const editor = document.getElementById("noteContentArea");
+    if (!editor || !this.savedRange) return;
+    const sel = window.getSelection();
+    if (sel) {
+      sel.removeAllRanges();
+      sel.addRange(this.savedRange);
+    }
+  },
+
+  updateToolbarState() {
+    try {
+      const isBold = document.queryCommandState("bold");
+      const isItalic = document.queryCommandState("italic");
+      const isStrike = document.queryCommandState("strikeThrough");
+      const isUl = document.queryCommandState("insertUnorderedList");
+      const block = (document.queryCommandValue("formatBlock") || "").toLowerCase();
+
+      document.getElementById("noteBtnBold")?.classList.toggle("active", Boolean(isBold));
+      document.getElementById("noteBtnItalic")?.classList.toggle("active", Boolean(isItalic));
+      document.getElementById("noteBtnStrike")?.classList.toggle("active", Boolean(isStrike));
+      document.getElementById("noteBtnUl")?.classList.toggle("active", Boolean(isUl));
+      document.getElementById("noteBtnH1")?.classList.toggle("active", block === "h1");
+      document.getElementById("noteBtnH2")?.classList.toggle("active", block === "h2");
+      document.getElementById("noteBtnH3")?.classList.toggle("active", block === "h3");
+      document.getElementById("noteBtnQuote")?.classList.toggle("active", block === "blockquote");
+    } catch (e) {}
+  },
+
   format(action) {
     const editor = document.getElementById("noteContentArea");
     if (!editor) return;
+
+    // Restore saved selection on mobile touch if lost
+    if (this.savedRange) {
+      this.restoreSelection();
+    }
 
     // Preserve scroll position on mobile touch screens
     const scrollX = window.scrollX || window.pageXOffset || 0;
@@ -319,6 +381,8 @@ const Notes = {
       }
     }
 
+    this.saveSelection();
+    this.updateToolbarState();
     this.scheduleAutoSave();
 
     // Prevent viewport jumping on mobile

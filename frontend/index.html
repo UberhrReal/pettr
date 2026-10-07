@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=6.8">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=6.9">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -643,24 +643,24 @@
           <!-- Notes Rich Toolbar -->
           <div class="notes-toolbar" id="notesToolbar">
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('strike')" title="Strikethrough"><s>S</s></button>
+              <button type="button" id="noteBtnBold" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" id="noteBtnItalic" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
+              <button type="button" id="noteBtnStrike" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('strike')" title="Strikethrough"><s>S</s></button>
             </div>
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('h1')" title="Heading 1">H1</button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('h2')" title="Heading 2">H2</button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('h3')" title="Heading 3">H3</button>
+              <button type="button" id="noteBtnH1" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('h1')" title="Heading 1">H1</button>
+              <button type="button" id="noteBtnH2" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('h2')" title="Heading 2">H2</button>
+              <button type="button" id="noteBtnH3" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('h3')" title="Heading 3">H3</button>
             </div>
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('ul')" title="Bullet List"><i data-lucide="list" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('task')" title="Task Checklist"><i data-lucide="check-square" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('code')" title="Inline Code"><i data-lucide="code" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('codeblock')" title="Code Block"><i data-lucide="terminal" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('quote')" title="Quote"><i data-lucide="quote" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" ontouchstart="event.preventDefault()" onclick="Notes.format('table')" title="Insert Table"><i data-lucide="table" style="width:13px;height:13px;"></i></button>
+              <button type="button" id="noteBtnUl" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('ul')" title="Bullet List"><i data-lucide="list" style="width:13px;height:13px;"></i></button>
+              <button type="button" id="noteBtnTask" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('task')" title="Task Checklist"><i data-lucide="check-square" style="width:13px;height:13px;"></i></button>
+              <button type="button" id="noteBtnCode" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('code')" title="Inline Code"><i data-lucide="code" style="width:13px;height:13px;"></i></button>
+              <button type="button" id="noteBtnCodeblock" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('codeblock')" title="Code Block"><i data-lucide="terminal" style="width:13px;height:13px;"></i></button>
+              <button type="button" id="noteBtnQuote" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('quote')" title="Quote"><i data-lucide="quote" style="width:13px;height:13px;"></i></button>
+              <button type="button" id="noteBtnTable" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('table')" title="Insert Table"><i data-lucide="table" style="width:13px;height:13px;"></i></button>
             </div>
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
@@ -1740,20 +1740,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=6.8"></script>
-  <script src="/static/js/app.js?v=6.8"></script>
-  <script src="/static/js/drag_drop.js?v=6.8"></script>
-  <script src="/static/js/wave_canvas.js?v=6.8"></script>
-  <script src="/static/js/entity_modal.js?v=6.8"></script>
-  <script src="/static/js/timeline.js?v=6.8"></script>
-  <script src="/static/js/mindmap.js?v=6.8"></script>
-  <script src="/static/js/dashboard.js?v=6.8"></script>
-  <script src="/static/js/simplified_mode.js?v=6.8"></script>
-  <script src="/static/js/exploded.js?v=6.8"></script>
-  <script src="/static/js/notes.js?v=6.8"></script>
-  <script src="/static/js/history.js?v=6.8"></script>
-  <script src="/static/js/command_palette.js?v=6.8"></script>
-  <script src="/static/js/focus_cockpit.js?v=6.8"></script>
-  <script src="/static/js/evening_debrief.js?v=6.8"></script>
+  <script src="/static/js/pin_lock.js?v=6.9"></script>
+  <script src="/static/js/app.js?v=6.9"></script>
+  <script src="/static/js/drag_drop.js?v=6.9"></script>
+  <script src="/static/js/wave_canvas.js?v=6.9"></script>
+  <script src="/static/js/entity_modal.js?v=6.9"></script>
+  <script src="/static/js/timeline.js?v=6.9"></script>
+  <script src="/static/js/mindmap.js?v=6.9"></script>
+  <script src="/static/js/dashboard.js?v=6.9"></script>
+  <script src="/static/js/simplified_mode.js?v=6.9"></script>
+  <script src="/static/js/exploded.js?v=6.9"></script>
+  <script src="/static/js/notes.js?v=6.9"></script>
+  <script src="/static/js/history.js?v=6.9"></script>
+  <script src="/static/js/command_palette.js?v=6.9"></script>
+  <script src="/static/js/focus_cockpit.js?v=6.9"></script>
+  <script src="/static/js/evening_debrief.js?v=6.9"></script>
 </body>
 </html>

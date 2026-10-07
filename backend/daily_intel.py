@@ -107,10 +107,11 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
 async def generate_llm_typewriter_lines(target_date: datetime.date,
                                        user_name: str,
                                        milestone_info: Optional[str] = None,
-                                       timeout_seconds: float = 8.0) -> Optional[List[str]]:
+                                       timeout_seconds: float = 8.0) -> Optional[Any]:
     """
-    Prompts the configured local/remote LLM to generate fresh, date-aware typewriter greeting lines.
-    Returns a list of 4-6 clean, punchy lines, or None if LLM is offline or malformed.
+    Prompts the configured local/remote LLM to generate fresh, date-aware typewriter greeting lines
+    and a fascinating fun fact relevant to today's date in history.
+    Returns a dict with {"phrases": [...], "fact": "..."} or list of lines, or None if LLM is offline.
     """
     config = get_or_create_config()
     ollama_url = os.environ.get("OLLAMA_URL") or config.get("ollama_url", "http://localhost:11434")
@@ -123,8 +124,10 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     system_prompt = (
         "You are the witty, sharp, tech-forward onboard AI companion for PETTR "
         "(Personal Errands, Task Tracker & Repository), an aerospace-grade personal mission dashboard. "
-        "Your task is to generate 5 distinctive, punchy typewriter greeting lines for the user's dashboard banner. "
-        "Return ONLY a valid JSON array of strings: [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"]."
+        "Your task is to generate:\n"
+        "1. Exactly 5 distinctive, punchy typewriter greeting lines for the user's dashboard banner.\n"
+        "2. Exactly 1 fascinating, genuine fun fact or significant historical event specifically relevant to today's date.\n"
+        "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
     )
 
     user_prompt = (
@@ -132,12 +135,13 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         f"{milestone_ctx}\n"
         f"User's name: {user_name}\n\n"
         "Requirements:\n"
-        f"1. Generate exactly 5 short, witty, and motivating typewriter phrases tailored to today's date and {user_name}.\n"
+        f"1. In 'phrases': generate exactly 5 short, witty, and motivating typewriter phrases tailored to today's date and {user_name}.\n"
         "2. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
         "3. Blend subtle space exploration / engineering telemetry flavor, high-performance focus, and date-relevant humor.\n"
         "4. Cover different daily momentum perspectives (morning launch, deep work focus, evening orbit wrap-up).\n"
         f"5. Mention {user_name} naturally in at least two lines.\n"
-        "6. Return ONLY a valid JSON array of strings, no explanation or markdown fences."
+        "6. In 'fact': provide 1 fascinating, genuine historical event, scientific breakthrough, or quirky fun fact that happened on this calendar date in history. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
+        "7. Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
     )
 
     payload = {
@@ -148,7 +152,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "stream": False,
         "options": {
             "temperature": 0.75,
-            "num_predict": 220
+            "num_predict": 260
         }
     }
 
@@ -166,12 +170,13 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                         raw_response = raw_response[4:].strip()
 
                 parsed = json.loads(raw_response)
-                # Handle array of strings or dict with 'phrases' key
                 raw_phrases = []
-                if isinstance(parsed, list):
-                    raw_phrases = parsed
-                elif isinstance(parsed, dict):
+                fact_str = None
+                if isinstance(parsed, dict):
                     raw_phrases = parsed.get("phrases") or parsed.get("lines") or parsed.get("greetings") or []
+                    fact_str = parsed.get("fact") or parsed.get("fun_fact") or parsed.get("milestone")
+                elif isinstance(parsed, list):
+                    raw_phrases = parsed
 
                 cleaned = []
                 for p in raw_phrases:
@@ -181,9 +186,17 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                         if s and len(s) > 3 and len(s) < 80:
                             cleaned.append(s)
 
+                if isinstance(fact_str, str):
+                    fact_str = fact_str.strip().strip('"').strip("'")
+                    if len(fact_str) < 5 or len(fact_str) > 250:
+                        fact_str = None
+
                 if len(cleaned) >= 3:
-                    logger.info(f"Successfully generated {len(cleaned)} daily typewriter lines via LLM ({model_name})")
-                    return cleaned
+                    logger.info(f"Successfully generated {len(cleaned)} daily typewriter lines and fun fact via LLM ({model_name})")
+                    return {
+                        "phrases": cleaned,
+                        "fact": fact_str
+                    }
     except Exception as e:
         logger.debug(f"LLM typewriter generation unavailable ({e}), using curated engine.")
         pass
@@ -208,7 +221,8 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
     milestone = HISTORICAL_MILESTONES.get((month, day))
     weekday_intel = DAY_OF_WEEK_INTEL.get(weekday, "Execute daily priorities with focus.")
     date_label = today.strftime("%A, %B %d")
-    subtext = f"{date_label} · {milestone}" if milestone else f"{date_label} · {weekday_intel}"
+    fallback_fact = milestone or weekday_intel
+    default_subtext = f"{date_label} · 💡 {fallback_fact}" if fallback_fact else date_label
 
     # 1. Check SQLite Cache
     if not force_refresh:
@@ -218,7 +232,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 "date": date_key,
                 "date_label": date_label,
                 "phrases": cached["phrases"],
-                "subtext": cached.get("subtext") or subtext,
+                "subtext": cached.get("subtext") or default_subtext,
                 "milestone": milestone or weekday_intel,
                 "source": "cache",
                 "cached": True
@@ -226,14 +240,26 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
 
     # 2. Generate via LLM
     milestone_summary = milestone or weekday_intel
-    llm_phrases = await generate_llm_typewriter_lines(today, user_name, milestone_summary)
+    llm_res = await generate_llm_typewriter_lines(today, user_name, milestone_summary)
+
+    llm_phrases = None
+    llm_fact = None
+    if isinstance(llm_res, dict):
+        llm_phrases = llm_res.get("phrases")
+        llm_fact = llm_res.get("fact")
+    elif isinstance(llm_res, list):
+        llm_phrases = llm_res
 
     if llm_phrases and len(llm_phrases) >= 3:
         source = "llm"
         final_phrases = llm_phrases
+        chosen_fact = llm_fact or fallback_fact
     else:
         source = "curated_fallback"
         final_phrases = get_curated_phrases(today, user_name, milestone)
+        chosen_fact = fallback_fact
+
+    subtext = f"{date_label} · 💡 {chosen_fact}" if chosen_fact else date_label
 
     # 3. Cache into SQLite
     try:
