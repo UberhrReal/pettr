@@ -258,6 +258,14 @@ const Notes = {
     if (!editor || !this.savedRange) return;
     const sel = window.getSelection();
     if (sel) {
+      if (sel.rangeCount > 0) {
+        const currentRange = sel.getRangeAt(0);
+        if (editor.contains(currentRange.commonAncestorContainer)) {
+          // Caret / selection is already active inside the editor.
+          // Do not clear/re-add ranges, which wipes pending formatting command styles.
+          return;
+        }
+      }
       sel.removeAllRanges();
       sel.addRange(this.savedRange);
     }
@@ -295,7 +303,7 @@ const Notes = {
     const scrollX = window.scrollX || window.pageXOffset || 0;
     const scrollY = window.scrollY || window.pageYOffset || 0;
 
-    if (editor.focus) {
+    if (editor.focus && document.activeElement !== editor) {
       try {
         editor.focus({ preventScroll: true });
       } catch (e) {
@@ -303,34 +311,69 @@ const Notes = {
       }
     }
 
+    const btnMap = {
+      bold: "noteBtnBold",
+      italic: "noteBtnItalic",
+      strike: "noteBtnStrike",
+      h1: "noteBtnH1",
+      h2: "noteBtnH2",
+      h3: "noteBtnH3",
+      ul: "noteBtnUl",
+      quote: "noteBtnQuote"
+    };
+    const btnId = btnMap[action];
+    const wasActive = btnId ? Boolean(document.getElementById(btnId)?.classList.contains("active")) : false;
+
     switch (action) {
-      case "bold":
-        document.execCommand("bold", false, null);
+      case "bold": {
+        const currentState = Boolean(document.queryCommandState("bold"));
+        if (wasActive) {
+          if (currentState) document.execCommand("bold", false, null);
+        } else {
+          if (!currentState) document.execCommand("bold", false, null);
+        }
         break;
-      case "italic":
-        document.execCommand("italic", false, null);
+      }
+      case "italic": {
+        const currentState = Boolean(document.queryCommandState("italic"));
+        if (wasActive) {
+          if (currentState) document.execCommand("italic", false, null);
+        } else {
+          if (!currentState) document.execCommand("italic", false, null);
+        }
         break;
-      case "strike":
-        document.execCommand("strikeThrough", false, null);
+      }
+      case "strike": {
+        const currentState = Boolean(document.queryCommandState("strikeThrough"));
+        if (wasActive) {
+          if (currentState) document.execCommand("strikeThrough", false, null);
+        } else {
+          if (!currentState) document.execCommand("strikeThrough", false, null);
+        }
         break;
+      }
       case "h1":
       case "h2":
       case "h3": {
         const tag = action.toUpperCase();
-        const currentBlock = document.queryCommandValue("formatBlock");
-        if (currentBlock && currentBlock.toLowerCase() === action.toLowerCase()) {
+        if (wasActive) {
           document.execCommand("formatBlock", false, "<p>");
         } else {
           document.execCommand("formatBlock", false, `<${tag}>`);
         }
         break;
       }
-      case "ul":
-        document.execCommand("insertUnorderedList", false, null);
+      case "ul": {
+        const currentState = Boolean(document.queryCommandState("insertUnorderedList"));
+        if (wasActive) {
+          if (currentState) document.execCommand("insertUnorderedList", false, null);
+        } else {
+          if (!currentState) document.execCommand("insertUnorderedList", false, null);
+        }
         break;
+      }
       case "quote": {
-        const currentBlock = document.queryCommandValue("formatBlock");
-        if (currentBlock && currentBlock.toLowerCase() === "blockquote") {
+        if (wasActive) {
           document.execCommand("formatBlock", false, "<p>");
         } else {
           document.execCommand("formatBlock", false, "<blockquote>");
@@ -379,6 +422,10 @@ const Notes = {
         this.insertHtmlAtCursor(tableHtml);
         break;
       }
+    }
+
+    if (wasActive && btnId) {
+      document.getElementById(btnId)?.classList.remove("active");
     }
 
     this.saveSelection();
