@@ -1,6 +1,6 @@
 # PETTR Production Deployment & Operations Guide
 ## Hardware Target: Shuttle XPC Slim DH610 (Intel Core i3 12th Gen, 16GB Dual-Channel DDR4-3200, 512GB NVMe SSD)
-## OS: Ubuntu Server 24.04 LTS (Noble Numbat)
+## OS: Ubuntu Server 26.04.1 LTS
 
 This guide provides end-to-end instructions for deploying **PETTR** in Docker with native **Tailscale** mesh connectivity and **Ollama 3B** local AI model integration, engineered for 24/7 silent, cool operation with **zero data loss** guarantees.
 
@@ -15,7 +15,7 @@ This guide provides end-to-end instructions for deploying **PETTR** in Docker wi
                                          │ Encrypted WireGuard Mesh
                                          ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ Shuttle DH610 Mini PC (Ubuntu Server 24.04 LTS)                        │
+│ Shuttle DH610 Mini PC (Ubuntu Server 26.04.1 LTS)                      │
 │                                                                        │
 │  ┌───────────────────────┐          ┌───────────────────────────────┐  │
 │  │ Tailscale Daemon      │          │ Ollama Native Daemon (Systemd)│  │
@@ -54,7 +54,7 @@ The Shuttle XPC Slim DH610 equipped with an Intel 12th Gen Core i3 (4 cores / 8 
    - Fan Acoustic Profile: *Advanced -> Smart Fan Mode* -> Set to `Ultra-Low Mode` or `Smart Mode`. Shuttle's dual-heatpipe ICE cooling module with twin 60mm ball-bearing fans runs virtually silently at ~1200-1400 RPM while keeping the i3 under 45°C.
    - CPU C-States: Ensure Package C-States (C8/C10) are enabled for lowest idle wattage (~7-10W idle).
 3. **Ubuntu CPU Energy Performance Bias**:
-   - Ubuntu 24.04 LTS (Kernel 6.8+) automatically utilizes the modern `intel_pstate` driver with Hardware P-States (HWP).
+   - Ubuntu 26.04.1 LTS automatically utilizes the modern `intel_pstate` driver with Hardware P-States (HWP).
    - Set the Energy Performance Preference (EPP) to `balance_power`:
      ```bash
      echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
@@ -120,7 +120,7 @@ Ollama runs natively on the Ubuntu host to maximize CPU AVX2 instructions and RA
 ## 5. Install Docker & Docker Compose
 
 ```bash
-# Install Docker Engine on Ubuntu 24.04 LTS
+# Install Docker Engine on Ubuntu 26.04.1 LTS
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -251,7 +251,7 @@ PETTR uses a 3-2-1 backup strategy:
 For headless Ubuntu servers without a graphical web browser, `rclone` provides lightweight, reliable syncing directly to Google Drive.
 
 #### Step 1: Install `rclone` and `cron`
-Ubuntu Server 24.04 Minimal may omit cron:
+Ubuntu Server 26.04.1 Minimal may omit cron:
 ```bash
 sudo apt update
 sudo apt install -y rclone cron

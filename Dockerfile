@@ -1,4 +1,4 @@
-# PETTR Production Dockerfile (Ubuntu 24.04 / Debian slim)
+# PETTR Production Dockerfile (Ubuntu 26.04.1 LTS / Debian slim)
 FROM python:3.12-slim
 
 # Prevent Python from writing .pyc files and enable unbuffered logging

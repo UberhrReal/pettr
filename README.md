@@ -74,7 +74,7 @@ For running PETTR and a lightweight local LLM 24/7 smoothly at home:
 | **CPU** | **Intel Core i3-12100 / 12th Gen** or **Intel N100 / N97** | High single-thread speed for SQLite, AVX2 support for Ollama 3B inference (~15-25 tok/s), ultra-low idle wattage (~8-12W). |
 | **RAM** | **16 GB DDR4/DDR5** (Dual-Channel) | 3B models need ~2.5 GB of RAM. 16 GB leaves ample headroom for Linux/Docker, Tailscale, Ollama, and SQLite caching without swap. |
 | **Storage** | **256 GB - 512 GB NVMe SSD** | Fast boot, silent operation, plenty of room for WAL-mode SQLite, uploaded media, and local model weights. |
-| **OS** | **Ubuntu Server 24.04 LTS** (Recommended) or Windows 11 | Ubuntu + Docker Compose provides zero-maintenance 24/7 reliability, automated rclone sync, and instant container updates. |
+| **OS** | **Ubuntu Server 26.04.1 LTS** (Recommended) or Windows 11 | Ubuntu + Docker Compose provides zero-maintenance 24/7 reliability, automated rclone sync, and instant container updates. |
 
 ---
 
