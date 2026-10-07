@@ -742,10 +742,10 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
-        const isTimeSensitive = Boolean(t.is_time_sensitive || (t.urgency && t.urgency.level === 'urgent'));
+        const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isTimeSensitive
           ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
-          : (t.urgency && t.urgency.level !== 'urgent' && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.level.toUpperCase()}</span>` : '');
+          : '';
 
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true" 
@@ -787,7 +787,7 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
-        const isTimeSensitive = Boolean(t.is_time_sensitive || (t.urgency && t.urgency.level === 'urgent'));
+        const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isTimeSensitive
           ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
           : '';
@@ -1447,10 +1447,10 @@ const Dashboard = {
       const urgencyLabel = task.urgency ? task.urgency.label : "No Date";
       const dueText = task.due_date ? App.formatMilitaryTime(task.due_date) : (task.due_date_raw ? App.formatMilitaryTime(task.due_date_raw) : "");
 
-      const isTimeSensitive = Boolean(task.is_time_sensitive || urgencyLevel === 'urgent');
+      const isTimeSensitive = Boolean(task.is_time_sensitive);
       const badgeHtml = isTimeSensitive
         ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
-        : (urgencyLevel !== 'none' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : '');
+        : (urgencyLevel !== 'none' && urgencyLevel !== 'urgent' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : (dueText ? `<span class="due-pill" style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${dueText}</span>` : ''));
 
       let recurrenceHtml = "";
       if (task.recurrence) {

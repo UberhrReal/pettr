@@ -10,14 +10,9 @@ const SimplifiedMode = {
   clockTimer: null,
   draggedItemIndex: null,
 
+  _lastToggleTime: 0,
+
   init() {
-    const btn = document.getElementById("mobileSimplifiedBtn");
-    if (btn) {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        this.toggle();
-      });
-    }
     const overlay = document.getElementById("simplifiedModeOverlay");
     if (overlay) {
       overlay.addEventListener("click", (e) => {
@@ -27,9 +22,13 @@ const SimplifiedMode = {
   },
 
   async toggle() {
+    const now = Date.now();
+    if (now - this._lastToggleTime < 300) return;
+    this._lastToggleTime = now;
+
     const overlay = document.getElementById("simplifiedModeOverlay");
     if (!overlay) return;
-    const isVisible = overlay.classList.contains("active") || overlay.style.display === "flex";
+    const isVisible = overlay.classList.contains("active") && overlay.style.display !== "none";
     if (isVisible) {
       this.close();
     } else {
@@ -42,11 +41,12 @@ const SimplifiedMode = {
     if (!overlay) return;
     this.isOpen = true;
     overlay.style.display = "flex";
+    void overlay.offsetWidth; // Force reflow so transition runs
     overlay.classList.add("active");
 
     this.startClock();
     await this.refresh();
-    App.haptic("light");
+    if (window.App && App.haptic) App.haptic("light");
   },
 
   close() {
@@ -54,7 +54,9 @@ const SimplifiedMode = {
     if (!overlay) return;
     overlay.classList.remove("active");
     setTimeout(() => {
-      overlay.style.display = "none";
+      if (!overlay.classList.contains("active")) {
+        overlay.style.display = "none";
+      }
       this.isOpen = false;
     }, 280);
 

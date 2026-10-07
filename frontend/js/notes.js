@@ -228,7 +228,18 @@ const Notes = {
   format(action) {
     const editor = document.getElementById("noteContentArea");
     if (!editor) return;
-    editor.focus();
+
+    // Preserve scroll position on mobile touch screens
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    if (editor.focus) {
+      try {
+        editor.focus({ preventScroll: true });
+      } catch (e) {
+        editor.focus();
+      }
+    }
 
     switch (action) {
       case "bold":
@@ -309,6 +320,11 @@ const Notes = {
     }
 
     this.scheduleAutoSave();
+
+    // Prevent viewport jumping on mobile
+    if (window.scrollTo) {
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+    }
   },
 
   toggleChecklistRow(checkbox) {
@@ -327,7 +343,17 @@ const Notes = {
   insertHtmlAtCursor(html) {
     const editor = document.getElementById("noteContentArea");
     if (!editor) return;
-    editor.focus();
+
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    if (editor.focus) {
+      try {
+        editor.focus({ preventScroll: true });
+      } catch (e) {
+        editor.focus();
+      }
+    }
 
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
@@ -352,6 +378,10 @@ const Notes = {
       editor.innerHTML += html;
     }
     this.scheduleAutoSave();
+
+    if (window.scrollTo) {
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+    }
   },
 
   async handleFileInput(event) {

@@ -4120,6 +4120,12 @@ body {
     box-sizing: border-box !important;
     gap: 6px !important;
     padding-bottom: 8px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .header-top-row::-webkit-scrollbar {
+    display: none !important;
   }
 
   /* Compact Sleek Brand */
@@ -4128,8 +4134,8 @@ body {
     align-items: flex-start !important;
     text-align: left !important;
     gap: 0 !important;
-    max-width: 120px !important;
-    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    max-width: none !important;
   }
 
   .brand-title {
@@ -4158,43 +4164,68 @@ body {
     order: 2 !important;
     display: flex !important;
     align-items: center !important;
-    gap: 5px !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
   }
 
   .header-right-controls {
     order: 3 !important;
     display: flex !important;
     align-items: center !important;
-    gap: 5px !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+    justify-content: flex-end !important;
+  }
+
+  .header-clock-pill {
+    display: none !important; /* Phone already has status bar clock; mission clock card is below */
+  }
+
+  #systemStatusPill {
+    font-size: 10px !important;
+    padding: 3px 6px !important;
+    max-width: none !important;
+  }
+
+  #systemStatusPill #statusText {
+    display: none !important; /* Keep just the live indicator dot on mobile to save space */
   }
 
   .cmd-palette-trigger-btn {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 4px !important;
-    padding: 3px 8px !important;
-  }
-
-  .cmd-palette-trigger-btn .cmd-kbd-badge {
-    display: none !important;
-  }
-
-  .status-pill {
-    font-size: 10px !important;
-    padding: 3px 8px !important;
-    max-width: 130px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-  }
-
-  .header-clock-pill {
-    font-size: 10px !important;
+    gap: 2px !important;
     padding: 3px 6px !important;
+  }
+
+  .cmd-palette-trigger-btn span,
+  .cmd-palette-trigger-btn .cmd-kbd-badge {
+    display: none !important; /* Just search icon on mobile */
+  }
+
+  .mobile-simplified-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 4px 7px !important;
+    font-size: 11px !important;
+  }
+
+  .evening-debrief-trigger {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
   }
 
   .theme-switcher-control {
     padding: 2px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Hide individual manual sun/moon in mobile top bar to save space; Auto and Slider provide full control */
+  .theme-switcher-control #themeBtnLight,
+  .theme-switcher-control #themeBtnDark {
+    display: none !important;
   }
 
   .theme-btn {
@@ -4203,8 +4234,14 @@ body {
   }
 
   .action-icon-btn {
-    padding: 4px 8px !important;
+    padding: 4px 7px !important;
     font-size: 10.5px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .lock-btn {
+    flex-shrink: 0 !important;
+    padding: 4px 6px !important;
   }
 
   .theme-slider-drawer {
@@ -4797,6 +4834,11 @@ body {
     flex-wrap: nowrap !important;
     padding-bottom: 6px !important;
     -webkit-overflow-scrolling: touch !important;
+    position: sticky !important;
+    top: 52px !important;
+    z-index: 50 !important;
+    background: var(--bg-card) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
   }
 
   .notes-editor-surface,
