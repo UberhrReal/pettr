@@ -19,9 +19,16 @@ const Dashboard = {
     return `${yyyy}-${mm}-${dd}`;
   })(),
 
-  isToday() {
+  getTodayString() {
     const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  },
+
+  isToday() {
+    const todayStr = this.getTodayString();
     return this.selectedDate === todayStr;
   },
 
@@ -413,6 +420,9 @@ const Dashboard = {
     this.updateProgressRing();
     this.adjustPanelScaling();
     if (typeof EveningDebrief !== "undefined") EveningDebrief.updateDebriefButtonState();
+    if (typeof SimplifiedMode !== "undefined" && SimplifiedMode.isOpen) {
+      SimplifiedMode.refresh();
+    }
     App.renderIcons();
   },
 

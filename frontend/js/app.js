@@ -269,6 +269,28 @@ const App = {
     this.renderIcons();
   },
 
+  getLocalDateString(dateObj = new Date()) {
+    const customTz = localStorage.getItem("pettr_custom_timezone");
+    if (customTz) {
+      try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: customTz,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).formatToParts(dateObj);
+        const y = parts.find(p => p.type === "year")?.value;
+        const m = parts.find(p => p.type === "month")?.value;
+        const d = parts.find(p => p.type === "day")?.value;
+        if (y && m && d) return `${y}-${m}-${d}`;
+      } catch (e) {}
+    }
+    const yyyy = dateObj.getFullYear();
+    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const dd = String(dateObj.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  },
+
   renderIcons() {
     if (typeof lucide !== "undefined" && lucide.createIcons) {
       lucide.createIcons();
