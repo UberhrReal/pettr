@@ -265,16 +265,19 @@ async def update_task(task_id: int, req: UpdateTaskRequest):
     if not existing_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Protection: Locked historical items from past days cannot have their status toggled/completed
-    if req.status is not None:
-        task_date_str = existing_task.get("due_date")
-        if task_date_str:
-            try:
-                task_date = datetime.date.fromisoformat(task_date_str.split("T")[0].split(" ")[0])
-                if task_date < datetime.date.today():
-                    raise HTTPException(status_code=403, detail="Historical records from past days are locked and uneditable to preserve productivity score integrity.")
-            except (ValueError, TypeError):
-                pass
+    # Protection: Sealed days are completely locked from any edits; past unsealed days lock status toggles
+    task_date_str = existing_task.get("due_date")
+    if task_date_str:
+        try:
+            task_date = datetime.date.fromisoformat(task_date_str.split("T")[0].split(" ")[0])
+            if database.is_day_sealed(task_date.strftime("%Y-%m-%d")):
+                raise HTTPException(status_code=403, detail="The day has been sealed by Evening Debrief and is locked from further edits.")
+            if req.status is not None and task_date < datetime.date.today():
+                raise HTTPException(status_code=403, detail="Historical records from past days are locked and uneditable to preserve productivity score integrity.")
+        except HTTPException:
+            raise
+        except (ValueError, TypeError):
+            pass
 
     conn = database.get_connection()
     updates = []
@@ -316,6 +319,10 @@ async def update_task(task_id: int, req: UpdateTaskRequest):
 @app.post("/api/tasks", dependencies=[Depends(auth.require_auth)])
 async def create_task_endpoint(req: CreateTaskRequest):
     """Direct manual creation of a task without NLP parsing."""
+    if req.due_date:
+        due_d = req.due_date.split("T")[0].split(" ")[0]
+        if database.is_day_sealed(due_d):
+            raise HTTPException(status_code=403, detail="Cannot add tasks to a day that has already been sealed and wrapped up.")
     created = database.create_task(
         title=req.title,
         description=req.description or "",
@@ -329,11 +336,31 @@ async def create_task_endpoint(req: CreateTaskRequest):
 @app.post("/api/tasks/{task_id}/reopen", dependencies=[Depends(auth.require_auth)])
 async def reopen_task_endpoint(task_id: int):
     """Restores a completed task back to pending."""
+    existing_task = database.get_task_by_id(task_id)
+    if existing_task and existing_task.get("due_date"):
+        try:
+            task_date = datetime.date.fromisoformat(existing_task["due_date"].split("T")[0].split(" ")[0])
+            if database.is_day_sealed(task_date.strftime("%Y-%m-%d")):
+                raise HTTPException(status_code=403, detail="Cannot reopen tasks on a day that has already been sealed.")
+        except HTTPException:
+            raise
+        except (ValueError, TypeError):
+            pass
     database.reopen_task(task_id)
     return {"status": "success"}
 
 @app.delete("/api/tasks/{task_id}", dependencies=[Depends(auth.require_auth)])
 async def delete_task(task_id: int):
+    existing_task = database.get_task_by_id(task_id)
+    if existing_task and existing_task.get("due_date"):
+        try:
+            task_date = datetime.date.fromisoformat(existing_task["due_date"].split("T")[0].split(" ")[0])
+            if database.is_day_sealed(task_date.strftime("%Y-%m-%d")):
+                raise HTTPException(status_code=403, detail="Cannot delete tasks from a day that has been sealed.")
+        except HTTPException:
+            raise
+        except (ValueError, TypeError):
+            pass
     conn = database.get_connection()
     with conn:
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
@@ -376,6 +403,12 @@ async def create_event_endpoint(req: CreateEventRequest):
 @app.patch("/api/events/{event_id}/status", dependencies=[Depends(auth.require_auth)])
 async def update_event_status_endpoint(event_id: int, req: UpdateEventStatusRequest):
     """Updates status of a scheduled event (e.g. check off as completed)."""
+    conn = database.get_connection()
+    ev_row = conn.execute("SELECT start_time FROM events WHERE id = ?", (event_id,)).fetchone()
+    if ev_row and ev_row["start_time"]:
+        ev_d = ev_row["start_time"].split("T")[0].split(" ")[0]
+        if database.is_day_sealed(ev_d):
+            raise HTTPException(status_code=403, detail="Cannot modify events on a day that has already been sealed.")
     updated = database.update_event_status(event_id, req.status)
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -652,6 +685,34 @@ async def reclassify_item(req: ReclassifyRequest):
 async def get_productivity():
     """Returns weekly (Monday-Sunday) and monthly task completion rates and streak stats."""
     return database.get_productivity_stats()
+
+@app.post("/api/debrief/seal", dependencies=[Depends(auth.require_auth)])
+async def seal_day_endpoint(request: Request):
+    payload = await request.json()
+    date_str = payload.get("date")
+    if not date_str:
+        today = get_effective_today(request)
+        date_str = today.strftime("%Y-%m-%d")
+    completion_rate = int(payload.get("completion_rate", 100))
+    total_tasks = int(payload.get("total_tasks", 0))
+    completed_tasks = int(payload.get("completed_tasks", 0))
+    retro_notes = payload.get("retro_notes", "")
+    res = database.seal_day(date_str, completion_rate, total_tasks, completed_tasks, retro_notes)
+    return res
+
+@app.get("/api/debrief/seal-status", dependencies=[Depends(auth.require_auth)])
+async def get_seal_status(request: Request, date: Optional[str] = None):
+    if not date:
+        today = get_effective_today(request)
+        date = today.strftime("%Y-%m-%d")
+    is_sealed = database.is_day_sealed(date)
+    seal = database.get_day_seal(date)
+    return {
+        "date": date,
+        "is_sealed": is_sealed,
+        "completion_rate": seal["completion_rate"] if seal else None,
+        "seal": seal
+    }
 
 # --- Scalable Timeline Routes (Day, Month, Year) ---
 

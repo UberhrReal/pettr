@@ -929,9 +929,18 @@ const App = {
       const data = await res.json();
       if (res.ok) {
         this.lastBackupFilename = data.filename;
-        const cloudInfo = data.cloud_status ? ` · Cloud: ${data.cloud_status}` : "";
-        if (msgEl) msgEl.textContent = `Backup saved on server: ${data.filename} (${Math.round(data.size_bytes / 1024)} KB)${cloudInfo}`;
-        this.showToast(`Backup created!${cloudInfo ? ' Drive: ' + data.cloud_status : ''}`);
+        const kbSize = Math.round((data.size_bytes || 0) / 1024);
+        if (data.gdrive && data.gdrive.synced) {
+          const remoteTarget = data.gdrive.remote || "Google Drive";
+          if (msgEl) msgEl.textContent = `☁️ Synced to Google Drive (${remoteTarget}) · ${data.filename} (${kbSize} KB)`;
+          this.showToast(`☁️ Backup synced to Google Drive (${remoteTarget})!`);
+        } else if (data.gdrive && data.gdrive.reason) {
+          if (msgEl) msgEl.textContent = `💾 Staged on server: ${data.filename} (${kbSize} KB) · Drive sync pending: ${data.gdrive.reason}`;
+          this.showToast(`Backup saved to server (Drive unlinked: ${data.gdrive.reason})`);
+        } else {
+          if (msgEl) msgEl.textContent = `💾 Backup archive created on server: ${data.filename} (${kbSize} KB)`;
+          this.showToast(`Backup created: ${data.filename}`);
+        }
 
         const downloadBtn = document.getElementById("downloadBackupArchiveBtn");
         if (downloadBtn) {

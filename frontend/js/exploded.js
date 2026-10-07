@@ -238,11 +238,11 @@ const Exploded = {
         col.style.gap = "14px";
         col.innerHTML = `
           <div class="exploded-pool-header ${colData.headerClass}">
-            <span class="pool-header-title">
-              <i data-lucide="${colData.icon}" style="width:16px;height:16px;display:inline-block;vertical-align:-2px;"></i>
-              <span>${colData.title}</span>
-            </span>
-            <span class="panel-count-badge pool-header-count">${colData.projects.length}</span>
+            <div class="pool-header-title">
+              <span class="pool-icon-wrap"><i data-lucide="${colData.icon}"></i></span>
+              <span class="pool-title-text">${colData.title}</span>
+            </div>
+            <span class="pool-header-count-pill">${colData.projects.length} ${colData.projects.length === 1 ? 'project' : 'projects'}</span>
           </div>
         `;
         if (colData.projects.length === 0) {

@@ -34,7 +34,16 @@ const Dashboard = {
   isPastDay() {
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return this.selectedDate < todayStr;
+    if (this.selectedDate < todayStr) return true;
+    if (this.isDaySealed(this.selectedDate)) return true;
+    return false;
+  },
+
+  isDaySealed(dateStr) {
+    if (!dateStr) return false;
+    if (localStorage.getItem(`pettr_debrief_sealed_${dateStr}`) === "true") return true;
+    if (this.briefingData && this.briefingData.is_sealed && this.selectedDate === dateStr) return true;
+    return false;
   },
 
   navigateDay(direction) {
@@ -71,12 +80,23 @@ const Dashboard = {
 
     if (this.isToday()) {
       if (labelEl) labelEl.textContent = `Today: ${dayName}`;
-      if (tagEl) {
-        tagEl.textContent = "LIVE TODAY";
-        tagEl.className = "date-status-tag tag-today";
+      if (this.isDaySealed(this.selectedDate)) {
+        if (tagEl) {
+          tagEl.innerHTML = `<i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> SEALED TODAY`;
+          tagEl.className = "date-status-tag tag-past";
+        }
+        if (lockedBanner) {
+          lockedBanner.style.display = "flex";
+          if (lockedDateText) lockedDateText.textContent = `${dayName} (Evening Debrief Complete · Day Sealed)`;
+        }
+      } else {
+        if (tagEl) {
+          tagEl.textContent = "LIVE TODAY";
+          tagEl.className = "date-status-tag tag-today";
+        }
+        if (lockedBanner) lockedBanner.style.display = "none";
       }
       if (jumpBtn) jumpBtn.style.display = "none";
-      if (lockedBanner) lockedBanner.style.display = "none";
       if (futureBanner) futureBanner.style.display = "none";
     } else if (this.isFutureDay()) {
       if (labelEl) labelEl.textContent = `Preview: ${dayName}`;
@@ -665,6 +685,11 @@ const Dashboard = {
       const res = await fetch(`/api/briefing?date=${this.selectedDate}`);
       if (!res.ok) return;
       const data = await res.json();
+      this.briefingData = data;
+      if (data.is_sealed) {
+        localStorage.setItem(`pettr_debrief_sealed_${this.selectedDate}`, "true");
+        this.updateDateNavigatorUI();
+      }
       const dateEl = document.getElementById("briefingDate");
       const showcaseDate = document.getElementById("briefingShowcaseDate");
       if (dateEl) dateEl.textContent = data.date;
@@ -1017,7 +1042,22 @@ const Dashboard = {
 
     container.innerHTML = this.dailyOrder.map((item, idx) => {
       const rank = String(idx + 1).padStart(2, "0");
-      const isDone = item.completed || false;
+      let isDone = item.completed || false;
+      // Reconcile with live tasks and events
+      if (item.type === "task" && this.tasks) {
+        const allTasks = [...(this.tasks.focus || []), ...(this.tasks.trivial || [])];
+        const match = allTasks.find(t => t.id === item.id);
+        if (match) {
+          isDone = match.status === "completed";
+          item.completed = isDone;
+        }
+      } else if (item.type === "event" && this.briefingData && this.briefingData.events_today) {
+        const match = this.briefingData.events_today.find(e => e.id === item.id);
+        if (match) {
+          isDone = match.status === "completed";
+          item.completed = isDone;
+        }
+      }
       return `
         <div class="daily-order-slot ${isDone ? 'completed' : ''}" draggable="true"
              data-index="${idx}"
@@ -1538,6 +1578,19 @@ const Dashboard = {
         body: JSON.stringify({ status: isCompleted ? "completed" : "pending" })
       });
       App.showToast(isCompleted ? "Task completed! Marked with strikethrough." : "Task reopened.");
+      if (this.dailyOrder && this.dailyOrder.length > 0) {
+        let changed = false;
+        this.dailyOrder.forEach(item => {
+          if (item.type === "task" && item.id === taskId) {
+            item.completed = isCompleted;
+            changed = true;
+          }
+        });
+        if (changed) {
+          this.renderDailyOrder();
+          this.saveDailyOrder();
+        }
+      }
       await this.refresh();
       await this.loadBriefing();
       if (typeof Timeline !== "undefined") Timeline.refresh();
@@ -1658,6 +1711,19 @@ const Dashboard = {
         body: JSON.stringify({ status: isCompleted ? "completed" : "scheduled" })
       });
       App.showToast(isCompleted ? "Appointment completed!" : "Appointment reopened.");
+      if (this.dailyOrder && this.dailyOrder.length > 0) {
+        let changed = false;
+        this.dailyOrder.forEach(item => {
+          if (item.type === "event" && item.id === eventId) {
+            item.completed = isCompleted;
+            changed = true;
+          }
+        });
+        if (changed) {
+          this.renderDailyOrder();
+          this.saveDailyOrder();
+        }
+      }
       await this.refresh();
       await this.loadBriefing();
       if (typeof Timeline !== "undefined") Timeline.refresh();

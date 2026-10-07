@@ -219,3 +219,68 @@ async def test_llm_typewriter_generation_and_cache(temp_db, monkeypatch):
     assert cached["phrases"] == mock_phrases
     assert cached["source"] == "llm"
 
+
+def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
+    """Test evening debrief seal locks the day's completion rate and blocks further edits."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    target_date = "2026-10-08"
+
+    # Step 1: Create 2 tasks for target date (1 completed, 1 pending)
+    t1 = database.create_task("Finish Thesis Chapter", tier="focus", due_date=target_date, db_path=temp_db)
+    t2 = database.create_task("Review Slides", tier="trivial", due_date=target_date, db_path=temp_db)
+    t1_id = t1["id"]
+    t2_id = t2["id"]
+    database.update_task_status(t1_id, status="completed", db_path=temp_db)
+
+    # Initial stats: 1 of 2 completed = 50%
+    stats_before = database.get_productivity_stats(target_date, db_path=temp_db)
+    day_stat = next(d for d in stats_before["weekly"]["days"] if d["date"] == target_date)
+    assert day_stat["total"] == 2
+    assert day_stat["completed"] == 1
+    assert day_stat["completion_rate"] == 50.0
+
+    # Step 2: Seal the day (like Evening Debrief does)
+    seal = database.seal_day(
+        target_date,
+        completion_rate=50.0,
+        total_tasks=2,
+        completed_tasks=1,
+        retro_notes="Good focus session today.",
+        db_path=temp_db
+    )
+    assert seal["is_sealed"] is True
+    assert database.is_day_sealed(target_date, db_path=temp_db) is True
+
+    # Step 3: Simulate task rollover to tomorrow
+    conn = database.get_connection(temp_db)
+    conn.execute("UPDATE tasks SET due_date = '2026-10-09' WHERE id = ?", (t2_id,))
+    conn.commit()
+
+    # Productivity stats for the sealed day must remain 50.0% (not jump to 100%!)
+    stats_sealed = database.get_productivity_stats(target_date, db_path=temp_db)
+    day_stat_sealed = next(d for d in stats_sealed["weekly"]["days"] if d["date"] == target_date)
+    assert day_stat_sealed["completion_rate"] == 50.0
+    assert day_stat_sealed["total"] == 2
+    assert day_stat_sealed["completed"] == 1
+
+    # Step 4: Verify API blocks mutating sealed day
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Seal status endpoint
+        res = client.get(f"/api/debrief/seal-status?date={target_date}")
+        assert res.status_code == 200
+        assert res.json()["is_sealed"] is True
+        assert res.json()["completion_rate"] == 50.0
+
+        # Attempting to edit t1 on sealed day via API returns 403 Forbidden
+        edit_res = client.patch(f"/api/tasks/{t1_id}", json={"title": "Hacked Title"})
+        assert edit_res.status_code == 403
+        assert "sealed" in edit_res.json()["detail"].lower()
+
+        # Attempting to create new task on sealed day returns 403 Forbidden
+        create_res = client.post("/api/tasks", json={"title": "Late Task", "due_date": target_date})
+        assert create_res.status_code == 403
+        assert "sealed" in create_res.json()["detail"].lower()
+
+

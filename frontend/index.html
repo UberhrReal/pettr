@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=6.6">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=6.7">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -553,10 +553,12 @@
       
       <!-- Interactive Mindmap Tree Container -->
       <div id="mindmapViewContainer" class="mindmap-container">
-        <div class="mindmap-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button class="action-icon-btn" onclick="Mindmap.resetView()" title="Center & Reset View"><i data-lucide="locate" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Recenter</button>
-          <button class="action-icon-btn" onclick="Mindmap.toggleRotation()" id="mindmapOrbitBtn" title="Toggle Auto-Orbit"><i data-lucide="pause" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Pause Orbit</button>
-          <div class="scale-switch-group" style="padding: 2px;">
+        <div class="mindmap-controls">
+          <div class="mindmap-controls-actions">
+            <button class="action-icon-btn" onclick="Mindmap.resetView()" title="Center & Reset View"><i data-lucide="locate" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Recenter</button>
+            <button class="action-icon-btn" onclick="Mindmap.toggleRotation()" id="mindmapOrbitBtn" title="Toggle Auto-Orbit"><i data-lucide="pause" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Pause Orbit</button>
+          </div>
+          <div class="mindmap-cluster-pills-row">
             <button class="action-icon-btn cluster-filter-btn active" onclick="Mindmap.setFilter('all', this)" style="border: none; font-size: 11px;">All</button>
             <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('projects', this)" style="border: none; font-size: 11px;">Projects</button>
             <button class="action-icon-btn cluster-filter-btn" onclick="Mindmap.setFilter('school', this)" style="border: none; font-size: 11px;">🎓 School</button>
@@ -591,22 +593,24 @@
     <section id="tabTimeline" class="tab-pane">
       <div class="timeline-header-bar">
         <div class="timeline-nav-group">
-          <h2 id="timelineDisplayTitle" style="min-width: 220px; font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Timeline</h2>
-          <button class="action-icon-btn" onclick="Timeline.navigate(-1)">◀ Prev</button>
-          <button class="action-icon-btn" onclick="Timeline.jumpToToday()">Today</button>
-          <button class="action-icon-btn" onclick="Timeline.navigate(1)">Next ▶</button>
+          <h2 id="timelineDisplayTitle" style="font-size: 19px; font-weight: 800; letter-spacing: -0.02em; margin: 0;">Timeline</h2>
+          <div class="timeline-nav-buttons">
+            <button class="action-icon-btn" onclick="Timeline.navigate(-1)">◀ Prev</button>
+            <button class="action-icon-btn" onclick="Timeline.jumpToToday()">Today</button>
+            <button class="action-icon-btn" onclick="Timeline.navigate(1)">Next ▶</button>
+          </div>
         </div>
 
-        <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+        <div class="timeline-controls-row">
           <!-- View Switcher: Merged Graphic Timeline & Detailed List -->
-          <div class="scale-switch-group">
-            <button class="timeline-view-btn active" data-view="unified" data-legacy-view="ruler" title="Merged ruler spine with graphic cards above and below"><i data-lucide="git-commit" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Graphic Timeline</button>
+          <div class="scale-switch-group timeline-view-switcher">
+            <button class="timeline-view-btn active" data-view="unified" data-legacy-view="ruler" title="Merged ruler spine with graphic cards above and below"><i data-lucide="git-commit" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> <span class="view-btn-text">Graphic Timeline</span></button>
             <span style="display:none;" data-view="ruler"></span>
-            <button class="timeline-view-btn" data-view="list"><i data-lucide="list" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Detailed List</button>
+            <button class="timeline-view-btn" data-view="list"><i data-lucide="list" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> <span class="view-btn-text">Detailed List</span></button>
           </div>
 
           <!-- Scale Switcher: Day, Month, Year -->
-          <div class="scale-switch-group">
+          <div class="scale-switch-group timeline-scale-switcher">
             <button class="timeline-scale-btn active" data-scale="day"><i data-lucide="calendar" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Day</button>
             <button class="timeline-scale-btn" data-scale="month"><i data-lucide="calendar-range" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Month</button>
             <button class="timeline-scale-btn" data-scale="year"><i data-lucide="bar-chart-2" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Year</button>
@@ -1389,7 +1393,6 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; gap: 8px;">
           <button type="button" class="action-icon-btn" onclick="EntityModal.deleteEntity()" style="color: var(--urgent-orange); padding: 8px 12px;"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Delete</button>
-          <button type="button" class="action-icon-btn" onclick="EntityModal.returnToUnorganized()" style="color: var(--focus-indigo); padding: 8px 12px;" title="Send back to unorganized inbox"><i data-lucide="archive-restore" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Return to Unorganized</button>
         </div>
         <div style="display: flex; gap: 10px;">
           <button class="action-icon-btn" onclick="EntityModal.close()" style="padding: 8px 16px;">Cancel</button>
@@ -1737,20 +1740,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=6.6"></script>
-  <script src="/static/js/app.js?v=6.6"></script>
-  <script src="/static/js/drag_drop.js?v=6.6"></script>
-  <script src="/static/js/wave_canvas.js?v=6.6"></script>
-  <script src="/static/js/entity_modal.js?v=6.6"></script>
-  <script src="/static/js/timeline.js?v=6.6"></script>
-  <script src="/static/js/mindmap.js?v=6.6"></script>
-  <script src="/static/js/dashboard.js?v=6.6"></script>
-  <script src="/static/js/simplified_mode.js?v=6.6"></script>
-  <script src="/static/js/exploded.js?v=6.6"></script>
-  <script src="/static/js/notes.js?v=6.6"></script>
-  <script src="/static/js/history.js?v=6.6"></script>
-  <script src="/static/js/command_palette.js?v=6.6"></script>
-  <script src="/static/js/focus_cockpit.js?v=6.6"></script>
-  <script src="/static/js/evening_debrief.js?v=6.6"></script>
+  <script src="/static/js/pin_lock.js?v=6.7"></script>
+  <script src="/static/js/app.js?v=6.7"></script>
+  <script src="/static/js/drag_drop.js?v=6.7"></script>
+  <script src="/static/js/wave_canvas.js?v=6.7"></script>
+  <script src="/static/js/entity_modal.js?v=6.7"></script>
+  <script src="/static/js/timeline.js?v=6.7"></script>
+  <script src="/static/js/mindmap.js?v=6.7"></script>
+  <script src="/static/js/dashboard.js?v=6.7"></script>
+  <script src="/static/js/simplified_mode.js?v=6.7"></script>
+  <script src="/static/js/exploded.js?v=6.7"></script>
+  <script src="/static/js/notes.js?v=6.7"></script>
+  <script src="/static/js/history.js?v=6.7"></script>
+  <script src="/static/js/command_palette.js?v=6.7"></script>
+  <script src="/static/js/focus_cockpit.js?v=6.7"></script>
+  <script src="/static/js/evening_debrief.js?v=6.7"></script>
 </body>
 </html>

@@ -7,6 +7,9 @@ const EveningDebrief = {
   isOpen: false,
   pendingTasks: [],
   completedTasks: [],
+  baselineTotal: 0,
+  baselineCompleted: 0,
+  baselineRate: 100,
 
   init() {
     this.updateDebriefButtonState();
@@ -70,12 +73,18 @@ const EveningDebrief = {
         }
       });
     }
+
+    // Freeze baseline what was set out to do today BEFORE any rollover occurs
+    this.baselineTotal = this.pendingTasks.length + this.completedTasks.length;
+    this.baselineCompleted = this.completedTasks.length;
+    this.baselineRate = this.baselineTotal > 0 ? Math.round((this.baselineCompleted / this.baselineTotal) * 100) : 100;
   },
 
   renderModal() {
-    const total = this.pendingTasks.length + this.completedTasks.length;
-    const completedCount = this.completedTasks.length;
-    const rate = total > 0 ? Math.round((completedCount / total) * 100) : 100;
+    // Always report true baseline rate for today
+    const total = this.baselineTotal;
+    const completedCount = this.baselineCompleted;
+    const rate = this.baselineRate;
 
     // 1. Metric numbers
     const rateEl = document.getElementById("debriefScoreRate");
@@ -246,7 +255,24 @@ const EveningDebrief = {
   async sealDayAndWrapUp() {
     const retroInput = document.getElementById("debriefRetroInput");
     const retroText = retroInput ? retroInput.value.trim() : "";
-    const dateKey = new Date().toISOString().split("T")[0];
+    const dateKey = (typeof Dashboard !== "undefined" && Dashboard.selectedDate) ? Dashboard.selectedDate : new Date().toISOString().split("T")[0];
+
+    // 1. Post seal to server so day is sealed in database & metrics finalized
+    try {
+      await fetch("/api/debrief/seal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: dateKey,
+          completion_rate: this.baselineRate,
+          total_tasks: this.baselineTotal,
+          completed_tasks: this.baselineCompleted,
+          retro_notes: retroText
+        })
+      });
+    } catch (e) {
+      console.warn("Could not post day seal to server:", e);
+    }
 
     if (retroText) {
       localStorage.setItem(`pettr_debrief_retro_${dateKey}`, retroText);
@@ -275,6 +301,7 @@ const EveningDebrief = {
 
     if (typeof Dashboard !== "undefined") {
       await Dashboard.refresh();
+      await Dashboard.loadProductivityStats();
     }
   },
 

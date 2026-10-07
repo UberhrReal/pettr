@@ -2090,13 +2090,27 @@ body {
   align-items: center;
   margin-bottom: 24px;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
 }
 
 .timeline-nav-group {
   display: flex;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.timeline-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timeline-controls-row {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .scale-switch-group {
@@ -2297,8 +2311,28 @@ body {
   top: 14px;
   right: 14px;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   z-index: 10;
+  max-width: calc(100% - 28px);
+}
+
+.mindmap-controls-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.mindmap-cluster-pills-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--bg-tertiary);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--card-border);
 }
 
 /* Mindmap Rich Hover Tooltip */
@@ -4616,11 +4650,129 @@ body {
     max-height: 220px;
   }
 
-  /* --- Timeline Horizontal Scrolling Ergonomics --- */
+  /* --- Timeline Horizontal Scrolling Ergonomics & Mobile Layout --- */
+  .timeline-header-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .timeline-nav-group {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .timeline-nav-buttons {
+    display: flex !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .timeline-nav-buttons .action-icon-btn {
+    padding: 6px 10px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+  }
+
+  .timeline-controls-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 6px !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .timeline-controls-row .scale-switch-group {
+    flex: 1 !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .timeline-view-switcher .timeline-view-btn {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  .timeline-scale-switcher .timeline-scale-btn {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    flex: 1 !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
   .unified-timeline-container {
     padding: 14px 12px;
     -webkit-overflow-scrolling: touch;
     min-height: 480px;
+  }
+
+  /* --- Constellation Cloud / Mindmap Mobile Optimization --- */
+  .mindmap-controls {
+    position: absolute !important;
+    top: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100% - 16px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
+  }
+
+  .mindmap-controls-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    pointer-events: auto !important;
+  }
+
+  .mindmap-controls-actions .action-icon-btn {
+    padding: 5px 9px !important;
+    font-size: 11px !important;
+    background: var(--bg-card) !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+
+  .mindmap-cluster-pills-row {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 4px 6px !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid var(--card-border) !important;
+    border-radius: 9999px !important;
+    pointer-events: auto !important;
+    box-shadow: var(--shadow-md) !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .mindmap-cluster-pills-row::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .mindmap-cluster-pills-row .cluster-filter-btn {
+    flex-shrink: 0 !important;
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    white-space: nowrap !important;
+    border-radius: 9999px !important;
   }
 }
 
@@ -5504,70 +5656,229 @@ body {
   color: var(--focus-indigo);
 }
 
-/* --- Exploded View Pool Header Badges & Subtle Glow Animation --- */
+/* --- Exploded View Pool Header Pill Capsules (Theme-Adaptive & Pill Design) --- */
 .exploded-pool-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--card-border);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: 1.5px solid var(--card-border);
   background: var(--bg-card);
   transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .pool-header-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 800;
+  gap: 10px;
+  font-family: var(--font-logo), var(--font-family);
+  font-weight: 700;
   font-size: 13.5px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
 }
 
+.pool-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.pool-icon-wrap i, .pool-icon-wrap svg {
+  width: 14px;
+  height: 14px;
+}
+
+.exploded-pool-header:hover .pool-icon-wrap {
+  transform: scale(1.1);
+}
+
+.pool-title-text {
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.pool-header-count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 11px;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+/* School Projects Pill: Academic Violet / Indigo theme (Light / Default) */
 .school-pool-header {
-  border-color: rgba(6, 182, 212, 0.45) !important;
-  background: color-mix(in srgb, #06b6d4 10%, var(--bg-card)) !important;
-  box-shadow: 0 0 16px rgba(6, 182, 212, 0.20) !important;
+  border-color: rgba(99, 102, 241, 0.42) !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  animation: schoolPillPulse 4s ease-in-out infinite;
 }
 
-.school-pool-header .pool-header-title {
-  color: #06b6d4 !important;
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.65);
-  animation: schoolPoolPulse 3.5s ease-in-out infinite;
+.school-pool-header .pool-icon-wrap {
+  background: rgba(99, 102, 241, 0.16);
+  color: #4F46E5;
 }
 
+.school-pool-header .pool-title-text {
+  color: #4338CA;
+}
+
+.school-pool-header .pool-header-count-pill {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.30);
+  color: #4338CA;
+}
+
+/* External Projects Pill: Radiant Amber / Warm Gold theme (Light / Default) */
 .external-pool-header {
-  border-color: rgba(245, 158, 11, 0.45) !important;
-  background: color-mix(in srgb, #f59e0b 10%, var(--bg-card)) !important;
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.20) !important;
+  border-color: rgba(217, 119, 6, 0.44) !important;
+  background: rgba(245, 158, 11, 0.08) !important;
+  animation: externalPillPulse 4s ease-in-out infinite;
 }
 
-.external-pool-header .pool-header-title {
-  color: #f59e0b !important;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.65);
-  animation: externalPoolPulse 3.5s ease-in-out infinite;
+.external-pool-header .pool-icon-wrap {
+  background: rgba(245, 158, 11, 0.16);
+  color: #B45309;
 }
 
-@keyframes schoolPoolPulse {
+.external-pool-header .pool-title-text {
+  color: #B45309;
+}
+
+.external-pool-header .pool-header-count-pill {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(217, 119, 6, 0.30);
+  color: #92400E;
+}
+
+/* --- Diurnal Theming Adaptations for High Contrast --- */
+[data-theme="morning"] .school-pool-header {
+  border-color: rgba(147, 51, 234, 0.42) !important;
+  background: rgba(147, 51, 234, 0.09) !important;
+}
+[data-theme="morning"] .school-pool-header .pool-icon-wrap {
+  background: rgba(147, 51, 234, 0.18);
+  color: #7E22CE;
+}
+[data-theme="morning"] .school-pool-header .pool-title-text,
+[data-theme="morning"] .school-pool-header .pool-header-count-pill {
+  color: #6B21A8;
+}
+[data-theme="morning"] .school-pool-header .pool-header-count-pill {
+  background: rgba(147, 51, 234, 0.13);
+  border-color: rgba(147, 51, 234, 0.32);
+}
+
+[data-theme="morning"] .external-pool-header {
+  border-color: rgba(234, 88, 12, 0.45) !important;
+  background: rgba(234, 88, 12, 0.09) !important;
+}
+[data-theme="morning"] .external-pool-header .pool-icon-wrap {
+  background: rgba(234, 88, 12, 0.18);
+  color: #C2410C;
+}
+[data-theme="morning"] .external-pool-header .pool-title-text,
+[data-theme="morning"] .external-pool-header .pool-header-count-pill {
+  color: #9A3412;
+}
+[data-theme="morning"] .external-pool-header .pool-header-count-pill {
+  background: rgba(234, 88, 12, 0.13);
+  border-color: rgba(234, 88, 12, 0.32);
+}
+
+[data-theme="evening"] .school-pool-header {
+  border-color: rgba(167, 139, 250, 0.48) !important;
+  background: rgba(139, 92, 246, 0.18) !important;
+}
+[data-theme="evening"] .school-pool-header .pool-icon-wrap {
+  background: rgba(139, 92, 246, 0.30);
+  color: #DDD6FE;
+}
+[data-theme="evening"] .school-pool-header .pool-title-text {
+  color: #C4B5FD;
+}
+[data-theme="evening"] .school-pool-header .pool-header-count-pill {
+  background: rgba(139, 92, 246, 0.26);
+  border-color: rgba(167, 139, 250, 0.48);
+  color: #EDE9FE;
+}
+
+[data-theme="evening"] .external-pool-header {
+  border-color: rgba(251, 191, 36, 0.52) !important;
+  background: rgba(245, 158, 11, 0.18) !important;
+}
+[data-theme="evening"] .external-pool-header .pool-icon-wrap {
+  background: rgba(245, 158, 11, 0.30);
+  color: #FEF08A;
+}
+[data-theme="evening"] .external-pool-header .pool-title-text {
+  color: #FDE68A;
+}
+[data-theme="evening"] .external-pool-header .pool-header-count-pill {
+  background: rgba(245, 158, 11, 0.26);
+  border-color: rgba(251, 191, 36, 0.48);
+  color: #FFFBEB;
+}
+
+[data-theme="dark"] .school-pool-header {
+  border-color: rgba(129, 140, 248, 0.42) !important;
+  background: rgba(99, 102, 241, 0.15) !important;
+}
+[data-theme="dark"] .school-pool-header .pool-icon-wrap {
+  background: rgba(99, 102, 241, 0.28);
+  color: #C7D2FE;
+}
+[data-theme="dark"] .school-pool-header .pool-title-text {
+  color: #A5B4FC;
+}
+[data-theme="dark"] .school-pool-header .pool-header-count-pill {
+  background: rgba(99, 102, 241, 0.24);
+  border-color: rgba(129, 140, 248, 0.38);
+  color: #C7D2FE;
+}
+
+[data-theme="dark"] .external-pool-header {
+  border-color: rgba(251, 191, 36, 0.44) !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+}
+[data-theme="dark"] .external-pool-header .pool-icon-wrap {
+  background: rgba(245, 158, 11, 0.28);
+  color: #FDE68A;
+}
+[data-theme="dark"] .external-pool-header .pool-title-text {
+  color: #FBBF24;
+}
+[data-theme="dark"] .external-pool-header .pool-header-count-pill {
+  background: rgba(245, 158, 11, 0.24);
+  border-color: rgba(251, 191, 36, 0.38);
+  color: #FDE68A;
+}
+
+/* Subtle Dynamic Breathing Animations */
+@keyframes schoolPillPulse {
   0%, 100% {
-    text-shadow: 0 0 8px rgba(6, 182, 212, 0.50);
-    transform: translateY(0);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.12), inset 0 0 6px rgba(99, 102, 241, 0.05);
   }
   50% {
-    text-shadow: 0 0 18px rgba(6, 182, 212, 0.90), 0 0 26px rgba(56, 189, 248, 0.45);
-    transform: translateY(-0.5px);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.32), inset 0 0 10px rgba(99, 102, 241, 0.10);
   }
 }
 
-@keyframes externalPoolPulse {
+@keyframes externalPillPulse {
   0%, 100% {
-    text-shadow: 0 0 8px rgba(245, 158, 11, 0.50);
-    transform: translateY(0);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.12), inset 0 0 6px rgba(245, 158, 11, 0.05);
   }
   50% {
-    text-shadow: 0 0 18px rgba(245, 158, 11, 0.90), 0 0 26px rgba(251, 146, 60, 0.45);
-    transform: translateY(-0.5px);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.32), inset 0 0 10px rgba(245, 158, 11, 0.10);
   }
 }

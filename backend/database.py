@@ -149,6 +149,15 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS day_seals (
+            date TEXT PRIMARY KEY,
+            sealed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completion_rate INTEGER,
+            total_tasks INTEGER,
+            completed_tasks INTEGER,
+            retro_notes TEXT
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
@@ -1051,7 +1060,8 @@ def get_daily_briefing(target_date: Optional[datetime.date] = None, db_path: Opt
         "tomorrow_blurb": outlook["full_blurb"],
         "focus_tasks": today_tasks["focus"],
         "trivial_tasks": today_tasks["trivial"],
-        "projects": today_tasks.get("projects", [])
+        "projects": today_tasks.get("projects", []),
+        "is_sealed": is_day_sealed(target_date.strftime("%Y-%m-%d"), db_path)
     }
 
 def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:
@@ -1811,6 +1821,8 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
     """
     if target_date is None:
         target_date = datetime.date.today()
+    elif isinstance(target_date, str):
+        target_date = datetime.date.fromisoformat(target_date)
 
     conn = get_connection(db_path)
 
@@ -1824,21 +1836,28 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         curr_d = start_of_week + datetime.timedelta(days=i)
         curr_str = curr_d.strftime("%Y-%m-%d")
 
-        completed_cnt = conn.execute("""
-            SELECT COUNT(*) FROM tasks 
-            WHERE status = 'completed' AND date(completed_at) = date(?)
-        """, (curr_str,)).fetchone()[0]
-
-        total_cnt = conn.execute("""
-            SELECT COUNT(DISTINCT id) FROM tasks 
-            WHERE (date(due_date) = date(?) OR (status = 'completed' AND date(completed_at) = date(?)))
-              AND status != 'cancelled'
-        """, (curr_str, curr_str)).fetchone()[0]
-
-        if total_cnt > 0:
-            rate = min(100, round((completed_cnt / total_cnt) * 100))
+        # Check if day was finalized/sealed by Evening Debrief
+        seal_row = conn.execute("SELECT completion_rate, total_tasks, completed_tasks FROM day_seals WHERE date = ?", (curr_str,)).fetchone()
+        if seal_row:
+            completed_cnt = seal_row["completed_tasks"]
+            total_cnt = seal_row["total_tasks"]
+            rate = seal_row["completion_rate"]
         else:
-            rate = None # No tasks scheduled or done
+            completed_cnt = conn.execute("""
+                SELECT COUNT(*) FROM tasks 
+                WHERE status = 'completed' AND date(completed_at) = date(?)
+            """, (curr_str,)).fetchone()[0]
+
+            total_cnt = conn.execute("""
+                SELECT COUNT(DISTINCT id) FROM tasks 
+                WHERE (date(due_date) = date(?) OR (status = 'completed' AND date(completed_at) = date(?)))
+                  AND status != 'cancelled'
+            """, (curr_str, curr_str)).fetchone()[0]
+
+            if total_cnt > 0:
+                rate = min(100, round((completed_cnt / total_cnt) * 100))
+            else:
+                rate = None # No tasks scheduled or done
 
         is_today = (curr_d == target_date)
         is_future = (curr_d > target_date)
@@ -1912,5 +1931,50 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         "month": month_data,
         "monthly": month_data
     }
+
+def seal_day(
+    date_str: str,
+    completion_rate: int,
+    total_tasks: int,
+    completed_tasks: int,
+    retro_notes: str = "",
+    db_path: Optional[Path] = None
+) -> Dict[str, Any]:
+    """Seals and finalizes a day's productivity metrics and locks it from further edits."""
+    conn = get_connection(db_path)
+    with conn:
+        conn.execute("""
+            INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(date) DO UPDATE SET
+                sealed_at = CURRENT_TIMESTAMP,
+                completion_rate = excluded.completion_rate,
+                total_tasks = excluded.total_tasks,
+                completed_tasks = excluded.completed_tasks,
+                retro_notes = excluded.retro_notes
+        """, (date_str, completion_rate, total_tasks, completed_tasks, retro_notes))
+    return {
+        "date": date_str,
+        "is_sealed": True,
+        "completion_rate": completion_rate,
+        "total_tasks": total_tasks,
+        "completed_tasks": completed_tasks,
+        "retro_notes": retro_notes
+    }
+
+def get_day_seal(date_str: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    """Retrieves day seal record if date was finalized."""
+    conn = get_connection(db_path)
+    row = conn.execute("SELECT * FROM day_seals WHERE date = ?", (date_str,)).fetchone()
+    if not row:
+        return None
+    return dict(row)
+
+def is_day_sealed(date_str: str, db_path: Optional[Path] = None) -> bool:
+    """Checks whether a given date has been sealed and locked."""
+    conn = get_connection(db_path)
+    row = conn.execute("SELECT 1 FROM day_seals WHERE date = ?", (date_str,)).fetchone()
+    return bool(row)
+
 
 
