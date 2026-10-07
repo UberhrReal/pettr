@@ -171,6 +171,17 @@ PETTR is now live! Open your browser:
 - Tailscale mesh: `http://<tailscale-machine-name>:8000`
 - Default PIN: `1234`
 
+### Changing Your PIN Headless
+To change or reset your PIN on a headless server without a browser GUI:
+```bash
+# Update PIN via Docker container
+docker compose exec pettr python -m backend.cli set-pin <NEW_PIN>
+
+# Or directly edit the configuration file on the host
+nano config/pettr_config.json
+# Edit "pin": "<NEW_PIN>"
+```
+
 ---
 
 ## 7. Zero Data Loss & Crash Recovery
@@ -183,12 +194,15 @@ PETTR employs multiple layers of defense to prevent data loss:
    - Even if the mini PC suffers an abrupt power loss or Docker restarts, SQLite replays the WAL on boot with zero corruption.
 
 2. **Persistent Host Mounts**:
-   - Database lives in `./data/pettr.sqlite` on the host SSD.
+   - SQLite database lives in `./data/pettr.sqlite` on the host SSD.
+   - Uploaded scratchpad notes media and images are saved in `./data/media/`.
+   - Day seals and baseline historical productivity scores are locked in `day_seals`.
    - Container rebuilds, updates, or deletions do **not** touch host files.
 
-3. **Automated Automated Backups**:
+3. **Automated Backups & Cloud Sync**:
    - Periodic and manual backups are saved as `PETTR_<dd_mm_yyyy>.zip` inside `./backups/`.
    - Each backup contains a clean SQLite online snapshot (`pettr.sqlite`), human-readable markdown (`PETTR_summary.md`), and raw JSON dump (`PETTR_export.json`).
+   - Integrated `rclone` sync automatically pushes new archives to Google Drive (`gdrive:PETTR_Backups`).
 
 ---
 
