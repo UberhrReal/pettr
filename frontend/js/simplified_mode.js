@@ -82,19 +82,19 @@ const SimplifiedMode = {
         ? Dashboard.getTodayString() 
         : new Date().toISOString().slice(0, 10);
 
-      // Fetch today's snapshot
-      const [dayRes, projRes] = await Promise.all([
-        fetch(`/api/day/${todayStr}`),
-        fetch("/api/projects")
+      // Fetch today's snapshot from actual APIs
+      const [tasksRes, eventsRes, remRes] = await Promise.all([
+        fetch(`/api/tasks?date=${todayStr}`),
+        fetch(`/api/events?date=${todayStr}`),
+        fetch(`/api/reminders?date=${todayStr}`)
       ]);
 
-      const dayData = dayRes.ok ? await dayRes.json() : { tasks: { focus: [], trivial: [] }, appointments: [], reminders: [] };
-      const projects = projRes.ok ? await projRes.json() : [];
+      const tasksData = tasksRes.ok ? await tasksRes.json() : { focus: [], trivial: [] };
+      const appointments = eventsRes.ok ? await eventsRes.json() : [];
+      const reminders = remRes.ok ? await remRes.json() : [];
 
-      const focusTasks = (dayData.tasks && dayData.tasks.focus) || [];
-      const trivialTasks = (dayData.tasks && dayData.tasks.trivial) || [];
-      const appointments = dayData.appointments || [];
-      const reminders = dayData.reminders || [];
+      const focusTasks = tasksData.focus || [];
+      const trivialTasks = tasksData.trivial || [];
 
       // Unified items list
       this.items = [];
@@ -110,7 +110,7 @@ const SimplifiedMode = {
           due_date: t.due_date,
           project_name: t.project_name,
           color: t.project_color || "#6366f1",
-          order: t.order_index ?? 9999
+          order: t.priority_order ?? 9999
         });
       });
 
@@ -125,7 +125,7 @@ const SimplifiedMode = {
           due_date: t.due_date,
           project_name: t.project_name,
           color: t.project_color || "#10b981",
-          order: t.order_index ?? 9999
+          order: t.priority_order ?? 9999
         });
       });
 
@@ -135,7 +135,7 @@ const SimplifiedMode = {
           id: e.id,
           type: "event",
           title: e.title,
-          status: "scheduled",
+          status: e.status || "scheduled",
           start_time: e.start_time,
           project_name: e.project_name,
           color: "#3b82f6"
@@ -148,21 +148,9 @@ const SimplifiedMode = {
           id: r.id,
           type: "reminder",
           title: r.title,
-          status: r.is_active ? "active" : "done",
+          status: r.is_done ? "done" : "active",
           reminder_date: r.reminder_date,
           color: "#f59e0b"
-        });
-      });
-
-      // 5. Active Projects with today activity or general focus
-      projects.filter(p => p.status === "active").forEach(p => {
-        this.items.push({
-          id: p.id,
-          type: "project",
-          title: p.name,
-          status: "active",
-          category: p.category || "External",
-          color: p.color || "#8b5cf6"
         });
       });
 

@@ -106,6 +106,12 @@ const EntityModal = {
       recurrenceSelect.value = e.recurrence || "";
     }
 
+    // Time-sensitive toggle
+    const tsCheckbox = document.getElementById("entityModalTimeSensitive");
+    if (tsCheckbox) {
+      tsCheckbox.checked = Boolean(e.is_time_sensitive || (e.urgency && e.urgency.level === "urgent"));
+    }
+
     // Project Category & Color Tag Row
     const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
     if (projectOptsRow) {
@@ -216,6 +222,38 @@ const EntityModal = {
     }
   },
 
+  async returnToUnorganized() {
+    if (!confirm("Return this item back to the Unorganized Queue for manual triage?")) return;
+    try {
+      const res = await fetch("/api/entities/reclassify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from_type: this.fromType,
+          from_id: this.fromId,
+          to_type: "unorganized",
+          title: document.getElementById("entityModalTitle").value.trim() || (this.currentEntity.title || "Untitled"),
+          description: document.getElementById("entityModalDesc").value || "",
+          due_date: document.getElementById("entityModalDueDate").value.trim() || null,
+          project_name: document.getElementById("entityModalProject").value || null
+        })
+      });
+      if (res.ok) {
+        App.showToast("Item returned to Unorganized Queue!");
+        this.close();
+        if (typeof Dashboard !== "undefined") Dashboard.refresh();
+        if (typeof Timeline !== "undefined") Timeline.refresh();
+        if (typeof Mindmap !== "undefined") Mindmap.refresh();
+        if (typeof Exploded !== "undefined") Exploded.refresh();
+      } else {
+        App.showToast("Failed to return item to unorganized queue", true);
+      }
+    } catch (e) {
+      console.error(e);
+      App.showToast("Network error returning item", true);
+    }
+  },
+
   async saveChanges() {
     const activeBtn = document.querySelector("#entityModalOverlay .type-pill-btn.active");
     const toType = activeBtn ? activeBtn.dataset.type : (this.fromType === "unorganized" ? "task" : this.fromType);
@@ -264,6 +302,9 @@ const EntityModal = {
       if (colorPicker) color = colorPicker.value || null;
     }
 
+    const tsCheckbox = document.getElementById("entityModalTimeSensitive");
+    const isTimeSensitive = tsCheckbox ? tsCheckbox.checked : false;
+
     try {
       const res = await fetch("/api/entities/reclassify", {
         method: "POST",
@@ -280,7 +321,8 @@ const EntityModal = {
           status: status,
           recurrence: recurrence,
           color: color,
-          category: category
+          category: category,
+          is_time_sensitive: isTimeSensitive
         })
       });
 
@@ -296,7 +338,7 @@ const EntityModal = {
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
-        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
+        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.refresh();
       } else {
         alert(data.detail || "Error updating item.");
       }

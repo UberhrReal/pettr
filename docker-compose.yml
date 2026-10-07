@@ -21,6 +21,8 @@ services:
       - ./data:/app/data
       - ./config:/app/config
       - ./backups:/app/backups
+      # Optional host rclone config mount for Google Drive cloud sync
+      - ~/.config/rclone:/root/.config/rclone:ro
       # Mount host Tailscale LocalAPI socket for zero-config mesh status & MagicDNS detection
       - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
     extra_hosts:

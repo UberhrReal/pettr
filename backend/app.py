@@ -1,11 +1,14 @@
 import os
 import asyncio
 import datetime
+import zoneinfo
+import uuid
+import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, status
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, status, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -18,6 +21,19 @@ from backend.backup import run_backup, backup_scheduler_loop
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
+MEDIA_DIR = Path(os.environ.get("PETTR_DATA_DIR", BASE_DIR / "data")) / "media"
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+def get_client_now(request: Request) -> datetime.datetime:
+    """Returns the current datetime in the client's local timezone if passed in headers."""
+    tz_name = request.headers.get("x-client-timezone")
+    if tz_name:
+        try:
+            tz = zoneinfo.ZoneInfo(tz_name)
+            return datetime.datetime.now(tz).replace(tzinfo=None)
+        except Exception:
+            pass
+    return datetime.datetime.now()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -76,6 +92,14 @@ class ResolveUnorganizedRequest(BaseModel):
     project_name: Optional[str] = None
     due_date: Optional[str] = None
 
+class DailyOrderRequest(BaseModel):
+    date: str
+    order: Optional[List[Dict[str, Any]]] = None
+    items: Optional[List[Dict[str, Any]]] = None
+
+    def get_order_list(self) -> List[Dict[str, Any]]:
+        return self.order if self.order is not None else (self.items or [])
+
 class ReclassifyRequest(BaseModel):
     from_type: str
     from_id: int
@@ -89,6 +113,7 @@ class ReclassifyRequest(BaseModel):
     recurrence: Optional[str] = None
     color: Optional[str] = None
     category: Optional[str] = None
+    is_time_sensitive: Optional[bool] = None
 
 class ProfileUpdateRequest(BaseModel):
     user_name: str
@@ -106,6 +131,7 @@ class CreateTaskRequest(BaseModel):
     project_name: Optional[str] = None
     tier: Optional[str] = "focus"
     due_date: Optional[str] = None
+    is_time_sensitive: Optional[bool] = None
 
 class CreateEventRequest(BaseModel):
     title: str
@@ -206,21 +232,24 @@ async def update_profile(req: ProfileUpdateRequest, user=Depends(auth.require_au
 # --- Core Ingestion Route ---
 
 @app.post("/api/ingest", dependencies=[Depends(auth.require_auth)])
-async def ingest_entry(req: IngestRequest):
+async def ingest_entry(req: IngestRequest, request: Request):
     """Processes natural language input through the 3-stage hybrid parsing engine."""
-    result = await process_user_input(req.text)
+    client_now = get_client_now(request)
+    result = await process_user_input(req.text, ref_datetime=client_now)
     return result
 
 # --- Dashboard & Task Routes ---
 
 @app.get("/api/briefing", dependencies=[Depends(auth.require_auth)])
-async def get_briefing(date: Optional[str] = None):
-    target = datetime.date.fromisoformat(date) if date else None
+async def get_briefing(request: Request, date: Optional[str] = None):
+    client_now = get_client_now(request)
+    target = datetime.date.fromisoformat(date) if date else client_now.date()
     return database.get_daily_briefing(target)
 
 @app.get("/api/tasks", dependencies=[Depends(auth.require_auth)])
-async def get_tasks(date: Optional[str] = None):
-    target = datetime.date.fromisoformat(date) if date else None
+async def get_tasks(request: Request, date: Optional[str] = None):
+    client_now = get_client_now(request)
+    target = datetime.date.fromisoformat(date) if date else client_now.date()
     return database.get_tasks_for_day(target)
 
 @app.post("/api/tasks/reorder", dependencies=[Depends(auth.require_auth)])
@@ -290,7 +319,8 @@ async def create_task_endpoint(req: CreateTaskRequest):
         description=req.description or "",
         project_name=req.project_name,
         tier=req.tier or "focus",
-        due_date=req.due_date
+        due_date=req.due_date,
+        is_time_sensitive=req.is_time_sensitive
     )
     return {"status": "success", "task": created}
 
@@ -502,12 +532,50 @@ async def delete_unorganized_item_endpoint(item_id: int):
         raise HTTPException(status_code=404, detail="Unorganized item not found")
     return {"status": "success", "message": "Item deleted from unorganized queue"}
 
+@app.post("/api/notes/upload-media", dependencies=[Depends(auth.require_auth)])
+async def upload_notes_media(file: UploadFile = File(...)):
+    MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    suffix = Path(file.filename or "upload").suffix
+    safe_name = f"{uuid.uuid4().hex[:12]}_{Path(file.filename or 'file').stem}{suffix}"
+    dest_path = MEDIA_DIR / safe_name
+    contents = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(contents)
+    return {
+        "status": "success",
+        "url": f"/static/media/{safe_name}",
+        "filename": file.filename or safe_name
+    }
+
+# --- Daily Sequence & Tasking Priority Order ---
+
+@app.get("/api/daily-order", dependencies=[Depends(auth.require_auth)])
+async def get_daily_order_endpoint(date: Optional[str] = None):
+    if not date:
+        date = datetime.date.today().strftime("%Y-%m-%d")
+    order = database.get_daily_order(date)
+    return {"status": "success", "date": date, "order": order, "items": order}
+
+@app.post("/api/daily-order", dependencies=[Depends(auth.require_auth)])
+async def save_daily_order_endpoint(req: DailyOrderRequest):
+    order = database.save_daily_order(req.date, req.get_order_list())
+    return {"status": "success", "date": req.date, "order": order, "items": order}
+
 # --- Backup Route ---
 
 @app.post("/api/backup/now", dependencies=[Depends(auth.require_auth)])
 async def manual_backup():
     res = run_backup()
     return res
+
+@app.get("/api/backup/download/{filename}", dependencies=[Depends(auth.require_auth)])
+async def download_backup(filename: str):
+    config = get_or_create_config()
+    backup_dir = Path(config.get("backup_dir", "./backups"))
+    file_path = backup_dir / filename
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Backup file not found")
+    return FileResponse(path=str(file_path), filename=filename, media_type="application/zip")
 
 # --- Network & Tailscale Live Diagnostics ---
 
@@ -536,7 +604,7 @@ async def get_entity(entity_type: str, entity_id: int):
 
 @app.post("/api/entities/reclassify", dependencies=[Depends(auth.require_auth)])
 async def reclassify_item(req: ReclassifyRequest):
-    """Edits details or re-sorts item between Task (Focus/Trivial), Event, Reminder, and Project."""
+    """Edits details or re-sorts item between Task (Focus/Trivial), Event, Reminder, Project, and Unorganized."""
     result = database.reclassify_entity(
         from_type=req.from_type,
         from_id=req.from_id,
@@ -549,7 +617,8 @@ async def reclassify_item(req: ReclassifyRequest):
         status=req.status or "pending",
         recurrence=req.recurrence,
         color=req.color,
-        category=req.category
+        category=req.category,
+        is_time_sensitive=req.is_time_sensitive
     )
     return result
 
@@ -642,6 +711,7 @@ async def add_cache_control_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
     return response
 
+app.mount("/static/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
 @app.get("/")

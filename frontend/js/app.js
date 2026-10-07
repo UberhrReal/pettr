@@ -1,6 +1,25 @@
 /**
  * PETTR Main Application Controller
  */
+
+// Global fetch interceptor ensuring all client API calls attach detected or travel timezone
+(function() {
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options = {}) {
+    options = options || {};
+    const headers = new Headers(options.headers || {});
+    let clientTz = "";
+    try {
+      clientTz = localStorage.getItem("pettr_custom_timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch (e) {}
+    if (clientTz && !headers.has("X-Client-Timezone")) {
+      headers.set("X-Client-Timezone", clientTz);
+    }
+    options.headers = headers;
+    return originalFetch(url, options);
+  };
+})();
+
 const App = {
   currentTab: "dashboard",
   networkStatus: null,
@@ -245,57 +264,22 @@ const App = {
     }
   },
 
-  initTheme() {
-    const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
-    this.setTheme(savedMode, false);
-
-    // Watch for system color scheme changes when on auto
-    if (window.matchMedia) {
-      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-        if ((localStorage.getItem("pettr_theme_mode") || "auto") === "auto") {
-          this.setTheme("auto", false);
-        }
-      });
+  getDiurnalTheme(hour) {
+    if (hour >= 6 && hour < 12) {
+      return { theme: "morning", label: "Morning Dawn" };
+    } else if (hour >= 12 && hour < 18) {
+      return { theme: "light", label: "Afternoon" };
+    } else if (hour >= 18 && hour < 22) {
+      return { theme: "evening", label: "Evening Dusk" };
+    } else {
+      return { theme: "dark", label: "Night" };
     }
-
-    // Solar transition check every 5 minutes for automatic sunset/sunrise transition
-    setInterval(() => {
-      if ((localStorage.getItem("pettr_theme_mode") || "auto") === "auto") {
-        this.setTheme("auto", false);
-      }
-    }, 300000);
   },
 
-  setTheme(mode, notify = true) {
-    localStorage.setItem("pettr_theme_mode", mode);
-
-    // Update switcher buttons UI
-    document.querySelectorAll(".theme-switcher-btn, .theme-btn").forEach(btn => {
-      const modeKey = mode.charAt(0).toUpperCase() + mode.slice(1);
-      if (btn.id === `themeBtn${modeKey}` || btn.dataset.themeSet === mode) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
-    });
-
-    let effectiveTheme = mode;
-    if (mode === "auto") {
-      const currentHour = new Date().getHours();
-      // Cozy sunset mode activates after 19:00 (7 PM) until 07:00 (7 AM)
-      const isNight = currentHour >= 19 || currentHour < 7;
-      if (isNight) {
-        effectiveTheme = "dark";
-      } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        effectiveTheme = "dark";
-      } else {
-        effectiveTheme = "light";
-      }
-    }
-
-    document.documentElement.setAttribute("data-theme", effectiveTheme);
+  applyEffectiveTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
     if (document.body) {
-      document.body.setAttribute("data-theme", effectiveTheme);
+      document.body.setAttribute("data-theme", theme);
     }
 
     if (typeof WaveCanvas !== "undefined") {
@@ -307,6 +291,56 @@ const App = {
         }
       } catch (e) {}
     }
+  },
+
+  initTheme() {
+    const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
+    if (savedMode === "slider") {
+      const savedHour = parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10);
+      const { theme } = this.getDiurnalTheme(savedHour);
+      this.applyEffectiveTheme(theme);
+    } else {
+      this.setTheme(savedMode, false);
+    }
+
+    // Solar transition check every 1 minute for automatic gradual sunset/sunrise transitions
+    setInterval(() => {
+      if ((localStorage.getItem("pettr_theme_mode") || "auto") === "auto") {
+        const currentHour = new Date().getHours();
+        const { theme } = this.getDiurnalTheme(currentHour);
+        this.applyEffectiveTheme(theme);
+      }
+    }, 60000);
+  },
+
+  setTheme(mode, notify = true) {
+    localStorage.setItem("pettr_theme_mode", mode);
+
+    // Update switcher buttons UI
+    document.querySelectorAll(".theme-switcher-control .theme-btn").forEach(btn => {
+      const modeKey = mode.charAt(0).toUpperCase() + mode.slice(1);
+      if (btn.id === `themeBtn${modeKey}` || btn.dataset.themeSet === mode) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+
+    let effectiveTheme = mode;
+    if (mode === "auto") {
+      const currentHour = new Date().getHours();
+      effectiveTheme = this.getDiurnalTheme(currentHour).theme;
+    }
+
+    this.applyEffectiveTheme(effectiveTheme);
+
+    // If slider drawer was open, sync slider value to current effective hour
+    const slider = document.getElementById("themeHourSlider");
+    if (slider) {
+      const curH = new Date().getHours();
+      slider.value = curH;
+      this.updateThemeSliderLabel(curH);
+    }
 
     if (notify) {
       this.haptic("light");
@@ -314,6 +348,48 @@ const App = {
     }
 
     this.renderIcons();
+  },
+
+  toggleThemeSlider() {
+    const drawer = document.getElementById("themeSliderDrawer");
+    if (!drawer) return;
+    const isShown = drawer.style.display !== "none";
+    drawer.style.display = isShown ? "none" : "block";
+    if (!isShown) {
+      const currentHour = new Date().getHours();
+      const slider = document.getElementById("themeHourSlider");
+      if (slider) {
+        slider.value = currentHour;
+        this.updateThemeSliderLabel(currentHour);
+      }
+    }
+  },
+
+  updateThemeSliderLabel(hour) {
+    const labelEl = document.getElementById("themeSliderLabel");
+    if (!labelEl) return;
+    const { label } = this.getDiurnalTheme(parseInt(hour, 10));
+    labelEl.textContent = `Solar Time: ${String(hour).padStart(2, "0")}:00 · ${label}`;
+  },
+
+  onThemeSliderInput(hour) {
+    const h = parseInt(hour, 10);
+    this.updateThemeSliderLabel(h);
+    const { theme, label } = this.getDiurnalTheme(h);
+    this.applyEffectiveTheme(theme);
+    localStorage.setItem("pettr_theme_mode", "slider");
+    localStorage.setItem("pettr_theme_slider_hour", String(h));
+
+    // Deselect other preset buttons
+    document.querySelectorAll(".theme-switcher-control .theme-btn").forEach(btn => {
+      if (btn.id !== "themeBtnSliderToggle") btn.classList.remove("active");
+    });
+  },
+
+  setThemeHourPreset(hour) {
+    const slider = document.getElementById("themeHourSlider");
+    if (slider) slider.value = hour;
+    this.onThemeSliderInput(hour);
   },
 
   haptic(type = "light") {
@@ -825,18 +901,29 @@ const App = {
 
   async triggerManualBackup() {
     const msgEl = document.getElementById("backupStatusMsg");
-    msgEl.textContent = "Generating backup archive...";
+    if (msgEl) msgEl.textContent = "Generating backup archive...";
     try {
       const res = await fetch("/api/backup/now", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        msgEl.textContent = `Backup saved: ${data.filename} (${Math.round(data.size_bytes / 1024)} KB)`;
-        this.showToast("Backup created successfully!");
+        const cloudInfo = data.cloud_status ? ` · Cloud: ${data.cloud_status}` : "";
+        if (msgEl) msgEl.textContent = `Backup saved: ${data.filename} (${Math.round(data.size_bytes / 1024)} KB)${cloudInfo}`;
+        this.showToast(`Backup created!${cloudInfo ? ' Drive: ' + data.cloud_status : ''}`);
+
+        // Direct browser download of archive
+        const downloadLink = document.createElement("a");
+        downloadLink.href = `/api/backup/download/${encodeURIComponent(data.filename)}`;
+        downloadLink.download = data.filename;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        downloadLink.remove();
       } else {
-        msgEl.textContent = "Backup failed.";
+        if (msgEl) msgEl.textContent = "Backup failed: " + (data.detail || "Server error");
+        this.showToast("Backup failed", true);
       }
     } catch (err) {
-      msgEl.textContent = "Error initiating backup.";
+      if (msgEl) msgEl.textContent = "Error initiating backup.";
+      this.showToast("Network error initiating backup", true);
     }
   },
 

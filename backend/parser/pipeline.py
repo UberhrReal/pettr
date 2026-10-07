@@ -235,6 +235,7 @@ async def process_user_input(raw_input: str,
         target_id = created_entity["id"]
 
     else: # Default: Task
+        is_time_sensitive = True if ("time sensitive" in clean_raw.lower() or "time-sensitive" in clean_raw.lower()) else None
         created_entity = database.create_task(
             title=title,
             description=classification.get("description", ""),
@@ -244,6 +245,7 @@ async def process_user_input(raw_input: str,
             due_date_raw=matched_token,
             recurrence=rrule,
             priority_placement=priority_placement,
+            is_time_sensitive=is_time_sensitive,
             db_path=db_path
         )
         target_id = created_entity["id"]

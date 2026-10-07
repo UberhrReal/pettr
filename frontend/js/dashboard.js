@@ -369,13 +369,13 @@ const Dashboard = {
   async refresh() {
     this.updateDateNavigatorUI();
     await Promise.all([
-      this.loadBriefing(),
       this.loadTasks(),
       this.loadEvents(),
       this.loadReminders(),
       this.checkUnorganized(),
       this.loadProductivityStats()
     ]);
+    await this.loadBriefing();
     this.updateProgressRing();
     this.adjustPanelScaling();
     if (typeof EveningDebrief !== "undefined") EveningDebrief.updateDebriefButtonState();
@@ -682,14 +682,18 @@ const Dashboard = {
       }
 
       // Full-width morning briefing visual formatting and raw markdown
+      this.briefingData = data;
       const textRes = await fetch(`/api/briefing/text?date=${this.selectedDate}`);
       if (textRes.ok) {
         const textData = await textRes.json();
+        this.briefingMarkdown = textData.markdown || "";
         const richEl = document.getElementById("briefingRichContent");
-        if (richEl) richEl.textContent = textData.markdown || "";
-        this.renderVisualBriefing(data, textData.markdown || "");
+        if (richEl) richEl.textContent = this.briefingMarkdown;
+        this.renderVisualBriefing(data, this.briefingMarkdown);
+      } else {
+        this.renderVisualBriefing(data, "");
       }
-      this.loadDailyOrder();
+      await this.loadDailyOrder();
     } catch (err) {
       console.error("Error loading briefing:", err);
     }
@@ -699,7 +703,8 @@ const Dashboard = {
     const container = document.getElementById("briefingVisualContainer");
     if (!container) return;
 
-    const outlook = briefingData.tomorrow_outlook || {};
+    const data = briefingData || this.briefingData || {};
+    const outlook = data.tomorrow_outlook || {};
     const witty = outlook.witty_quip || "Focus deeply, execute swiftly, and reflect calmly.";
 
     // Parse focus, trivial, appointments, reminders into structured snapshot
@@ -714,25 +719,32 @@ const Dashboard = {
         <div class="briefing-items-pills">
     `;
 
-    const focusTasks = (this.tasks.focus || []).slice(0, 5);
+    const focusTasks = (data.focus_tasks || (this.tasks && this.tasks.focus) || []).slice(0, 5);
     if (focusTasks.length === 0) {
       html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No focus items pending today.</div>`;
     } else {
       focusTasks.forEach((t, i) => {
         const isDone = t.status === "completed";
-        const urgLevel = t.urgency ? t.urgency.level : "normal";
+        const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
+        const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
+        const isTimeSensitive = Boolean(t.is_time_sensitive || (t.urgency && t.urgency.level === 'urgent'));
+        const badgeHtml = isTimeSensitive
+          ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE</span>`
+          : (t.urgency ? `<span class="urgency-badge ${t.urgency.level}" style="font-size:10.5px; padding:2px 7px;">${t.urgency.level.toUpperCase()}</span>` : '');
+
         html += `
-          <div class="briefing-item-row" draggable="true" 
-               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(t.title)}', 'focus', '${timeMil}')">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true" 
+               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${timeMil}')">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
-              <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(t.title)}</span>
+              <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
+              ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
               ${timeMil ? `<span style="font-size:11px; font-family:var(--font-mono); color:var(--text-muted);">${timeMil}</span>` : ''}
-              <span class="urgency-badge ${urgLevel}" style="font-size:10.5px; padding:2px 7px;">${urgLevel.toUpperCase()}</span>
+              ${badgeHtml}
               <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
             </div>
           </div>
@@ -752,23 +764,33 @@ const Dashboard = {
         </div>
         <div class="briefing-items-pills">
     `;
-    const trivialTasks = (this.tasks.trivial || []).slice(0, 4);
+    const trivialTasks = (data.trivial_tasks || (this.tasks && this.tasks.trivial) || []).slice(0, 4);
     if (trivialTasks.length === 0) {
       html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No quick errands scheduled today.</div>`;
     } else {
       trivialTasks.forEach((t, i) => {
         const isDone = t.status === "completed";
+        const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
+        const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
+        const isTimeSensitive = Boolean(t.is_time_sensitive);
+        const badgeHtml = isTimeSensitive
+          ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE</span>`
+          : '';
+
         html += `
-          <div class="briefing-item-row" draggable="true"
-               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(t.title)}', 'trivial', '${timeMil}')">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true"
+               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${timeMil}')">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
-              <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(t.title)}</span>
+              <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
+              ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
+              ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
               ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
               ${timeMil ? `<span style="font-size:11px; font-family:var(--font-mono); color:var(--text-muted);">${timeMil}</span>` : ''}
+              ${badgeHtml}
               <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
             </div>
           </div>
@@ -794,13 +816,16 @@ const Dashboard = {
     } else {
       events.forEach((e, i) => {
         const isDone = e.status === "completed";
+        const cleanTitle = (e.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = e.start_time ? App.formatMilitaryTime(e.start_time) : 'Today';
+        const inSeq = (this.dailyOrder || []).some(d => d.id === e.id && d.type === 'event');
         html += `
-          <div class="briefing-item-row" draggable="true"
-               ondragstart="Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(e.title)}', 'event', '${timeMil}')">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true"
+               ondragstart="Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
-              <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(e.title)}</span>
+              <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
+              ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
               ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
             <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
@@ -890,24 +915,68 @@ const Dashboard = {
   /* --- Ultimate Daily Order Queue Management --- */
   draggedSlotIdx: null,
 
-  loadDailyOrder() {
+  async loadDailyOrder() {
     try {
+      const res = await fetch(`/api/daily-order?date=${this.selectedDate}`);
+      if (res.ok) {
+        const data = await res.json();
+        this.dailyOrder = data.order || [];
+        localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+      } else {
+        const saved = localStorage.getItem("pettr_daily_order_" + this.selectedDate);
+        this.dailyOrder = saved ? JSON.parse(saved) : [];
+      }
+    } catch (e) {
       const saved = localStorage.getItem("pettr_daily_order_" + this.selectedDate);
       this.dailyOrder = saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      this.dailyOrder = [];
     }
+    this.reconcileDailyOrderTitles();
     this.renderDailyOrder();
     this.initDailyOrderDropZone();
   },
 
-  saveDailyOrder() {
+  reconcileDailyOrderTitles() {
+    if (!this.dailyOrder || !this.dailyOrder.length) return;
+    const allTasks = [
+      ...((this.tasks && this.tasks.focus) || []),
+      ...((this.tasks && this.tasks.trivial) || [])
+    ];
+    let modified = false;
+    this.dailyOrder.forEach(item => {
+      if (item.type === "task" || !item.type) {
+        const found = allTasks.find(t => t.id === item.id);
+        if (found && found.title) {
+          const clean = found.title.replace(/^\s*\[.*?\]\s*/, '');
+          if (item.title !== clean) {
+            item.title = clean;
+            modified = true;
+          }
+        }
+      }
+    });
+    if (modified) {
+      localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+    }
+  },
+
+  async saveDailyOrder() {
     try {
       localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+      await fetch("/api/daily-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: this.selectedDate,
+          order: this.dailyOrder
+        })
+      });
     } catch (e) {
       console.warn("Error saving daily order:", e);
     }
     this.renderDailyOrder();
+    if (this.briefingData) {
+      this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+    }
   },
 
   renderDailyOrder() {
@@ -1138,6 +1207,11 @@ const Dashboard = {
       if (!res.ok) return;
       this.tasks = await res.json();
 
+      this.reconcileDailyOrderTitles();
+      if (this.briefingData) {
+        this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+      }
+
       // 1. Render Projects Panel (e.g. "Complete trade analysis for 3U CubeSat")
       this.renderProjectsPanel(this.tasks.projects || []);
 
@@ -1290,14 +1364,21 @@ const Dashboard = {
 
     list.forEach((task, idx) => {
       const isCompleted = task.status === "completed";
+      const cleanTitle = (task.title || "").replace(/^\s*\[.*?\]\s*/, '');
+      const inSeq = (this.dailyOrder || []).some(d => d.id === task.id && (d.type === 'task' || !d.type));
       const el = document.createElement("div");
-      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
+      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""} ${inSeq ? "in-sequence" : ""}`;
       el.dataset.taskId = task.id;
 
       const rankStr = String(idx + 1).padStart(2, "0");
       const urgencyLevel = task.urgency ? task.urgency.level : "none";
       const urgencyLabel = task.urgency ? task.urgency.label : "No Date";
       const dueText = task.due_date ? App.formatMilitaryTime(task.due_date) : (task.due_date_raw ? App.formatMilitaryTime(task.due_date_raw) : "");
+
+      const isTimeSensitive = Boolean(task.is_time_sensitive || urgencyLevel === 'urgent');
+      const badgeHtml = isTimeSensitive
+        ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
+        : `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>`;
 
       let recurrenceHtml = "";
       if (task.recurrence) {
@@ -1306,7 +1387,7 @@ const Dashboard = {
 
       let projectHtml = "";
       if (task.project_name) {
-        projectHtml = `<span class="project-tag">${task.project_name}</span>`;
+        projectHtml = `<span class="project-tag">${this.escapeHtml(task.project_name)}</span>`;
       }
 
       let remindersHtml = "";
@@ -1350,11 +1431,12 @@ const Dashboard = {
                onchange="Dashboard.toggleTaskStatus(${task.id}, this.checked)" title="${checkboxTitle}">
         <div class="task-body" onclick="${isPast ? '' : `EntityModal.open('task', ${task.id})`}" title="${isPast ? 'Locked historical record' : 'Click to view details, edit, or re-sort'}">
           <div class="task-title" style="${isCompleted ? 'text-decoration: line-through; color: var(--text-dim);' : ''}">
-            ${this.escapeHtml(task.title)}
+            ${this.escapeHtml(cleanTitle)}
+            ${inSeq ? `<span class="in-sequence-badge" style="font-size:11px; color:var(--text-muted); font-style:italic; font-weight:normal; margin-left:6px;">(in sequence)</span>` : ''}
           </div>
           <div class="task-meta">
             ${projectHtml}
-            <span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>
+            ${badgeHtml}
             ${recurrenceHtml}
           </div>
           ${remindersHtml}
@@ -1987,6 +2069,8 @@ const Dashboard = {
       } else {
         // focus or trivial task
         const tier = this.currentManualType === "trivial" ? "trivial" : "focus";
+        const tsInput = document.getElementById("manualInputTimeSensitive");
+        const isTimeSensitive = tsInput ? tsInput.checked : false;
         const res = await fetch("/api/tasks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1995,7 +2079,8 @@ const Dashboard = {
             description,
             project_name: projectName,
             tier,
-            due_date: dueDate
+            due_date: dueDate,
+            is_time_sensitive: isTimeSensitive
           })
         });
         if (res.ok) {

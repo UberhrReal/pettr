@@ -4,6 +4,8 @@ import zipfile
 import sqlite3
 import datetime
 import asyncio
+import subprocess
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
 from config.config import get_or_create_config
@@ -111,13 +113,34 @@ def run_backup(target_dir: Optional[Path] = None, db_path: Path = database.DEFAU
     if temp_db_copy.exists():
         temp_db_copy.unlink()
 
+    gdrive_status = sync_to_gdrive(zip_path)
+
     return {
         "status": "success",
         "filename": filename,
         "path": str(zip_path),
         "size_bytes": zip_path.stat().st_size,
-        "created_at": datetime.datetime.now().isoformat()
+        "created_at": datetime.datetime.now().isoformat(),
+        "gdrive": gdrive_status
     }
+
+def sync_to_gdrive(file_path: Path) -> Dict[str, Any]:
+    """Syncs the backup zip to Google Drive via rclone if configured."""
+    config = get_or_create_config()
+    remote_target = config.get("gdrive_remote", "gdrive:PETTR_Backups")
+    rclone_path = shutil.which("rclone")
+    if not rclone_path:
+        return {"synced": False, "reason": "rclone executable not found on host/container system"}
+    
+    try:
+        cmd = [rclone_path, "copy", str(file_path), remote_target]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode == 0:
+            return {"synced": True, "remote": remote_target}
+        else:
+            return {"synced": False, "error": (result.stderr or result.stdout).strip()}
+    except Exception as e:
+        return {"synced": False, "error": str(e)}
 
 async def backup_scheduler_loop(db_path: Path = database.DEFAULT_DB_PATH):
     """Background loop that runs weekly backups automatically."""

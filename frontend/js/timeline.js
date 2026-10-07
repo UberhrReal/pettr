@@ -816,7 +816,7 @@ const Timeline = {
 
       const timeLabel = `<span style="font-size: 13px; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); width: 50px;">${hourStr}</span>`;
       
-      let itemsHtml = '<span style="font-size: 12px; color: var(--text-dim);">Available focus block</span>';
+      let itemsHtml = '<span style="font-size: 12px; color: var(--text-dim);">Clear</span>';
       if (hasItems) {
         itemsHtml = `
           <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">

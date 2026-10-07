@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=5.9">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=6.2">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -104,11 +104,27 @@
         <button class="action-icon-btn evening-debrief-trigger" id="eveningDebriefHeaderBtn" onclick="EveningDebrief.open()" title="Evening Debrief (Accessible after 18:00 or when done)" style="display:none; color: var(--focus-indigo); font-weight:600;">
           <i data-lucide="moon-star" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Debrief
         </button>
-        <!-- Theme Switcher (Auto Solar, Light, Dark) -->
-        <div class="theme-switcher-control" id="themeSwitcherControl">
-          <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Day/Night Cycle"><i data-lucide="sun-moon"></i> Auto</button>
-          <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light Mode"><i data-lucide="sun"></i></button>
-          <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode"><i data-lucide="moon"></i></button>
+        <!-- Theme Switcher (Auto Solar, Light, Dark & Time of Day Slider) -->
+        <div class="theme-switcher-wrapper">
+          <div class="theme-switcher-control" id="themeSwitcherControl">
+            <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Day/Night Cycle (Morning, Afternoon, Evening, Dark)"><i data-lucide="sun-moon"></i> Auto</button>
+            <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light / Afternoon Mode"><i data-lucide="sun"></i></button>
+            <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode"><i data-lucide="moon"></i></button>
+            <button class="theme-btn" id="themeBtnSliderToggle" onclick="App.toggleThemeSlider()" title="Time of Day Theme Slider"><i data-lucide="sliders"></i></button>
+          </div>
+          <div id="themeSliderDrawer" class="theme-slider-drawer" style="display: none;">
+            <div class="theme-slider-header">
+              <span id="themeSliderLabel" class="theme-slider-label">Solar Time: 12:00 · Afternoon</span>
+              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
+            </div>
+            <input type="range" id="themeHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)">
+            <div class="theme-slider-ticks">
+              <span onclick="App.setThemeHourPreset(8)">08:00 Dawn</span>
+              <span onclick="App.setThemeHourPreset(13)">13:00 Noon</span>
+              <span onclick="App.setThemeHourPreset(19)">19:00 Dusk</span>
+              <span onclick="App.setThemeHourPreset(23)">23:00 Night</span>
+            </div>
+          </div>
         </div>
         <button class="action-icon-btn lock-btn" onclick="App.logout()" title="Lock Session"><i data-lucide="lock" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Lock</button>
       </div>
@@ -616,9 +632,51 @@
           </div>
         </div>
         <div class="notes-editor-card">
-          <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Note Title...">
-          <textarea id="noteContentArea" class="notes-textarea" placeholder="Type your thoughts, raw ideas, or meeting notes freely without sorting..."></textarea>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="notes-editor-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Note Title..." style="flex: 1;">
+            <div class="notes-view-mode-tabs">
+              <button type="button" class="notes-tab-toggle-btn active" id="noteWriteTabBtn" onclick="Notes.switchView('write')">Write</button>
+              <button type="button" class="notes-tab-toggle-btn" id="notePreviewTabBtn" onclick="Notes.switchView('preview')">Preview</button>
+            </div>
+          </div>
+
+          <!-- Notes Rich Toolbar -->
+          <div class="notes-toolbar" id="notesToolbar">
+            <div class="notes-toolbar-group">
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('bold')" title="Bold"><strong>B</strong></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('italic')" title="Italic"><em>I</em></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('strike')" title="Strikethrough"><s>S</s></button>
+            </div>
+            <div class="notes-toolbar-divider"></div>
+            <div class="notes-toolbar-group">
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('h1')" title="Heading 1">H1</button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('h2')" title="Heading 2">H2</button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('h3')" title="Heading 3">H3</button>
+            </div>
+            <div class="notes-toolbar-divider"></div>
+            <div class="notes-toolbar-group">
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('ul')" title="Bullet List"><i data-lucide="list" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('task')" title="Task Checklist"><i data-lucide="check-square" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('code')" title="Inline Code"><i data-lucide="code" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('codeblock')" title="Code Block"><i data-lucide="terminal" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('quote')" title="Quote"><i data-lucide="quote" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onclick="Notes.format('table')" title="Insert Table"><i data-lucide="table" style="width:13px;height:13px;"></i></button>
+            </div>
+            <div class="notes-toolbar-divider"></div>
+            <div class="notes-toolbar-group">
+              <button type="button" class="notes-tool-btn upload-media-btn" onclick="document.getElementById('noteMediaFileInput').click()" title="Upload Image / Media">
+                <i data-lucide="image" style="width:13px;height:13px;"></i> <span style="font-size:11px; margin-left:3px;">Media</span>
+              </button>
+              <input type="file" id="noteMediaFileInput" accept="image/*,video/*,audio/*,.pdf,.zip" style="display: none;" onchange="Notes.handleFileInput(event)">
+            </div>
+          </div>
+
+          <div class="notes-edit-pane" id="notesEditPane">
+            <textarea id="noteContentArea" class="notes-textarea" placeholder="Type thoughts freely, paste images from clipboard, or drag and drop files..."></textarea>
+          </div>
+          <div class="notes-preview-pane" id="notesPreviewPane" style="display: none;"></div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
             <span id="noteSaveStatus" style="font-size: 12px; color: var(--text-muted);">Auto-saved</span>
             <div style="display: flex; gap: 10px;">
               <button class="action-icon-btn" onclick="Notes.parseCurrentNote()" style="font-weight: 600; color: var(--text-main);">
@@ -1225,7 +1283,12 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
         </div>
       </div>
-    </section>
+    <!-- Site Footer -->
+    <footer class="app-site-footer">
+      <div class="footer-inner">
+        <p>PETTR (pronounced Peter) is developed and maintained by Hong Rong, who is a major dumbass, so sorry if anything breaks. For important information regarding how your data is collected for model training, please visit: <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0" target="_blank" rel="noopener noreferrer">https://www.youtube.com/watch?v=xvFZjo5PgG0</a></p>
+      </div>
+    </footer>
 
   </main>
 
@@ -1233,7 +1296,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div id="entityModalOverlay" class="modal-overlay" style="display: none;">
     <div class="modal-card">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main);">Item Details & Re-classification</h3>
+        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main);">View/Edit Item</h3>
         <button class="action-icon-btn" onclick="EntityModal.close()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
       </div>
       <div>
@@ -1315,9 +1378,19 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             </div>
           </div>
         </div>
+      <!-- Time Sensitive Marker Toggle -->
+      <div style="margin-top: 10px; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-xs);">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: var(--text-main); font-weight: 600;">
+          <input type="checkbox" id="entityModalTimeSensitive" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
+          <span>⚡ TIME SENSITIVE <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(Manual high-importance marker)</span></span>
+        </label>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-        <button class="action-icon-btn" onclick="EntityModal.deleteEntity()" style="color: var(--urgent-orange); padding: 8px 14px;"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Delete Item</button>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="action-icon-btn" onclick="EntityModal.deleteEntity()" style="color: var(--urgent-orange); padding: 8px 12px;"><i data-lucide="trash-2" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Delete</button>
+          <button type="button" class="action-icon-btn" onclick="EntityModal.returnToUnorganized()" style="color: var(--focus-indigo); padding: 8px 12px;" title="Send back to unorganized inbox"><i data-lucide="archive-restore" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Return to Unorganized</button>
+        </div>
         <div style="display: flex; gap: 10px;">
           <button class="action-icon-btn" onclick="EntityModal.close()" style="padding: 8px 16px;">Cancel</button>
           <button class="quick-submit-btn" style="position: static; transform: none;" onclick="EntityModal.saveChanges()">Save Changes</button>
@@ -1396,7 +1469,15 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </div>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+      <!-- Time Sensitive Toggle (Manual Create) -->
+      <div id="manualTimeSensitiveRow" style="margin-top: 10px; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-xs);">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: var(--text-main); font-weight: 600;">
+          <input type="checkbox" id="manualInputTimeSensitive" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
+          <span>⚡ TIME SENSITIVE <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(Manual high-importance marker)</span></span>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px;">
         <button class="action-icon-btn" onclick="Dashboard.closeManualCreateModal()">Cancel</button>
         <button class="quick-submit-btn" style="position: static; transform: none;" onclick="Dashboard.submitManualCreate()">Create Item</button>
       </div>
@@ -1656,20 +1737,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=6.1"></script>
-  <script src="/static/js/drag_drop.js?v=6.1"></script>
-  <script src="/static/js/wave_canvas.js?v=6.1"></script>
-  <script src="/static/js/entity_modal.js?v=6.1"></script>
-  <script src="/static/js/timeline.js?v=6.1"></script>
-  <script src="/static/js/mindmap.js?v=6.1"></script>
-  <script src="/static/js/dashboard.js?v=6.1"></script>
-  <script src="/static/js/simplified_mode.js?v=6.1"></script>
-  <script src="/static/js/exploded.js?v=6.1"></script>
-  <script src="/static/js/notes.js?v=6.1"></script>
-  <script src="/static/js/history.js?v=6.1"></script>
-  <script src="/static/js/command_palette.js?v=6.1"></script>
-  <script src="/static/js/focus_cockpit.js?v=6.1"></script>
-  <script src="/static/js/evening_debrief.js?v=6.1"></script>
-  <script src="/static/js/app.js?v=6.1"></script>
+  <script src="/static/js/pin_lock.js?v=6.2"></script>
+  <script src="/static/js/drag_drop.js?v=6.2"></script>
+  <script src="/static/js/wave_canvas.js?v=6.2"></script>
+  <script src="/static/js/entity_modal.js?v=6.2"></script>
+  <script src="/static/js/timeline.js?v=6.2"></script>
+  <script src="/static/js/mindmap.js?v=6.2"></script>
+  <script src="/static/js/dashboard.js?v=6.2"></script>
+  <script src="/static/js/simplified_mode.js?v=6.2"></script>
+  <script src="/static/js/exploded.js?v=6.2"></script>
+  <script src="/static/js/notes.js?v=6.2"></script>
+  <script src="/static/js/history.js?v=6.2"></script>
+  <script src="/static/js/command_palette.js?v=6.2"></script>
+  <script src="/static/js/focus_cockpit.js?v=6.2"></script>
+  <script src="/static/js/evening_debrief.js?v=6.2"></script>
+  <script src="/static/js/app.js?v=6.2"></script>
 </body>
 </html>

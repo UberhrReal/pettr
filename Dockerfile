@@ -11,10 +11,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install minimal OS dependencies for healthchecks & SQLite tools
+# Install minimal OS dependencies for healthchecks, rclone GDrive backups & SQLite tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     sqlite3 \
+    rclone \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python requirements

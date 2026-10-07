@@ -135,6 +135,12 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS daily_orders (
+            date TEXT PRIMARY KEY,
+            order_data TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
@@ -152,6 +158,10 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             pass
         try:
             conn.execute("ALTER TABLE projects ADD COLUMN category TEXT DEFAULT 'External'")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE tasks ADD COLUMN is_time_sensitive INTEGER DEFAULT 0")
         except Exception:
             pass
         try:
@@ -425,12 +435,15 @@ def create_task(title: str,
                 due_date_raw: Optional[str] = None,
                 recurrence: Optional[str] = None,
                 priority_placement: Optional[str] = "normal",
+                is_time_sensitive: Optional[bool] = None,
                 db_path: Optional[Path] = None) -> Dict[str, Any]:
     conn = get_connection(db_path)
     project_id = None
     if project_name:
         proj = get_or_create_project(project_name, db_path=db_path)
         project_id = proj["id"]
+
+    time_sensitive_val = 1 if (is_time_sensitive or priority_placement in ("top", "high")) else 0
 
     task_id = None
     with conn:
@@ -453,9 +466,9 @@ def create_task(title: str,
             target_order = max_order
 
         cursor = conn.execute("""
-            INSERT INTO tasks (title, description, project_id, tier, due_date, due_date_raw, recurrence, priority_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (title, description, project_id, tier, due_date, due_date_raw, recurrence, target_order))
+            INSERT INTO tasks (title, description, project_id, tier, due_date, due_date_raw, recurrence, priority_order, is_time_sensitive)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (title, description, project_id, tier, due_date, due_date_raw, recurrence, target_order, time_sensitive_val))
         task_id = cursor.lastrowid
     return get_task_by_id(task_id, db_path)
 
@@ -1027,7 +1040,10 @@ def get_daily_briefing(target_date: Optional[datetime.date] = None, db_path: Opt
         "active_projects": [p["name"] for p in active_projects],
         "events_today": today_events,
         "tomorrow_outlook": outlook,
-        "tomorrow_blurb": outlook["full_blurb"]
+        "tomorrow_blurb": outlook["full_blurb"],
+        "focus_tasks": today_tasks["focus"],
+        "trivial_tasks": today_tasks["trivial"],
+        "projects": today_tasks.get("projects", [])
     }
 
 def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:
@@ -1128,9 +1144,10 @@ def reclassify_entity(from_type: str,
                       recurrence: Optional[str] = None,
                       color: Optional[str] = None,
                       category: Optional[str] = None,
+                      is_time_sensitive: Optional[bool] = None,
                       db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
-    Edits an entity or converts it between Task, Event, Reminder, and Project.
+    Edits an entity or converts it between Task, Event, Reminder, Project, and Unorganized Queue.
     Allows complete manual re-sorting if the automatic engine got it wrong.
     Supports setting and changing recurrence rules, project color tags, and School/External categories.
     """
@@ -1148,10 +1165,15 @@ def reclassify_entity(from_type: str,
         with conn:
             if clean_to == "task":
                 task_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "pending")
-                conn.execute("""
-                    UPDATE tasks SET title = ?, description = ?, project_id = ?, tier = ?, due_date = ?, status = ?, recurrence = ?
+                ts_clause = ""
+                ts_params = []
+                if is_time_sensitive is not None:
+                    ts_clause = ", is_time_sensitive = ?"
+                    ts_params.append(1 if is_time_sensitive else 0)
+                conn.execute(f"""
+                    UPDATE tasks SET title = ?, description = ?, project_id = ?, tier = ?, due_date = ?, status = ?, recurrence = ?{ts_clause}
                     WHERE id = ?
-                """, (title, description, project_id, tier, due_date, task_status, recurrence, from_id))
+                """, [title, description, project_id, tier, due_date, task_status, recurrence] + ts_params + [from_id])
             elif clean_to == "event":
                 event_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "scheduled")
                 event_time = due_date or str(datetime.datetime.now())
@@ -1209,7 +1231,7 @@ def reclassify_entity(from_type: str,
 
     if clean_to == "task":
         task_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "pending")
-        new_entity = create_task(title=title, description=description, project_name=project_name, tier=tier, due_date=effective_due_date, recurrence=recurrence, db_path=db_path)
+        new_entity = create_task(title=title, description=description, project_name=project_name, tier=tier, due_date=effective_due_date, recurrence=recurrence, is_time_sensitive=is_time_sensitive, db_path=db_path)
         if task_status != "pending":
             update_task_status(new_entity["id"], task_status, db_path=db_path)
             new_entity["status"] = task_status
@@ -1228,8 +1250,43 @@ def reclassify_entity(from_type: str,
     elif clean_to == "project":
         valid_cat = "School" if category and category.lower() == "school" else "External"
         new_entity = create_project(name=title, description=description, color=color, category=valid_cat, db_path=db_path)
+    elif clean_to == "unorganized":
+        raw_text = title
+        if description:
+            raw_text = f"{title}: {description}"
+        new_entity = add_to_unorganized_queue(
+            raw_input=raw_text,
+            parsed_date=effective_due_date,
+            suggested_type=clean_from if clean_from in ("task", "event", "reminder", "project") else "task",
+            suggested_tier=tier or "focus",
+            suggested_project=project_name,
+            reasoning="Returned to unorganized queue from edit modal",
+            confidence=1.0,
+            db_path=db_path
+        )
 
     return {"status": "success", "entity_type": clean_to, "entity": new_entity}
+
+def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    row = conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (date_str,)).fetchone()
+    if row and row["order_data"]:
+        try:
+            return json.loads(row["order_data"])
+        except Exception:
+            return []
+    return []
+
+def save_daily_order(date_str: str, order_data: List[Dict[str, Any]], db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    data_json = json.dumps(order_data)
+    with conn:
+        conn.execute("""
+            INSERT INTO daily_orders (date, order_data, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(date) DO UPDATE SET order_data = excluded.order_data, updated_at = CURRENT_TIMESTAMP
+        """, (date_str, data_json))
+    return order_data
 
 # --- Multi-Scale Scalable Timeline Operations (Day, Month, Year) ---
 

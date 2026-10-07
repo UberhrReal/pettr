@@ -232,7 +232,7 @@ LOWEST_PRIORITY_REGEX = re.compile(
     re.IGNORECASE
 )
 HIGH_PRIORITY_REGEX = re.compile(
-    r'\b(?:high\s+priority|high\s+importance|urgent|important|vital|crucial|p1|asap)\b',
+    r'\b(?:high\s+priority|high\s+importance|time\s+sensitive|time-sensitive|urgent|important|vital|crucial|p1|asap)\b',
     re.IGNORECASE
 )
 LOW_PRIORITY_REGEX = re.compile(
@@ -296,6 +296,7 @@ def extract_explicit_entity_intent(text: str) -> Tuple[str, Optional[str], Optio
          "meeting with space faculty this evening 7pm" -> (cleaned="meeting with space faculty this evening 7pm", entity_type="event", tier=None)
          "Event: meet Jodan for OpenRocket tutorial" -> ("meet Jodan for OpenRocket tutorial", "event", None)
          "Reminder: buy groceries" -> ("buy groceries", "reminder", None)
+         "Reminder to feed the fish" -> ("Feed the fish", "reminder", None)
          "Focus task: design chassis" -> ("design chassis", "task", "focus")
     Returns (cleaned_text, explicit_entity_type, explicit_tier).
     """
@@ -320,6 +321,9 @@ def extract_explicit_entity_intent(text: str) -> Tuple[str, Optional[str], Optio
     if m.group("event"):
         return after, "event", None
     elif m.group("reminder"):
+        cleaned_reminder = re.sub(r'^(?:to|that|about)\s+', '', after, flags=re.IGNORECASE).strip()
+        if cleaned_reminder:
+            after = cleaned_reminder[0].upper() + cleaned_reminder[1:] if len(cleaned_reminder) > 1 else cleaned_reminder.upper()
         return after, "reminder", None
     elif m.group("focus_task"):
         return after, "task", "focus"
