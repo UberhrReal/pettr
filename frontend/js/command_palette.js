@@ -26,11 +26,11 @@ const CommandPalette = {
         activeEl.isContentEditable
       );
 
-      const key = e.key;
-      const code = e.code;
-      const isK = (key && key.toLowerCase() === "k") || code === "KeyK";
-      const isP = (key && key.toLowerCase() === "p") || code === "KeyP";
-      const isBackslash = key === "\\" || code === "Backslash";
+      const key = e.key ? e.key.toLowerCase() : "";
+      const code = e.code || "";
+      const isK = key === "k" || code === "KeyK";
+      const isP = key === "p" || code === "KeyP";
+      const isBackslash = e.key === "\\" || code === "Backslash";
 
       // 1. Shift+K (when not typing in an input field - universally reliable across all browsers & OS)
       const isShiftK = !isInputFocused && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && isK;
@@ -52,7 +52,7 @@ const CommandPalette = {
       }
 
       // Close on Escape
-      if (this.isOpen && key === "Escape") {
+      if (this.isOpen && (e.key === "Escape" || code === "Escape")) {
         e.preventDefault();
         e.stopPropagation();
         this.close();
@@ -61,13 +61,13 @@ const CommandPalette = {
 
       // Navigate results when open
       if (this.isOpen) {
-        if (key === "ArrowDown") {
+        if (e.key === "ArrowDown" || code === "ArrowDown") {
           e.preventDefault();
           this.moveSelection(1);
-        } else if (key === "ArrowUp") {
+        } else if (e.key === "ArrowUp" || code === "ArrowUp") {
           e.preventDefault();
           this.moveSelection(-1);
-        } else if (key === "Enter") {
+        } else if (e.key === "Enter" || code === "Enter") {
           e.preventDefault();
           this.executeSelected();
         }
@@ -75,13 +75,9 @@ const CommandPalette = {
     };
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
-    document.addEventListener("keydown", handleKeyDown, { capture: true });
   },
 
   toggle() {
-    const now = Date.now();
-    if (now - this._lastToggleTime < 180) return;
-    this._lastToggleTime = now;
     if (this.isOpen) {
       this.close();
     } else {
@@ -110,7 +106,7 @@ const CommandPalette = {
       input.focus();
     }, 30);
 
-    App.renderIcons();
+    if (window.App && App.renderIcons) App.renderIcons();
   },
 
   close() {
@@ -256,7 +252,7 @@ const CommandPalette = {
           <div>No matching commands, tasks, or notes found.</div>
         </div>
       `;
-      App.renderIcons();
+      if (window.App && App.renderIcons) App.renderIcons();
       return;
     }
 
@@ -285,7 +281,7 @@ const CommandPalette = {
     }).join("");
 
     this.scrollSelectionIntoView();
-    App.renderIcons();
+    if (window.App && App.renderIcons) App.renderIcons();
   },
 
   selectIndex(idx) {
@@ -322,7 +318,7 @@ const CommandPalette = {
     if (item && item.action) {
       this.close();
       item.action();
-      App.haptic("light");
+      if (window.App && App.haptic) App.haptic("light");
     }
   },
 

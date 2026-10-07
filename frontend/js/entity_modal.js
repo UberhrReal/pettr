@@ -196,9 +196,25 @@ const EntityModal = {
   },
 
   selectType(btn) {
+    const isAlreadyActive = btn.classList.contains("active");
+    const targetType = btn.dataset.type;
+
+    if (isAlreadyActive) {
+      // Unselecting the current classification sends item to Unorganised Queue
+      document.querySelectorAll("#entityModalOverlay .type-pill-btn").forEach(b => b.classList.remove("active"));
+      const unorgPill = document.querySelector("#entityModalOverlay .type-pill-btn[data-type='unorganized']");
+      if (unorgPill && targetType !== "unorganized") {
+        unorgPill.classList.add("active");
+      }
+      const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
+      if (projectOptsRow) projectOptsRow.style.display = "none";
+      App.showToast("Classification unselected — saving will return item to Unorganised Queue.");
+      return;
+    }
+
     document.querySelectorAll("#entityModalOverlay .type-pill-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-    const targetType = btn.dataset.type;
+
     const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
     if (projectOptsRow) {
       projectOptsRow.style.display = targetType === "project" ? "block" : "none";
@@ -222,8 +238,8 @@ const EntityModal = {
     }
   },
 
-  async returnToUnorganized() {
-    if (!confirm("Return this item back to the Unorganized Queue for manual triage?")) return;
+  async returnToUnorganized(skipConfirm = false) {
+    if (!skipConfirm && !confirm("Return this item back to the Unorganised Queue?")) return;
     try {
       const res = await fetch("/api/entities/reclassify", {
         method: "POST",
@@ -239,14 +255,14 @@ const EntityModal = {
         })
       });
       if (res.ok) {
-        App.showToast("Item returned to Unorganized Queue!");
+        App.showToast("Item returned to Unorganised Queue!");
         this.close();
         if (typeof Dashboard !== "undefined") Dashboard.refresh();
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
       } else {
-        App.showToast("Failed to return item to unorganized queue", true);
+        App.showToast("Failed to return item to unorganised queue", true);
       }
     } catch (e) {
       console.error(e);
@@ -256,12 +272,17 @@ const EntityModal = {
 
   async saveChanges() {
     const activeBtn = document.querySelector("#entityModalOverlay .type-pill-btn.active");
-    const toType = activeBtn ? activeBtn.dataset.type : (this.fromType === "unorganized" ? "task" : this.fromType);
+    const toType = activeBtn ? activeBtn.dataset.type : "unorganized";
     const toTier = activeBtn ? activeBtn.dataset.tier || "focus" : "focus";
 
     const title = document.getElementById("entityModalTitle").value.trim();
     if (!title) {
-      alert("Title cannot be empty.");
+      App.showToast("Title cannot be empty.", true);
+      return;
+    }
+
+    if (toType === "unorganized") {
+      await this.returnToUnorganized(true);
       return;
     }
 
@@ -378,3 +399,5 @@ const EntityModal = {
     }
   }
 };
+
+window.EntityModal = EntityModal;

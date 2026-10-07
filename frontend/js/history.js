@@ -265,3 +265,5 @@ const History = {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 };
+
+window.History = History;

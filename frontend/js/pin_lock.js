@@ -159,3 +159,5 @@ const PinLock = {
     document.getElementById("pinLockOverlay").style.display = "none";
   }
 };
+
+window.PinLock = PinLock;

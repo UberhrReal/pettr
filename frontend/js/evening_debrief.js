@@ -288,3 +288,5 @@ const EveningDebrief = {
       .replace(/'/g, "&#039;");
   }
 };
+
+window.EveningDebrief = EveningDebrief;

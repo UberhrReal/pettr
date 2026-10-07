@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=6.2">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=6.3">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -83,8 +83,8 @@
           <span class="header-clock-pulse"></span>
           <span id="headerClockDigits" class="font-mono">--:--:--</span>
         </div>
-        <button class="status-pill cmd-palette-trigger-btn" onclick="CommandPalette.open()" title="Command Palette (Shift+K or Alt+K or \)">
-          <i data-lucide="terminal" style="width:11px;height:11px;opacity:0.8;"></i> <span class="font-mono" style="font-size:10.5px;">Shift+K</span>
+        <button class="status-pill cmd-palette-trigger-btn" onclick="CommandPalette.open()" title="PETTR Omni-Search & Actions (Shift+K, Ctrl+K, Alt+K, or \)">
+          <i data-lucide="search" style="width:11px;height:11px;opacity:0.9;"></i> <span>Search</span> <kbd class="cmd-kbd-badge" style="font-size:9.5px; opacity:0.75; margin-left:2px;">Shift+K</kbd>
         </button>
       </div>
 
@@ -1304,12 +1304,13 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </div>
       <div>
         <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Classification & Urgency Tier</label>
-        <div class="type-pill-switcher">
-          <button class="type-pill-btn active" data-type="task" data-tier="focus" onclick="EntityModal.selectType(this)"><i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Focus Task</button>
-          <button class="type-pill-btn" data-type="task" data-tier="trivial" onclick="EntityModal.selectType(this)"><i data-lucide="check-square" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Trivial Task</button>
-          <button class="type-pill-btn" data-type="event" onclick="EntityModal.selectType(this)"><i data-lucide="calendar" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Event</button>
-          <button class="type-pill-btn" data-type="reminder" onclick="EntityModal.selectType(this)"><i data-lucide="bell" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
-          <button class="type-pill-btn" data-type="project" onclick="EntityModal.selectType(this)"><i data-lucide="folder" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project</button>
+        <div class="type-pill-switcher" id="entityModalTypeSwitcher">
+          <button type="button" class="type-pill-btn active" data-type="task" data-tier="focus" onclick="EntityModal.selectType(this)"><i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Focus Task</button>
+          <button type="button" class="type-pill-btn" data-type="task" data-tier="trivial" onclick="EntityModal.selectType(this)"><i data-lucide="check-square" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Trivial Task</button>
+          <button type="button" class="type-pill-btn" data-type="event" onclick="EntityModal.selectType(this)"><i data-lucide="calendar" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Event</button>
+          <button type="button" class="type-pill-btn" data-type="reminder" onclick="EntityModal.selectType(this)"><i data-lucide="bell" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
+          <button type="button" class="type-pill-btn" data-type="project" onclick="EntityModal.selectType(this)"><i data-lucide="folder" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project</button>
+          <button type="button" class="type-pill-btn type-pill-unorg" data-type="unorganized" onclick="EntityModal.selectType(this)" title="Return this item to the Unorganised Queue"><i data-lucide="archive-restore" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Unorganised</button>
         </div>
       </div>
       <div>
@@ -1740,20 +1741,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=6.2"></script>
-  <script src="/static/js/drag_drop.js?v=6.2"></script>
-  <script src="/static/js/wave_canvas.js?v=6.2"></script>
-  <script src="/static/js/entity_modal.js?v=6.2"></script>
-  <script src="/static/js/timeline.js?v=6.2"></script>
-  <script src="/static/js/mindmap.js?v=6.2"></script>
-  <script src="/static/js/dashboard.js?v=6.2"></script>
-  <script src="/static/js/simplified_mode.js?v=6.2"></script>
-  <script src="/static/js/exploded.js?v=6.2"></script>
-  <script src="/static/js/notes.js?v=6.2"></script>
-  <script src="/static/js/history.js?v=6.2"></script>
-  <script src="/static/js/command_palette.js?v=6.2"></script>
-  <script src="/static/js/focus_cockpit.js?v=6.2"></script>
-  <script src="/static/js/evening_debrief.js?v=6.2"></script>
-  <script src="/static/js/app.js?v=6.2"></script>
+  <script src="/static/js/pin_lock.js?v=6.3"></script>
+  <script src="/static/js/app.js?v=6.3"></script>
+  <script src="/static/js/drag_drop.js?v=6.3"></script>
+  <script src="/static/js/wave_canvas.js?v=6.3"></script>
+  <script src="/static/js/entity_modal.js?v=6.3"></script>
+  <script src="/static/js/timeline.js?v=6.3"></script>
+  <script src="/static/js/mindmap.js?v=6.3"></script>
+  <script src="/static/js/dashboard.js?v=6.3"></script>
+  <script src="/static/js/simplified_mode.js?v=6.3"></script>
+  <script src="/static/js/exploded.js?v=6.3"></script>
+  <script src="/static/js/notes.js?v=6.3"></script>
+  <script src="/static/js/history.js?v=6.3"></script>
+  <script src="/static/js/command_palette.js?v=6.3"></script>
+  <script src="/static/js/focus_cockpit.js?v=6.3"></script>
+  <script src="/static/js/evening_debrief.js?v=6.3"></script>
 </body>
 </html>

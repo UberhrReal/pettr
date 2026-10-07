@@ -829,3 +829,5 @@ const Mindmap = {
     }
   }
 };
+
+window.Mindmap = Mindmap;

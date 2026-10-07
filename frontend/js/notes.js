@@ -414,3 +414,5 @@ const Notes = {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 };
+
+window.Notes = Notes;

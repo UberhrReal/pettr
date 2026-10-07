@@ -452,3 +452,5 @@ const FocusCockpit = {
     }
   }
 };
+
+window.FocusCockpit = FocusCockpit;

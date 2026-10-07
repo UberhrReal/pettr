@@ -89,3 +89,5 @@ const DragDrop = {
     }
   }
 };
+
+window.DragDrop = DragDrop;

@@ -1998,15 +1998,23 @@ body {
   100% { background-position: 0% 50%; }
 }
 
-.urgency-badge.urgent, .urgency-tag-urgent {
+.time-sensitive-badge, .urgency-badge.urgent, .urgency-tag-urgent {
   background: linear-gradient(135deg, #FF4500, #FF6B35, #FF2200, #FF4500) !important;
   background-size: 300% 300% !important;
   animation: auroraShift 5s ease infinite !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 69, 0, 0.4) !important;
-  box-shadow: 0 2px 8px rgba(255, 69, 0, 0.35) !important;
+  border: 1px solid rgba(255, 69, 0, 0.45) !important;
+  box-shadow: 0 2px 10px rgba(255, 69, 0, 0.35) !important;
   font-weight: 800 !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .urgency-badge.normal {
@@ -2484,6 +2492,17 @@ body {
   color: var(--text-inverse);
 }
 
+.type-pill-btn.type-pill-unorg {
+  color: var(--focus-indigo);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+}
+
+.type-pill-btn.type-pill-unorg.active {
+  background: var(--focus-indigo) !important;
+  color: #ffffff !important;
+  border-style: solid;
+}
+
 .modal-input {
   background: var(--bg-secondary);
   border: 1px solid var(--card-border);
@@ -2630,34 +2649,51 @@ body {
   margin-top: 8px;
 }
 
-/* --- Toast Notification --- */
+/* --- Toast Notification (Action Alerts) --- */
 .toast-container {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 2000;
+  z-index: 999999 !important;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 10px;
+  max-width: 420px;
+  pointer-events: none;
 }
 
 .toast {
-  background: var(--text-main);
-  color: var(--text-inverse);
+  pointer-events: auto;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--card-border-hover);
   padding: 12px 18px;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.15);
   font-size: 13px;
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: slideIn 0.2s ease-out;
+  animation: toastSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+.toast.toast-error {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: color-mix(in srgb, #ef4444 12%, var(--bg-card));
+  color: #fca5a5;
+}
+
+.toast.toast-success {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: color-mix(in srgb, #10b981 10%, var(--bg-card));
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(100%) scale(0.95); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
 }
 
 /* --- History Tab & Archive Panels --- */
@@ -4133,7 +4169,14 @@ body {
   }
 
   .cmd-palette-trigger-btn {
-    display: none !important; /* Shift+K shortcut hidden on mobile touch */
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 3px 8px !important;
+  }
+
+  .cmd-palette-trigger-btn .cmd-kbd-badge {
+    display: none !important;
   }
 
   .status-pill {

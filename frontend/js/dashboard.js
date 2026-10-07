@@ -742,10 +742,10 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
-        const isTimeSensitive = Boolean(t.is_time_sensitive);
+        const isTimeSensitive = Boolean(t.is_time_sensitive || (t.urgency && t.urgency.level === 'urgent'));
         const badgeHtml = isTimeSensitive
-          ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE</span>`
-          : (t.urgency ? `<span class="urgency-badge ${t.urgency.level}" style="font-size:10.5px; padding:2px 7px;">${t.urgency.level.toUpperCase()}</span>` : '');
+          ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
+          : (t.urgency && t.urgency.level !== 'urgent' && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.level.toUpperCase()}</span>` : '');
 
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true" 
@@ -787,9 +787,9 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
-        const isTimeSensitive = Boolean(t.is_time_sensitive);
+        const isTimeSensitive = Boolean(t.is_time_sensitive || (t.urgency && t.urgency.level === 'urgent'));
         const badgeHtml = isTimeSensitive
-          ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE</span>`
+          ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
           : '';
 
         html += `
@@ -1206,12 +1206,35 @@ const Dashboard = {
 
   async copyBriefingMarkdown() {
     const el = document.getElementById("briefingRichContent");
-    if (!el || !el.textContent) return;
-    try {
-      await navigator.clipboard.writeText(el.textContent);
-      App.showToast("Morning Brief copied to clipboard!", 2000);
-    } catch (err) {
-      App.showToast("Failed to copy to clipboard.");
+    const text = (el && el.textContent) ? el.textContent : (this.briefingMarkdown || "");
+    if (!text || text === "Loading executive brief...") {
+      App.showToast("No briefing content available to copy.", true);
+      return;
+    }
+    let success = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        success = true;
+      } catch (e) {}
+    }
+    if (!success) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        success = document.execCommand("copy");
+        ta.remove();
+      } catch (e) {}
+    }
+    if (success) {
+      App.showToast("Morning Brief copied to clipboard!", 2500);
+    } else {
+      App.showToast("Failed to copy brief to clipboard.", true);
     }
   },
 
@@ -1388,10 +1411,10 @@ const Dashboard = {
       const urgencyLabel = task.urgency ? task.urgency.label : "No Date";
       const dueText = task.due_date ? App.formatMilitaryTime(task.due_date) : (task.due_date_raw ? App.formatMilitaryTime(task.due_date_raw) : "");
 
-      const isTimeSensitive = Boolean(task.is_time_sensitive);
+      const isTimeSensitive = Boolean(task.is_time_sensitive || urgencyLevel === 'urgent');
       const badgeHtml = isTimeSensitive
-        ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
-        : `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>`;
+        ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
+        : (urgencyLevel !== 'none' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : '');
 
       let recurrenceHtml = "";
       if (task.recurrence) {
@@ -1433,7 +1456,6 @@ const Dashboard = {
         <div class="task-actions">
           <button class="action-icon-btn ${isTimeSensitive ? 'active-ts' : ''}" onclick="event.stopPropagation(); Dashboard.toggleTaskTimeSensitive(${task.id})" title="${isTimeSensitive ? 'Remove TIME SENSITIVE flag' : 'Mark as TIME SENSITIVE'}"><i data-lucide="clock" style="width:11px;height:11px;${isTimeSensitive ? 'color:var(--urgent-orange);' : ''}"></i></button>
           <button class="action-icon-btn" onclick="event.stopPropagation(); EntityModal.open('task', ${task.id})" title="Edit / Re-sort"><i data-lucide="edit-3" style="width:11px;height:11px;"></i></button>
-          <button class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.promptAddReminderToTask(${task.id})" title="Attach memo"><i data-lucide="pin" style="width:11px;height:11px;"></i></button>
           <button class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.deleteTask(${task.id})" title="Delete task"><i data-lucide="trash-2" style="width:11px;height:11px;"></i></button>
         </div>
       `;
@@ -1528,30 +1550,6 @@ const Dashboard = {
       await this.loadBriefing();
       if (typeof Timeline !== "undefined") Timeline.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  },
-
-  async promptAddReminderToTask(taskId) {
-    const title = prompt("Enter quick memo or specification for this task:");
-    if (!title) return;
-    try {
-      const res = await fetch("/api/ingest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: `Note: ${title}` })
-      });
-      const data = await res.json();
-      if (data.entity && data.entity.id) {
-        await fetch(`/api/reminders/${data.entity.id}/append-to-task`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ task_id: taskId })
-        });
-        App.showToast("Memo appended to task!");
-        await this.refresh();
-      }
     } catch (err) {
       console.error(err);
     }

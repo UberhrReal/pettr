@@ -830,19 +830,44 @@ const App = {
     }
   },
 
-  showToast(message, duration = 3000) {
-    const container = document.getElementById("toastContainer");
+  showToast(message, arg2, arg3) {
+    let container = document.getElementById("toastContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toastContainer";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+
+    let isError = false;
+    let duration = 3500;
+
+    if (typeof arg2 === "boolean") {
+      isError = arg2;
+      if (typeof arg3 === "number") duration = arg3;
+    } else if (typeof arg2 === "string") {
+      isError = (arg2 === "error" || arg2 === "err");
+      if (typeof arg3 === "number") duration = arg3;
+    } else if (typeof arg2 === "number") {
+      duration = arg2;
+      if (typeof arg3 === "boolean") isError = arg3;
+    }
+
     const toast = document.createElement("div");
-    toast.className = "toast";
-    toast.innerHTML = `<i data-lucide="info" style="width:14px;height:14px;color:var(--focus-indigo);flex-shrink:0;"></i> <span>${message}</span>`;
+    toast.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
+    const iconName = isError ? "alert-circle" : "check-circle-2";
+    const iconColor = isError ? "var(--urgent-orange)" : "var(--normal-green)";
+
+    const cleanMsg = typeof message === "string" ? message : String(message);
+    toast.innerHTML = `<i data-lucide="${iconName}" style="width:15px;height:15px;color:${iconColor};flex-shrink:0;"></i> <span>${cleanMsg}</span>`;
     container.appendChild(toast);
     this.renderIcons();
 
     setTimeout(() => {
       toast.style.opacity = "0";
-      toast.style.transform = "translateX(100%)";
-      toast.style.transition = "all 0.25s ease";
-      setTimeout(() => toast.remove(), 250);
+      toast.style.transform = "translateX(100%) scale(0.95)";
+      toast.style.transition = "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
+      setTimeout(() => toast.remove(), 260);
     }, duration);
   },
 
@@ -1100,6 +1125,7 @@ const App = {
   }
 };
 
+window.App = App;
 window.addEventListener("DOMContentLoaded", () => {
   App.init();
 });

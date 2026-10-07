@@ -376,3 +376,5 @@ const Exploded = {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 };
+
+window.Exploded = Exploded;
