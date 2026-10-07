@@ -1,13 +1,21 @@
 """
 PETTR Daily Intelligence & Date-Aware Tagline Engine
-Provides date-relevant greetings, space/engineering historical milestones,
-and productivity taglines that guarantee no duplication between top and bottom banners.
+Generates and caches daily typewriter lines via LLM at midnight and on demand,
+with curated aerospace/engineering historical milestones and non-duplication safeguards.
 """
 
+import os
+import json
+import logging
+import asyncio
 import datetime
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 import httpx
-from config import config
+from config.config import get_or_create_config, get_user_profile
+from backend import database
+
+logger = logging.getLogger("pettr.daily_intel")
 
 # Curated Space, Engineering & World Milestones by (Month, Day)
 HISTORICAL_MILESTONES = {
@@ -48,22 +56,8 @@ DAY_OF_WEEK_INTEL = {
     6: "Sunday debrief: Rest, retrospective analysis, and mission planning."
 }
 
-def get_daily_intel(target_date: Optional[datetime.date] = None, user_name: str = "Hong Rong") -> Dict[str, Any]:
-    today = target_date or datetime.date.today()
-    month = today.month
-    day = today.day
-    weekday = today.weekday()
-
-    milestone = HISTORICAL_MILESTONES.get((month, day))
-    weekday_intel = DAY_OF_WEEK_INTEL.get(weekday, "Execute daily priorities with focus.")
-
-    date_label = today.strftime("%A, %B %d")
-    
-    # Subtext is dedicated strictly to date context and intel (never duplicates top phrases)
-    subtext = f"{date_label} · {milestone}" if milestone else f"{date_label} · {weekday_intel}"
-
-    # Top typewriter phrases tailored to time-of-day and personal identity
-    # None of these will ever equal the subtext!
+def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None) -> List[str]:
+    """Generates curated time-of-day phrases as resilient fallback."""
     morning_phrases = [
         f"Good morning, {user_name}.",
         f"Orbital telemetry nominal, {user_name}.",
@@ -97,22 +91,234 @@ def get_daily_intel(target_date: Optional[datetime.date] = None, user_name: str 
 
     hour = datetime.datetime.now().hour
     if 5 <= hour < 12:
-        top_phrases = morning_phrases
+        top_phrases = list(morning_phrases)
     elif 12 <= hour < 18:
-        top_phrases = afternoon_phrases
+        top_phrases = list(afternoon_phrases)
     elif 18 <= hour < 23:
-        top_phrases = evening_phrases
+        top_phrases = list(evening_phrases)
     else:
-        top_phrases = night_phrases
+        top_phrases = list(night_phrases)
 
-    # Inject milestone headline into top phrases if special day
     if milestone:
         top_phrases.insert(1, f"Special milestone today, {user_name}.")
 
-    return {
-        "date": today.strftime("%Y-%m-%d"),
-        "date_label": date_label,
-        "phrases": top_phrases,
-        "subtext": subtext,
-        "milestone": milestone or weekday_intel
+    return top_phrases
+
+async def generate_llm_typewriter_lines(target_date: datetime.date,
+                                       user_name: str,
+                                       milestone_info: Optional[str] = None,
+                                       timeout_seconds: float = 8.0) -> Optional[List[str]]:
+    """
+    Prompts the configured local/remote LLM to generate fresh, date-aware typewriter greeting lines.
+    Returns a list of 4-6 clean, punchy lines, or None if LLM is offline or malformed.
+    """
+    config = get_or_create_config()
+    ollama_url = os.environ.get("OLLAMA_URL") or config.get("ollama_url", "http://localhost:11434")
+    model_name = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model", "llama3.2:3b")
+
+    date_str = target_date.strftime("%A, %B %d, %Y")
+    weekday_name = target_date.strftime("%A")
+    milestone_ctx = f"Historical anniversary / milestone today: {milestone_info}" if milestone_info else f"Day of the week: {weekday_name}"
+
+    system_prompt = (
+        "You are the witty, sharp, tech-forward onboard AI companion for PETTR "
+        "(Personal Errands, Task Tracker & Repository), an aerospace-grade personal mission dashboard. "
+        "Your task is to generate 5 distinctive, punchy typewriter greeting lines for the user's dashboard banner. "
+        "Return ONLY a valid JSON array of strings: [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"]."
+    )
+
+    user_prompt = (
+        f"Today is {date_str}.\n"
+        f"{milestone_ctx}\n"
+        f"User's name: {user_name}\n\n"
+        "Requirements:\n"
+        f"1. Generate exactly 5 short, witty, and motivating typewriter phrases tailored to today's date and {user_name}.\n"
+        "2. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
+        "3. Blend subtle space exploration / engineering telemetry flavor, high-performance focus, and date-relevant humor.\n"
+        "4. Cover different daily momentum perspectives (morning launch, deep work focus, evening orbit wrap-up).\n"
+        f"5. Mention {user_name} naturally in at least two lines.\n"
+        "6. Return ONLY a valid JSON array of strings, no explanation or markdown fences."
+    )
+
+    payload = {
+        "model": model_name,
+        "prompt": user_prompt,
+        "system": system_prompt,
+        "format": "json",
+        "stream": False,
+        "options": {
+            "temperature": 0.75,
+            "num_predict": 220
+        }
     }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            resp = await client.post(f"{ollama_url}/api/generate", json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                raw_response = data.get("response", "").strip()
+                
+                # Strip markdown json code fences if present
+                if raw_response.startswith("```"):
+                    raw_response = raw_response.strip("`")
+                    if raw_response.startswith("json"):
+                        raw_response = raw_response[4:].strip()
+
+                parsed = json.loads(raw_response)
+                # Handle array of strings or dict with 'phrases' key
+                raw_phrases = []
+                if isinstance(parsed, list):
+                    raw_phrases = parsed
+                elif isinstance(parsed, dict):
+                    raw_phrases = parsed.get("phrases") or parsed.get("lines") or parsed.get("greetings") or []
+
+                cleaned = []
+                for p in raw_phrases:
+                    if isinstance(p, str):
+                        s = p.strip().strip('"').strip("'")
+                        # Clean leading numbering if any (e.g. "1. ")
+                        if s and len(s) > 3 and len(s) < 80:
+                            cleaned.append(s)
+
+                if len(cleaned) >= 3:
+                    logger.info(f"Successfully generated {len(cleaned)} daily typewriter lines via LLM ({model_name})")
+                    return cleaned
+    except Exception as e:
+        logger.debug(f"LLM typewriter generation unavailable ({e}), using curated engine.")
+        pass
+
+    return None
+
+async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = None,
+                                      user_name: str = "Hong Rong",
+                                      force_refresh: bool = False,
+                                      db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Fetches daily intelligence and typewriter lines.
+    Checks the daily SQLite cache first; generates fresh lines via LLM if missing or forced,
+    and seamlessly falls back to the curated milestone engine if LLM is offline.
+    """
+    today = target_date or datetime.date.today()
+    month = today.month
+    day = today.day
+    weekday = today.weekday()
+    date_key = today.strftime("%Y-%m-%d")
+
+    milestone = HISTORICAL_MILESTONES.get((month, day))
+    weekday_intel = DAY_OF_WEEK_INTEL.get(weekday, "Execute daily priorities with focus.")
+    date_label = today.strftime("%A, %B %d")
+    subtext = f"{date_label} · {milestone}" if milestone else f"{date_label} · {weekday_intel}"
+
+    # 1. Check SQLite Cache
+    if not force_refresh:
+        cached = database.get_daily_typewriter_cache(date_key, db_path)
+        if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
+            return {
+                "date": date_key,
+                "date_label": date_label,
+                "phrases": cached["phrases"],
+                "subtext": cached.get("subtext") or subtext,
+                "milestone": milestone or weekday_intel,
+                "source": "cache",
+                "cached": True
+            }
+
+    # 2. Generate via LLM
+    milestone_summary = milestone or weekday_intel
+    llm_phrases = await generate_llm_typewriter_lines(today, user_name, milestone_summary)
+
+    if llm_phrases and len(llm_phrases) >= 3:
+        source = "llm"
+        final_phrases = llm_phrases
+    else:
+        source = "curated_fallback"
+        final_phrases = get_curated_phrases(today, user_name, milestone)
+
+    # 3. Cache into SQLite
+    try:
+        database.save_daily_typewriter_cache(
+            date_str=date_key,
+            phrases=final_phrases,
+            subtext=subtext,
+            source=source,
+            db_path=db_path
+        )
+    except Exception as e:
+        logger.warning(f"Could not persist daily typewriter cache to SQLite: {e}")
+
+    return {
+        "date": date_key,
+        "date_label": date_label,
+        "phrases": final_phrases,
+        "subtext": subtext,
+        "milestone": milestone or weekday_intel,
+        "source": source
+    }
+
+def get_daily_intel(target_date: Optional[datetime.date] = None,
+                    user_name: str = "Hong Rong") -> Dict[str, Any]:
+    """
+    Synchronous accessor for backward compatibility and fast synchronous lookups.
+    Returns cached phrases if available, otherwise returns curated phrases immediately.
+    """
+    today = target_date or datetime.date.today()
+    date_key = today.strftime("%Y-%m-%d")
+    cached = database.get_daily_typewriter_cache(date_key)
+    if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
+        return {
+            "date": date_key,
+            "date_label": today.strftime("%A, %B %d"),
+            "phrases": cached["phrases"],
+            "subtext": cached.get("subtext") or "",
+            "milestone": HISTORICAL_MILESTONES.get((today.month, today.day)) or DAY_OF_WEEK_INTEL.get(today.weekday()),
+            "source": cached.get("source", "cache")
+        }
+
+    month = today.month
+    day = today.day
+    weekday = today.weekday()
+    milestone = HISTORICAL_MILESTONES.get((month, day))
+    weekday_intel = DAY_OF_WEEK_INTEL.get(weekday, "Execute daily priorities with focus.")
+    date_label = today.strftime("%A, %B %d")
+    subtext = f"{date_label} · {milestone}" if milestone else f"{date_label} · {weekday_intel}"
+
+    return {
+        "date": date_key,
+        "date_label": date_label,
+        "phrases": get_curated_phrases(today, user_name, milestone),
+        "subtext": subtext,
+        "milestone": milestone or weekday_intel,
+        "source": "curated"
+    }
+
+async def midnight_typewriter_scheduler_loop():
+    """
+    Background daemon loop that triggers at midnight (00:00:05) every day.
+    Proactively contacts the LLM to generate the new day's typewriter phrases and caches them into SQLite.
+    """
+    logger.info("Daily midnight typewriter scheduler initialized.")
+    while True:
+        try:
+            now = datetime.datetime.now()
+            # Calculate next midnight + 5 seconds
+            tomorrow = now.date() + datetime.timedelta(days=1)
+            next_midnight = datetime.datetime.combine(tomorrow, datetime.time(0, 0, 5))
+            sleep_seconds = max(5.0, (next_midnight - now).total_seconds())
+
+            logger.info(f"Midnight scheduler sleeping for {int(sleep_seconds)}s until {next_midnight.strftime('%Y-%m-%d %H:%M:%S')}")
+            await asyncio.sleep(sleep_seconds)
+
+            today = datetime.date.today()
+            profile = get_user_profile()
+            user_name = profile.get("user_name", "Hong Rong")
+
+            logger.info(f"Midnight reached! Proactively generating LLM typewriter lines for {today}...")
+            await get_or_generate_daily_intel(target_date=today, user_name=user_name, force_refresh=True)
+            logger.info(f"Midnight LLM typewriter generation for {today} concluded.")
+        except asyncio.CancelledError:
+            logger.info("Midnight typewriter scheduler stopped.")
+            break
+        except Exception as e:
+            logger.error(f"Error in midnight_typewriter_scheduler_loop: {e}")
+            await asyncio.sleep(60)

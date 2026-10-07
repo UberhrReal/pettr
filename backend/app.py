@@ -37,12 +37,14 @@ def get_client_now(request: Request) -> datetime.datetime:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize database schema & background backup scheduler
+    # Startup: Initialize database schema & background schedulers
     database.init_db()
     backup_task = asyncio.create_task(backup_scheduler_loop())
+    midnight_typewriter_task = asyncio.create_task(daily_intel.midnight_typewriter_scheduler_loop())
     yield
     # Shutdown
     backup_task.cancel()
+    midnight_typewriter_task.cancel()
 
 app = FastAPI(title="PETTR", description="Personal Errands, Task Tracker & Repository", lifespan=lifespan)
 
@@ -345,11 +347,11 @@ async def toggle_task_time_sensitive_endpoint(task_id: int):
     return {"status": "success", "task": task}
 
 @app.get("/api/daily-intel", dependencies=[Depends(auth.require_auth)])
-async def get_daily_intel_endpoint(date: Optional[str] = None):
+async def get_daily_intel_endpoint(date: Optional[str] = None, refresh: bool = False):
     profile = get_user_profile()
     user_name = profile.get("user_name", "Hong Rong")
     target = datetime.date.fromisoformat(date) if date else datetime.date.today()
-    return daily_intel.get_daily_intel(target, user_name)
+    return await daily_intel.get_or_generate_daily_intel(target, user_name, force_refresh=refresh)
 
 # --- Events & Reminders Routes ---
 

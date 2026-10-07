@@ -141,6 +141,14 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS daily_typewriter_cache (
+            date TEXT PRIMARY KEY,
+            phrases TEXT NOT NULL,
+            subtext TEXT,
+            source TEXT DEFAULT 'llm',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
@@ -1287,6 +1295,37 @@ def save_daily_order(date_str: str, order_data: List[Dict[str, Any]], db_path: O
             ON CONFLICT(date) DO UPDATE SET order_data = excluded.order_data, updated_at = CURRENT_TIMESTAMP
         """, (date_str, data_json))
     return order_data
+
+def get_daily_typewriter_cache(date_str: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    row = conn.execute("SELECT phrases, subtext, source FROM daily_typewriter_cache WHERE date = ?", (date_str,)).fetchone()
+    if row and row["phrases"]:
+        try:
+            return {
+                "date": date_str,
+                "phrases": json.loads(row["phrases"]),
+                "subtext": row["subtext"] or "",
+                "source": row["source"] or "cache"
+            }
+        except Exception:
+            return None
+    return None
+
+def save_daily_typewriter_cache(date_str: str, phrases: List[str], subtext: Optional[str] = None, source: str = "llm", db_path: Optional[Path] = None) -> Dict[str, Any]:
+    conn = get_connection(db_path)
+    phrases_json = json.dumps(phrases)
+    with conn:
+        conn.execute("""
+            INSERT INTO daily_typewriter_cache (date, phrases, subtext, source, created_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(date) DO UPDATE SET phrases = excluded.phrases, subtext = excluded.subtext, source = excluded.source, created_at = CURRENT_TIMESTAMP
+        """, (date_str, phrases_json, subtext or "", source))
+    return {
+        "date": date_str,
+        "phrases": phrases,
+        "subtext": subtext or "",
+        "source": source
+    }
 
 def toggle_task_time_sensitive(task_id: int, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     conn = get_connection(db_path)

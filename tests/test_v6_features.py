@@ -176,3 +176,46 @@ def test_daily_intel_api(temp_db, monkeypatch):
             assert phrase.strip() != data["subtext"].strip()
         assert "Luna 3" in data["milestone"] or "October" in data["subtext"]
 
+        # Second call should read from SQLite cache
+        res2 = client.get("/api/daily-intel?date=2026-10-07")
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["source"] == "cache"
+        assert data2["phrases"] == data["phrases"]
+
+@pytest.mark.anyio
+async def test_llm_typewriter_generation_and_cache(temp_db, monkeypatch):
+    """Test LLM generation mock and SQLite persistence."""
+    import datetime
+    from backend import daily_intel
+
+    mock_phrases = [
+        "Orbital velocity achieved, Hong Rong.",
+        "Deep focus mode engaged.",
+        "1959 Luna 3 anniversary salute.",
+        "Conquering targets with precision.",
+        "Systems online and nominal."
+    ]
+
+    async def mock_llm_call(target_date, user_name, milestone_info=None, timeout_seconds=8.0):
+        return mock_phrases
+
+    monkeypatch.setattr(daily_intel, "generate_llm_typewriter_lines", mock_llm_call)
+
+    # Force generate for today
+    today = datetime.date(2026, 10, 7)
+    res = await daily_intel.get_or_generate_daily_intel(
+        target_date=today,
+        user_name="Hong Rong",
+        force_refresh=True,
+        db_path=temp_db
+    )
+    assert res["source"] == "llm"
+    assert res["phrases"] == mock_phrases
+
+    # Check persistence in database
+    cached = database.get_daily_typewriter_cache("2026-10-07", db_path=temp_db)
+    assert cached is not None
+    assert cached["phrases"] == mock_phrases
+    assert cached["source"] == "llm"
+

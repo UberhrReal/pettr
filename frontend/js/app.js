@@ -203,6 +203,13 @@ const App = {
       if (seconds === 0 && typeof EveningDebrief !== "undefined") {
         EveningDebrief.updateDebriefButtonState();
       }
+
+      // Midnight day rollover: reload daily intel and typewriter greeting
+      if (hours24 === 0 && minutes === 0 && seconds === 3) {
+        if (typeof Dashboard !== "undefined" && Dashboard.startTypewriterGreeting) {
+          Dashboard.startTypewriterGreeting();
+        }
+      }
     };
 
     update();
