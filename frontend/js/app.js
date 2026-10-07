@@ -441,7 +441,7 @@ const App = {
   toggleVoiceInput() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.showToast("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.", 4000);
+      this.showToast("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.", 4000, true);
       return;
     }
 
@@ -458,53 +458,264 @@ const App = {
       return;
     }
 
+    const isLocalhost = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+    const isSecure = window.isSecureContext || isLocalhost;
+
+    // Check Secure Context requirement:
+    // Web Speech API is strictly blocked by browsers on unencrypted HTTP connections (other than localhost)
+    if (!isSecure) {
+      this.haptic("warning");
+      this.showToast("Voice input requires HTTPS or localhost. Tap to troubleshoot.", 5000, true);
+      this.openVoiceTroubleshootModal("insecure");
+      return;
+    }
+
+    const startRecognition = () => {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onstart = () => {
+          this.isRecordingVoice = true;
+          if (btn) btn.classList.add("recording");
+          this.haptic("medium");
+          this.showToast("🎙️ Listening... Speak your task or thought");
+        };
+
+        recognition.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0].transcript)
+            .join("");
+          if (input) {
+            input.value = transcript;
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.warn("Speech recognition error:", event.error);
+          this.isRecordingVoice = false;
+          if (btn) btn.classList.remove("recording");
+
+          if (event.error === "no-speech") {
+            return;
+          }
+
+          this.haptic("warning");
+          if (event.error === "not-allowed") {
+            this.showToast("Microphone access blocked. Tap to view troubleshooting steps.", 5000, true);
+            this.openVoiceTroubleshootModal("denied");
+          } else if (event.error === "service-not-allowed") {
+            this.showToast("Speech service is disabled by your browser or operating system.", 4500, true);
+          } else if (event.error === "audio-capture") {
+            this.showToast("No microphone detected on your device.", 4000, true);
+          } else if (event.error === "network") {
+            this.showToast("Network error: Voice dictation requires an internet connection.", 4500, true);
+          } else if (event.error !== "aborted") {
+            this.showToast(`Voice input: ${event.error}`, 3500, true);
+          }
+        };
+
+        recognition.onend = () => {
+          this.isRecordingVoice = false;
+          if (btn) btn.classList.remove("recording");
+          this.haptic("success");
+          if (input && input.value.trim()) {
+            input.focus();
+          }
+        };
+
+        this.voiceRecognition = recognition;
+        recognition.start();
+      } catch (err) {
+        console.error("SpeechRecognition startup error:", err);
+        this.isRecordingVoice = false;
+        if (btn) btn.classList.remove("recording");
+        this.showToast("Could not start voice recognition.", 3500, true);
+      }
+    };
+
+    // Pre-request getUserMedia if available to trigger native browser prompt if not yet granted
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop());
+          startRecognition();
+        })
+        .catch(err => {
+          console.warn("Microphone getUserMedia check:", err);
+          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+            this.haptic("warning");
+            this.showToast("Microphone permission denied. Tap to view fix instructions.", 5000, true);
+            this.openVoiceTroubleshootModal("denied");
+          } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+            this.haptic("warning");
+            this.showToast("No microphone was detected on this device.", 4000, true);
+          } else {
+            startRecognition();
+          }
+        });
+    } else {
+      startRecognition();
+    }
+  },
+
+  openVoiceTroubleshootModal(reason = "denied") {
+    const modal = document.getElementById("voiceTroubleshootModal");
+    if (!modal) return;
+
+    const isLocalhost = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+    const isSecure = window.isSecureContext || isLocalhost;
+    const currentOrigin = window.location.origin;
+    const proto = window.location.protocol.replace(":", "").toUpperCase();
+
+    const protoEl = document.getElementById("voiceEnvProto");
+    const secureEl = document.getElementById("voiceEnvSecure");
+    const originEl = document.getElementById("voiceEnvOrigin");
+    const noticeEl = document.getElementById("voiceDiagNotice");
+    const instructionsEl = document.getElementById("voiceFixInstructions");
+
+    if (protoEl) protoEl.textContent = proto;
+    if (secureEl) {
+      secureEl.textContent = isSecure ? "Secure (Allowed)" : "Insecure HTTP (Blocked)";
+      secureEl.style.color = isSecure ? "var(--normal-green)" : "var(--urgent-orange)";
+    }
+    if (originEl) originEl.textContent = currentOrigin;
+
+    if (!isSecure || reason === "insecure") {
+      if (noticeEl) {
+        noticeEl.innerHTML = `
+          <div style="font-weight:700; color:var(--urgent-orange); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="shield-alert" style="width:15px;height:15px;"></i> Browser Restriction: Insecure HTTP Origin
+          </div>
+          <div style="color:var(--text-muted); line-height:1.5;">
+            Modern browsers (Chrome, Edge, Safari) strictly disable microphone access and Web Speech API on unencrypted network connections (like LAN IPs or remote servers) to safeguard audio privacy.
+          </div>
+        `;
+      }
+
+      if (instructionsEl) {
+        instructionsEl.innerHTML = `
+          <div style="background:var(--bg-card); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px;">
+            <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-bottom:6px;">
+              ⚡ Quick Fix: Enable Chrome / Edge LAN Flag (Mobile & Desktop)
+            </div>
+            <ol style="margin:0; padding-left:18px; font-size:12.5px; color:var(--text-muted); line-height:1.65;">
+              <li>Open a new tab and paste this into the address bar:
+                <br><code style="font-family:var(--font-mono); color:var(--accent-cyan); background:var(--bg-secondary); padding:2px 5px; border-radius:3px;">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
+              </li>
+              <li>Toggle the flag to <strong>Enabled</strong>.</li>
+              <li>Paste your PETTR URL into the text box below the flag:
+                <div style="display:flex; gap:6px; margin:6px 0;">
+                  <input type="text" readonly value="${currentOrigin}" style="flex:1; font-family:var(--font-mono); font-size:11.5px; padding:4px 8px; background:var(--bg-secondary); border:1px solid var(--card-border); border-radius:4px; color:var(--text-main);">
+                  <button type="button" class="action-icon-btn" onclick="navigator.clipboard.writeText('${currentOrigin}'); App.showToast('Copied address!')" style="font-size:11.5px; padding:4px 10px; font-weight:600;">Copy</button>
+                </div>
+              </li>
+              <li>Tap <strong>Relaunch</strong> at the bottom of Chrome. Voice input and microphone will immediately work!</li>
+            </ol>
+          </div>
+          <div style="background:var(--bg-card); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px 14px;">
+            <div style="font-weight:700; font-size:12.5px; color:var(--text-main); margin-bottom:4px;">
+              🔒 Permanent Solutions:
+            </div>
+            <ul style="margin:0; padding-left:18px; font-size:12px; color:var(--text-muted); line-height:1.6;">
+              <li>On the host server PC, access PETTR via <code style="font-family:var(--font-mono); color:var(--focus-indigo);">http://localhost:8000</code>. Localhost is always treated as secure.</li>
+              <li>If using Tailscale, run <code style="font-family:var(--font-mono); color:var(--focus-indigo);">tailscale serve 8000</code> to generate an automatic HTTPS certificate.</li>
+            </ul>
+          </div>
+        `;
+      }
+    } else {
+      if (noticeEl) {
+        noticeEl.innerHTML = `
+          <div style="font-weight:700; color:var(--urgent-orange); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="lock" style="width:15px;height:15px;"></i> Microphone Permission Blocked in Browser
+          </div>
+          <div style="color:var(--text-muted); line-height:1.5;">
+            Your browser denied microphone access for this site. You can unblock it in site permissions in just a few seconds.
+          </div>
+        `;
+      }
+
+      if (instructionsEl) {
+        instructionsEl.innerHTML = `
+          <div style="background:var(--bg-card); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px;">
+            <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-bottom:6px;">
+              🔓 How to Unblock Microphone in Your Browser:
+            </div>
+            <ol style="margin:0; padding-left:18px; font-size:12.5px; color:var(--text-muted); line-height:1.65;">
+              <li>Look at the top address bar next to the website address and click/tap the <strong>lock icon (🔒)</strong> or <strong>tune/settings icon (🎛️)</strong>.</li>
+              <li>Select <strong>Site Settings</strong> or find <strong>Microphone</strong>.</li>
+              <li>Change the dropdown or toggle from <strong>Block</strong> to <strong>Allow</strong>.</li>
+              <li>Refresh the page and tap the microphone button again.</li>
+            </ol>
+          </div>
+          <div style="font-size:12px; color:var(--text-dim); line-height:1.5;">
+            💡 <em>Note: If you are on Windows, macOS, or iOS, ensure your operating system has enabled microphone permissions for your browser app in system settings.</em>
+          </div>
+        `;
+      }
+    }
+
+    modal.style.display = "flex";
+    this.renderIcons();
+  },
+
+  closeVoiceTroubleshootModal() {
+    const modal = document.getElementById("voiceTroubleshootModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  async testMicrophoneDiagnostics() {
+    const btn = document.getElementById("voiceTestMicBtn");
+    const noticeEl = document.getElementById("voiceDiagNotice");
+    if (btn) btn.disabled = true;
+
     try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
+      if (noticeEl) {
+        noticeEl.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px; color:var(--focus-indigo); font-weight:600;">
+            <i data-lucide="loader" class="spin" style="width:14px;height:14px;"></i> Probing microphone hardware and browser permissions...
+          </div>
+        `;
+        this.renderIcons();
+      }
 
-      recognition.onstart = () => {
-        this.isRecordingVoice = true;
-        if (btn) btn.classList.add("recording");
-        this.haptic("medium");
-        this.showToast("🎙️ Listening... Speak your task or thought");
-      };
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("navigator.mediaDevices.getUserMedia is unavailable (Insecure Context or unsupported browser).");
+      }
 
-      recognition.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0].transcript)
-          .join("");
-        if (input) {
-          input.value = transcript;
-        }
-      };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
 
-      recognition.onerror = (event) => {
-        console.warn("Speech recognition error:", event.error);
-        this.isRecordingVoice = false;
-        if (btn) btn.classList.remove("recording");
-        if (event.error !== "no-speech") {
-          this.showToast(`Voice input: ${event.error}`, 3000);
-        }
-      };
-
-      recognition.onend = () => {
-        this.isRecordingVoice = false;
-        if (btn) btn.classList.remove("recording");
-        this.haptic("success");
-        if (input && input.value.trim()) {
-          input.focus();
-        }
-      };
-
-      this.voiceRecognition = recognition;
-      recognition.start();
-    } catch (err) {
-      console.error("SpeechRecognition startup error:", err);
-      this.isRecordingVoice = false;
-      if (btn) btn.classList.remove("recording");
-      this.showToast("Could not access microphone.", 3000);
+      if (noticeEl) {
+        noticeEl.innerHTML = `
+          <div style="font-weight:700; color:var(--normal-green); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Microphone Access Verified Successfully!
+          </div>
+          <div style="color:var(--text-main); font-size:12px; line-height:1.5;">
+            Your browser granted audio access to PETTR. You can now close this window and use the microphone button on the dashboard.
+          </div>
+        `;
+        this.renderIcons();
+      }
+      this.showToast("Microphone access verified!", 3500);
+    } catch (e) {
+      console.warn("Diagnostics failed:", e);
+      if (noticeEl) {
+        noticeEl.innerHTML = `
+          <div style="font-weight:700; color:var(--urgent-orange); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="alert-triangle" style="width:15px;height:15px;"></i> Test Failed: ${e.name || 'Error'}
+          </div>
+          <div style="color:var(--text-muted); font-size:12px; line-height:1.5;">
+            ${e.message || 'Microphone could not be accessed. Follow the instructions below.'}
+          </div>
+        `;
+        this.renderIcons();
+      }
+    } finally {
+      if (btn) btn.disabled = false;
     }
   },
 

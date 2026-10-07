@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=6.9">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=7.0">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1547,6 +1547,41 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     </div>
   </div>
 
+  <!-- Voice Input Troubleshooter Modal -->
+  <div id="voiceTroubleshootModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) App.closeVoiceTroubleshootModal()">
+    <div class="modal-card" style="max-width: 520px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="mic-off" style="width: 17px; height: 17px; color: var(--urgent-orange);"></i> Voice Input Diagnostics & Permissions
+        </h3>
+        <button class="action-icon-btn" onclick="App.closeVoiceTroubleshootModal()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+      </div>
+
+      <div id="voiceDiagNotice" style="background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; font-size: 12.5px;">
+        <!-- Dynamically populated diagnostic message -->
+      </div>
+
+      <!-- Environment Telemetry Box -->
+      <div style="background: var(--bg-tertiary); border-radius: var(--radius-xs); padding: 10px 12px; margin-bottom: 14px; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+        <div>Protocol: <span id="voiceEnvProto" style="font-weight: 600; color: var(--text-main);"></span></div>
+        <div>Context: <span id="voiceEnvSecure" style="font-weight: 600;"></span></div>
+        <div style="grid-column: span 2;">Origin: <span id="voiceEnvOrigin" style="font-weight: 600; color: var(--accent-cyan); word-break: break-all;"></span></div>
+      </div>
+
+      <!-- Step-by-step resolution tabs/cards -->
+      <div id="voiceFixInstructions" style="font-size: 13px; line-height: 1.55; color: var(--text-main); margin-bottom: 16px;">
+        <!-- Dynamically rendered steps based on insecure origin vs blocked mic -->
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 14px; gap: 8px;">
+        <button type="button" class="action-icon-btn" id="voiceTestMicBtn" onclick="App.testMicrophoneDiagnostics()" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: color-mix(in srgb, var(--focus-indigo) 15%, transparent); color: var(--focus-indigo); font-weight: 600;">
+          <i data-lucide="play" style="width:12px;height:12px;"></i> Test Microphone Access
+        </button>
+        <button type="button" class="quick-submit-btn" style="position: static; transform: none; padding: 6px 18px;" onclick="App.closeVoiceTroubleshootModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Tactical Command Palette Modal (Ctrl+K) -->
   <div id="commandPaletteModal" class="modal-overlay cmd-palette-overlay" style="display: none;" onclick="if(event.target===this) CommandPalette.close()">
     <div class="cmd-palette-box">
@@ -1740,20 +1775,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=6.9"></script>
-  <script src="/static/js/app.js?v=6.9"></script>
-  <script src="/static/js/drag_drop.js?v=6.9"></script>
-  <script src="/static/js/wave_canvas.js?v=6.9"></script>
-  <script src="/static/js/entity_modal.js?v=6.9"></script>
-  <script src="/static/js/timeline.js?v=6.9"></script>
-  <script src="/static/js/mindmap.js?v=6.9"></script>
-  <script src="/static/js/dashboard.js?v=6.9"></script>
-  <script src="/static/js/simplified_mode.js?v=6.9"></script>
-  <script src="/static/js/exploded.js?v=6.9"></script>
-  <script src="/static/js/notes.js?v=6.9"></script>
-  <script src="/static/js/history.js?v=6.9"></script>
-  <script src="/static/js/command_palette.js?v=6.9"></script>
-  <script src="/static/js/focus_cockpit.js?v=6.9"></script>
-  <script src="/static/js/evening_debrief.js?v=6.9"></script>
+  <script src="/static/js/pin_lock.js?v=7.0"></script>
+  <script src="/static/js/app.js?v=7.0"></script>
+  <script src="/static/js/drag_drop.js?v=7.0"></script>
+  <script src="/static/js/wave_canvas.js?v=7.0"></script>
+  <script src="/static/js/entity_modal.js?v=7.0"></script>
+  <script src="/static/js/timeline.js?v=7.0"></script>
+  <script src="/static/js/mindmap.js?v=7.0"></script>
+  <script src="/static/js/dashboard.js?v=7.0"></script>
+  <script src="/static/js/simplified_mode.js?v=7.0"></script>
+  <script src="/static/js/exploded.js?v=7.0"></script>
+  <script src="/static/js/notes.js?v=7.0"></script>
+  <script src="/static/js/history.js?v=7.0"></script>
+  <script src="/static/js/command_palette.js?v=7.0"></script>
+  <script src="/static/js/focus_cockpit.js?v=7.0"></script>
+  <script src="/static/js/evening_debrief.js?v=7.0"></script>
 </body>
 </html>
