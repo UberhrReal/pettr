@@ -1,11 +1,10 @@
 /**
  * PETTR Notes Module
- * Scratchpad with rich styling tools, media uploads, drag-drop/paste images, and live markdown preview
+ * Unified In-Place Rich-Text Scratchpad with Instant Formatting, Media Embeds, and Drag-and-Drop
  */
 const Notes = {
   currentNoteId: null,
   saveTimeout: null,
-  viewMode: "write", // "write" or "preview"
 
   async init() {
     this.bindEvents();
@@ -14,22 +13,24 @@ const Notes = {
 
   bindEvents() {
     const titleInput = document.getElementById("noteTitleInput");
-    const contentArea = document.getElementById("noteContentArea");
+    const editor = document.getElementById("noteContentArea");
 
     if (titleInput) {
       titleInput.addEventListener("input", () => this.scheduleAutoSave());
     }
 
-    if (contentArea) {
-      contentArea.addEventListener("input", () => {
-        this.scheduleAutoSave();
-        if (this.viewMode === "preview") {
-          this.renderPreview();
+    if (editor) {
+      editor.addEventListener("input", () => this.scheduleAutoSave());
+
+      // Interactive checklist checkboxes
+      editor.addEventListener("change", (e) => {
+        if (e.target && e.target.type === "checkbox") {
+          this.toggleChecklistRow(e.target);
         }
       });
 
       // Handle image/media paste directly from clipboard
-      contentArea.addEventListener("paste", (e) => {
+      editor.addEventListener("paste", (e) => {
         const items = e.clipboardData && e.clipboardData.items;
         if (items) {
           for (let i = 0; i < items.length; i++) {
@@ -46,20 +47,34 @@ const Notes = {
       });
 
       // Handle drag & drop files
-      contentArea.addEventListener("dragover", (e) => {
+      editor.addEventListener("dragover", (e) => {
         e.preventDefault();
-        contentArea.classList.add("drag-over");
+        editor.classList.add("drag-over");
       });
-      contentArea.addEventListener("dragleave", () => {
-        contentArea.classList.remove("drag-over");
+      editor.addEventListener("dragleave", () => {
+        editor.classList.remove("drag-over");
       });
-      contentArea.addEventListener("drop", (e) => {
+      editor.addEventListener("drop", (e) => {
         e.preventDefault();
-        contentArea.classList.remove("drag-over");
+        editor.classList.remove("drag-over");
         if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
           for (let i = 0; i < e.dataTransfer.files.length; i++) {
             this.uploadMedia(e.dataTransfer.files[i]);
           }
+        }
+      });
+
+      // In-editor hotkeys (Ctrl+B, Ctrl+I, Tab)
+      editor.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+          e.preventDefault();
+          this.format("bold");
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") {
+          e.preventDefault();
+          this.format("italic");
+        } else if (e.key === "Tab") {
+          e.preventDefault();
+          document.execCommand("insertHTML", false, "&nbsp;&nbsp;&nbsp;&nbsp;");
         }
       });
     }
@@ -97,6 +112,7 @@ const Notes = {
     notes.forEach(n => {
       const btn = document.createElement("button");
       btn.className = `tab-btn ${n.id === this.currentNoteId ? 'active' : ''}`;
+      btn.dataset.noteId = n.id;
       btn.style.width = "100%";
       btn.style.justifyContent = "flex-start";
       btn.style.textAlign = "left";
@@ -109,32 +125,45 @@ const Notes = {
   selectNote(note) {
     this.currentNoteId = note.id;
     const titleInput = document.getElementById("noteTitleInput");
-    const contentArea = document.getElementById("noteContentArea");
+    const editor = document.getElementById("noteContentArea");
     if (titleInput) titleInput.value = note.title;
-    if (contentArea) contentArea.value = note.content;
+    if (editor) {
+      let content = note.content || "";
+      // If legacy content has markdown and does not have HTML block tags, convert so it displays styled immediately
+      if (content && !/<(p|div|h[1-6]|ul|ol|table|blockquote|pre)[^>]*>/i.test(content)) {
+        content = this.simpleMarkdownToHtml(content);
+      }
+      editor.innerHTML = content;
+    }
     const statusEl = document.getElementById("noteSaveStatus");
     if (statusEl) statusEl.textContent = "Saved";
-    if (this.viewMode === "preview") {
-      this.renderPreview();
-    }
-    this.loadNotes(); // Update active highlights
+
+    // Highlight sidebar item
+    const buttons = document.querySelectorAll("#notesListSidebar .tab-btn");
+    buttons.forEach(btn => {
+      if (btn.dataset.noteId == this.currentNoteId) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
   },
 
   createNewNote() {
     this.currentNoteId = null;
     const titleInput = document.getElementById("noteTitleInput");
-    const contentArea = document.getElementById("noteContentArea");
+    const editor = document.getElementById("noteContentArea");
     if (titleInput) titleInput.value = "Quick Scratchpad";
-    if (contentArea) contentArea.value = "";
+    if (editor) editor.innerHTML = "";
     const statusEl = document.getElementById("noteSaveStatus");
     if (statusEl) statusEl.textContent = "Unsaved draft";
-    this.switchView("write");
-    if (contentArea) contentArea.focus();
+    if (editor) editor.focus();
   },
 
   async saveCurrentNote() {
     const title = (document.getElementById("noteTitleInput")?.value || "").trim() || "Untitled Note";
-    const content = document.getElementById("noteContentArea")?.value || "";
+    const editor = document.getElementById("noteContentArea");
+    const content = editor ? editor.innerHTML : "";
 
     try {
       const res = await fetch("/api/notes", {
@@ -150,11 +179,12 @@ const Notes = {
       if (data.note) {
         this.currentNoteId = data.note.id;
         const statusEl = document.getElementById("noteSaveStatus");
-        if (statusEl) statusEl.textContent = `Auto-saved at ${new Date().toLocaleTimeString()}`;
-        // Refresh sidebar
+        if (statusEl) statusEl.textContent = `Auto-saved at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         const listRes = await fetch("/api/notes");
-        const notes = await listRes.json();
-        this.renderSidebar(notes);
+        if (listRes.ok) {
+          const notes = await listRes.json();
+          this.renderSidebar(notes);
+        }
       }
     } catch (err) {
       const statusEl = document.getElementById("noteSaveStatus");
@@ -176,9 +206,10 @@ const Notes = {
   },
 
   async parseCurrentNote() {
-    const content = (document.getElementById("noteContentArea")?.value || "").trim();
+    const editor = document.getElementById("noteContentArea");
+    const content = (editor ? (editor.innerText || editor.textContent) : "").trim();
     if (!content) {
-      App.showToast("Note is empty!");
+      App.showToast("Note is empty!", true);
       return;
     }
     const lines = content.split("\n").map(l => l.trim()).filter(l => l.length > 0);
@@ -191,189 +222,136 @@ const Notes = {
       });
     }
     App.showToast("Notes parsed into tasks!");
-    await Dashboard.refresh();
-  },
-
-  switchView(mode) {
-    this.viewMode = mode;
-    const writeBtn = document.getElementById("noteWriteTabBtn");
-    const prevBtn = document.getElementById("notePreviewTabBtn");
-    const editPane = document.getElementById("notesEditPane");
-    const prevPane = document.getElementById("notesPreviewPane");
-    const toolbar = document.getElementById("notesToolbar");
-
-    if (mode === "preview") {
-      if (writeBtn) writeBtn.classList.remove("active");
-      if (prevBtn) prevBtn.classList.add("active");
-      if (editPane) editPane.style.display = "none";
-      if (prevPane) prevPane.style.display = "block";
-      if (toolbar) toolbar.style.opacity = "0.5";
-      this.renderPreview();
-    } else {
-      if (writeBtn) writeBtn.classList.add("active");
-      if (prevBtn) prevBtn.classList.remove("active");
-      if (editPane) editPane.style.display = "block";
-      if (prevPane) prevPane.style.display = "none";
-      if (toolbar) toolbar.style.opacity = "1";
-    }
-  },
-
-  renderPreview() {
-    const prevPane = document.getElementById("notesPreviewPane");
-    const content = document.getElementById("noteContentArea")?.value || "";
-    if (!prevPane) return;
-
-    if (typeof marked !== "undefined" && marked.parse) {
-      prevPane.innerHTML = marked.parse(content);
-    } else {
-      prevPane.innerHTML = this.simpleMarkdownToHtml(content);
-    }
-  },
-
-  simpleMarkdownToHtml(text) {
-    if (!text) return '<p style="color:var(--text-muted);font-style:italic;">Empty note</p>';
-    let html = this.escapeHtml(text);
-
-    // Code blocks ```code```
-    html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
-      return `<pre class="notes-preview-code"><code>${p1}</code></pre>`;
-    });
-
-    // Inline code `code`
-    html = html.replace(/`([^`]+)`/g, '<code class="notes-inline-code">$1</code>');
-
-    // Images ![alt](url)
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<div class="notes-preview-img-wrap"><img src="$2" alt="$1" class="notes-preview-img" /><span class="notes-img-caption">$1</span></div>');
-
-    // Links [text](url)
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="notes-preview-link">$1</a>');
-
-    // Headings
-    html = html.replace(/^### (.*$)/gim, '<h3 class="notes-h3">$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2 class="notes-h2">$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1 class="notes-h1">$1</h1>');
-
-    // Bold, italic, strikethrough
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-
-    // Checkboxes
-    html = html.replace(/^- \[x\] (.*$)/gim, '<div class="notes-checkbox checked"><input type="checkbox" checked disabled> <s>$1</s></div>');
-    html = html.replace(/^- \[ \] (.*$)/gim, '<div class="notes-checkbox"><input type="checkbox" disabled> $1</div>');
-
-    // Bullet lists
-    html = html.replace(/^- (.*$)/gim, '<li class="notes-li">$1</li>');
-    html = html.replace(/(<li class="notes-li">.*<\/li>)/gims, '<ul class="notes-ul">$1</ul>');
-
-    // Blockquote
-    html = html.replace(/^> (.*$)/gim, '<blockquote class="notes-quote">$1</blockquote>');
-
-    // Table parsing (simple pipe tables)
-    html = html.replace(/(\|.+?\|\r?\n\|[-:\s|]+?\|\r?\n(?:\|.+?\|\r?\n?)+)/g, (tableMatch) => {
-      const rows = tableMatch.trim().split("\n").map(r => r.trim());
-      if (rows.length < 2) return tableMatch;
-      const headers = rows[0].split("|").filter((c, i, a) => i > 0 && i < a.length - 1).map(c => `<th>${c.trim()}</th>`).join("");
-      const bodyRows = rows.slice(2).map(row => {
-        const cols = row.split("|").filter((c, i, a) => i > 0 && i < a.length - 1).map(c => `<td>${c.trim()}</td>`).join("");
-        return `<tr>${cols}</tr>`;
-      }).join("");
-      return `<table class="notes-preview-table"><thead><tr>${headers}</tr></thead><tbody>${bodyRows}</tbody></table>`;
-    });
-
-    // Line breaks
-    html = html.replace(/\n/g, '<br>');
-
-    return html;
+    if (typeof Dashboard !== "undefined") await Dashboard.refresh();
   },
 
   format(action) {
-    const area = document.getElementById("noteContentArea");
-    if (!area) return;
+    const editor = document.getElementById("noteContentArea");
+    if (!editor) return;
+    editor.focus();
 
-    const start = area.selectionStart;
-    const end = area.selectionEnd;
-    const val = area.value;
-    const selected = val.substring(start, end);
-
-    let before = "";
-    let after = "";
-    let placeholder = "";
-
-    switch(action) {
+    switch (action) {
       case "bold":
-        before = "**"; after = "**"; placeholder = "bold text";
+        document.execCommand("bold", false, null);
         break;
       case "italic":
-        before = "*"; after = "*"; placeholder = "italic text";
+        document.execCommand("italic", false, null);
         break;
       case "strike":
-        before = "~~"; after = "~~"; placeholder = "strikethrough";
+        document.execCommand("strikeThrough", false, null);
         break;
       case "h1":
-        before = "# "; placeholder = "Heading 1";
-        break;
       case "h2":
-        before = "## "; placeholder = "Heading 2";
+      case "h3": {
+        const tag = action.toUpperCase();
+        const currentBlock = document.queryCommandValue("formatBlock");
+        if (currentBlock && currentBlock.toLowerCase() === action.toLowerCase()) {
+          document.execCommand("formatBlock", false, "<p>");
+        } else {
+          document.execCommand("formatBlock", false, `<${tag}>`);
+        }
         break;
-      case "h3":
-        before = "### "; placeholder = "Heading 3";
-        break;
+      }
       case "ul":
-        before = "- "; placeholder = "List item";
+        document.execCommand("insertUnorderedList", false, null);
         break;
-      case "task":
-        before = "- [ ] "; placeholder = "Task item";
+      case "quote": {
+        const currentBlock = document.queryCommandValue("formatBlock");
+        if (currentBlock && currentBlock.toLowerCase() === "blockquote") {
+          document.execCommand("formatBlock", false, "<p>");
+        } else {
+          document.execCommand("formatBlock", false, "<blockquote>");
+        }
         break;
-      case "code":
-        before = "`"; after = "`"; placeholder = "code";
+      }
+      case "code": {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+          const range = selection.getRangeAt(0);
+          const codeEl = document.createElement("code");
+          codeEl.textContent = selection.toString();
+          range.deleteContents();
+          range.insertNode(codeEl);
+          range.setStartAfter(codeEl);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } else {
+          this.insertHtmlAtCursor("<code>code</code>&nbsp;");
+        }
         break;
-      case "codeblock":
-        before = "```\n"; after = "\n```"; placeholder = "// Code snippet";
+      }
+      case "codeblock": {
+        this.insertHtmlAtCursor('<pre><code>// Enter code here</code></pre><p><br></p>');
         break;
-      case "quote":
-        before = "> "; placeholder = "Quote";
+      }
+      case "task": {
+        const checklistHtml = '<div class="notes-checklist-row"><input type="checkbox" onchange="Notes.toggleChecklistRow(this)"> <span>Task item...</span></div><p><br></p>';
+        this.insertHtmlAtCursor(checklistHtml);
         break;
-      case "table":
-        before = "| Column 1 | Column 2 |\n|---|---|\n| Item 1 | Item 2 |\n";
+      }
+      case "table": {
+        const tableHtml = `
+          <table class="notes-table">
+            <thead>
+              <tr><th>Header 1</th><th>Header 2</th><th>Header 3</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Row 1, Col 1</td><td>Row 1, Col 2</td><td>Row 1, Col 3</td></tr>
+              <tr><td>Row 2, Col 1</td><td>Row 2, Col 2</td><td>Row 2, Col 3</td></tr>
+            </tbody>
+          </table>
+          <p><br></p>
+        `;
+        this.insertHtmlAtCursor(tableHtml);
         break;
-    }
-
-    if (selected && selected.length > 0) {
-      // User has selected text -> cleanly wrap it!
-      const replacement = `${before}${selected}${after}`;
-      area.value = val.substring(0, start) + replacement + val.substring(end);
-      area.focus();
-      area.selectionStart = start + before.length;
-      area.selectionEnd = start + before.length + selected.length;
-    } else {
-      // Nothing selected -> insert before + placeholder + after, and highlight the placeholder so user can immediately type over it!
-      const replacement = `${before}${placeholder}${after}`;
-      area.value = val.substring(0, start) + replacement + val.substring(end);
-      area.focus();
-      if (placeholder) {
-        area.selectionStart = start + before.length;
-        area.selectionEnd = start + before.length + placeholder.length;
-      } else {
-        area.selectionStart = area.selectionEnd = start + replacement.length;
       }
     }
 
     this.scheduleAutoSave();
-    if (this.viewMode === "preview") this.renderPreview();
   },
 
-  insertTextAtCursor(text) {
-    const area = document.getElementById("noteContentArea");
-    if (!area) return;
-    area.focus();
-    const start = area.selectionStart;
-    const end = area.selectionEnd;
-    const val = area.value;
-    area.value = val.substring(0, start) + text + val.substring(end);
-    area.selectionStart = area.selectionEnd = start + text.length;
+  toggleChecklistRow(checkbox) {
+    const row = checkbox.closest(".notes-checklist-row");
+    if (!row) return;
+    if (checkbox.checked) {
+      row.classList.add("checked");
+      checkbox.setAttribute("checked", "checked");
+    } else {
+      row.classList.remove("checked");
+      checkbox.removeAttribute("checked");
+    }
     this.scheduleAutoSave();
-    if (this.viewMode === "preview") this.renderPreview();
+  },
+
+  insertHtmlAtCursor(html) {
+    const editor = document.getElementById("noteContentArea");
+    if (!editor) return;
+    editor.focus();
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = html;
+      const frag = document.createDocumentFragment();
+      let node;
+      let lastNode;
+      while ((node = tempDiv.firstChild)) {
+        lastNode = frag.appendChild(node);
+      }
+      range.insertNode(frag);
+      if (lastNode) {
+        range.setStartAfter(lastNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    } else {
+      editor.innerHTML += html;
+    }
+    this.scheduleAutoSave();
   },
 
   async handleFileInput(event) {
@@ -396,9 +374,17 @@ const Notes = {
       const data = await res.json();
 
       if (res.ok && data.url) {
-        const isImage = file.type.startsWith("image/");
-        const tag = isImage ? `\n![${file.name}](${data.url})\n` : `\n[${file.name}](${data.url})\n`;
-        this.insertTextAtCursor(tag);
+        let mediaHtml = "";
+        if (data.media_type === "image") {
+          mediaHtml = `<div class="notes-media-wrapper"><img src="${data.url}" alt="${data.filename}" class="notes-inline-image" /><div class="notes-image-caption">${data.filename}</div></div><p><br></p>`;
+        } else if (data.media_type === "video") {
+          mediaHtml = `<div class="notes-media-wrapper"><video src="${data.url}" controls class="notes-inline-image"></video><div class="notes-image-caption">${data.filename}</div></div><p><br></p>`;
+        } else if (data.media_type === "audio") {
+          mediaHtml = `<div class="notes-media-wrapper"><audio src="${data.url}" controls></audio><div class="notes-image-caption">${data.filename}</div></div><p><br></p>`;
+        } else {
+          mediaHtml = `<p><a href="${data.url}" target="_blank" rel="noopener noreferrer">📎 ${data.filename}</a></p><p><br></p>`;
+        }
+        this.insertHtmlAtCursor(mediaHtml);
         App.showToast(`Uploaded ${file.name}!`);
       } else {
         App.showToast("Media upload failed: " + (data.detail || "Server error"), true);
@@ -407,6 +393,54 @@ const Notes = {
       console.error(err);
       App.showToast("Network error uploading media", true);
     }
+  },
+
+  simpleMarkdownToHtml(text) {
+    if (!text) return '<p><br></p>';
+    let html = this.escapeHtml(text);
+
+    // Code blocks ```code```
+    html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
+      return `<pre><code>${p1}</code></pre>`;
+    });
+
+    // Inline code `code`
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Images ![alt](url)
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<div class="notes-media-wrapper"><img src="$2" alt="$1" class="notes-inline-image" /><div class="notes-image-caption">$1</div></div>');
+
+    // Links [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    // Headings
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // Bold, italic, strikethrough
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+    // Checkboxes
+    html = html.replace(/^- \[x\] (.*$)/gim, '<div class="notes-checklist-row checked"><input type="checkbox" checked onchange="Notes.toggleChecklistRow(this)"> <span>$1</span></div>');
+    html = html.replace(/^- \[ \] (.*$)/gim, '<div class="notes-checklist-row"><input type="checkbox" onchange="Notes.toggleChecklistRow(this)"> <span>$1</span></div>');
+
+    // Bullet lists
+    html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>');
+
+    // Blockquote
+    html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+    // Wrap paragraphs if needed
+    html = html.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>');
+    if (!html.startsWith('<')) {
+      html = `<p>${html}</p>`;
+    }
+
+    return html;
   },
 
   escapeHtml(text) {

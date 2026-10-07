@@ -634,17 +634,13 @@
         <div class="notes-editor-card">
           <div class="notes-editor-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px;">
             <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Note Title..." style="flex: 1;">
-            <div class="notes-view-mode-tabs">
-              <button type="button" class="notes-tab-toggle-btn active" id="noteWriteTabBtn" onclick="Notes.switchView('write')">Write</button>
-              <button type="button" class="notes-tab-toggle-btn" id="notePreviewTabBtn" onclick="Notes.switchView('preview')">Preview</button>
-            </div>
           </div>
 
           <!-- Notes Rich Toolbar -->
           <div class="notes-toolbar" id="notesToolbar">
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('bold')" title="Bold"><strong>B</strong></button>
-              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('italic')" title="Italic"><em>I</em></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('bold')" title="Bold (Ctrl+B)"><strong>B</strong></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('italic')" title="Italic (Ctrl+I)"><em>I</em></button>
               <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('strike')" title="Strikethrough"><s>S</s></button>
             </div>
             <div class="notes-toolbar-divider"></div>
@@ -672,9 +668,8 @@
           </div>
 
           <div class="notes-edit-pane" id="notesEditPane">
-            <textarea id="noteContentArea" class="notes-textarea" placeholder="Type thoughts freely, paste images from clipboard, or drag and drop files..."></textarea>
+            <div id="noteContentArea" class="notes-editor-surface" contenteditable="true" spellcheck="true" data-placeholder="Type thoughts freely, format with toolbar above, paste images or drag & drop files..."></div>
           </div>
-          <div class="notes-preview-pane" id="notesPreviewPane" style="display: none;"></div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
             <span id="noteSaveStatus" style="font-size: 12px; color: var(--text-muted);">Auto-saved</span>

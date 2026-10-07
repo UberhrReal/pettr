@@ -197,10 +197,11 @@ const CommandPalette = {
       this.items = this.items.filter(i => i.category !== "NOTE");
 
       notes.forEach(n => {
+        const cleanSnippet = (n.content || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
         this.items.push({
           id: `note-${n.id}`,
           title: n.title || "Untitled Note",
-          subtitle: (n.content || "").substring(0, 60),
+          subtitle: cleanSnippet.substring(0, 60),
           category: "NOTE",
           icon: "file-text",
           action: () => {
