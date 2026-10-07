@@ -643,24 +643,24 @@
           <!-- Notes Rich Toolbar -->
           <div class="notes-toolbar" id="notesToolbar">
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('bold')" title="Bold"><strong>B</strong></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('italic')" title="Italic"><em>I</em></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('strike')" title="Strikethrough"><s>S</s></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('bold')" title="Bold"><strong>B</strong></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('italic')" title="Italic"><em>I</em></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('strike')" title="Strikethrough"><s>S</s></button>
             </div>
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('h1')" title="Heading 1">H1</button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('h2')" title="Heading 2">H2</button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('h3')" title="Heading 3">H3</button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('h1')" title="Heading 1">H1</button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('h2')" title="Heading 2">H2</button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('h3')" title="Heading 3">H3</button>
             </div>
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('ul')" title="Bullet List"><i data-lucide="list" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('task')" title="Task Checklist"><i data-lucide="check-square" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('code')" title="Inline Code"><i data-lucide="code" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('codeblock')" title="Code Block"><i data-lucide="terminal" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('quote')" title="Quote"><i data-lucide="quote" style="width:13px;height:13px;"></i></button>
-              <button type="button" class="notes-tool-btn" onclick="Notes.format('table')" title="Insert Table"><i data-lucide="table" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('ul')" title="Bullet List"><i data-lucide="list" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('task')" title="Task Checklist"><i data-lucide="check-square" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('code')" title="Inline Code"><i data-lucide="code" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('codeblock')" title="Code Block"><i data-lucide="terminal" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('quote')" title="Quote"><i data-lucide="quote" style="width:13px;height:13px;"></i></button>
+              <button type="button" class="notes-tool-btn" onmousedown="event.preventDefault()" onclick="Notes.format('table')" title="Insert Table"><i data-lucide="table" style="width:13px;height:13px;"></i></button>
             </div>
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
@@ -845,8 +845,9 @@
           <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
             Backs up every 7 days as <code>PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your full SQLite database, readable Markdown digest, and JSON dump.
           </p>
-          <div style="display: flex; gap: 10px;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Backup to Google Drive Now</button>
+            <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
           </div>
           <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
         </div>
@@ -1283,14 +1284,16 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
         </div>
       </div>
-    <!-- Site Footer -->
-    <footer class="app-site-footer">
-      <div class="footer-inner">
-        <p>PETTR (pronounced Peter) is developed and maintained by Hong Rong, who is a major dumbass, so sorry if anything breaks. For important information regarding how your data is collected for model training, please visit: <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0" target="_blank" rel="noopener noreferrer">https://www.youtube.com/watch?v=xvFZjo5PgG0</a></p>
-      </div>
-    </footer>
+    </section>
 
   </main>
+
+  <!-- Site Footer (Persistent across all tabs) -->
+  <footer class="app-site-footer">
+    <div class="footer-inner">
+      <p>PETTR (pronounced Peter) is developed and maintained by Hong Rong, who is a major dumbass, so sorry if anything breaks. For important information regarding how your data is collected for model training, please visit: <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0" target="_blank" rel="noopener noreferrer">https://www.youtube.com/watch?v=xvFZjo5PgG0</a></p>
+    </div>
+  </footer>
 
   <!-- Universal Entity Detail & Re-Sorting Modal -->
   <div id="entityModalOverlay" class="modal-overlay" style="display: none;">

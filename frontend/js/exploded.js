@@ -204,25 +204,29 @@ const Exploded = {
       grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(320px, 1fr))";
 
       const firstCol = this.cardSort === "external_first" ? {
-        title: "🌐 External Projects Pool",
-        colorVar: "var(--focus-indigo)",
+        title: "External Projects Pool",
+        icon: "globe",
+        headerClass: "external-pool-header",
         projects: extProjects,
         emptyMsg: "No external projects currently."
       } : {
-        title: "🎓 School Projects Pool",
-        colorVar: "var(--accent-cyan)",
+        title: "School Projects Pool",
+        icon: "graduation-cap",
+        headerClass: "school-pool-header",
         projects: schoolProjects,
         emptyMsg: "No school projects currently."
       };
 
       const secondCol = this.cardSort === "external_first" ? {
-        title: "🎓 School Projects Pool",
-        colorVar: "var(--accent-cyan)",
+        title: "School Projects Pool",
+        icon: "graduation-cap",
+        headerClass: "school-pool-header",
         projects: schoolProjects,
         emptyMsg: "No school projects currently."
       } : {
-        title: "🌐 External Projects Pool",
-        colorVar: "var(--focus-indigo)",
+        title: "External Projects Pool",
+        icon: "globe",
+        headerClass: "external-pool-header",
         projects: extProjects,
         emptyMsg: "No external projects currently."
       };
@@ -233,11 +237,12 @@ const Exploded = {
         col.style.flexDirection = "column";
         col.style.gap = "14px";
         col.innerHTML = `
-          <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--card-border);">
-            <span style="font-weight: 800; font-size: 14px; color: ${colData.colorVar}; display: flex; align-items: center; gap: 6px;">
-              ${colData.title}
+          <div class="exploded-pool-header ${colData.headerClass}">
+            <span class="pool-header-title">
+              <i data-lucide="${colData.icon}" style="width:16px;height:16px;display:inline-block;vertical-align:-2px;"></i>
+              <span>${colData.title}</span>
             </span>
-            <span class="panel-count-badge">${colData.projects.length}</span>
+            <span class="panel-count-badge pool-header-count">${colData.projects.length}</span>
           </div>
         `;
         if (colData.projects.length === 0) {
@@ -247,6 +252,7 @@ const Exploded = {
         }
         grid.appendChild(col);
       });
+      App.renderIcons();
 
     } else {
       // Standard Grid View (Filtered by all, school, or external)

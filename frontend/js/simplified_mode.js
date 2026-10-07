@@ -11,16 +11,26 @@ const SimplifiedMode = {
   draggedItemIndex: null,
 
   init() {
-    // Listen for resize; if width > 768, close if open
-    window.addEventListener("resize", () => {
-      if (window.innerWidth > 900 && this.isOpen) {
-        this.close();
-      }
-    });
+    const btn = document.getElementById("mobileSimplifiedBtn");
+    if (btn) {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.toggle();
+      });
+    }
+    const overlay = document.getElementById("simplifiedModeOverlay");
+    if (overlay) {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) this.close();
+      });
+    }
   },
 
   async toggle() {
-    if (this.isOpen) {
+    const overlay = document.getElementById("simplifiedModeOverlay");
+    if (!overlay) return;
+    const isVisible = overlay.classList.contains("active") || overlay.style.display === "flex";
+    if (isVisible) {
       this.close();
     } else {
       await this.open();
@@ -32,10 +42,7 @@ const SimplifiedMode = {
     if (!overlay) return;
     this.isOpen = true;
     overlay.style.display = "flex";
-    // Trigger transition next frame
-    requestAnimationFrame(() => {
-      overlay.classList.add("active");
-    });
+    overlay.classList.add("active");
 
     this.startClock();
     await this.refresh();

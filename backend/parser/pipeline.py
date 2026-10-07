@@ -235,7 +235,10 @@ async def process_user_input(raw_input: str,
         target_id = created_entity["id"]
 
     else: # Default: Task
-        is_time_sensitive = True if ("time sensitive" in clean_raw.lower() or "time-sensitive" in clean_raw.lower()) else None
+        is_time_sensitive = True if ("time sensitive" in clean_raw.lower() or "time-sensitive" in clean_raw.lower()) else False
+        clean_task_title = re.sub(r'(?i)\btime[\s-]sensitive\b', '', title).strip()
+        if clean_task_title:
+            title = clean_task_title
         created_entity = database.create_task(
             title=title,
             description=classification.get("description", ""),

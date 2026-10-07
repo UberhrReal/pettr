@@ -191,7 +191,7 @@ const Dashboard = {
     this.startTypewriterGreeting();
   },
 
-  startTypewriterGreeting() {
+  async startTypewriterGreeting() {
     if (this.typewriterGreetingTimer) {
       clearTimeout(this.typewriterGreetingTimer);
       this.typewriterGreetingTimer = null;
@@ -202,43 +202,57 @@ const Dashboard = {
     if (!greetingEl) return;
     if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
 
-    const hour = new Date().getHours();
-    let phrases = [];
+    let phrases = [
+      `Good morning, ${this.userName}.`,
+      `Orbital telemetry nominal, ${this.userName}.`,
+      `Hi, Me! Ready to execute today's priorities?`
+    ];
     let sub = "Ready to log and track your day.";
 
-    if (hour >= 5 && hour < 12) {
-      phrases = [
-        `Good morning, ${this.userName}.`,
-        `Hi, Me! Ready to conquer today?`,
-        `First coffee, then tasks, ${this.userName}.`,
-        `Fresh start, sharp mind, ${this.userName}.`,
-        `Morning momentum begins now.`
-      ];
-      sub = "Morning momentum begins now.";
-    } else if (hour >= 12 && hour < 18) {
-      phrases = [
-        `Working hard, or hardly working, ${this.userName}?`,
-        `Good afternoon, ${this.userName}. Keep the pace.`,
-        `Midday check-in, ${this.userName}. Focus on the essentials.`,
-        `Hi, Me! Knocking out those errands?`,
-        `Deep work window active.`
-      ];
-      sub = "Deep work window active.";
-    } else if (hour >= 18 && hour < 23) {
-      phrases = [
-        `Evening status report, ${this.userName}.`,
-        `Wrapping things up, ${this.userName}?`,
-        `Hi, Me! Preparing for a smooth tomorrow.`,
-        `Review your progress and close out open loops.`
-      ];
-      sub = "Review your progress and close out open loops.";
-    } else {
-      phrases = [
-        `Burning the midnight oil, ${this.userName}?`,
-        `Late night silence, deep thoughts, ${this.userName}.`,
-        `Night owl hours active. Remember to rest.`
-      ];
-      sub = "Quiet focus hours. Wrap up soon.";
+    try {
+      const res = await fetch(`/api/daily-intel?date=${this.selectedDate || ""}`);
+      if (res.ok) {
+        const intel = await res.json();
+        if (intel.phrases && intel.phrases.length > 0) phrases = intel.phrases;
+        if (intel.subtext) sub = intel.subtext;
+      }
+    } catch (e) {
+      const hour = new Date().getHours();
+      if (hour >= 5 && hour < 12) {
+        phrases = [
+          `Good morning, ${this.userName}.`,
+          `Systems online and primed for launch.`,
+          `First coffee, then tasks, ${this.userName}.`
+        ];
+        sub = "Morning momentum begins now.";
+      } else if (hour >= 12 && hour < 18) {
+        phrases = [
+          `Working hard or hardly working, ${this.userName}?`,
+          `Maintaining steady cruising velocity.`,
+          `Midday check-in, ${this.userName}.`
+        ];
+        sub = "Deep work window active.";
+      } else if (hour >= 18 && hour < 23) {
+        phrases = [
+          `Good evening, ${this.userName}.`,
+          `Evening status report, ${this.userName}.`,
+          `Tying off open loops and wrapping up.`
+        ];
+        sub = "Review your progress and close out open loops.";
+      } else {
+        phrases = [
+          `Burning the midnight oil, ${this.userName}?`,
+          `Night owl hours active.`,
+          `Quiet focus time, ${this.userName}.`
+        ];
+        sub = "Quiet hours telemetry online. Rest soon.";
+      }
+    }
+
+    // Guarantee top typewriter phrases NEVER duplicate the bottom subtext
+    phrases = phrases.filter(p => p.trim().toLowerCase() !== sub.trim().toLowerCase());
+    if (phrases.length === 0) {
+      phrases = [`Hello, ${this.userName}.`];
     }
 
     if (subtextEl) subtextEl.textContent = sub;
@@ -728,7 +742,7 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
-        const isTimeSensitive = Boolean(t.is_time_sensitive || (t.urgency && t.urgency.level === 'urgent'));
+        const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isTimeSensitive
           ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE</span>`
           : (t.urgency ? `<span class="urgency-badge ${t.urgency.level}" style="font-size:10.5px; padding:2px 7px;">${t.urgency.level.toUpperCase()}</span>` : '');
@@ -1365,9 +1379,8 @@ const Dashboard = {
     list.forEach((task, idx) => {
       const isCompleted = task.status === "completed";
       const cleanTitle = (task.title || "").replace(/^\s*\[.*?\]\s*/, '');
-      const inSeq = (this.dailyOrder || []).some(d => d.id === task.id && (d.type === 'task' || !d.type));
       const el = document.createElement("div");
-      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""} ${inSeq ? "in-sequence" : ""}`;
+      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
       el.dataset.taskId = task.id;
 
       const rankStr = String(idx + 1).padStart(2, "0");
@@ -1375,7 +1388,7 @@ const Dashboard = {
       const urgencyLabel = task.urgency ? task.urgency.label : "No Date";
       const dueText = task.due_date ? App.formatMilitaryTime(task.due_date) : (task.due_date_raw ? App.formatMilitaryTime(task.due_date_raw) : "");
 
-      const isTimeSensitive = Boolean(task.is_time_sensitive || urgencyLevel === 'urgent');
+      const isTimeSensitive = Boolean(task.is_time_sensitive);
       const badgeHtml = isTimeSensitive
         ? `<span class="time-sensitive-badge" style="font-size:10px; padding:2px 7px; background:rgba(255,69,0,0.12); color:var(--urgent-orange); border:1px solid rgba(255,69,0,0.3); border-radius:4px; font-weight:700;">TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
         : `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>`;
@@ -1418,6 +1431,7 @@ const Dashboard = {
         </div>
       ` : `
         <div class="task-actions">
+          <button class="action-icon-btn ${isTimeSensitive ? 'active-ts' : ''}" onclick="event.stopPropagation(); Dashboard.toggleTaskTimeSensitive(${task.id})" title="${isTimeSensitive ? 'Remove TIME SENSITIVE flag' : 'Mark as TIME SENSITIVE'}"><i data-lucide="clock" style="width:11px;height:11px;${isTimeSensitive ? 'color:var(--urgent-orange);' : ''}"></i></button>
           <button class="action-icon-btn" onclick="event.stopPropagation(); EntityModal.open('task', ${task.id})" title="Edit / Re-sort"><i data-lucide="edit-3" style="width:11px;height:11px;"></i></button>
           <button class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.promptAddReminderToTask(${task.id})" title="Attach memo"><i data-lucide="pin" style="width:11px;height:11px;"></i></button>
           <button class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.deleteTask(${task.id})" title="Delete task"><i data-lucide="trash-2" style="width:11px;height:11px;"></i></button>
@@ -1432,7 +1446,6 @@ const Dashboard = {
         <div class="task-body" onclick="${isPast ? '' : `EntityModal.open('task', ${task.id})`}" title="${isPast ? 'Locked historical record' : 'Click to view details, edit, or re-sort'}">
           <div class="task-title" style="${isCompleted ? 'text-decoration: line-through; color: var(--text-dim);' : ''}">
             ${this.escapeHtml(cleanTitle)}
-            ${inSeq ? `<span class="in-sequence-badge" style="font-size:11px; color:var(--text-muted); font-style:italic; font-weight:normal; margin-left:6px;">(in sequence)</span>` : ''}
           </div>
           <div class="task-meta">
             ${projectHtml}
@@ -1473,6 +1486,32 @@ const Dashboard = {
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
       console.error(err);
+    }
+  },
+
+  async toggleTaskTimeSensitive(taskId) {
+    if (this.isPastDay()) {
+      App.showToast("Cannot modify locked historical records.", true);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/toggle-time-sensitive`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const isTs = data.task && data.task.is_time_sensitive;
+        App.showToast(isTs ? "Marked as TIME SENSITIVE" : "TIME SENSITIVE flag removed");
+        await this.refresh();
+        await this.loadBriefing();
+        if (typeof Timeline !== "undefined") Timeline.refresh();
+      } else {
+        App.showToast("Failed to toggle time sensitive flag", true);
+      }
+    } catch (err) {
+      console.error(err);
+      App.showToast("Network error updating task", true);
     }
   },
 
@@ -2108,3 +2147,5 @@ const Dashboard = {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 };
+
+window.Dashboard = Dashboard;

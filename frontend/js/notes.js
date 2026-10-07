@@ -290,11 +290,11 @@ const Notes = {
   format(action) {
     const area = document.getElementById("noteContentArea");
     if (!area) return;
-    area.focus();
 
     const start = area.selectionStart;
     const end = area.selectionEnd;
-    const selected = area.value.substring(start, end);
+    const val = area.value;
+    const selected = val.substring(start, end);
 
     let before = "";
     let after = "";
@@ -339,8 +339,28 @@ const Notes = {
         break;
     }
 
-    const insertText = selected ? `${before}${selected}${after}` : `${before}${placeholder}${after}`;
-    this.insertTextAtCursor(insertText);
+    if (selected && selected.length > 0) {
+      // User has selected text -> cleanly wrap it!
+      const replacement = `${before}${selected}${after}`;
+      area.value = val.substring(0, start) + replacement + val.substring(end);
+      area.focus();
+      area.selectionStart = start + before.length;
+      area.selectionEnd = start + before.length + selected.length;
+    } else {
+      // Nothing selected -> insert before + placeholder + after, and highlight the placeholder so user can immediately type over it!
+      const replacement = `${before}${placeholder}${after}`;
+      area.value = val.substring(0, start) + replacement + val.substring(end);
+      area.focus();
+      if (placeholder) {
+        area.selectionStart = start + before.length;
+        area.selectionEnd = start + before.length + placeholder.length;
+      } else {
+        area.selectionStart = area.selectionEnd = start + replacement.length;
+      }
+    }
+
+    this.scheduleAutoSave();
+    if (this.viewMode === "preview") this.renderPreview();
   },
 
   insertTextAtCursor(text) {

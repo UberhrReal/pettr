@@ -142,3 +142,37 @@ def test_client_timezone_header_support(temp_db, monkeypatch):
         assert res.status_code == 200
         data = res.json()
         assert "date" in data
+
+def test_toggle_time_sensitive_api(temp_db, monkeypatch):
+    """Test manual toggle of task time sensitive flag via PATCH."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    t = database.create_task("Review orbital descent angles", is_time_sensitive=False, db_path=temp_db)
+    assert t["is_time_sensitive"] == 0
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.patch(f"/api/tasks/{t['id']}/toggle-time-sensitive")
+        assert res.status_code == 200
+        assert res.json()["task"]["is_time_sensitive"] == 1
+
+        # Toggle back off
+        res2 = client.patch(f"/api/tasks/{t['id']}/toggle-time-sensitive")
+        assert res2.status_code == 200
+        assert res2.json()["task"]["is_time_sensitive"] == 0
+
+def test_daily_intel_api(temp_db, monkeypatch):
+    """Test date-aware daily intelligence endpoint ensuring no duplicates between phrases and subtext."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.get("/api/daily-intel?date=2026-10-07")
+        assert res.status_code == 200
+        data = res.json()
+        assert "phrases" in data
+        assert "subtext" in data
+        assert len(data["phrases"]) > 0
+        # Check non-duplication
+        for phrase in data["phrases"]:
+            assert phrase.strip() != data["subtext"].strip()
+        assert "Luna 3" in data["milestone"] or "October" in data["subtext"]
+

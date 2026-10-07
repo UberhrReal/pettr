@@ -443,7 +443,7 @@ def create_task(title: str,
         proj = get_or_create_project(project_name, db_path=db_path)
         project_id = proj["id"]
 
-    time_sensitive_val = 1 if (is_time_sensitive or priority_placement in ("top", "high")) else 0
+    time_sensitive_val = 1 if is_time_sensitive else 0
 
     task_id = None
     with conn:
@@ -1287,6 +1287,17 @@ def save_daily_order(date_str: str, order_data: List[Dict[str, Any]], db_path: O
             ON CONFLICT(date) DO UPDATE SET order_data = excluded.order_data, updated_at = CURRENT_TIMESTAMP
         """, (date_str, data_json))
     return order_data
+
+def toggle_task_time_sensitive(task_id: int, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    with conn:
+        row = conn.execute("SELECT id, is_time_sensitive FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        if not row:
+            return None
+        current = row["is_time_sensitive"] or 0
+        new_val = 0 if current else 1
+        conn.execute("UPDATE tasks SET is_time_sensitive = ? WHERE id = ?", (new_val, task_id))
+    return get_task_by_id(task_id, db_path)
 
 # --- Multi-Scale Scalable Timeline Operations (Day, Month, Year) ---
 

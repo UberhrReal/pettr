@@ -214,6 +214,10 @@ const App = {
     this.openTimezoneModal();
   },
 
+  promptSetTimezone() {
+    this.openTimezoneModal();
+  },
+
   openTimezoneModal() {
     const modal = document.getElementById("timezoneModal");
     if (modal) {
@@ -741,22 +745,6 @@ const App = {
         }
       });
     }
-
-    // Explicit listeners for voice and direct entry buttons
-    const voiceBtn = document.getElementById("voiceInputBtn");
-    if (voiceBtn) {
-      voiceBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        this.toggleVoiceInput();
-      });
-    }
-    const directBtn = document.querySelector(".direct-entry-btn");
-    if (directBtn) {
-      directBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        Dashboard.openManualCreateModal();
-      });
-    }
   },
 
   createParticleBurst(targetEl) {
@@ -899,6 +887,8 @@ const App = {
     }
   },
 
+  lastBackupFilename: null,
+
   async triggerManualBackup() {
     const msgEl = document.getElementById("backupStatusMsg");
     if (msgEl) msgEl.textContent = "Generating backup archive...";
@@ -906,17 +896,15 @@ const App = {
       const res = await fetch("/api/backup/now", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
+        this.lastBackupFilename = data.filename;
         const cloudInfo = data.cloud_status ? ` · Cloud: ${data.cloud_status}` : "";
-        if (msgEl) msgEl.textContent = `Backup saved: ${data.filename} (${Math.round(data.size_bytes / 1024)} KB)${cloudInfo}`;
+        if (msgEl) msgEl.textContent = `Backup saved on server: ${data.filename} (${Math.round(data.size_bytes / 1024)} KB)${cloudInfo}`;
         this.showToast(`Backup created!${cloudInfo ? ' Drive: ' + data.cloud_status : ''}`);
 
-        // Direct browser download of archive
-        const downloadLink = document.createElement("a");
-        downloadLink.href = `/api/backup/download/${encodeURIComponent(data.filename)}`;
-        downloadLink.download = data.filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        downloadLink.remove();
+        const downloadBtn = document.getElementById("downloadBackupArchiveBtn");
+        if (downloadBtn) {
+          downloadBtn.style.display = "inline-flex";
+        }
       } else {
         if (msgEl) msgEl.textContent = "Backup failed: " + (data.detail || "Server error");
         this.showToast("Backup failed", true);
@@ -925,6 +913,17 @@ const App = {
       if (msgEl) msgEl.textContent = "Error initiating backup.";
       this.showToast("Network error initiating backup", true);
     }
+  },
+
+  downloadLatestBackup() {
+    const filename = this.lastBackupFilename || "pettr_backup_latest.tar.gz";
+    const downloadLink = document.createElement("a");
+    downloadLink.href = `/api/backup/download/${encodeURIComponent(filename)}`;
+    downloadLink.download = filename;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    this.showToast("Downloading backup archive to device...");
   },
 
   loadProfileSettings() {

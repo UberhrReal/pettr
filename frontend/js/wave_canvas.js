@@ -1,29 +1,49 @@
 /**
- * PETTR Pseudo-3D Top-Down Wave Canvas
- * Generates an architectural topographical wave field seen from above,
- * slowly propagating across the screen with periodic wave swell gradients
- * that roll across the terrain to highlight physical 3D depth and curvature.
- * Features distinct light (warm off-white) and inverted dark (obsidian aurora) themes.
+ * PETTR High-Precision Diurnal Solar Wave Canvas
+ * Top-down elevated topographic contour landscape with dynamic wave swells
+ * and 4 distinct solar atmospheres:
+ * - Dawn/Morning: Radiant sunrise glow, golden amber & rose mist rays
+ * - Midday/Light: Serene airy celestial sky wash, drifting 3D cumulus clouds
+ * - Dusk/Evening: Fiery sunset horizon, magenta/orange twilight cloud ribbons
+ * - Night/Dark: Deep obsidian space with undulating Aurora Borealis curtains
  */
 const WaveCanvas = {
   canvas: null,
   ctx: null,
+  animationId: null,
   width: 0,
   height: 0,
   step: 0,
-  animationId: null,
+  _boundResize: null,
 
-  isDarkTheme() {
+  getThemeMode() {
     const docTheme = document.documentElement.getAttribute("data-theme");
     const bodyTheme = document.body ? document.body.getAttribute("data-theme") : null;
-    if (docTheme === "dark" || bodyTheme === "dark") return true;
-    if (docTheme === "light" || bodyTheme === "light") return false;
+    const current = docTheme || bodyTheme;
+    if (current === "morning" || current === "evening" || current === "dark" || current === "light" || current === "afternoon") {
+      return current === "afternoon" ? "light" : current;
+    }
     const stored = localStorage.getItem("pettr_theme_mode");
-    if (stored === "dark") return true;
-    if (stored === "light") return false;
+    if (stored === "morning" || stored === "evening" || stored === "dark" || stored === "light") {
+      return stored;
+    }
+    if (stored === "slider") {
+      const savedHour = parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10);
+      if (savedHour >= 6 && savedHour < 12) return "morning";
+      if (savedHour >= 12 && savedHour < 18) return "light";
+      if (savedHour >= 18 && savedHour < 22) return "evening";
+      return "dark";
+    }
     const hour = new Date().getHours();
-    if (hour >= 19 || hour < 7) return true;
-    return Boolean(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (hour >= 6 && hour < 12) return "morning";
+    if (hour >= 12 && hour < 18) return "light";
+    if (hour >= 18 && hour < 22) return "evening";
+    return "dark";
+  },
+
+  isDarkTheme() {
+    const mode = this.getThemeMode();
+    return mode === "dark" || mode === "evening";
   },
 
   init() {
@@ -61,20 +81,29 @@ const WaveCanvas = {
     const w = this.width;
     const h = this.height;
 
-    const isDark = this.isDarkTheme();
+    const mode = this.getThemeMode();
+    const isDark = (mode === "dark" || mode === "evening");
 
     // 1. Theme-adaptive canvas background
-    ctx.fillStyle = isDark ? "#08080A" : "#FBFBFD";
+    if (mode === "morning") {
+      ctx.fillStyle = "#FCF8F5";
+    } else if (mode === "evening") {
+      ctx.fillStyle = "#181124";
+    } else if (mode === "dark") {
+      ctx.fillStyle = "#08080A";
+    } else {
+      ctx.fillStyle = "#FBFBFD";
+    }
     ctx.fillRect(0, 0, w, h);
 
     // 2. Periodic Wave Gradient Sweep Position
     const totalSpan = w + h + 800;
-    const sweepSpeed = 48; // pixels per step
+    const sweepSpeed = 48;
     const sweepProgress = (this.step * sweepSpeed) % totalSpan;
     const sweepCenter = sweepProgress - 400;
 
     const sweepWidth = 320;
-    const gradAngle = Math.PI / 4; // 45 degrees diagonal
+    const gradAngle = Math.PI / 4;
     const cx = Math.cos(gradAngle) * sweepCenter;
     const cy = Math.sin(gradAngle) * sweepCenter;
 
@@ -85,12 +114,26 @@ const WaveCanvas = {
       cy + Math.sin(gradAngle) * sweepWidth
     );
 
-    if (isDark) {
-      // Inverted Complementing Dark Aurora Wave Sweep
+    if (mode === "morning") {
+      // Sunrise Dawn Golden-Rose Wave Crest
+      waveGrad.addColorStop(0, "rgba(252, 248, 245, 0)");
+      waveGrad.addColorStop(0.25, "rgba(244, 63, 94, 0.08)");
+      waveGrad.addColorStop(0.5, "rgba(245, 158, 11, 0.18)");
+      waveGrad.addColorStop(0.75, "rgba(251, 146, 60, 0.10)");
+      waveGrad.addColorStop(1, "rgba(252, 248, 245, 0)");
+    } else if (mode === "evening") {
+      // Sunset Dusk Fiery Twilight Wave Crest
+      waveGrad.addColorStop(0, "rgba(24, 17, 36, 0)");
+      waveGrad.addColorStop(0.25, "rgba(168, 85, 247, 0.14)");
+      waveGrad.addColorStop(0.5, "rgba(249, 115, 22, 0.24)");
+      waveGrad.addColorStop(0.75, "rgba(236, 72, 153, 0.16)");
+      waveGrad.addColorStop(1, "rgba(24, 17, 36, 0)");
+    } else if (mode === "dark") {
+      // Complementing Dark Aurora Wave Sweep
       waveGrad.addColorStop(0, "rgba(8, 8, 10, 0)");
       waveGrad.addColorStop(0.25, "rgba(79, 70, 229, 0.06)");
-      waveGrad.addColorStop(0.5, "rgba(99, 102, 241, 0.15)"); // Vibrant aurora crest
-      waveGrad.addColorStop(0.75, "rgba(14, 165, 233, 0.08)"); // Cyan sheen
+      waveGrad.addColorStop(0.5, "rgba(99, 102, 241, 0.15)");
+      waveGrad.addColorStop(0.75, "rgba(14, 165, 233, 0.08)");
       waveGrad.addColorStop(1, "rgba(8, 8, 10, 0)");
     } else {
       // Light Mode Subtle Shadow Swell
@@ -104,14 +147,13 @@ const WaveCanvas = {
     ctx.fillStyle = waveGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // 3. Number of topographical contour ribs seen from an elevated perspective
+    // 3. Topographical contour ribs seen from an elevated perspective
     const numRows = Math.min(34, Math.max(20, Math.floor(h / 36)));
     const rowSpacing = (h * 1.18) / numRows;
     const startY = -h * 0.08;
 
     ctx.lineWidth = 1;
 
-    // 4. Draw propagating pseudo-3D contour ribs with dynamic crest elevation
     for (let r = 0; r < numRows; r++) {
       const baseY = startY + r * rowSpacing;
       const depthRatio = r / numRows;
@@ -121,7 +163,6 @@ const WaveCanvas = {
       let first = true;
 
       for (let x = -60; x <= w + 60; x += 20) {
-        // Base multi-harmonic wave interference
         const d1 = x * 0.707 + baseY * 0.707;
         const d2 = x * 0.866 - baseY * 0.5;
 
@@ -131,7 +172,6 @@ const WaveCanvas = {
 
         let elevation = (wave1 + wave2 + wave3) * (0.65 + depthRatio * 0.75);
 
-        // Wave Interaction: amplify elevation and line intensity as sweep passes
         const diagDist = (x + baseY) * 0.707;
         const distFromSweep = Math.abs(diagDist - sweepCenter);
 
@@ -150,7 +190,6 @@ const WaveCanvas = {
         }
       }
 
-      // Dynamic stroke color based on wave proximity
       const rowDiag = baseY * 0.707;
       const rowDistFromSweep = Math.abs(rowDiag - sweepCenter);
       let rowAlpha = baseAlpha;
@@ -158,26 +197,30 @@ const WaveCanvas = {
         rowAlpha += (1 - rowDistFromSweep / sweepWidth) * (isDark ? 0.35 : 0.16);
       }
 
-      if (isDark) {
+      if (mode === "morning") {
+        ctx.strokeStyle = `rgba(217, 119, 6, ${Math.min(0.45, rowAlpha).toFixed(3)})`;
+      } else if (mode === "evening") {
+        ctx.strokeStyle = `rgba(251, 146, 60, ${Math.min(0.55, rowAlpha).toFixed(3)})`;
+      } else if (mode === "dark") {
         ctx.strokeStyle = `rgba(224, 231, 255, ${Math.min(0.65, rowAlpha).toFixed(3)})`;
       } else {
         ctx.strokeStyle = `rgba(9, 9, 15, ${Math.min(0.4, rowAlpha).toFixed(3)})`;
       }
       ctx.stroke();
-
     }
 
-    // Aurora Borealis undulating curtain sweep across the top of the canvas in Dark Mode
-    if (isDark) {
+    // 4. Distinct Atmospheric Animation by Solar Theme
+    if (mode === "dark") {
+      // Night: Aurora Borealis undulating curtains
       ctx.save();
       ctx.globalCompositeOperation = "screen";
 
       const auroraTime = this.step * 0.7;
       const auroraCurtains = [
-        { r: 16, g: 185, b: 129, baseH: 260, speed: 0.8, amp: 55, alpha: 0.22 },  // Emerald ribbon
-        { r: 6, g: 182, b: 212, baseH: 310, speed: 0.6, amp: 45, alpha: 0.18 },   // Arctic Cyan ribbon
-        { r: 139, g: 92, b: 246, baseH: 360, speed: 0.5, amp: 65, alpha: 0.20 },  // Celestial Violet ribbon
-        { r: 236, g: 72, b: 153, baseH: 220, speed: 0.9, amp: 35, alpha: 0.14 }   // Ethereal Magenta crest
+        { r: 16, g: 185, b: 129, baseH: 260, speed: 0.8, amp: 55, alpha: 0.22 },
+        { r: 6, g: 182, b: 212, baseH: 310, speed: 0.6, amp: 45, alpha: 0.18 },
+        { r: 139, g: 92, b: 246, baseH: 360, speed: 0.5, amp: 65, alpha: 0.20 },
+        { r: 236, g: 72, b: 153, baseH: 220, speed: 0.9, amp: 35, alpha: 0.14 }
       ];
 
       auroraCurtains.forEach((c, idx) => {
@@ -210,21 +253,117 @@ const WaveCanvas = {
       });
 
       ctx.restore();
-    }
-    // Daytime Ethereal Soft Clouds Rolling By across the top of the canvas
-    else {
+
+    } else if (mode === "morning") {
+      // Dawn/Sunrise: Radiant rising morning sun rays and warm peach/gold horizon wash
+      ctx.save();
+      const dawnTime = this.step * 0.35;
+
+      // Atmospheric sunrise glow wash
+      const dawnWash = ctx.createLinearGradient(0, 0, 0, 420);
+      dawnWash.addColorStop(0, "rgba(254, 215, 170, 0.40)");
+      dawnWash.addColorStop(0.35, "rgba(253, 186, 116, 0.22)");
+      dawnWash.addColorStop(0.7, "rgba(254, 205, 211, 0.12)");
+      dawnWash.addColorStop(1, "rgba(252, 248, 245, 0)");
+      ctx.fillStyle = dawnWash;
+      ctx.fillRect(0, 0, w, 420);
+
+      // Rising Sun Core Radiance
+      const sunX = w * 0.68;
+      const sunY = 130 + Math.sin(dawnTime * 0.8) * 8;
+      const sunRadius = 260;
+      const sunGrad = ctx.createRadialGradient(sunX, sunY, 15, sunX, sunY, sunRadius);
+      sunGrad.addColorStop(0, "rgba(251, 191, 36, 0.42)");
+      sunGrad.addColorStop(0.3, "rgba(245, 158, 11, 0.25)");
+      sunGrad.addColorStop(0.65, "rgba(244, 63, 94, 0.10)");
+      sunGrad.addColorStop(1, "rgba(252, 248, 245, 0)");
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Soft Morning Dawn Rays Sweeping Diagonally
+      ctx.globalCompositeOperation = "screen";
+      for (let ray = 0; ray < 5; ray++) {
+        const rayAngle = (ray * 0.22) + Math.sin(dawnTime * 0.6 + ray) * 0.05;
+        const rx = sunX + Math.cos(rayAngle) * 600;
+        const ry = sunY + Math.sin(rayAngle) * 450;
+        const rayGrad = ctx.createLinearGradient(sunX, sunY, rx, ry);
+        rayGrad.addColorStop(0, "rgba(253, 230, 138, 0.24)");
+        rayGrad.addColorStop(0.6, "rgba(251, 146, 60, 0.08)");
+        rayGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = rayGrad;
+        ctx.beginPath();
+        ctx.moveTo(sunX, sunY);
+        ctx.lineTo(rx - 80, ry);
+        ctx.lineTo(rx + 80, ry);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+    } else if (mode === "evening") {
+      // Dusk/Sunset: Fiery sunset gradient bands with glowing magenta-crimson twilight ribbons
+      ctx.save();
+      const duskTime = this.step * 0.42;
+
+      // Fiery Dusk Atmospheric Wash
+      const duskWash = ctx.createLinearGradient(0, 0, 0, 440);
+      duskWash.addColorStop(0, "rgba(244, 63, 94, 0.35)");     // Sunset crimson
+      duskWash.addColorStop(0.3, "rgba(249, 115, 22, 0.38)");   // Fiery orange
+      duskWash.addColorStop(0.65, "rgba(168, 85, 247, 0.22)"); // Twilight violet
+      duskWash.addColorStop(1, "rgba(24, 17, 36, 0)");         // Dusk background blend
+      ctx.fillStyle = duskWash;
+      ctx.fillRect(0, 0, w, 440);
+
+      // Undulating Twilight Horizon Ribbons
+      const ribbonLayers = [
+        { y: 110, amp: 26, r: 249, g: 115, b: 22, alpha: 0.28, speed: 0.4 },
+        { y: 170, amp: 32, r: 236, g: 72, b: 153, alpha: 0.24, speed: 0.6 },
+        { y: 240, amp: 38, r: 139, g: 92, b: 246, alpha: 0.20, speed: 0.35 }
+      ];
+
+      ribbonLayers.forEach((rl, rIdx) => {
+        const offset = duskTime * rl.speed * 160;
+        ctx.beginPath();
+        let firstR = true;
+        for (let x = -40; x <= w + 40; x += 18) {
+          const sx = x - offset;
+          const ry = rl.y + Math.sin(sx * 0.0035 + rIdx * 1.8) * rl.amp + Math.cos(sx * 0.007) * 14;
+          if (firstR) {
+            ctx.moveTo(x, ry);
+            firstR = false;
+          } else {
+            ctx.lineTo(x, ry);
+          }
+        }
+        ctx.lineTo(w + 40, 0);
+        ctx.lineTo(-40, 0);
+        ctx.closePath();
+
+        const rGrad = ctx.createLinearGradient(0, 0, 0, rl.y + rl.amp + 40);
+        rGrad.addColorStop(0, `rgba(${rl.r}, ${rl.g}, ${rl.b}, ${rl.alpha * 0.8})`);
+        rGrad.addColorStop(0.6, `rgba(${rl.r}, ${rl.g}, ${rl.b}, ${rl.alpha * 0.4})`);
+        rGrad.addColorStop(1, `rgba(${rl.r}, ${rl.g}, ${rl.b}, 0)`);
+        ctx.fillStyle = rGrad;
+        ctx.fill();
+      });
+
+      ctx.restore();
+
+    } else {
+      // Daytime: Soft Airy Celestial Sky Wash & Cirrus Clouds
       ctx.save();
 
-      // 1. Serene Daytime Atmospheric Sky Wash (top 380px)
       const skyGrad = ctx.createLinearGradient(0, 0, 0, 380);
-      skyGrad.addColorStop(0, "rgba(212, 228, 248, 0.55)");    // Soft airy celestial sky tint
+      skyGrad.addColorStop(0, "rgba(212, 228, 248, 0.55)");
       skyGrad.addColorStop(0.4, "rgba(226, 237, 252, 0.32)");
       skyGrad.addColorStop(0.75, "rgba(242, 247, 253, 0.15)");
-      skyGrad.addColorStop(1, "rgba(251, 251, 253, 0)");       // Seamlessly blends into wave canvas
+      skyGrad.addColorStop(1, "rgba(251, 251, 253, 0)");
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, w, 380);
 
-      // 2. High-Altitude Cirrus Streaks drifting smoothly
       const cirrusTime = this.step * 0.22;
       const cirrusLayers = [
         { y: 80, amp: 20, freq: 0.003, alpha: 0.26, speed: 0.25 },
@@ -258,14 +397,10 @@ const WaveCanvas = {
         ctx.fill();
       });
 
-      // 3. Volumetric Rolling Cumulus Cloud Formations drifting across the screen
       const cloudTime = this.step * 0.38;
       const cloudLayers = [
-        // Distant high billows
         { baseH: 150, speed: 0.32, interval: 320, radius: 100, shadow: "185, 204, 228", body: "255, 255, 255", alpha: 0.44 },
-        // Mid-altitude rolling cumulus clouds
         { baseH: 220, speed: 0.55, interval: 370, radius: 120, shadow: "176, 198, 224", body: "255, 255, 255", alpha: 0.52 },
-        // Foreground drifting cloud bank
         { baseH: 290, speed: 0.80, interval: 430, radius: 135, shadow: "168, 192, 218", body: "255, 255, 255", alpha: 0.40 }
       ];
 
@@ -274,7 +409,6 @@ const WaveCanvas = {
         const span = layer.interval;
         const totalPuffs = Math.ceil(w / span) + 3;
 
-        // Draw connecting undulating cloud deck
         ctx.beginPath();
         let firstDeck = true;
         for (let x = -60; x <= w + 60; x += 18) {
@@ -298,13 +432,11 @@ const WaveCanvas = {
         ctx.fillStyle = deckGrad;
         ctx.fill();
 
-        // Draw organic multi-puff cloud clusters along the horizon
         for (let i = -1; i < totalPuffs; i++) {
           const cx = (((i * span + drift) % (w + span * 2)) - span);
           const cy = layer.baseH + Math.sin(cx * 0.0028 + lIdx * 2.1) * 28;
           const r = layer.radius + Math.sin(i * 3.1 + lIdx) * 20;
 
-          // Organic cluster: central billow, flanking lobes, and upper crest
           const clusterPuffs = [
             { ox: 0, oy: 0, scale: 1.0 },
             { ox: -r * 0.52, oy: r * 0.12, scale: 0.76 },
@@ -318,7 +450,6 @@ const WaveCanvas = {
             const py = cy + cp.oy;
             const pr = r * cp.scale;
 
-            // a. Underbelly shadow gradient for realistic 3D depth against the sky
             const shadowGrad = ctx.createRadialGradient(
               px, py + pr * 0.45, pr * 0.05,
               px, py + pr * 0.15, pr
@@ -332,7 +463,6 @@ const WaveCanvas = {
             ctx.fillStyle = shadowGrad;
             ctx.fill();
 
-            // b. Radiant sunlit cloud crest
             const sunGrad = ctx.createRadialGradient(
               px - pr * 0.15, py - pr * 0.28, pr * 0.05,
               px, py, pr
@@ -355,6 +485,7 @@ const WaveCanvas = {
   }
 };
 
+window.WaveCanvas = WaveCanvas;
 window.addEventListener("DOMContentLoaded", () => {
   WaveCanvas.init();
 });

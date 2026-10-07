@@ -109,7 +109,7 @@ const EntityModal = {
     // Time-sensitive toggle
     const tsCheckbox = document.getElementById("entityModalTimeSensitive");
     if (tsCheckbox) {
-      tsCheckbox.checked = Boolean(e.is_time_sensitive || (e.urgency && e.urgency.level === "urgent"));
+      tsCheckbox.checked = Boolean(e.is_time_sensitive);
     }
 
     // Project Category & Color Tag Row

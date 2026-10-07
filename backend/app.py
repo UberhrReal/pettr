@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 import httpx
 from config.config import get_or_create_config, update_pin, verify_pin, get_user_profile, update_user_name, get_current_pin, save_config
-from backend import database, auth, network
+from backend import database, auth, network, daily_intel
 from backend.parser.pipeline import process_user_input
 from backend.backup import run_backup, backup_scheduler_loop
 
@@ -337,6 +337,20 @@ async def delete_task(task_id: int):
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     return {"status": "success"}
 
+@app.patch("/api/tasks/{task_id}/toggle-time-sensitive", dependencies=[Depends(auth.require_auth)])
+async def toggle_task_time_sensitive_endpoint(task_id: int):
+    task = database.toggle_task_time_sensitive(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"status": "success", "task": task}
+
+@app.get("/api/daily-intel", dependencies=[Depends(auth.require_auth)])
+async def get_daily_intel_endpoint(date: Optional[str] = None):
+    profile = get_user_profile()
+    user_name = profile.get("user_name", "Hong Rong")
+    target = datetime.date.fromisoformat(date) if date else datetime.date.today()
+    return daily_intel.get_daily_intel(target, user_name)
+
 # --- Events & Reminders Routes ---
 
 @app.get("/api/events", dependencies=[Depends(auth.require_auth)])
@@ -572,10 +586,18 @@ async def manual_backup():
 async def download_backup(filename: str):
     config = get_or_create_config()
     backup_dir = Path(config.get("backup_dir", "./backups"))
-    file_path = backup_dir / filename
+    if filename in ("latest", "pettr_backup_latest.tar.gz", "pettr_backup_latest.zip"):
+        backup_files = sorted(backup_dir.glob("PETTR_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not backup_files:
+            raise HTTPException(status_code=404, detail="No backup files exist yet")
+        file_path = backup_files[0]
+        filename = file_path.name
+    else:
+        file_path = backup_dir / filename
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Backup file not found")
-    return FileResponse(path=str(file_path), filename=filename, media_type="application/zip")
+    media_type = "application/zip" if file_path.suffix == ".zip" else "application/gzip"
+    return FileResponse(path=str(file_path), filename=filename, media_type=media_type)
 
 # --- Network & Tailscale Live Diagnostics ---
 
