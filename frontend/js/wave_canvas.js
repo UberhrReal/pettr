@@ -15,6 +15,12 @@ const WaveCanvas = {
   height: 0,
   step: 0,
   _boundResize: null,
+  leaves: [],
+  nextGustTime: 0,
+  gustActive: false,
+  gustEndTime: 0,
+  gustSpawnCount: 0,
+  maxGustLeaves: 16,
 
   getThemeMode() {
     const docTheme = document.documentElement.getAttribute("data-theme");
@@ -84,11 +90,18 @@ const WaveCanvas = {
     const mode = this.getThemeMode();
     const isDark = (mode === "dark" || mode === "evening");
 
+    // Clear leaves if not in evening mode
+    if (mode !== "evening" && (this.leaves.length > 0 || this.gustActive)) {
+      this.leaves = [];
+      this.gustActive = false;
+      this.nextGustTime = 0;
+    }
+
     // 1. Theme-adaptive canvas background
     if (mode === "morning") {
       ctx.fillStyle = "#FCF8F5";
     } else if (mode === "evening") {
-      ctx.fillStyle = "#181124";
+      ctx.fillStyle = "#1A130E";
     } else if (mode === "dark") {
       ctx.fillStyle = "#08080A";
     } else {
@@ -122,12 +135,13 @@ const WaveCanvas = {
       waveGrad.addColorStop(0.75, "rgba(251, 146, 60, 0.10)");
       waveGrad.addColorStop(1, "rgba(252, 248, 245, 0)");
     } else if (mode === "evening") {
-      // Golden Hour Sunset Solar Wave Crest
-      waveGrad.addColorStop(0, "rgba(28, 19, 13, 0)");
-      waveGrad.addColorStop(0.25, "rgba(234, 88, 12, 0.16)");  // Burnished solar orange
-      waveGrad.addColorStop(0.5, "rgba(245, 158, 11, 0.28)");   // Glowing golden amber
-      waveGrad.addColorStop(0.75, "rgba(251, 191, 36, 0.20)");  // Radiant saffron gold
-      waveGrad.addColorStop(1, "rgba(28, 19, 13, 0)");
+      // Golden Hour Sunset Solar Wave Crest (warm amber, honey gold, soft blush)
+      waveGrad.addColorStop(0, "rgba(26, 19, 14, 0)");
+      waveGrad.addColorStop(0.2, "rgba(251, 113, 133, 0.14)"); // Soft blush
+      waveGrad.addColorStop(0.45, "rgba(245, 158, 11, 0.28)"); // Radiant golden amber
+      waveGrad.addColorStop(0.7, "rgba(251, 191, 36, 0.24)");  // Honey yellow
+      waveGrad.addColorStop(0.88, "rgba(254, 240, 138, 0.15)"); // Saffron gold highlight
+      waveGrad.addColorStop(1, "rgba(26, 19, 14, 0)");
     } else if (mode === "dark") {
       // Complementing Dark Aurora Wave Sweep
       waveGrad.addColorStop(0, "rgba(8, 8, 10, 0)");
@@ -200,7 +214,7 @@ const WaveCanvas = {
       if (mode === "morning") {
         ctx.strokeStyle = `rgba(217, 119, 6, ${Math.min(0.45, rowAlpha).toFixed(3)})`;
       } else if (mode === "evening") {
-        ctx.strokeStyle = `rgba(251, 146, 60, ${Math.min(0.55, rowAlpha).toFixed(3)})`;
+        ctx.strokeStyle = `rgba(251, 191, 36, ${Math.min(0.52, rowAlpha).toFixed(3)})`;
       } else if (mode === "dark") {
         ctx.strokeStyle = `rgba(224, 231, 255, ${Math.min(0.65, rowAlpha).toFixed(3)})`;
       } else {
@@ -304,24 +318,49 @@ const WaveCanvas = {
       ctx.restore();
 
     } else if (mode === "evening") {
-      // Golden Hour: Radiant low-sun solar wash with undulating golden honey ribbons
+      // Golden Hour: Radiant low-sun solar wash, honey ribbons, velvety blue undertones, and blowing leaves
       ctx.save();
       const duskTime = this.step * 0.42;
 
-      // Golden Hour Atmospheric Solar Wash
-      const duskWash = ctx.createLinearGradient(0, 0, 0, 460);
-      duskWash.addColorStop(0, "rgba(245, 158, 11, 0.36)");     // Radiant golden amber
-      duskWash.addColorStop(0.35, "rgba(234, 88, 12, 0.32)");  // Burnished solar orange
-      duskWash.addColorStop(0.7, "rgba(180, 83, 9, 0.18)");    // Warm bronze
-      duskWash.addColorStop(1, "rgba(28, 19, 13, 0)");         // Golden hour background blend
+      // 1. Golden Hour Atmospheric Solar Wash (Warm Amber, Honey Gold, Radiant Yellow, Soft Blush)
+      const duskWash = ctx.createLinearGradient(0, 0, 0, 480);
+      duskWash.addColorStop(0, "rgba(254, 240, 138, 0.26)");    // Warm honey yellow sky
+      duskWash.addColorStop(0.3, "rgba(251, 191, 36, 0.32)");   // Radiant honey gold
+      duskWash.addColorStop(0.6, "rgba(245, 158, 11, 0.26)");   // Warm amber
+      duskWash.addColorStop(0.85, "rgba(251, 113, 133, 0.18)"); // Soft sunset blush
+      duskWash.addColorStop(1, "rgba(26, 19, 14, 0)");          // Deep earth foundation blend
       ctx.fillStyle = duskWash;
-      ctx.fillRect(0, 0, w, 460);
+      ctx.fillRect(0, 0, w, 480);
 
-      // Undulating Golden Hour Horizon Ribbons (Warm amber, honey gold, radiant saffron)
+      // 2. Velvety blue undertone wash rising from twilight horizon
+      const velvetWash = ctx.createLinearGradient(0, h * 0.58, 0, h);
+      velvetWash.addColorStop(0, "rgba(15, 23, 42, 0)");
+      velvetWash.addColorStop(0.55, "rgba(15, 23, 42, 0.22)");
+      velvetWash.addColorStop(1, "rgba(15, 23, 42, 0.48)");     // Deep velvety twilight blue undertone
+      ctx.fillStyle = velvetWash;
+      ctx.fillRect(0, h * 0.58, w, h * 0.42);
+
+      // 3. Low Golden Sun Radiance
+      const sunX = w * 0.32;
+      const sunY = 160 + Math.sin(duskTime * 0.6) * 10;
+      const sunRadius = 290;
+      const sunGrad = ctx.createRadialGradient(sunX, sunY, 18, sunX, sunY, sunRadius);
+      sunGrad.addColorStop(0, "rgba(254, 240, 138, 0.42)");    // Radiant soft yellow core
+      sunGrad.addColorStop(0.3, "rgba(251, 191, 36, 0.28)");   // Honey gold halo
+      sunGrad.addColorStop(0.65, "rgba(245, 158, 11, 0.16)");  // Warm amber aura
+      sunGrad.addColorStop(0.88, "rgba(251, 113, 133, 0.08)"); // Soft blush rim
+      sunGrad.addColorStop(1, "rgba(26, 19, 14, 0)");
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Undulating Golden Hour Horizon Ribbons (Honey gold, amber, soft blush)
       const ribbonLayers = [
-        { y: 110, amp: 26, r: 251, g: 191, b: 36, alpha: 0.32, speed: 0.4 },  // Saffron gold
-        { y: 170, amp: 32, r: 245, g: 158, b: 11, alpha: 0.28, speed: 0.6 },  // Golden amber
-        { y: 240, amp: 38, r: 234, g: 88, b: 12, alpha: 0.22, speed: 0.35 }   // Solar orange
+        { y: 120, amp: 26, r: 254, g: 240, b: 138, alpha: 0.28, speed: 0.35 }, // Pale honey yellow
+        { y: 175, amp: 32, r: 251, g: 191, b: 36, alpha: 0.26, speed: 0.50 },  // Honey gold
+        { y: 240, amp: 38, r: 245, g: 158, b: 11, alpha: 0.22, speed: 0.32 },  // Warm amber
+        { y: 310, amp: 30, r: 251, g: 113, b: 133, alpha: 0.18, speed: 0.42 }  // Soft blush ribbon
       ];
 
       ribbonLayers.forEach((rl, rIdx) => {
@@ -342,13 +381,16 @@ const WaveCanvas = {
         ctx.lineTo(-40, 0);
         ctx.closePath();
 
-        const rGrad = ctx.createLinearGradient(0, 0, 0, rl.y + rl.amp + 40);
-        rGrad.addColorStop(0, `rgba(${rl.r}, ${rl.g}, ${rl.b}, ${rl.alpha * 0.8})`);
-        rGrad.addColorStop(0.6, `rgba(${rl.r}, ${rl.g}, ${rl.b}, ${rl.alpha * 0.4})`);
+        const rGrad = ctx.createLinearGradient(0, 0, 0, rl.y + rl.amp + 45);
+        rGrad.addColorStop(0, `rgba(${rl.r}, ${rl.g}, ${rl.b}, ${rl.alpha * 0.85})`);
+        rGrad.addColorStop(0.65, `rgba(${rl.r}, ${rl.g}, ${rl.b}, ${rl.alpha * 0.35})`);
         rGrad.addColorStop(1, `rgba(${rl.r}, ${rl.g}, ${rl.b}, 0)`);
         ctx.fillStyle = rGrad;
         ctx.fill();
       });
+
+      // 5. Blowing Leaves Wind-Gust Particle Engine (Golden Hour breeze "every once in a while")
+      this.updateAndDrawLeaves(ctx, w, h);
 
       ctx.restore();
 
@@ -482,6 +524,132 @@ const WaveCanvas = {
 
       ctx.restore();
     }
+  },
+
+  triggerLeafGust(now, w, h) {
+    this.gustActive = true;
+    this.gustEndTime = now + 5000 + Math.random() * 2500; // Gust lasts 5 to 7.5 seconds
+    this.gustSpawnCount = 0;
+    this.maxGustLeaves = 14 + Math.floor(Math.random() * 8); // 14 to 21 leaves
+    // Spawn initial burst of 3-5 leaves immediately across different entry points
+    const burstCount = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < burstCount; i++) {
+      this.spawnLeaf(w, h, true);
+    }
+  },
+
+  spawnLeaf(w, h, isBurst) {
+    // Leaf colors in Golden Hour harmony: honey gold, warm amber, radiant yellow, soft blush, russet
+    const leafPalettes = [
+      { r: 251, g: 191, b: 36, alpha: 0.85 },  // Honey gold
+      { r: 245, g: 158, b: 11, alpha: 0.80 },  // Warm amber
+      { r: 254, g: 240, b: 138, alpha: 0.88 }, // Radiant honey yellow
+      { r: 251, g: 113, b: 133, alpha: 0.75 }, // Soft sunset blush
+      { r: 217, g: 119, b: 6, alpha: 0.78 }    // Deep golden russet
+    ];
+    const color = leafPalettes[Math.floor(Math.random() * leafPalettes.length)];
+
+    // Start offscreen to the left or top-left
+    const startX = isBurst ? (-10 - Math.random() * 60) : (-30 - Math.random() * 120);
+    const startY = Math.random() * (h * 0.80) - 20;
+
+    this.leaves.push({
+      x: startX,
+      y: startY,
+      vx: 3.0 + Math.random() * 2.8, // Drifting across screen with gust speed
+      vy: 0.4 + Math.random() * 1.4, // Gentle descent
+      size: 11 + Math.random() * 10, // 11px - 21px
+      aspect: 0.42 + Math.random() * 0.16,
+      angle: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.42) * 0.05,
+      flutter: Math.random() * Math.PI * 2,
+      flutterSpeed: 0.045 + Math.random() * 0.055,
+      wobble: Math.random() * Math.PI * 2,
+      wobbleSpeed: 0.025 + Math.random() * 0.035,
+      wobbleAmp: 1.2 + Math.random() * 1.6,
+      color: color
+    });
+    this.gustSpawnCount++;
+  },
+
+  updateAndDrawLeaves(ctx, w, h) {
+    const now = performance.now();
+
+    // Initialize or schedule gust timing
+    if (!this.nextGustTime) {
+      // First gust starts quickly (within 1.2s) so the user experiences it without delay
+      this.nextGustTime = now + 1200;
+    }
+
+    if (!this.gustActive && now >= this.nextGustTime) {
+      this.triggerLeafGust(now, w, h);
+    } else if (this.gustActive) {
+      // Spawn subsequent leaves gradually across the gust
+      if (this.gustSpawnCount < this.maxGustLeaves && Math.random() < 0.22) {
+        this.spawnLeaf(w, h, false);
+      }
+      if (now >= this.gustEndTime) {
+        this.gustActive = false;
+        // Schedule next breeze every 10 to 16 seconds ("every once in a while")
+        this.nextGustTime = now + 10000 + Math.random() * 6000;
+      }
+    }
+
+    if (this.leaves.length === 0) return;
+
+    // Draw and update leaves
+    const alive = [];
+    for (let i = 0; i < this.leaves.length; i++) {
+      const leaf = this.leaves[i];
+
+      // Physics update
+      leaf.wobble += leaf.wobbleSpeed;
+      leaf.flutter += leaf.flutterSpeed;
+      leaf.angle += leaf.rotSpeed;
+
+      leaf.x += leaf.vx + Math.sin(leaf.wobble) * 0.7;
+      leaf.y += leaf.vy + Math.cos(leaf.wobble) * leaf.wobbleAmp;
+
+      // Check bounds
+      if (leaf.x > w + 60 || leaf.y > h + 60) {
+        continue; // Leaf blown offscreen
+      }
+      alive.push(leaf);
+
+      // Render stylized fluttering leaf with 3D flip effect
+      ctx.save();
+      ctx.translate(leaf.x, leaf.y);
+      ctx.rotate(leaf.angle);
+
+      // 3D flip tumble factor
+      const flip = Math.cos(leaf.flutter);
+      ctx.scale(flip, 1);
+
+      const hl = leaf.size;
+      const hw = leaf.size * leaf.aspect;
+
+      // Leaf body
+      ctx.beginPath();
+      ctx.moveTo(0, -hl);
+      ctx.bezierCurveTo(hw * 1.35, -hl * 0.35, hw * 1.25, hl * 0.45, 0, hl);
+      ctx.bezierCurveTo(-hw * 1.25, hl * 0.45, -hw * 1.35, -hl * 0.35, 0, -hl);
+      ctx.closePath();
+
+      const alpha = leaf.color.alpha * (0.35 + 0.65 * Math.abs(flip));
+      ctx.fillStyle = `rgba(${leaf.color.r}, ${leaf.color.g}, ${leaf.color.b}, ${alpha.toFixed(3)})`;
+      ctx.fill();
+
+      // Subtle leaf spine/vein
+      ctx.beginPath();
+      ctx.moveTo(0, -hl * 0.85);
+      ctx.lineTo(0, hl * 0.80);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.28 * Math.abs(flip)).toFixed(3)})`;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+    this.leaves = alive;
   }
 };
 

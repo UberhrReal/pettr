@@ -84,33 +84,34 @@
 }
 
 [data-theme="evening"] {
-  /* Golden Hour Sunset Theme - Radiant amber, glowing honey bronze, and warm sunset mahogany */
-  --bg-primary: #1C130D;
-  --bg-secondary: #261912;
-  --bg-card: #322118;
-  --bg-tertiary: #422B1F;
-  --bg-subtle: #563929;
+  /* Golden Hour Sunset Theme - Warm amber, honey, and yellow tones with deep earth colors, soft blushes, and velvety blue undertones */
+  --bg-primary: #1A130E;
+  --bg-secondary: #231913;
+  --bg-card: #2C1F17;
+  --bg-tertiary: #3A291F;
+  --bg-subtle: #4A3528;
   
-  --text-main: #FFF7ED;
-  --text-muted: #FED7AA;
-  --text-dim: #C49E7C;
-  --text-inverse: #1C130D;
+  --text-main: #FFFBEB;
+  --text-muted: #FDE68A;
+  --text-dim: #D4A373;
+  --text-inverse: #1A130E;
   
-  --accent-cyan: #F59E0B;
-  --accent-blue: #EA580C;
-  --accent-black: #FFF7ED;
+  --accent-cyan: #FBBF24;
+  --accent-blue: #F59E0B;
+  --accent-black: #FFFBEB;
   
-  --urgent-orange: #FB923C;
+  --urgent-orange: #FB7185;
   --normal-green: #34D399;
   --focus-indigo: #FBBF24;
   
-  --card-border: rgba(251, 191, 36, 0.14);
-  --card-border-hover: rgba(245, 158, 11, 0.35);
-  --glass-bg: rgba(45, 29, 20, 0.90);
-  --glass-border: rgba(254, 215, 170, 0.18);
+  --card-border: rgba(251, 191, 36, 0.18);
+  --card-border-hover: rgba(245, 158, 11, 0.42);
+  --glass-bg: rgba(44, 31, 23, 0.90);
+  --glass-border: rgba(253, 230, 138, 0.22);
   
-  --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.55), 0 24px 60px rgba(245, 158, 11, 0.18);
-  --shadow-floating-hover: 0 18px 40px rgba(0, 0, 0, 0.65), 0 32px 72px rgba(234, 88, 12, 0.28);
+  /* Velvety blue undertone shadows layered with glowing warm amber ambient light */
+  --shadow-floating: 0 12px 32px rgba(15, 23, 42, 0.72), 0 24px 60px rgba(245, 158, 11, 0.16);
+  --shadow-floating-hover: 0 18px 44px rgba(15, 23, 42, 0.88), 0 32px 72px rgba(251, 191, 36, 0.26);
 }
 
 [data-theme="dark"] {
@@ -158,7 +159,7 @@ html {
 }
 
 [data-theme="evening"] html {
-  background-color: #1C130D;
+  background-color: #1A130E;
 }
 
 [data-theme="dark"] html {
