@@ -1205,9 +1205,45 @@ const Dashboard = {
   },
 
   async copyBriefingMarkdown() {
-    const el = document.getElementById("briefingRichContent");
-    const text = (el && el.textContent) ? el.textContent : (this.briefingMarkdown || "");
-    if (!text || text === "Loading executive brief...") {
+    let text = (this.briefingMarkdown && this.briefingMarkdown !== "Loading executive brief...") ? this.briefingMarkdown : "";
+    if (!text) {
+      const el = document.getElementById("briefingRichContent");
+      if (el && el.textContent && el.textContent !== "Loading executive brief...") {
+        text = el.textContent;
+      }
+    }
+    if (!text) {
+      try {
+        const res = await fetch(`/api/briefing/text?date=${this.selectedDate}`);
+        if (res.ok) {
+          const d = await res.json();
+          text = d.markdown || "";
+          this.briefingMarkdown = text;
+        }
+      } catch (e) {}
+    }
+    if (!text && this.briefingData) {
+      const parts = [`# PETTR Operational Snapshot — ${this.selectedDate}`];
+      if (this.briefingData.focus_tasks && this.briefingData.focus_tasks.length > 0) {
+        parts.push("\n## Focus Tasks");
+        this.briefingData.focus_tasks.forEach(t => parts.push(`- [ ] ${t.title}${t.due_time ? ' (' + t.due_time + ')' : ''}`));
+      }
+      if (this.briefingData.trivial_tasks && this.briefingData.trivial_tasks.length > 0) {
+        parts.push("\n## Errand Tasks");
+        this.briefingData.trivial_tasks.forEach(t => parts.push(`- [ ] ${t.title}`));
+      }
+      if (this.briefingData.appointments && this.briefingData.appointments.length > 0) {
+        parts.push("\n## Events");
+        this.briefingData.appointments.forEach(e => parts.push(`- ${e.title}${e.due_time ? ' (' + e.due_time + ')' : ''}`));
+      }
+      if (this.briefingData.reminders && this.briefingData.reminders.length > 0) {
+        parts.push("\n## Reminders");
+        this.briefingData.reminders.forEach(r => parts.push(`- ${r.title}`));
+      }
+      text = parts.join("\n");
+    }
+
+    if (!text) {
       App.showToast("No briefing content available to copy.", true);
       return;
     }

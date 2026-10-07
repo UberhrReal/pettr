@@ -271,10 +271,10 @@ const App = {
   getDiurnalTheme(hour) {
     if (hour >= 6 && hour < 12) {
       return { theme: "morning", label: "Morning Dawn" };
-    } else if (hour >= 12 && hour < 18) {
+    } else if (hour >= 12 && hour < 17) {
       return { theme: "light", label: "Afternoon" };
-    } else if (hour >= 18 && hour < 22) {
-      return { theme: "evening", label: "Evening Dusk" };
+    } else if (hour >= 17 && hour < 21) {
+      return { theme: "evening", label: "Golden Hour" };
     } else {
       return { theme: "dark", label: "Night" };
     }

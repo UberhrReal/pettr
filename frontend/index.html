@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=6.3">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=6.4">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -121,7 +121,7 @@
             <div class="theme-slider-ticks">
               <span onclick="App.setThemeHourPreset(8)">08:00 Dawn</span>
               <span onclick="App.setThemeHourPreset(13)">13:00 Noon</span>
-              <span onclick="App.setThemeHourPreset(19)">19:00 Dusk</span>
+              <span onclick="App.setThemeHourPreset(18)">18:00 Golden Hour</span>
               <span onclick="App.setThemeHourPreset(23)">23:00 Night</span>
             </div>
           </div>
@@ -1377,6 +1377,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             </div>
           </div>
         </div>
+      </div>
       <!-- Time Sensitive Marker Toggle -->
       <div style="margin-top: 10px; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-xs);">
         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: var(--text-main); font-weight: 600;">
@@ -1736,20 +1737,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=6.3"></script>
-  <script src="/static/js/app.js?v=6.3"></script>
-  <script src="/static/js/drag_drop.js?v=6.3"></script>
-  <script src="/static/js/wave_canvas.js?v=6.3"></script>
-  <script src="/static/js/entity_modal.js?v=6.3"></script>
-  <script src="/static/js/timeline.js?v=6.3"></script>
-  <script src="/static/js/mindmap.js?v=6.3"></script>
-  <script src="/static/js/dashboard.js?v=6.3"></script>
-  <script src="/static/js/simplified_mode.js?v=6.3"></script>
-  <script src="/static/js/exploded.js?v=6.3"></script>
-  <script src="/static/js/notes.js?v=6.3"></script>
-  <script src="/static/js/history.js?v=6.3"></script>
-  <script src="/static/js/command_palette.js?v=6.3"></script>
-  <script src="/static/js/focus_cockpit.js?v=6.3"></script>
-  <script src="/static/js/evening_debrief.js?v=6.3"></script>
+  <script src="/static/js/pin_lock.js?v=6.4"></script>
+  <script src="/static/js/app.js?v=6.4"></script>
+  <script src="/static/js/drag_drop.js?v=6.4"></script>
+  <script src="/static/js/wave_canvas.js?v=6.4"></script>
+  <script src="/static/js/entity_modal.js?v=6.4"></script>
+  <script src="/static/js/timeline.js?v=6.4"></script>
+  <script src="/static/js/mindmap.js?v=6.4"></script>
+  <script src="/static/js/dashboard.js?v=6.4"></script>
+  <script src="/static/js/simplified_mode.js?v=6.4"></script>
+  <script src="/static/js/exploded.js?v=6.4"></script>
+  <script src="/static/js/notes.js?v=6.4"></script>
+  <script src="/static/js/history.js?v=6.4"></script>
+  <script src="/static/js/command_palette.js?v=6.4"></script>
+  <script src="/static/js/focus_cockpit.js?v=6.4"></script>
+  <script src="/static/js/evening_debrief.js?v=6.4"></script>
 </body>
 </html>

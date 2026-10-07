@@ -84,33 +84,33 @@
 }
 
 [data-theme="evening"] {
-  /* Fiery dusk sunset & twilight magenta theme */
-  --bg-primary: #181124;
-  --bg-secondary: #221733;
-  --bg-card: #2C1E40;
-  --bg-tertiary: #3A2854;
-  --bg-subtle: #4D356D;
+  /* Golden Hour Sunset Theme - Radiant amber, glowing honey bronze, and warm sunset mahogany */
+  --bg-primary: #1C130D;
+  --bg-secondary: #261912;
+  --bg-card: #322118;
+  --bg-tertiary: #422B1F;
+  --bg-subtle: #563929;
   
-  --text-main: #FDF4F8;
-  --text-muted: #D3BCD9;
-  --text-dim: #9880A0;
-  --text-inverse: #181124;
+  --text-main: #FFF7ED;
+  --text-muted: #FED7AA;
+  --text-dim: #C49E7C;
+  --text-inverse: #1C130D;
   
-  --accent-cyan: #EC4899;
-  --accent-blue: #A855F7;
-  --accent-black: #FDF4F8;
+  --accent-cyan: #F59E0B;
+  --accent-blue: #EA580C;
+  --accent-black: #FFF7ED;
   
   --urgent-orange: #FB923C;
   --normal-green: #34D399;
-  --focus-indigo: #F43F5E;
+  --focus-indigo: #FBBF24;
   
-  --card-border: rgba(253, 244, 248, 0.10);
-  --card-border-hover: rgba(251, 146, 60, 0.28);
-  --glass-bg: rgba(44, 30, 64, 0.88);
-  --glass-border: rgba(253, 244, 248, 0.14);
+  --card-border: rgba(251, 191, 36, 0.14);
+  --card-border-hover: rgba(245, 158, 11, 0.35);
+  --glass-bg: rgba(45, 29, 20, 0.90);
+  --glass-border: rgba(254, 215, 170, 0.18);
   
-  --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.55), 0 24px 60px rgba(244, 63, 94, 0.15);
-  --shadow-floating-hover: 0 18px 40px rgba(0, 0, 0, 0.65), 0 32px 72px rgba(249, 115, 22, 0.22);
+  --shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.55), 0 24px 60px rgba(245, 158, 11, 0.18);
+  --shadow-floating-hover: 0 18px 40px rgba(0, 0, 0, 0.65), 0 32px 72px rgba(234, 88, 12, 0.28);
 }
 
 [data-theme="dark"] {
@@ -158,7 +158,7 @@ html {
 }
 
 [data-theme="evening"] html {
-  background-color: #181124;
+  background-color: #1C130D;
 }
 
 [data-theme="dark"] html {

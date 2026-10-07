@@ -122,12 +122,12 @@ const WaveCanvas = {
       waveGrad.addColorStop(0.75, "rgba(251, 146, 60, 0.10)");
       waveGrad.addColorStop(1, "rgba(252, 248, 245, 0)");
     } else if (mode === "evening") {
-      // Sunset Dusk Fiery Twilight Wave Crest
-      waveGrad.addColorStop(0, "rgba(24, 17, 36, 0)");
-      waveGrad.addColorStop(0.25, "rgba(168, 85, 247, 0.14)");
-      waveGrad.addColorStop(0.5, "rgba(249, 115, 22, 0.24)");
-      waveGrad.addColorStop(0.75, "rgba(236, 72, 153, 0.16)");
-      waveGrad.addColorStop(1, "rgba(24, 17, 36, 0)");
+      // Golden Hour Sunset Solar Wave Crest
+      waveGrad.addColorStop(0, "rgba(28, 19, 13, 0)");
+      waveGrad.addColorStop(0.25, "rgba(234, 88, 12, 0.16)");  // Burnished solar orange
+      waveGrad.addColorStop(0.5, "rgba(245, 158, 11, 0.28)");   // Glowing golden amber
+      waveGrad.addColorStop(0.75, "rgba(251, 191, 36, 0.20)");  // Radiant saffron gold
+      waveGrad.addColorStop(1, "rgba(28, 19, 13, 0)");
     } else if (mode === "dark") {
       // Complementing Dark Aurora Wave Sweep
       waveGrad.addColorStop(0, "rgba(8, 8, 10, 0)");
@@ -304,24 +304,24 @@ const WaveCanvas = {
       ctx.restore();
 
     } else if (mode === "evening") {
-      // Dusk/Sunset: Fiery sunset gradient bands with glowing magenta-crimson twilight ribbons
+      // Golden Hour: Radiant low-sun solar wash with undulating golden honey ribbons
       ctx.save();
       const duskTime = this.step * 0.42;
 
-      // Fiery Dusk Atmospheric Wash
-      const duskWash = ctx.createLinearGradient(0, 0, 0, 440);
-      duskWash.addColorStop(0, "rgba(244, 63, 94, 0.35)");     // Sunset crimson
-      duskWash.addColorStop(0.3, "rgba(249, 115, 22, 0.38)");   // Fiery orange
-      duskWash.addColorStop(0.65, "rgba(168, 85, 247, 0.22)"); // Twilight violet
-      duskWash.addColorStop(1, "rgba(24, 17, 36, 0)");         // Dusk background blend
+      // Golden Hour Atmospheric Solar Wash
+      const duskWash = ctx.createLinearGradient(0, 0, 0, 460);
+      duskWash.addColorStop(0, "rgba(245, 158, 11, 0.36)");     // Radiant golden amber
+      duskWash.addColorStop(0.35, "rgba(234, 88, 12, 0.32)");  // Burnished solar orange
+      duskWash.addColorStop(0.7, "rgba(180, 83, 9, 0.18)");    // Warm bronze
+      duskWash.addColorStop(1, "rgba(28, 19, 13, 0)");         // Golden hour background blend
       ctx.fillStyle = duskWash;
-      ctx.fillRect(0, 0, w, 440);
+      ctx.fillRect(0, 0, w, 460);
 
-      // Undulating Twilight Horizon Ribbons
+      // Undulating Golden Hour Horizon Ribbons (Warm amber, honey gold, radiant saffron)
       const ribbonLayers = [
-        { y: 110, amp: 26, r: 249, g: 115, b: 22, alpha: 0.28, speed: 0.4 },
-        { y: 170, amp: 32, r: 236, g: 72, b: 153, alpha: 0.24, speed: 0.6 },
-        { y: 240, amp: 38, r: 139, g: 92, b: 246, alpha: 0.20, speed: 0.35 }
+        { y: 110, amp: 26, r: 251, g: 191, b: 36, alpha: 0.32, speed: 0.4 },  // Saffron gold
+        { y: 170, amp: 32, r: 245, g: 158, b: 11, alpha: 0.28, speed: 0.6 },  // Golden amber
+        { y: 240, amp: 38, r: 234, g: 88, b: 12, alpha: 0.22, speed: 0.35 }   // Solar orange
       ];
 
       ribbonLayers.forEach((rl, rIdx) => {
