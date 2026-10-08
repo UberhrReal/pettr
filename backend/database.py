@@ -27,6 +27,10 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE projects ADD COLUMN category TEXT DEFAULT 'External'")
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE projects ADD COLUMN due_date TEXT")
+    except Exception:
+        pass
 
 def get_connection(db_path: Optional[Path] = None, auto_init: bool = True) -> sqlite3.Connection:
     """Creates a connection with WAL mode, normal synchronous durability, and row factory enabled."""
@@ -59,6 +63,7 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             description TEXT DEFAULT '',
             color TEXT DEFAULT '#3b82f6',
             category TEXT DEFAULT 'External', -- School, External
+            due_date TEXT,
             status TEXT DEFAULT 'active', -- active, completed, archived
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -288,8 +293,8 @@ def compute_urgency(due_date_str: Optional[str], ref_datetime: Optional[datetime
     if total_hours <= 48.0:
         return {
             "level": "urgent",
-            "color": "#f97316", # Bright Orange
-            "label": "Urgent" if total_hours >= 0 else "Overdue",
+            "color": "#f97316" if total_hours < 0 else "#22c55e",
+            "label": "Overdue" if total_hours < 0 else "Upcoming",
             "hours_left": round(total_hours, 1),
             "military_time": mil_time,
             "military_datetime": mil_datetime
@@ -356,9 +361,10 @@ def create_project(name: str,
                    description: str = "",
                    color: Optional[str] = None,
                    category: str = "External",
+                   due_date: Optional[str] = None,
                    initial_task: Optional[str] = None,
                    db_path: Optional[Path] = None) -> Dict[str, Any]:
-    """Manually creates a new project with optional initial task, category ('School' or 'External'), and accent color."""
+    """Manually creates a new project with optional initial task, category ('School' or 'External'), accent color, and due date."""
     clean_name = name.strip()
     if not clean_name:
         raise ValueError("Project name cannot be empty")
@@ -373,17 +379,18 @@ def create_project(name: str,
                 SET description = CASE WHEN ? != '' THEN ? ELSE description END,
                     color = ?,
                     category = ?,
+                    due_date = COALESCE(?, due_date),
                     status = 'active',
                     completed_at = NULL,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """, (description, description, assigned_color, valid_cat, row["id"]))
+            """, (description, description, assigned_color, valid_cat, due_date, row["id"]))
             proj_id = row["id"]
         else:
             cursor = conn.execute("""
-                INSERT INTO projects (name, description, color, category, status)
-                VALUES (?, ?, ?, ?, 'active')
-            """, (clean_name, description, assigned_color, valid_cat))
+                INSERT INTO projects (name, description, color, category, due_date, status)
+                VALUES (?, ?, ?, ?, ?, 'active')
+            """, (clean_name, description, assigned_color, valid_cat, due_date))
             proj_id = cursor.lastrowid
 
         if initial_task and initial_task.strip():
@@ -1223,9 +1230,9 @@ def reclassify_entity(from_type: str,
                 valid_cat = "School" if category and category.lower() == "school" else ("External" if category else None)
                 conn.execute("""
                     UPDATE projects 
-                    SET name = ?, description = ?, color = COALESCE(?, color), category = COALESCE(?, category), updated_at = CURRENT_TIMESTAMP 
+                    SET name = ?, description = ?, color = COALESCE(?, color), category = COALESCE(?, category), due_date = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE id = ?
-                """, (title, description, color, valid_cat, from_id))
+                """, (title, description, color, valid_cat, due_date, from_id))
 
         if clean_to == "task":
             return {"status": "success", "entity_type": "task", "entity": get_task_by_id(from_id, db_path)}
@@ -1237,8 +1244,10 @@ def reclassify_entity(from_type: str,
         # Delete old row from source table
         if clean_from == "task":
             conn.execute("DELETE FROM tasks WHERE id = ?", (from_id,))
+            remove_from_daily_order(from_id, "task", db_path=db_path, conn=conn)
         elif clean_from == "event":
             conn.execute("DELETE FROM events WHERE id = ?", (from_id,))
+            remove_from_daily_order(from_id, "event", db_path=db_path, conn=conn)
         elif clean_from == "reminder":
             conn.execute("DELETE FROM reminders WHERE id = ?", (from_id,))
         elif clean_from == "unorganized":
@@ -1279,7 +1288,7 @@ def reclassify_entity(from_type: str,
         new_entity = create_reminder(title=title, details=description, reminder_date=rem_date, db_path=db_path)
     elif clean_to == "project":
         valid_cat = "School" if category and category.lower() == "school" else "External"
-        new_entity = create_project(name=title, description=description, color=color, category=valid_cat, db_path=db_path)
+        new_entity = create_project(name=title, description=description, color=color, category=valid_cat, due_date=effective_due_date, db_path=db_path)
     elif clean_to == "unorganized":
         raw_text = title
         if description:
@@ -1297,26 +1306,46 @@ def reclassify_entity(from_type: str,
 
     return {"status": "success", "entity_type": clean_to, "entity": new_entity}
 
+def remove_from_daily_order(entity_id: int, entity_type: str = "task", db_path: Optional[Path] = None, conn: Optional[sqlite3.Connection] = None) -> None:
+    """Removes an entity from all daily_order priority sequences (e.g. when deleted or converted to reminder)."""
+    target_conn = conn or get_connection(db_path)
+    rows = target_conn.execute("SELECT date, order_data FROM daily_orders").fetchall()
+    for r in rows:
+        date_str = r["date"]
+        try:
+            items = json.loads(r["order_data"] or "[]")
+            new_items = [it for it in items if not (it.get("id") == entity_id and (it.get("type") == entity_type or (not it.get("type") and entity_type == "task")))]
+            if len(new_items) != len(items):
+                target_conn.execute("UPDATE daily_orders SET order_data = ?, updated_at = CURRENT_TIMESTAMP WHERE date = ?", (json.dumps(new_items), date_str))
+        except Exception:
+            pass
+    if conn is None:
+        target_conn.commit()
+
 def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     conn = get_connection(db_path)
     row = conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (date_str,)).fetchone()
     if row and row["order_data"]:
         try:
-            return json.loads(row["order_data"])
+            raw_items = json.loads(row["order_data"])
+            # Reminders never belong in daily priority tasking order
+            return [it for it in raw_items if it.get("type") != "reminder"]
         except Exception:
             return []
     return []
 
 def save_daily_order(date_str: str, order_data: List[Dict[str, Any]], db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     conn = get_connection(db_path)
-    data_json = json.dumps(order_data)
+    # Filter out any accidental reminders from daily tasking sequence
+    filtered_data = [it for it in order_data if it.get("type") != "reminder"]
+    data_json = json.dumps(filtered_data)
     with conn:
         conn.execute("""
             INSERT INTO daily_orders (date, order_data, updated_at)
             VALUES (?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(date) DO UPDATE SET order_data = excluded.order_data, updated_at = CURRENT_TIMESTAMP
         """, (date_str, data_json))
-    return order_data
+    return filtered_data
 
 def get_daily_typewriter_cache(date_str: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     conn = get_connection(db_path)

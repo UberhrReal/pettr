@@ -107,11 +107,21 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
         f"Hi, Me! Systems primed for takeoff."
     ]
 
+    morning_phrases = [
+        f"Good morning, {user_name}.",
+        f"Orbital telemetry nominal, {user_name}.",
+        f"First coffee, then tasks, {user_name}.",
+        f"Ready to prioritise today's objectives?",
+        f"Systems synchronised and primed for takeoff.",
+        f"Hi, Me! Systems primed for launch."
+    ]
+
     afternoon_phrases = [
         f"Maintaining steady cruising velocity, {user_name}.",
         f"Deep focus block in progress.",
         f"Working hard or hardly working, {user_name}?",
         f"Midday check-in, {user_name}.",
+        f"Executing afternoon sprint with focus.",
         f"Hi, Me! Clear through that queue."
     ]
 
@@ -120,14 +130,16 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
         f"Entering dusk debrief window.",
         f"Reviewing completed objectives, {user_name}.",
         f"Preparing for smooth orbit wrap-up.",
-        f"Hi, Me! Tying off open loops."
+        f"Hi, Me! Tying off open loops.",
+        f"Reviewing daily priorities achieved."
     ]
 
     night_phrases = [
         f"Burning the midnight oil, {user_name}?",
         f"Night owl session active.",
         f"Quiet hours telemetry online.",
-        f"Remember to recharge batteries soon, {user_name}."
+        f"Deep focus in the quiet hours, {user_name}.",
+        f"Quiet hours telemetry online. Rest soon."
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
@@ -155,8 +167,18 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     Returns a dict with {"phrases": [...], "fact": "..."} or list of lines, or None if LLM is offline.
     """
     config = get_or_create_config()
-    ollama_url = os.environ.get("OLLAMA_URL") or config.get("ollama_url", "http://localhost:11434")
-    model_name = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model") or config.get("active_llm") or "llama3.2:3b"
+    
+    # Candidate Ollama endpoints (supporting native host, Docker bridge, and local)
+    candidate_urls = []
+    if os.environ.get("OLLAMA_URL"):
+        candidate_urls.append(os.environ["OLLAMA_URL"])
+    if config.get("ollama_url"):
+        candidate_urls.append(config["ollama_url"])
+    for default_url in ["http://host.docker.internal:11434", "http://localhost:11434", "http://127.0.0.1:11434", "http://172.17.0.1:11434"]:
+        if default_url not in candidate_urls:
+            candidate_urls.append(default_url)
+
+    target_model = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model") or config.get("active_llm") or "llama3.2:3b"
 
     date_str = target_date.strftime("%A, %B %d, %Y")
     weekday_name = target_date.strftime("%A")
@@ -178,68 +200,80 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Requirements:\n"
         f"1. In 'phrases': generate exactly 5 short, witty, and motivating typewriter phrases tailored to today's date and {user_name}.\n"
         "2. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
-        "3. Blend subtle space exploration / engineering telemetry flavor, high-performance focus, and date-relevant humor.\n"
+        "3. Blend subtle space exploration / engineering telemetry flavour, high-performance focus, and date-relevant humour.\n"
         "4. Cover different daily momentum perspectives (morning launch, deep work focus, evening orbit wrap-up).\n"
         f"5. Mention {user_name} naturally in at least two lines.\n"
         "6. In 'fact': provide 1 fascinating, genuine historical event, scientific breakthrough, or quirky fun fact that happened on this calendar date in history. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
         "7. Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
     )
 
-    payload = {
-        "model": model_name,
-        "prompt": user_prompt,
-        "system": system_prompt,
-        "format": "json",
-        "stream": False,
-        "options": {
-            "temperature": 0.75,
-            "num_predict": 260
-        }
-    }
+    for ollama_url in candidate_urls:
+        try:
+            # First check tags to verify connectivity and available model
+            model_name = target_model
+            async with httpx.AsyncClient(timeout=httpx.Timeout(4.0, connect=2.0)) as probe_client:
+                tags_resp = await probe_client.get(f"{ollama_url}/api/tags")
+                if tags_resp.status_code == 200:
+                    tags_data = tags_resp.json()
+                    available_models = [m.get("name") for m in tags_data.get("models", []) if m.get("name")]
+                    if available_models:
+                        # If target_model is not installed, auto-pick installed model
+                        if model_name not in available_models and not any(model_name in am for am in available_models):
+                            model_name = available_models[0]
 
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_seconds, connect=5.0)) as client:
-            resp = await client.post(f"{ollama_url}/api/generate", json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_response = data.get("response", "").strip()
-                
-                # Robust regex extraction of JSON object or array
-                import re
-                match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', raw_response)
-                if match:
-                    raw_response = match.group(0)
+            payload = {
+                "model": model_name,
+                "prompt": user_prompt,
+                "system": system_prompt,
+                "format": "json",
+                "stream": False,
+                "options": {
+                    "temperature": 0.75,
+                    "num_predict": 260
+                }
+            }
 
-                parsed = json.loads(raw_response)
-                raw_phrases = []
-                fact_str = None
-                if isinstance(parsed, dict):
-                    raw_phrases = parsed.get("phrases") or parsed.get("lines") or parsed.get("greetings") or []
-                    fact_str = parsed.get("fact") or parsed.get("fun_fact") or parsed.get("milestone")
-                elif isinstance(parsed, list):
-                    raw_phrases = parsed
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_seconds, connect=4.0)) as client:
+                resp = await client.post(f"{ollama_url}/api/generate", json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_response = data.get("response", "").strip()
+                    
+                    import re
+                    match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', raw_response)
+                    if match:
+                        raw_response = match.group(0)
 
-                cleaned = []
-                for p in raw_phrases:
-                    if isinstance(p, str):
-                        s = p.strip().strip('"').strip("'")
-                        if s and len(s) > 3 and len(s) < 80:
-                            cleaned.append(s)
+                    parsed = json.loads(raw_response)
+                    raw_phrases = []
+                    fact_str = None
+                    if isinstance(parsed, dict):
+                        raw_phrases = parsed.get("phrases") or parsed.get("lines") or parsed.get("greetings") or []
+                        fact_str = parsed.get("fact") or parsed.get("fun_fact") or parsed.get("milestone")
+                    elif isinstance(parsed, list):
+                        raw_phrases = parsed
 
-                if isinstance(fact_str, str):
-                    fact_str = fact_str.strip().strip('"').strip("'")
-                    if len(fact_str) < 5 or len(fact_str) > 250:
-                        fact_str = None
+                    cleaned = []
+                    for p in raw_phrases:
+                        if isinstance(p, str):
+                            s = p.strip().strip('"').strip("'")
+                            if s and len(s) > 3 and len(s) < 80:
+                                cleaned.append(s)
 
-                if len(cleaned) >= 3:
-                    logger.info(f"Successfully generated {len(cleaned)} daily typewriter lines and fun fact via LLM ({model_name})")
-                    return {
-                        "phrases": cleaned,
-                        "fact": fact_str
-                    }
-    except Exception as e:
-        logger.debug(f"LLM typewriter generation unavailable ({e}), using curated engine.")
-        pass
+                    if isinstance(fact_str, str):
+                        fact_str = fact_str.strip().strip('"').strip("'")
+                        if len(fact_str) < 5 or len(fact_str) > 250:
+                            fact_str = None
+
+                    if len(cleaned) >= 3:
+                        logger.info(f"Successfully generated {len(cleaned)} daily typewriter lines and fun fact via LLM ({model_name} at {ollama_url})")
+                        return {
+                            "phrases": cleaned,
+                            "fact": fact_str
+                        }
+        except Exception as e:
+            logger.debug(f"Ollama candidate {ollama_url} unavailable ({e}), trying next.")
+            continue
 
     return None
 
@@ -267,10 +301,19 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             cached_subtext = cached.get("subtext") or default_subtext
             if "·" not in cached_subtext and "💡" not in cached_subtext:
                 cached_subtext = default_subtext
+            # Upgrade stale sprint slogans (e.g. "Thursday thrust", "Deep work sprint") to genuine fun facts
+            if any(slogan in cached_subtext for slogan in ["Thursday thrust", "Wednesday wave", "Tuesday tempo", "Monday momentum", "Friday finale", "Saturday scan", "Sunday synch", "Deep work sprint"]):
+                cached_subtext = default_subtext
+
+            phrases_to_return = cached["phrases"]
+            # If cache source was curated fallback and client specified an hour, provide diurnal-appropriate phrases
+            if cached.get("source") != "llm" and client_hour is not None:
+                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+
             return {
                 "date": date_key,
                 "date_label": date_label,
-                "phrases": cached["phrases"],
+                "phrases": phrases_to_return,
                 "subtext": cached_subtext,
                 "milestone": fact,
                 "source": "cache",

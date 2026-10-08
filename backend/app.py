@@ -364,6 +364,7 @@ async def delete_task(task_id: int):
     conn = database.get_connection()
     with conn:
         conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    database.remove_from_daily_order(task_id, "task")
     return {"status": "success"}
 
 @app.patch("/api/tasks/{task_id}/toggle-time-sensitive", dependencies=[Depends(auth.require_auth)])

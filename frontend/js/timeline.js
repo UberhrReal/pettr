@@ -338,8 +338,13 @@ const Timeline = {
         if (isDone) card.classList.add("completed");
 
         const timePart = t.due_date_military ? App.formatMilitaryTime(t.due_date_military) : (t.due_date ? App.formatMilitaryTime(t.due_date) : "Today");
-        const urgencyLevel = isDone ? "completed" : (t.urgency ? t.urgency.level : "none");
-        const urgencyLabel = isDone ? "" : (t.urgency ? t.urgency.label : "");
+        const isTimeSensitive = Boolean(t.is_time_sensitive);
+        const isOverdue = !isDone && t.urgency && (t.urgency.label === "Overdue" || t.urgency.level === "overdue");
+        const badgeHtml = isDone
+          ? ''
+          : (isTimeSensitive
+            ? `<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡ TIME SENSITIVE</span>`
+            : (isOverdue ? `<span class="urgency-badge overdue" style="font-size:9px; padding:1px 5px;">Overdue</span>` : ''));
 
         let cbDisabled = "";
         let cbTitle = "Check into task";
@@ -357,7 +362,7 @@ const Timeline = {
               <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
               <span class="ut-time-tag">${t.tier === 'focus' ? '🎯' : '⚡'} ${timePart}</span>
             </div>
-            ${urgencyLabel ? `<span class="urgency-badge ${urgencyLevel}" style="font-size:9px; padding:1px 5px;">${urgencyLabel}</span>` : ''}
+            ${badgeHtml}
           </div>
           <div class="ut-card-body">
             <input type="checkbox" class="task-checkbox" ${isDone ? "checked" : ""} ${cbDisabled}
@@ -674,8 +679,13 @@ const Timeline = {
           const isDone = t.status === "completed";
           if (isDone) card.classList.add("completed");
           const timePart = t.due_date_military ? App.formatMilitaryTime(t.due_date_military) : (t.due_date ? App.formatMilitaryTime(t.due_date) : "Today");
-          const urgencyLevel = isDone ? "completed" : (t.urgency ? t.urgency.level : "none");
-          const urgencyLabel = isDone ? "" : (t.urgency ? t.urgency.label : "");
+          const isTimeSensitive = Boolean(t.is_time_sensitive);
+          const isOverdue = !isDone && t.urgency && (t.urgency.label === "Overdue" || t.urgency.level === "overdue");
+          const badgeHtml = isDone
+            ? ''
+            : (isTimeSensitive
+              ? `<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡ TIME SENSITIVE</span>`
+              : (isOverdue ? `<span class="urgency-badge overdue" style="font-size:9px; padding:1px 5px;">Overdue</span>` : ''));
 
           let cbDisabled = (isPast || isFuture) ? "disabled" : "";
           let cbTitle = isPast ? "Locked archive (past date)" : (isFuture ? "Future date (locked)" : "Check into task");
@@ -686,7 +696,7 @@ const Timeline = {
                 <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
                 <span class="ut-time-tag">${t.tier === 'focus' ? '🎯' : '⚡'} ${timePart}</span>
               </div>
-              ${urgencyLabel ? `<span class="urgency-badge ${urgencyLevel}" style="font-size:9px; padding:1px 5px;">${urgencyLabel}</span>` : ''}
+              ${badgeHtml}
             </div>
             <div class="ut-card-body">
               <input type="checkbox" class="task-checkbox" ${isDone ? "checked" : ""} ${cbDisabled}
@@ -833,7 +843,7 @@ const Timeline = {
                 </span>
                 <div style="display: flex; gap: 6px; align-items: center;">
                   ${t.project_name ? `<span class="project-tag">${t.project_name}</span>` : ''}
-                  ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="font-size:9px; padding:1px 5px; background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.urgency && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.label}</span>` : '')}
+                  ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="font-size:9px; padding:1px 5px; background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.is_time_sensitive ? `<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡ TIME SENSITIVE</span>` : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue" style="font-size:9px; padding:1px 5px;">Overdue</span>` : ''))}
                 </div>
               </div>
             `).join('')}

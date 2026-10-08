@@ -284,3 +284,81 @@ def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
         assert "sealed" in create_res.json()["detail"].lower()
 
 
+def test_convert_task_to_reminder_cleans_priority_order(temp_db, monkeypatch):
+    """Test that converting a task to a reminder purges it from daily priority sequences."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    today = "2026-10-08"
+
+    # 1. Create a task and add to daily order
+    task = database.create_task("Buy lab notebook", tier="trivial", due_date=today, db_path=temp_db)
+    task_id = task["id"]
+    database.save_daily_order(today, [{"id": task_id, "type": "task", "title": "Buy lab notebook"}], db_path=temp_db)
+
+    order_before = database.get_daily_order(today, db_path=temp_db)
+    assert len(order_before) == 1
+    assert order_before[0]["id"] == task_id
+
+    # 2. Convert task to reminder
+    res = database.reclassify_entity(
+        from_type="task",
+        from_id=task_id,
+        to_type="reminder",
+        title="Buy lab notebook",
+        due_date=f"{today} 10:00:00",
+        db_path=temp_db
+    )
+    assert res["status"] == "success"
+    assert res["entity_type"] == "reminder"
+
+    # 3. Verify task is cleanly purged from daily priority order
+    order_after = database.get_daily_order(today, db_path=temp_db)
+    assert len(order_after) == 0
+
+
+def test_project_due_date_persistence(temp_db, monkeypatch):
+    """Test that project due dates persist across creation and edits."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Create project with due date
+    proj = database.create_project(
+        name="Capstone Phase 1",
+        category="School",
+        due_date="2026-10-25 23:59:00",
+        db_path=temp_db
+    )
+    assert proj["due_date"] == "2026-10-25 23:59:00"
+
+    # 2. Edit project due date via reclassify_entity
+    updated = database.reclassify_entity(
+        from_type="project",
+        from_id=proj["id"],
+        to_type="project",
+        title="Capstone Phase 1 Updated",
+        due_date="2026-11-01 17:00:00",
+        category="School",
+        db_path=temp_db
+    )
+    assert updated["status"] == "success"
+    assert updated["entity"]["due_date"] == "2026-11-01 17:00:00"
+
+    # 3. Re-fetch from DB
+    fetched = database.get_entity_detail("project", proj["id"], db_path=temp_db)
+    assert fetched["due_date"] == "2026-11-01 17:00:00"
+
+
+def test_urgency_label_never_urgent(temp_db, monkeypatch):
+    """Verify compute_urgency returns Overdue or Upcoming, never 'Urgent'."""
+    now = datetime.datetime.now()
+    
+    # Due in past -> Overdue
+    past_due = (now - datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+    urgency_past = database.compute_urgency(past_due)
+    assert urgency_past["label"] == "Overdue"
+
+    # Due in 12 hours -> Upcoming (not Urgent)
+    soon_due = (now + datetime.timedelta(hours=12)).strftime("%Y-%m-%d %H:%M:%S")
+    urgency_soon = database.compute_urgency(soon_due)
+    assert urgency_soon["label"] == "Upcoming"
+    assert urgency_soon["label"] != "Urgent"
+
+

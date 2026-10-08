@@ -292,7 +292,7 @@ const Exploded = {
               <span style="${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
                 ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
               </span>
-              ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.urgency && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.label}</span>` : '')}
+              ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.is_time_sensitive ? `<span class="time-sensitive-badge" style="font-size:9.5px; padding:1px 6px;">⚡ TIME SENSITIVE</span>` : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue">${t.urgency.label}</span>` : ''))}
             </div>
           `).join('')}
         </div>
@@ -326,6 +326,7 @@ const Exploded = {
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span class="project-card-title">${this.escapeHtml(p.name)}</span>
             <span class="${categoryBadgeClass}">${categoryLabel}</span>
+            ${p.due_date ? `<span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono); background:var(--bg-tertiary); padding:1px 6px; border-radius:4px;">📅 Due ${App.formatMilitaryTime(p.due_date, true)}</span>` : ''}
           </div>
           ${p.description ? `
             <div style="margin-top: 4px;">
@@ -350,7 +351,7 @@ const Exploded = {
             <span style="${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
               ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
             </span>
-            ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.urgency && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.label}</span>` : (t.due_date ? '' : '<span class="urgency-badge none">No due date</span>'))}
+            ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.is_time_sensitive ? `<span class="time-sensitive-badge" style="font-size:9.5px; padding:1px 6px;">⚡ TIME SENSITIVE</span>` : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue">${t.urgency.label}</span>` : ''))}
           </div>
         `).join('')}
       </div>

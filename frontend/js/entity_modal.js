@@ -42,9 +42,9 @@ const EntityModal = {
     const projRes = await fetch("/api/projects");
     const projects = projRes.ok ? await projRes.json() : [];
 
-    // Title & description (supporting unorganized raw input)
+    // Title & description (supporting unorganised raw input)
     const titleVal = e.title || e.name || e.raw_input || "";
-    const descVal = e.description || e.details || (type === "unorganized" && e.reasoning ? `[Unorganized Routing Note: ${e.reasoning}]` : "");
+    const descVal = e.description || e.details || (type === "unorganized" && e.reasoning ? `[Unorganised Routing Note: ${e.reasoning}]` : "");
     document.getElementById("entityModalTitle").value = titleVal;
     document.getElementById("entityModalDesc").value = descVal;
     
@@ -349,6 +349,11 @@ const EntityModal = {
 
       const data = await res.json();
       if (res.ok) {
+        if (this.fromType === "task" && toType !== "task" && typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
+          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === 'task' || !item.type)));
+          Dashboard.renderDailyOrder();
+          Dashboard.saveDailyOrder();
+        }
         App.showToast("Changes saved successfully!");
         this.close();
         if (this.fromType === "unorganized" && typeof Dashboard !== "undefined") {
@@ -380,6 +385,11 @@ const EntityModal = {
 
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
+        if (this.fromType === "task" && typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
+          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === 'task' || !item.type)));
+          Dashboard.renderDailyOrder();
+          Dashboard.saveDailyOrder();
+        }
         App.showToast("Item deleted.");
         this.close();
         if (typeof Dashboard !== "undefined") {

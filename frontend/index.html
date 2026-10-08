@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=7.2">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=7.3">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -209,12 +209,12 @@
             </div>
           </div>
 
-          <!-- Prominent Unorganized Alert Banner (Fallback) -->
+          <!-- Prominent Unorganised Alert Banner (Fallback) -->
           <div id="unorgAlertBanner" class="unorg-alert-banner" style="display: none; max-width: 1200px; margin: 0 auto 16px auto;">
             <div>
               <div class="unorg-alert-title">
                 <i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--urgent-orange);"></i>
-                <span>Action Required: <span id="unorgBannerCount">0</span> Unorganized Items</span>
+                <span>Action Required: <span id="unorgBannerCount">0</span> Unorganised Items</span>
               </div>
               <div class="unorg-alert-desc">
                 Inputs need your manual confirmation to route into Tasks, Events, or Reminders.
@@ -242,7 +242,7 @@
             </div>
             <div class="input-hint">
               <span><i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Press <kbd style="background: var(--bg-tertiary); border: 1px solid var(--card-border); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono);">/</kbd> anywhere to focus. Voice input & natural language priority supported.</span>
-              <span id="unorgBadge" style="display:none; color: var(--urgent-orange); font-weight: 700; cursor: pointer;" onclick="Dashboard.openUnorganizedModal()"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-2px;"></i> Unorganized Queue (<span id="unorgCount">0</span>)</span>
+              <span id="unorgBadge" style="display:none; color: var(--urgent-orange); font-weight: 700; cursor: pointer;" onclick="Dashboard.openUnorganizedModal()"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-2px;"></i> Unorganised Queue (<span id="unorgCount">0</span>)</span>
             </div>
           </div>
         </section>
@@ -396,8 +396,8 @@
               <div class="stat-pill" data-filter="reminders" title="Click to view reminders">
                 <i data-lucide="bell" style="width:13px;height:13px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders: <span class="stat-num" id="statReminders">0</span>
               </div>
-              <div class="stat-pill unorg-pill" id="statPillUnorg" data-filter="unorganized" style="display: none;" title="Click to triage unorganized queue">
-                <i data-lucide="alert-circle" style="width:13px;height:13px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Unorganized: <span class="stat-num" id="statUnorg">0</span>
+              <div class="stat-pill unorg-pill" id="statPillUnorg" data-filter="unorganized" style="display: none;" title="Click to triage unorganised queue">
+                <i data-lucide="alert-circle" style="width:13px;height:13px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Unorganised: <span class="stat-num" id="statUnorg">0</span>
               </div>
             </div>
 
@@ -892,7 +892,7 @@
             <i data-lucide="bot"></i> <span>Local AI &amp; Voice Input</span>
           </button>
           <button class="guide-nav-link" onclick="App.switchGuideSection('hardware', this)">
-            <i data-lucide="cpu"></i> <span>Shuttle DH610 Optimization</span>
+            <i data-lucide="cpu"></i> <span>Shuttle DH610 Optimisation</span>
           </button>
           <button class="guide-nav-link" onclick="App.switchGuideSection('persistence', this)">
             <i data-lucide="shield-check"></i> <span>Zero Data Loss &amp; Backup</span>
@@ -906,7 +906,7 @@
           <div id="guideSection_quickstart" class="guide-section-card">
             <h2 class="guide-editorial-title"><i data-lucide="compass"></i> Quick Start &amp; Daily Workflow</h2>
             <p class="guide-lead">
-              PETTR is designed for high-focus execution. Log thoughts at stream of consciousness, and let the system organize tasks, projects, events, and reminders in real-time.
+              PETTR is designed for high-focus execution. Log thoughts at stream of consciousness, and let the system organise tasks, projects, events, and reminders in real-time.
             </p>
 
             <div class="guide-step-card">
@@ -1152,7 +1152,7 @@ Ctrl+P    • Quick-open hotkey (familiar to VS Code / Sublime users)
 
           <!-- Section 2: Deployment Guide -->
           <div id="guideSection_deployment" class="guide-section-card" style="display: none;">
-            <h2 class="guide-editorial-title"><i data-lucide="server"></i> Shuttle DH610 &amp; Ubuntu 24.04 LTS Deployment</h2>
+            <h2 class="guide-editorial-title"><i data-lucide="server"></i> Shuttle DH610 &amp; Ubuntu 26.04.1 LTS Deployment</h2>
             <p class="guide-lead">
               Step-by-step deployment guide for running PETTR in a Docker container on Ubuntu Server with native Tailscale and host Ollama AI integration.
             </p>
@@ -1229,12 +1229,12 @@ docker compose up -d --build
                 Local Ollama 3B Intent &amp; Project Classification
               </h4>
               <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-                When Ollama is running on the host, PETTR feeds the cleaned context to <code>llama3.2:3b</code> (or <code>qwen2.5:3b</code>) to detect multi-step projects, categorize focus vs trivial tiers, and route uncertain entries into the Unorganized Safety Queue.
+                When Ollama is running on the host, PETTR feeds the cleaned context to <code>llama3.2:3b</code> (or <code>qwen2.5:3b</code>) to detect multi-step projects, categorize focus vs trivial tiers, and route uncertain entries into the Unorganised Safety Queue.
               </p>
             </div>
           </div>
 
-          <!-- Section 4: Hardware Optimization -->
+          <!-- Section 4: Hardware Optimisation -->
           <div id="guideSection_hardware" class="guide-section-card" style="display: none;">
             <h2 class="guide-editorial-title"><i data-lucide="cpu"></i> Shuttle DH610 &amp; Intel 12th Gen Tuning</h2>
             <p class="guide-lead">
@@ -1249,7 +1249,7 @@ docker compose up -d --build
                 • <strong>BIOS AC Power Loss</strong>: In BIOS under <em>Advanced -> Power Management Configuration</em>, verify <em>Restore AC Power Loss</em> is set to <code>Power On</code>.<br>
                 • <strong>Shuttle Smart Fan Profile</strong>: Under <em>Advanced -> Smart Fan</em>, set the profile to <code>Ultra-Low Mode</code> or <code>Smart Mode</code>. Shuttle's dual-heatpipe ICE cooling module with twin 60mm fans keeps the i3 under 45°C whisper-quietly.<br>
                 • <strong>Dual Intel LAN (1GbE + 2.5GbE)</strong>: Plug your primary network cable into the Intel 2.5GbE port for highest local throughput and Tailscale mesh routing.<br>
-                • <strong>Intel P-State Energy Bias</strong>: Ubuntu 24.04 (Kernel 6.8+) automatically uses the native <code>intel_pstate</code> driver. Set Energy Performance Preference (EPP) to <code>balance_power</code> for ~7-10W idle draw:
+                • <strong>Intel P-State Energy Bias</strong>: Ubuntu 26.04.1 LTS automatically uses the native <code>intel_pstate</code> driver. Set Energy Performance Preference (EPP) to <code>balance_power</code> for ~7-10W idle draw:
               </p>
               <div class="guide-code-block">
 echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
@@ -1363,7 +1363,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           </select>
         </div>
       </div>
-      <!-- Project Category & Color Tag Row -->
+      <!-- Project Category & Colour Tag Row -->
       <div id="entityModalProjectOptionsRow" style="display: none; border-top: 1px solid var(--card-border); padding-top: 12px; margin-top: 6px;">
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
           <div>
@@ -1374,7 +1374,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             </select>
           </div>
           <div>
-            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Color Tag</label>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Colour Tag</label>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <input type="color" id="entityModalColorPicker" value="#3b82f6" style="width: 38px; height: 34px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
               <div id="entityModalColorPalette" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
@@ -1465,7 +1465,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </select>
       </div>
       <div id="manualProjectColorRow" style="display: none;">
-        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Accent Color Tag</label>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Accent Colour Tag</label>
         <div style="display: flex; gap: 8px; align-items: center;">
           <input type="color" id="manualInputColor" value="#3b82f6" style="width: 44px; height: 36px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
           <div id="manualColorPalette" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
@@ -1490,7 +1490,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <!-- Unorganized Queue Modal -->
   <div id="unorganizedModal" class="modal-overlay" style="display: none;">
     <div class="modal-card" style="max-width: 550px;">
-      <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganized Queue Triaging</h3>
+      <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganised Queue Triaging</h3>
       <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
         The system routed these inputs here for your manual confirmation:
       </p>
@@ -1775,20 +1775,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=7.2"></script>
-  <script src="/static/js/app.js?v=7.2"></script>
-  <script src="/static/js/drag_drop.js?v=7.2"></script>
-  <script src="/static/js/wave_canvas.js?v=7.2"></script>
-  <script src="/static/js/entity_modal.js?v=7.2"></script>
-  <script src="/static/js/timeline.js?v=7.2"></script>
-  <script src="/static/js/mindmap.js?v=7.2"></script>
-  <script src="/static/js/dashboard.js?v=7.2"></script>
-  <script src="/static/js/simplified_mode.js?v=7.2"></script>
-  <script src="/static/js/exploded.js?v=7.2"></script>
-  <script src="/static/js/notes.js?v=7.2"></script>
-  <script src="/static/js/history.js?v=7.2"></script>
-  <script src="/static/js/command_palette.js?v=7.2"></script>
-  <script src="/static/js/focus_cockpit.js?v=7.2"></script>
-  <script src="/static/js/evening_debrief.js?v=7.2"></script>
+  <script src="/static/js/pin_lock.js?v=7.3"></script>
+  <script src="/static/js/app.js?v=7.3"></script>
+  <script src="/static/js/drag_drop.js?v=7.3"></script>
+  <script src="/static/js/wave_canvas.js?v=7.3"></script>
+  <script src="/static/js/entity_modal.js?v=7.3"></script>
+  <script src="/static/js/timeline.js?v=7.3"></script>
+  <script src="/static/js/mindmap.js?v=7.3"></script>
+  <script src="/static/js/dashboard.js?v=7.3"></script>
+  <script src="/static/js/simplified_mode.js?v=7.3"></script>
+  <script src="/static/js/exploded.js?v=7.3"></script>
+  <script src="/static/js/notes.js?v=7.3"></script>
+  <script src="/static/js/history.js?v=7.3"></script>
+  <script src="/static/js/command_palette.js?v=7.3"></script>
+  <script src="/static/js/focus_cockpit.js?v=7.3"></script>
+  <script src="/static/js/evening_debrief.js?v=7.3"></script>
 </body>
 </html>

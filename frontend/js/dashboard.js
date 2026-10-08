@@ -252,7 +252,7 @@ const Dashboard = {
     // Filter out phrases that contradict current diurnal time-of-day
     phrases = phrases.filter(p => {
       const lower = p.toLowerCase();
-      if (!isNight && (lower.includes('midnight') || lower.includes('night owl') || lower.includes('quiet hours') || lower.includes('late night'))) {
+      if (!isNight && (lower.includes('midnight') || lower.includes('night owl') || lower.includes('quiet hours') || lower.includes('late night') || lower.includes('recharge batteries') || lower.includes('recharge soon'))) {
         return false;
       }
       if (!isMorning && (lower.includes('good morning') || lower.includes('first coffee') || lower.includes('morning momentum') || lower.includes('early morning'))) {
@@ -267,39 +267,47 @@ const Dashboard = {
       return true;
     });
 
-    if (phrases.length === 0) {
+    // If fewer than 3 phrases remain, supplement with rich diurnal phrases to guarantee variety
+    if (phrases.length < 3) {
+      let defaults = [];
       if (isMorning) {
-        phrases = [
+        defaults = [
           `Good morning, ${this.userName}.`,
           `Systems online and primed for launch.`,
           `First coffee, then tasks, ${this.userName}.`,
-          `Ready to execute today's priorities?`
+          `Ready to prioritise today's objectives?`,
+          `Systems synchronised and primed for takeoff.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
       } else if (isAfternoon) {
-        phrases = [
+        defaults = [
           `Working hard or hardly working, ${this.userName}?`,
           `Maintaining steady cruising velocity.`,
           `Midday check-in, ${this.userName}.`,
-          `Executing afternoon sprints with focus.`
+          `Executing afternoon sprints with focus.`,
+          `Deep focus block in progress.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Deep work window active.";
       } else if (isEvening) {
-        phrases = [
+        defaults = [
           `Good evening, ${this.userName}.`,
           `Evening status report, ${this.userName}.`,
           `Tying off open loops and wrapping up.`,
-          `Reviewing daily objectives achieved.`
+          `Reviewing daily objectives achieved.`,
+          `Preparing for smooth orbit wrap-up.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
-        phrases = [
+        defaults = [
           `Burning the midnight oil, ${this.userName}?`,
           `Night owl hours active.`,
           `Quiet focus time, ${this.userName}.`,
           `Deep work in the quiet hours.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";
+      }
+      for (const d of defaults) {
+        if (!phrases.includes(d)) phrases.push(d);
       }
     }
 
@@ -1513,6 +1521,15 @@ const Dashboard = {
       if (res.ok) {
         App.showToast(`Task added to ${projectName}!`);
         await this.refresh();
+        if (typeof Exploded !== "undefined" && typeof Exploded.refresh === "function") {
+          await Exploded.refresh();
+        }
+        if (typeof Timeline !== "undefined" && typeof Timeline.refresh === "function") {
+          Timeline.refresh();
+        }
+        if (typeof Mindmap !== "undefined" && typeof Mindmap.refresh === "function") {
+          Mindmap.refresh();
+        }
       } else {
         App.showToast("Failed to create task", true);
       }
@@ -1927,7 +1944,7 @@ const Dashboard = {
       listContainer.innerHTML = "";
 
       if (items.length === 0) {
-        listContainer.innerHTML = "<p style='color: var(--text-muted); text-align: center; padding: 20px 0;'>All caught up! The unorganized queue is clear.</p>";
+        listContainer.innerHTML = "<p style='color: var(--text-muted); text-align: center; padding: 20px 0;'>All caught up! The unorganised queue is clear.</p>";
       } else {
         items.forEach(item => {
           const div = document.createElement("div");
@@ -1974,7 +1991,7 @@ const Dashboard = {
   },
 
   async deleteUnorg(id) {
-    if (!confirm("Are you sure you want to delete this unorganized item?")) return;
+    if (!confirm("Are you sure you want to delete this unorganised item?")) return;
     try {
       const res = await fetch(`/api/unorganized/${id}`, { method: "DELETE" });
       if (res.ok) {
