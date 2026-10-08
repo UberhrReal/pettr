@@ -229,50 +229,77 @@ const Dashboard = {
     if (!greetingEl) return;
     if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
 
-    let phrases = [
-      `Good morning, ${this.userName}.`,
-      `Orbital telemetry nominal, ${this.userName}.`,
-      `Hi, Me! Ready to execute today's priorities?`
-    ];
+    const clientHour = new Date().getHours();
+    const isMorning = clientHour >= 5 && clientHour < 12;
+    const isAfternoon = clientHour >= 12 && clientHour < 18;
+    const isEvening = clientHour >= 18 && clientHour < 23;
+    const isNight = clientHour >= 23 || clientHour < 5;
+
+    let phrases = [];
     let sub = "Ready to log and track your day.";
 
     try {
-      const res = await fetch(`/api/daily-intel?date=${this.selectedDate || ""}`);
+      const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}`);
       if (res.ok) {
         const intel = await res.json();
         if (intel.phrases && intel.phrases.length > 0) phrases = intel.phrases;
         if (intel.subtext) sub = intel.subtext;
       }
     } catch (e) {
-      const hour = new Date().getHours();
-      if (hour >= 5 && hour < 12) {
+      console.warn("Failed to fetch daily-intel:", e);
+    }
+
+    // Filter out phrases that contradict current diurnal time-of-day
+    phrases = phrases.filter(p => {
+      const lower = p.toLowerCase();
+      if (!isNight && (lower.includes('midnight') || lower.includes('night owl') || lower.includes('quiet hours') || lower.includes('late night'))) {
+        return false;
+      }
+      if (!isMorning && (lower.includes('good morning') || lower.includes('first coffee') || lower.includes('morning momentum') || lower.includes('early morning'))) {
+        return false;
+      }
+      if (!isAfternoon && (lower.includes('good afternoon') || lower.includes('midday check-in') || lower.includes('working hard or hardly working'))) {
+        return false;
+      }
+      if (!isEvening && (lower.includes('good evening') || lower.includes('evening status') || lower.includes('wrapping up'))) {
+        return false;
+      }
+      return true;
+    });
+
+    if (phrases.length === 0) {
+      if (isMorning) {
         phrases = [
           `Good morning, ${this.userName}.`,
           `Systems online and primed for launch.`,
-          `First coffee, then tasks, ${this.userName}.`
+          `First coffee, then tasks, ${this.userName}.`,
+          `Ready to execute today's priorities?`
         ];
-        sub = "Morning momentum begins now.";
-      } else if (hour >= 12 && hour < 18) {
+        if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
+      } else if (isAfternoon) {
         phrases = [
           `Working hard or hardly working, ${this.userName}?`,
           `Maintaining steady cruising velocity.`,
-          `Midday check-in, ${this.userName}.`
+          `Midday check-in, ${this.userName}.`,
+          `Executing afternoon sprints with focus.`
         ];
-        sub = "Deep work window active.";
-      } else if (hour >= 18 && hour < 23) {
+        if (!sub || sub === "Ready to log and track your day.") sub = "Deep work window active.";
+      } else if (isEvening) {
         phrases = [
           `Good evening, ${this.userName}.`,
           `Evening status report, ${this.userName}.`,
-          `Tying off open loops and wrapping up.`
+          `Tying off open loops and wrapping up.`,
+          `Reviewing daily objectives achieved.`
         ];
-        sub = "Review your progress and close out open loops.";
+        if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
         phrases = [
           `Burning the midnight oil, ${this.userName}?`,
           `Night owl hours active.`,
-          `Quiet focus time, ${this.userName}.`
+          `Quiet focus time, ${this.userName}.`,
+          `Deep work in the quiet hours.`
         ];
-        sub = "Quiet hours telemetry online. Rest soon.";
+        if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";
       }
     }
 
@@ -282,7 +309,15 @@ const Dashboard = {
       phrases = [`Hello, ${this.userName}.`];
     }
 
-    if (subtextEl) subtextEl.textContent = sub;
+    if (subtextEl) {
+      subtextEl.textContent = sub;
+      subtextEl.style.cursor = "pointer";
+      subtextEl.title = "Click to refresh daily intel";
+      if (!subtextEl.dataset.hasIntelListener) {
+        subtextEl.dataset.hasIntelListener = "true";
+        subtextEl.addEventListener("click", () => Dashboard.refreshDailyIntel());
+      }
+    }
 
     this.typewriterPhraseIndex = this.typewriterPhraseIndex % phrases.length;
     this.typewriterCharIndex = 0;
@@ -315,6 +350,21 @@ const Dashboard = {
     };
 
     tick();
+  },
+
+  async refreshDailyIntel() {
+    try {
+      const clientHour = new Date().getHours();
+      const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}&refresh=true`);
+      if (res.ok) {
+        if (typeof App !== 'undefined' && App.showToast) {
+          App.showToast("Regenerated daily intel", "success");
+        }
+        await this.startTypewriterGreeting();
+      }
+    } catch (e) {
+      console.error("Failed to refresh daily intel:", e);
+    }
   },
 
   async promptEditUserName() {
@@ -768,7 +818,7 @@ const Dashboard = {
         <div class="briefing-items-pills">
     `;
 
-    const focusTasks = (data.focus_tasks || (this.tasks && this.tasks.focus) || []).slice(0, 5);
+    const focusTasks = data.focus_tasks || (this.tasks && this.tasks.focus) || [];
     if (focusTasks.length === 0) {
       html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No focus items pending today.</div>`;
     } else {
@@ -813,7 +863,7 @@ const Dashboard = {
         </div>
         <div class="briefing-items-pills">
     `;
-    const trivialTasks = (data.trivial_tasks || (this.tasks && this.tasks.trivial) || []).slice(0, 4);
+    const trivialTasks = data.trivial_tasks || (this.tasks && this.tasks.trivial) || [];
     if (trivialTasks.length === 0) {
       html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No quick errands scheduled today.</div>`;
     } else {
@@ -1498,9 +1548,11 @@ const Dashboard = {
       const dueText = task.due_date ? App.formatMilitaryTime(task.due_date) : (task.due_date_raw ? App.formatMilitaryTime(task.due_date_raw) : "");
 
       const isTimeSensitive = Boolean(task.is_time_sensitive);
-      const badgeHtml = isTimeSensitive
-        ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
-        : (urgencyLevel !== 'none' && urgencyLevel !== 'urgent' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : (dueText ? `<span class="due-pill" style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${dueText}</span>` : ''));
+      const badgeHtml = isCompleted
+        ? ''
+        : (isTimeSensitive
+          ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
+          : (urgencyLevel !== 'none' && urgencyLevel !== 'urgent' && urgencyLevel !== 'completed' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : (dueText ? `<span class="due-pill" style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${dueText}</span>` : '')));
 
       let recurrenceHtml = "";
       if (task.recurrence) {

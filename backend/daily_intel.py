@@ -20,8 +20,8 @@ logger = logging.getLogger("pettr.daily_intel")
 # Curated Space, Engineering & World Milestones by (Month, Day)
 HISTORICAL_MILESTONES = {
     (1, 1): "New Year's Day · System epoch reset and trajectory baseline initialized.",
-    (1, 28): "Challenger STS-51-L remembrance · Honoring space pioneers.",
-    (2, 1): "Columbia STS-107 remembrance · Engineering vigilance and duty.",
+    (1, 28): "1986: Challenger STS-51-L remembrance · Honoring space pioneers.",
+    (2, 1): "2003: Columbia STS-107 remembrance · Engineering vigilance and duty.",
     (2, 14): "1990: Voyager 1 took the iconic 'Pale Blue Dot' portrait of Earth.",
     (3, 14): "Pi Day (3.14) · Celebrating mathematics and aerospace precision.",
     (4, 12): "1961: Yuri Gagarin became the first human in space aboard Vostok 1.",
@@ -36,7 +36,15 @@ HISTORICAL_MILESTONES = {
     (9, 12): "1962: JFK delivered the 'We choose to go to the Moon' address.",
     (10, 4): "1957: Sputnik 1 launched, inaugurating the Space Age.",
     (10, 7): "1959: Luna 3 transmitted the first photographs of the far side of the Moon.",
-    (10, 18): "1989: Galileo spacecraft launched toward Jupiter.",
+    (10, 8): "1984: Kathryn Sullivan became the first American woman to perform a spacewalk aboard Challenger STS-41-G.",
+    (10, 9): "1604: Kepler's Supernova (SN 1604) was first observed in the constellation Ophiuchus.",
+    (10, 10): "1967: The Outer Space Treaty entered into force, declaring space the province of all humankind.",
+    (10, 11): "1968: Apollo 7 launched on the first crewed Apollo mission with Wally Schirra.",
+    (10, 12): "1964: Voskhod 1 launched, carrying the first multi-person crew into orbit.",
+    (10, 13): "1884: Greenwich was officially adopted as the universal Prime Meridian for world timezones.",
+    (10, 14): "1947: Chuck Yeager broke the sound barrier aboard the Bell X-1 rocket plane.",
+    (10, 15): "1997: Cassini-Huygens launched on its epic mission to explore Saturn and Titan.",
+    (10, 18): "1989: Galileo spacecraft launched toward Jupiter aboard Atlantis STS-34.",
     (11, 3): "1957: Sputnik 2 launched into orbit.",
     (11, 12): "2014: Rosetta's Philae lander achieved the first soft landing on a comet.",
     (11, 20): "1998: Zarya module launched, beginning ISS assembly in low Earth orbit.",
@@ -44,6 +52,39 @@ HISTORICAL_MILESTONES = {
     (12, 17): "1903: Wright brothers achieved the first powered heavier-than-air flight.",
     (12, 25): "2021: James Webb Space Telescope launched aboard Ariane 5.",
 }
+
+CALENDAR_FUN_FACTS = [
+    "1984: Kathryn Sullivan became the first American woman to perform a spacewalk aboard Challenger STS-41-G.",
+    "1958: Dr. William Chardack and Wilson Greatbatch implanted the world's first internal cardiac pacemaker.",
+    "1906: Karl Nessler demonstrated the world's first permanent wave machine in London.",
+    "1971: Ray Tomlinson sent the very first network email across ARPANET using the '@' symbol.",
+    "1969: The Apollo 11 guidance computer operated on just 4KB of RAM and 72KB of ROM.",
+    "1977: Voyager 1 carries the Golden Record, preserving sounds and images of Earth for deep space.",
+    "1961: Yuri Gagarin whistled the tune 'The Motherland Hears' during his 108-minute orbital flight.",
+    "1990: Voyager 1 captured the Pale Blue Dot photograph from 3.7 billion miles away.",
+    "1903: The Wright brothers' first flight lasted 12 seconds and covered 120 feet.",
+    "1957: Sputnik 1 transmitted its iconic radio beacon at 20.005 MHz for 21 days straight.",
+    "1965: Alexei Leonov became the first human to conduct an EVA spacewalk, lasting 12 minutes.",
+    "1981: Space Shuttle Columbia launched on STS-1, the first reusable orbital spacecraft flight.",
+    "1968: Apollo 8 astronauts became the first humans to witness an 'Earthrise' over the lunar horizon.",
+    "1995: Galileo atmospheric probe plunged into Jupiter's atmosphere at 106,000 mph.",
+    "2012: Voyager 1 officially crossed the heliopause into the uncharted interstellar medium.",
+    "2004: Opportunity rover landed on Mars and operated for 14 years instead of its planned 90-day mission.",
+    "1947: Chuck Yeager piloted the Bell X-1 past Mach 1.05, shattering the sound barrier.",
+    "1986: Voyager 2 flew within 50,600 miles of Uranus, discovering 10 new moons.",
+    "1989: Voyager 2 swept past Neptune and detected high-speed 1,300 mph supersonic winds.",
+    "1997: Mars Pathfinder deployed the Sojourner rover, the first wheeled robot on another planet.",
+    "2020: Perseverance rover launched toward Mars carrying the Ingenuity helicopter drone.",
+    "2021: Ingenuity achieved the first powered, controlled flight on another world.",
+    "2022: James Webb Space Telescope deployed its 21-foot gold-coated beryllium mirror at Lagrange Point 2."
+]
+
+def get_historical_milestone_or_fact(target_date: datetime.date) -> str:
+    month, day = target_date.month, target_date.day
+    if (month, day) in HISTORICAL_MILESTONES:
+        return HISTORICAL_MILESTONES[(month, day)]
+    day_of_year = target_date.timetuple().tm_yday
+    return CALENDAR_FUN_FACTS[day_of_year % len(CALENDAR_FUN_FACTS)]
 
 # Day of week momentum taglines
 DAY_OF_WEEK_INTEL = {
@@ -56,7 +97,7 @@ DAY_OF_WEEK_INTEL = {
     6: "Sunday debrief: Rest, retrospective analysis, and mission planning."
 }
 
-def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None) -> List[str]:
+def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
     """Generates curated time-of-day phrases as resilient fallback."""
     morning_phrases = [
         f"Good morning, {user_name}.",
@@ -67,10 +108,10 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
     ]
 
     afternoon_phrases = [
+        f"Maintaining steady cruising velocity, {user_name}.",
+        f"Deep focus block in progress.",
         f"Working hard or hardly working, {user_name}?",
         f"Midday check-in, {user_name}.",
-        f"Maintaining steady cruising velocity.",
-        f"Deep focus block in progress.",
         f"Hi, Me! Clear through that queue."
     ]
 
@@ -89,7 +130,7 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
         f"Remember to recharge batteries soon, {user_name}."
     ]
 
-    hour = datetime.datetime.now().hour
+    hour = client_hour if client_hour is not None else datetime.datetime.now().hour
     if 5 <= hour < 12:
         top_phrases = list(morning_phrases)
     elif 12 <= hour < 18:
@@ -107,7 +148,7 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
 async def generate_llm_typewriter_lines(target_date: datetime.date,
                                        user_name: str,
                                        milestone_info: Optional[str] = None,
-                                       timeout_seconds: float = 8.0) -> Optional[Any]:
+                                       timeout_seconds: float = 30.0) -> Optional[Any]:
     """
     Prompts the configured local/remote LLM to generate fresh, date-aware typewriter greeting lines
     and a fascinating fun fact relevant to today's date in history.
@@ -115,7 +156,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     """
     config = get_or_create_config()
     ollama_url = os.environ.get("OLLAMA_URL") or config.get("ollama_url", "http://localhost:11434")
-    model_name = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model", "llama3.2:3b")
+    model_name = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model") or config.get("active_llm") or "llama3.2:3b"
 
     date_str = target_date.strftime("%A, %B %d, %Y")
     weekday_name = target_date.strftime("%A")
@@ -157,17 +198,17 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     }
 
     try:
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_seconds, connect=5.0)) as client:
             resp = await client.post(f"{ollama_url}/api/generate", json=payload)
             if resp.status_code == 200:
                 data = resp.json()
                 raw_response = data.get("response", "").strip()
                 
-                # Strip markdown json code fences if present
-                if raw_response.startswith("```"):
-                    raw_response = raw_response.strip("`")
-                    if raw_response.startswith("json"):
-                        raw_response = raw_response[4:].strip()
+                # Robust regex extraction of JSON object or array
+                import re
+                match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', raw_response)
+                if match:
+                    raw_response = match.group(0)
 
                 parsed = json.loads(raw_response)
                 raw_phrases = []
@@ -182,7 +223,6 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                 for p in raw_phrases:
                     if isinstance(p, str):
                         s = p.strip().strip('"').strip("'")
-                        # Clean leading numbering if any (e.g. "1. ")
                         if s and len(s) > 3 and len(s) < 80:
                             cleaned.append(s)
 
@@ -206,6 +246,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
 async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = None,
                                       user_name: str = "Hong Rong",
                                       force_refresh: bool = False,
+                                      client_hour: Optional[int] = None,
                                       db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Fetches daily intelligence and typewriter lines.
@@ -213,34 +254,31 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
     and seamlessly falls back to the curated milestone engine if LLM is offline.
     """
     today = target_date or datetime.date.today()
-    month = today.month
-    day = today.day
-    weekday = today.weekday()
     date_key = today.strftime("%Y-%m-%d")
-
-    milestone = HISTORICAL_MILESTONES.get((month, day))
-    weekday_intel = DAY_OF_WEEK_INTEL.get(weekday, "Execute daily priorities with focus.")
     date_label = today.strftime("%A, %B %d")
-    fallback_fact = milestone or weekday_intel
-    default_subtext = f"{date_label} · 💡 {fallback_fact}" if fallback_fact else date_label
+
+    fact = get_historical_milestone_or_fact(today)
+    default_subtext = f"{date_label} · 💡 {fact}"
 
     # 1. Check SQLite Cache
     if not force_refresh:
         cached = database.get_daily_typewriter_cache(date_key, db_path)
         if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
+            cached_subtext = cached.get("subtext") or default_subtext
+            if "·" not in cached_subtext and "💡" not in cached_subtext:
+                cached_subtext = default_subtext
             return {
                 "date": date_key,
                 "date_label": date_label,
                 "phrases": cached["phrases"],
-                "subtext": cached.get("subtext") or default_subtext,
-                "milestone": milestone or weekday_intel,
+                "subtext": cached_subtext,
+                "milestone": fact,
                 "source": "cache",
                 "cached": True
             }
 
     # 2. Generate via LLM
-    milestone_summary = milestone or weekday_intel
-    llm_res = await generate_llm_typewriter_lines(today, user_name, milestone_summary)
+    llm_res = await generate_llm_typewriter_lines(today, user_name, fact)
 
     llm_phrases = None
     llm_fact = None
@@ -253,13 +291,13 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
     if llm_phrases and len(llm_phrases) >= 3:
         source = "llm"
         final_phrases = llm_phrases
-        chosen_fact = llm_fact or fallback_fact
+        chosen_fact = llm_fact or fact
     else:
         source = "curated_fallback"
-        final_phrases = get_curated_phrases(today, user_name, milestone)
-        chosen_fact = fallback_fact
+        final_phrases = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+        chosen_fact = fact
 
-    subtext = f"{date_label} · 💡 {chosen_fact}" if chosen_fact else date_label
+    subtext = f"{date_label} · 💡 {chosen_fact}"
 
     # 3. Cache into SQLite
     try:
@@ -278,8 +316,9 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
         "date_label": date_label,
         "phrases": final_phrases,
         "subtext": subtext,
-        "milestone": milestone or weekday_intel,
-        "source": source
+        "milestone": chosen_fact,
+        "source": source,
+        "cached": False
     }
 
 def get_daily_intel(target_date: Optional[datetime.date] = None,
@@ -303,18 +342,16 @@ def get_daily_intel(target_date: Optional[datetime.date] = None,
 
     month = today.month
     day = today.day
-    weekday = today.weekday()
-    milestone = HISTORICAL_MILESTONES.get((month, day))
-    weekday_intel = DAY_OF_WEEK_INTEL.get(weekday, "Execute daily priorities with focus.")
+    chosen_fact = get_historical_milestone_or_fact(today)
     date_label = today.strftime("%A, %B %d")
-    subtext = f"{date_label} · {milestone}" if milestone else f"{date_label} · {weekday_intel}"
+    subtext = f"{date_label} · {chosen_fact}"
 
     return {
         "date": date_key,
         "date_label": date_label,
-        "phrases": get_curated_phrases(today, user_name, milestone),
+        "phrases": get_curated_phrases(today, user_name, chosen_fact),
         "subtext": subtext,
-        "milestone": milestone or weekday_intel,
+        "milestone": chosen_fact,
         "source": "curated"
     }
 

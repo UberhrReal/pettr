@@ -292,7 +292,7 @@ const Exploded = {
               <span style="${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
                 ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
               </span>
-              <span class="urgency-badge ${t.urgency ? t.urgency.level : 'none'}">${t.urgency ? t.urgency.label : ''}</span>
+              ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.urgency && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.label}</span>` : '')}
             </div>
           `).join('')}
         </div>
@@ -350,7 +350,7 @@ const Exploded = {
             <span style="${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
               ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
             </span>
-            <span class="urgency-badge ${t.urgency ? t.urgency.level : 'none'}">${t.urgency ? t.urgency.label : (t.due_date ? '' : 'No due date')}</span>
+            ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.urgency && t.urgency.level !== 'none' ? `<span class="urgency-badge ${t.urgency.level}">${t.urgency.label}</span>` : (t.due_date ? '' : '<span class="urgency-badge none">No due date</span>'))}
           </div>
         `).join('')}
       </div>

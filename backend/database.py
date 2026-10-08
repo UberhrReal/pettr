@@ -230,18 +230,19 @@ def format_military_time(dt_val: Any, include_date: bool = False) -> str:
 
     return clean
 
-def compute_urgency(due_date_str: Optional[str], ref_datetime: Optional[datetime.datetime] = None) -> Dict[str, Any]:
+def compute_urgency(due_date_str: Optional[str], ref_datetime: Optional[datetime.datetime] = None, is_completed: bool = False) -> Dict[str, Any]:
     """
     Computes urgency badge and days remaining:
+    - Completed: completed tasks are marked completed and never overdue
     - Bright Orange: due within the next 2 days (<= 48h) or overdue
     - Green: not urgent (> 2 days)
     - Grey: no due date given
     """
     if not due_date_str:
         return {
-            "level": "none",
-            "color": "#9ca3af", # Grey
-            "label": "No Date",
+            "level": "completed" if is_completed else "none",
+            "color": "#10b981" if is_completed else "#9ca3af", # Grey or Completed Green
+            "label": "Completed" if is_completed else "No Date",
             "hours_left": None,
             "military_time": "",
             "military_datetime": ""
@@ -260,18 +261,29 @@ def compute_urgency(due_date_str: Optional[str], ref_datetime: Optional[datetime
             due_dt = datetime.datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
     except Exception:
         return {
-            "level": "none",
-            "color": "#9ca3af",
-            "label": "Invalid Date",
+            "level": "completed" if is_completed else "none",
+            "color": "#10b981" if is_completed else "#9ca3af",
+            "label": "Completed" if is_completed else "Invalid Date",
             "hours_left": None,
             "military_time": "",
             "military_datetime": ""
         }
 
-    delta = due_dt - ref_datetime
-    total_hours = delta.total_seconds() / 3600.0
     mil_time = due_dt.strftime("%H:%M")
     mil_datetime = due_dt.strftime("%Y-%m-%d %H:%M")
+
+    if is_completed:
+        return {
+            "level": "completed",
+            "color": "#10b981", # Green
+            "label": "Completed",
+            "hours_left": 0.0,
+            "military_time": mil_time,
+            "military_datetime": mil_datetime
+        }
+
+    delta = due_dt - ref_datetime
+    total_hours = delta.total_seconds() / 3600.0
 
     if total_hours <= 48.0:
         return {
@@ -501,7 +513,7 @@ def get_task_by_id(task_id: int, db_path: Optional[Path] = None) -> Optional[Dic
     if not row:
         return None
     d = dict(row)
-    d["urgency"] = compute_urgency(d["due_date"])
+    d["urgency"] = compute_urgency(d["due_date"], is_completed=bool(d.get("completed") or d.get("status") == "completed"))
     # Fetch attached reminders
     rem_rows = conn.execute("SELECT * FROM reminders WHERE task_id = ? ORDER BY id ASC", (task_id,)).fetchall()
     d["reminders"] = [dict(r) for r in rem_rows]
@@ -570,7 +582,7 @@ def get_tasks_for_day(target_date: Optional[datetime.date] = None, db_path: Opti
 
     for r in rows:
         d = dict(r)
-        d["urgency"] = compute_urgency(d["due_date"])
+        d["urgency"] = compute_urgency(d["due_date"], is_completed=bool(d.get("completed") or d.get("status") == "completed"))
         d["due_date_military"] = format_military_time(d["due_date"])
         # Fetch attached reminders
         rem_rows = conn.execute("SELECT * FROM reminders WHERE task_id = ?", (d["id"],)).fetchall()
@@ -620,7 +632,7 @@ def get_tasks_for_day(target_date: Optional[datetime.date] = None, db_path: Opti
         p_tasks = []
         for pt in today_tasks_rows:
             pt_dict = dict(pt)
-            pt_dict["urgency"] = compute_urgency(pt_dict["due_date"])
+            pt_dict["urgency"] = compute_urgency(pt_dict["due_date"], is_completed=bool(pt_dict.get("completed") or pt_dict.get("status") == "completed"))
             pt_dict["due_date_military"] = format_military_time(pt_dict["due_date"])
             pt_dict["is_today"] = True
             p_tasks.append(pt_dict)
@@ -639,7 +651,7 @@ def get_tasks_for_day(target_date: Optional[datetime.date] = None, db_path: Opti
         later_tasks = []
         for lt in later_tasks_rows:
             lt_dict = dict(lt)
-            lt_dict["urgency"] = compute_urgency(lt_dict["due_date"])
+            lt_dict["urgency"] = compute_urgency(lt_dict["due_date"], is_completed=bool(lt_dict.get("completed") or lt_dict.get("status") == "completed"))
             lt_dict["due_date_military"] = format_military_time(lt_dict["due_date"])
             lt_dict["is_today"] = False
             lt_dict["is_later"] = True
@@ -1079,7 +1091,7 @@ def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:
         tasks = []
         for t in task_rows:
             td = dict(t)
-            td["urgency"] = compute_urgency(td["due_date"])
+            td["urgency"] = compute_urgency(td["due_date"], is_completed=bool(td.get("completed") or td.get("status") == "completed"))
             tasks.append(td)
         p_copy = dict(p)
         p_copy["tasks"] = tasks
@@ -1093,7 +1105,7 @@ def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:
     unassigned_tasks = []
     for t in unassigned_rows:
         td = dict(t)
-        td["urgency"] = compute_urgency(td["due_date"])
+        td["urgency"] = compute_urgency(td["due_date"], is_completed=bool(td.get("completed") or td.get("status") == "completed"))
         unassigned_tasks.append(td)
 
     # All upcoming events
@@ -1370,7 +1382,7 @@ def _build_day_timeline(conn, target_date: datetime.date) -> Dict[str, Any]:
     hours = {h: {"tasks": [], "events": []} for h in range(24)}
     for t in tasks:
         td = dict(t)
-        td["urgency"] = compute_urgency(td["due_date"])
+        td["urgency"] = compute_urgency(td["due_date"], is_completed=bool(td.get("completed") or td.get("status") == "completed"))
         td["due_date_military"] = format_military_time(td["due_date"])
         try:
             hour = int(td["due_date"].split(" ")[1].split(":")[0])
@@ -1443,7 +1455,7 @@ def get_timeline_data(scale: str = "day",
                 WHERE date(e.start_time) = date(?) AND e.status != 'cancelled'
             """, (curr_str,)).fetchall()
 
-            urgencies = [compute_urgency(t["due_date"])["level"] for t in task_rows if t["due_date"]]
+            urgencies = [compute_urgency(t["due_date"], is_completed=bool(t.get("completed") or t.get("status") == "completed"))["level"] for t in task_rows if t["due_date"]]
             has_urgent = "urgent" in urgencies
             has_normal = "normal" in urgencies
 

@@ -440,7 +440,7 @@ const Mindmap = {
           const tCoords = getTorusCoords(tPhi, tTheta, tOffset);
 
           const isCompleted = t.status === "completed";
-          const isUrgent = t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high");
+          const isUrgent = !isCompleted && Boolean(t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high" || t.urgency.level === "overdue"));
           const tColor = isCompleted ? "#a1a1aa" : (isUrgent ? "#FF4500" : (t.tier === "focus" ? "#6366f1" : "#10b981"));
 
           const tNode = {
@@ -489,7 +489,7 @@ const Mindmap = {
       const fCoords = getTorusCoords(fPhi, fTheta, fOffset);
 
       const isCompleted = t.status === "completed";
-      const isUrgent = t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high");
+      const isUrgent = !isCompleted && Boolean(t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high" || t.urgency.level === "overdue"));
       const fColor = isCompleted ? "#a1a1aa" : (isUrgent ? "#FF4500" : "#6366f1");
 
       const node = {
@@ -521,7 +521,7 @@ const Mindmap = {
       const trCoords = getTorusCoords(trPhi, trTheta, trOffset);
 
       const isCompleted = t.status === "completed";
-      const isUrgent = t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high");
+      const isUrgent = !isCompleted && Boolean(t.urgency && (t.urgency.level === "urgent" || t.urgency.level === "high" || t.urgency.level === "overdue"));
       const trColor = isCompleted ? "#d4d4d8" : (isUrgent ? "#FF4500" : "#10b981");
 
       const node = {

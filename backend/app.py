@@ -374,11 +374,11 @@ async def toggle_task_time_sensitive_endpoint(task_id: int):
     return {"status": "success", "task": task}
 
 @app.get("/api/daily-intel", dependencies=[Depends(auth.require_auth)])
-async def get_daily_intel_endpoint(date: Optional[str] = None, refresh: bool = False):
+async def get_daily_intel_endpoint(date: Optional[str] = None, refresh: bool = False, hour: Optional[int] = None):
     profile = get_user_profile()
     user_name = profile.get("user_name", "Hong Rong")
     target = datetime.date.fromisoformat(date) if date else datetime.date.today()
-    return await daily_intel.get_or_generate_daily_intel(target, user_name, force_refresh=refresh)
+    return await daily_intel.get_or_generate_daily_intel(target, user_name, force_refresh=refresh, client_hour=hour)
 
 # --- Events & Reminders Routes ---
 
