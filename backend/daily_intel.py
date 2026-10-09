@@ -137,6 +137,11 @@ EVENING_KEYWORDS = [
     "eod", "bedtime", "smooth landing", "evening debrief", "time to unwind"
 ]
 
+WEE_HOURS_KEYWORDS = [
+    "wee hours", "small hours", "dead of night", "witching hour", "past midnight",
+    "stillness of the night", "undisturbed focus", "nocturnal hyperfocus"
+]
+
 NIGHT_KEYWORDS = [
     "midnight", "night owl", "quiet hours", "late night", "burn the midnight oil",
     "burning the midnight oil", "sleep soon", "rest your eyes", "recharge batteries"
@@ -156,23 +161,26 @@ def filter_phrases_for_diurnal_window(
         return list(phrases)
 
     hour = client_hour % 24
-    is_morning = 5 <= hour < 12
+    is_wee_hours = 0 <= hour < 6
+    is_morning = 6 <= hour < 12
     is_afternoon = 12 <= hour < 18
     is_evening = 18 <= hour < 23
-    is_night = hour >= 23 or hour < 5
+    is_night = 23 <= hour < 24
 
     filtered = []
     for p in phrases:
         if not isinstance(p, str):
             continue
         lower = p.lower()
+        if not is_wee_hours and any(k in lower for k in WEE_HOURS_KEYWORDS):
+            continue
         if not is_morning and any(k in lower for k in MORNING_KEYWORDS):
             continue
         if not is_afternoon and any(k in lower for k in AFTERNOON_KEYWORDS):
             continue
         if not is_evening and any(k in lower for k in EVENING_KEYWORDS):
             continue
-        if not is_night and any(k in lower for k in NIGHT_KEYWORDS):
+        if not is_night and not is_wee_hours and any(k in lower for k in NIGHT_KEYWORDS):
             continue
         filtered.append(p)
 
@@ -188,6 +196,15 @@ def filter_phrases_for_diurnal_window(
 
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
     """Generates curated time-of-day phrases as resilient fallback."""
+    wee_hours_phrases = [
+        f"In the stillness of the wee hours, {user_name} - true hyperfocus thrives when the rest of the world is asleep.",
+        f"The small hours are where breakthroughs happen. Keep that train of thought rolling, {user_name}.",
+        f"Dead of night, terminal glowing. Pure undisturbed concentration in the quietest hours, {user_name}.",
+        f"Zero notifications, zero distractions. Just you and the craft in the wee hours, {user_name}.",
+        f"Deep nocturnal velocity, {user_name} - capture the breakthrough, but remember to catch some sleep before dawn.",
+        f"Operating on after-hours fuel: make these quiet wee-hours blocks count, {user_name}."
+    ]
+
     morning_phrases = [
         f"Good morning, {user_name}. Let's tackle the highest-leverage task while focus is fresh.",
         f"First coffee brewed and workspace primed - ready to turn intentions into progress, {user_name}?",
@@ -224,7 +241,9 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
-    if 5 <= hour < 12:
+    if 0 <= hour < 6:
+        top_phrases = list(wee_hours_phrases)
+    elif 6 <= hour < 12:
         top_phrases = list(morning_phrases)
     elif 12 <= hour < 18:
         top_phrases = list(afternoon_phrases)
@@ -263,14 +282,16 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     diurnal_period = "afternoon"
     if client_hour is not None:
         h = client_hour % 24
-        if 5 <= h < 12:
-            diurnal_period = "morning"
+        if 0 <= h < 6:
+            diurnal_period = "the wee hours (midnight to 6am — nocturnal hyperfocus while the world sleeps)"
+        elif 6 <= h < 12:
+            diurnal_period = "morning (6am to noon)"
         elif 12 <= h < 18:
             diurnal_period = "afternoon"
         elif 18 <= h < 23:
             diurnal_period = "evening"
         else:
-            diurnal_period = "night"
+            diurnal_period = "late night (approaching midnight)"
 
     system_prompt = (
         "You are the sharp, witty, cultured personal AI companion for PETTR "

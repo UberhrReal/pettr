@@ -230,10 +230,11 @@ const Dashboard = {
     if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
 
     const clientHour = new Date().getHours();
-    const isMorning = clientHour >= 5 && clientHour < 12;
+    const isWeeHours = clientHour >= 0 && clientHour < 6;
+    const isMorning = clientHour >= 6 && clientHour < 12;
     const isAfternoon = clientHour >= 12 && clientHour < 18;
     const isEvening = clientHour >= 18 && clientHour < 23;
-    const isNight = clientHour >= 23 || clientHour < 5;
+    const isNight = clientHour >= 23;
 
     let phrases = [];
     let sub = "Ready to log and track your day.";
@@ -251,7 +252,7 @@ const Dashboard = {
 
     // Filter out phrases that contradict current diurnal time-of-day
     const morningKws = [
-      'good morning', 'morning', 'first coffee', 'dawn', 'sunrise',
+      'good morning', 'morning', 'first coffee', 'morning coffee', 'dawn', 'sunrise',
       'kick off', 'kickstart', 'start strong', 'start today', 'start the day',
       'starting today', 'early start', 'early hours', 'rise and shine', 'wake up', 'am sprint'
     ];
@@ -269,10 +270,14 @@ const Dashboard = {
       'midnight', 'night owl', 'quiet hours', 'late night', 'burn the midnight oil',
       'burning the midnight oil', 'sleep soon', 'recharge batteries', 'recharge soon'
     ];
+    const weeHoursKws = [
+      'wee hours', 'small hours', 'dead of night', 'witching hour', 'stillness of the night'
+    ];
 
     phrases = phrases.filter(p => {
       const lower = p.toLowerCase();
-      if (!isNight && nightKws.some(k => lower.includes(k))) return false;
+      if (!isWeeHours && weeHoursKws.some(k => lower.includes(k))) return false;
+      if (!isNight && !isWeeHours && nightKws.some(k => lower.includes(k))) return false;
       if (!isMorning && morningKws.some(k => lower.includes(k))) return false;
       if (!isAfternoon && afternoonKws.some(k => lower.includes(k))) return false;
       if (!isEvening && eveningKws.some(k => lower.includes(k))) return false;
@@ -282,7 +287,16 @@ const Dashboard = {
     // If fewer than 3 phrases remain, supplement with rich diurnal phrases to guarantee variety
     if (phrases.length < 3) {
       let defaults = [];
-      if (isMorning) {
+      if (isWeeHours) {
+        defaults = [
+          `In the stillness of the wee hours, ${this.userName} - true hyperfocus thrives when the rest of the world is asleep.`,
+          `The small hours are where breakthroughs happen. Keep that train of thought rolling, ${this.userName}.`,
+          `Dead of night, terminal glowing. Pure undisturbed concentration in the quietest hours, ${this.userName}.`,
+          `Zero notifications, zero distractions. Just you and the craft in the wee hours, ${this.userName}.`,
+          `Deep nocturnal velocity, ${this.userName} - capture the breakthrough, but remember to catch some sleep before dawn.`
+        ];
+        if (!sub || sub === "Ready to log and track your day.") sub = "Wee hours hyperfocus active. Undisturbed quiet.";
+      } else if (isMorning) {
         defaults = [
           `Good morning, ${this.userName}. Let's tackle the highest-leverage task while focus is fresh.`,
           `First coffee brewed and workspace primed - ready to turn intentions into progress, ${this.userName}?`,

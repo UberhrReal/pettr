@@ -262,6 +262,17 @@ def test_diurnal_filter_strips_conflicting_times():
         assert "afternoon sprint" not in lower
     assert any("wrap it up" in p.lower() or "smooth landing" in p.lower() or "good evening" in p.lower() for p in evening)
 
+    # Wee hours test (hour 2:00 AM - 00:00 to 06:00)
+    wee_hours = daily_intel.filter_phrases_for_diurnal_window(test_lines, client_hour=2)
+    for p in wee_hours:
+        lower = p.lower()
+        assert "start strong" not in lower
+        assert "first coffee" not in lower
+        assert "good morning" not in lower
+        assert "midday boost" not in lower
+        assert "afternoon sprint" not in lower
+    assert any("wee hours" in p.lower() or "small hours" in p.lower() or "dead of night" in p.lower() or "stillness" in p.lower() or "focus" in p.lower() for p in wee_hours)
+
 
 def test_cached_mixed_phrases_filtered_by_client_hour(temp_db, monkeypatch):
     """Ensure cache containing mixed-diurnal phrases filters out contradictions when client supplies an hour."""
@@ -727,7 +738,7 @@ def test_articulate_typewriter_phrases_length_and_substance():
     import datetime
 
     today = datetime.date.today()
-    for hour in [8, 14, 20, 1]:
+    for hour in [8, 14, 20, 23, 1, 3]:
         phrases = daily_intel.get_curated_phrases(today, "Hong Rong", client_hour=hour)
         assert len(phrases) >= 5
         # Check that phrases are substantial sentences rather than tiny 2-word slogans
