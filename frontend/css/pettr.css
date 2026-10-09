@@ -2077,6 +2077,16 @@ body {
   border-color: var(--text-main);
 }
 
+.action-icon-btn:disabled,
+.action-icon-btn.is-locked {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  filter: grayscale(0.8);
+  box-shadow: none !important;
+  border-color: var(--card-border) !important;
+}
+
 .task-actions {
   display: flex;
   gap: 4px;

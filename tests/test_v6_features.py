@@ -879,6 +879,59 @@ def test_auto_tracking_daily_metrics_without_manual_debrief(temp_db, monkeypatch
     assert counts2["day_seals_manual"] == 1
 
 
+def test_manual_creation_locked_on_sealed_and_past_days(temp_db, monkeypatch):
+    """Verifies backend API blocks task, event, and reminder creation on sealed days, and frontend elements are configured."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    sealed_date = (datetime.date.today() - datetime.timedelta(days=2)).strftime("%Y-%m-%d")
+    database.seal_day(sealed_date, completion_rate=100, total_tasks=3, completed_tasks=3, db_path=temp_db)
+    assert database.is_day_sealed(sealed_date, db_path=temp_db) is True
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 1. Attempt creating task on sealed day -> 403
+        t_res = client.post("/api/tasks", json={
+            "title": "Attempted Task",
+            "due_date": f"{sealed_date} 14:00:00",
+            "tier": "focus"
+        })
+        assert t_res.status_code == 403
+        assert "sealed" in t_res.json()["detail"].lower()
+
+        # 2. Attempt creating event on sealed day -> 403
+        e_res = client.post("/api/events", json={
+            "title": "Attempted Event",
+            "start_time": f"{sealed_date} 10:00:00",
+            "end_time": f"{sealed_date} 11:00:00"
+        })
+        assert e_res.status_code == 403
+        assert "sealed" in e_res.json()["detail"].lower()
+
+        # 3. Attempt creating reminder on sealed day -> 403
+        r_res = client.post("/api/reminders", json={
+            "title": "Attempted Reminder",
+            "reminder_date": f"{sealed_date} 09:00:00"
+        })
+        assert r_res.status_code == 403
+        assert "sealed" in r_res.json()["detail"].lower()
+
+    # 4. Verify frontend template and scripts have the lock protection
+    html_content = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert 'id="directEntryBtn"' in html_content
+    assert 'id="manualAddEventBtn"' in html_content
+    assert 'id="manualAddProjectBtn"' in html_content
+    assert 'id="manualAddFocusBtn"' in html_content
+    assert 'id="manualAddTrivialBtn"' in html_content
+    assert 'id="manualAddReminderBtn"' in html_content
+
+    dash_content = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "updateManualCreationButtonsState" in dash_content
+    assert "openManualCreateModal(defaultType = \"focus\")" in dash_content
+    assert "if (this.isPastDay())" in dash_content
+
+
+
 
 
 

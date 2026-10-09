@@ -409,6 +409,10 @@ async def get_events(date: Optional[str] = None):
 @app.post("/api/events", dependencies=[Depends(auth.require_auth)])
 async def create_event_endpoint(req: CreateEventRequest):
     """Direct manual creation of a scheduled event."""
+    if req.start_time:
+        ev_d = req.start_time.split("T")[0].split(" ")[0]
+        if database.is_day_sealed(ev_d):
+            raise HTTPException(status_code=403, detail="Cannot add events to a day that has already been sealed.")
     created = database.create_event(
         title=req.title,
         start_time=req.start_time,
@@ -449,6 +453,10 @@ async def get_reminders(date: Optional[str] = None):
 @app.post("/api/reminders", dependencies=[Depends(auth.require_auth)])
 async def create_reminder_endpoint(req: CreateReminderRequest):
     """Direct manual creation of a reminder."""
+    if req.reminder_date:
+        rem_d = req.reminder_date.split("T")[0].split(" ")[0]
+        if database.is_day_sealed(rem_d):
+            raise HTTPException(status_code=403, detail="Cannot add reminders to a day that has already been sealed.")
     created = database.create_reminder(
         title=req.title,
         details=req.details or "",

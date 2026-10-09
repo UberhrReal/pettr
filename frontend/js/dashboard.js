@@ -130,7 +130,49 @@ const Dashboard = {
         if (lockedDateText) lockedDateText.textContent = dayName;
       }
     }
+    const isPast = this.isPastDay();
+    this.updateManualCreationButtonsState(isPast);
     App.renderIcons();
+  },
+
+  updateManualCreationButtonsState(isPast) {
+    const btnConfigs = [
+      { id: "directEntryBtn", defaultTitle: "Directly add a task, event, reminder, or project without natural language parsing" },
+      { id: "manualAddEventBtn", defaultTitle: "Directly add scheduled event" },
+      { id: "manualAddProjectBtn", defaultTitle: "Create new project" },
+      { id: "manualAddFocusBtn", defaultTitle: "Directly add deep work focus task" },
+      { id: "manualAddTrivialBtn", defaultTitle: "Directly add quick errand" },
+      { id: "manualAddReminderBtn", defaultTitle: "Directly add reminder" }
+    ];
+
+    btnConfigs.forEach(cfg => {
+      const el = document.getElementById(cfg.id);
+      if (!el) return;
+      if (isPast) {
+        el.disabled = true;
+        el.classList.add("is-locked");
+        el.setAttribute("aria-disabled", "true");
+        el.title = "🔒 Locked: Past day archives cannot be edited. Return to Today to add new items.";
+      } else {
+        el.disabled = false;
+        el.classList.remove("is-locked");
+        el.removeAttribute("aria-disabled");
+        el.title = cfg.defaultTitle;
+      }
+    });
+
+    document.querySelectorAll(".manual-create-btn").forEach(el => {
+      if (isPast) {
+        el.disabled = true;
+        el.classList.add("is-locked");
+        el.setAttribute("aria-disabled", "true");
+        el.title = "🔒 Locked: Past day archives cannot be edited. Return to Today to add new items.";
+      } else {
+        el.disabled = false;
+        el.classList.remove("is-locked");
+        el.removeAttribute("aria-disabled");
+      }
+    });
   },
 
   heroTaglines: [
@@ -1478,7 +1520,11 @@ const Dashboard = {
     container.innerHTML = "";
 
     if (!projects || projects.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0;">No projects have tasks scheduled for this day.<br><span style="display:inline-block; margin-top:8px;">View all in <a href="javascript:void(0)" onclick="App.navigateToGlobalProjects()" style="color:var(--text-main); font-weight:700; text-decoration:underline;">Global Projects Pool</a> or create a <a href="javascript:void(0)" onclick="Dashboard.openManualCreateModal(\'project\')" style="color:var(--text-main); font-weight:700; text-decoration:underline;">+ New Project</a>.</span></div>';
+      if (this.isPastDay()) {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0;">No projects had tasks recorded for this archived day.<br><span style="display:inline-block; margin-top:8px;">View all in <a href="javascript:void(0)" onclick="App.navigateToGlobalProjects()" style="color:var(--text-main); font-weight:700; text-decoration:underline;">Global Projects Pool</a>.</span></div>';
+      } else {
+        container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px 0;">No projects have tasks scheduled for this day.<br><span style="display:inline-block; margin-top:8px;">View all in <a href="javascript:void(0)" onclick="App.navigateToGlobalProjects()" style="color:var(--text-main); font-weight:700; text-decoration:underline;">Global Projects Pool</a> or create a <a href="javascript:void(0)" onclick="Dashboard.openManualCreateModal(\'project\')" style="color:var(--text-main); font-weight:700; text-decoration:underline;">+ New Project</a>.</span></div>';
+      }
       return;
     }
 
@@ -1570,6 +1616,10 @@ const Dashboard = {
   },
 
   async promptAddTaskToProject(projectName) {
+    if (this.isPastDay()) {
+      App.showToast("Cannot add tasks to locked past days.", true);
+      return;
+    }
     const title = prompt(`Enter new task for project "${projectName}":`);
     if (!title || !title.trim()) return;
     try {
@@ -2139,6 +2189,10 @@ const Dashboard = {
   currentManualType: "focus",
 
   openManualCreateModal(defaultType = "focus") {
+    if (this.isPastDay()) {
+      App.showToast("Cannot add new items to a past or sealed day. Return to Today or select a future day.", true);
+      return;
+    }
     this.selectManualType(defaultType);
     const titleInput = document.getElementById("manualInputTitle");
     const descInput = document.getElementById("manualInputDesc");

@@ -234,7 +234,7 @@
                 <button class="voice-input-btn" id="voiceInputBtn" onclick="App.toggleVoiceInput()" title="Voice Input (Speech-to-Text)" type="button">
                   <i data-lucide="mic"></i>
                 </button>
-                <button class="action-icon-btn direct-entry-btn" onclick="Dashboard.openManualCreateModal()" title="Directly add a task, event, reminder, or project without natural language parsing" type="button">
+                <button class="action-icon-btn direct-entry-btn manual-create-btn" id="directEntryBtn" onclick="Dashboard.openManualCreateModal()" title="Directly add a task, event, reminder, or project without natural language parsing" type="button">
                   <i data-lucide="plus-circle" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;"></i> <span class="direct-entry-label">+ Direct Entry</span>
                 </button>
                 <button class="quick-submit-btn" id="quickSubmitBtn" onclick="App.submitLog()" type="button"><span id="quickSubmitBtnText">Log</span> <kbd class="log-key-hint">↵</kbd></button>
@@ -440,7 +440,7 @@
           <div class="column-header">
             <h3 class="column-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Today's Scheduled Events</h3>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('event')" style="font-size: 11px; font-weight: 600;" title="Directly add scheduled event">+ Add Event</button>
+              <button class="action-icon-btn manual-create-btn" id="manualAddEventBtn" onclick="Dashboard.openManualCreateModal('event')" style="font-size: 11px; font-weight: 600;" title="Directly add scheduled event">+ Add Event</button>
               <span style="font-size: 12px; color: var(--text-muted);">24hr Military</span>
             </div>
           </div>
@@ -461,7 +461,7 @@
               <span class="panel-count-badge" id="badgeCountProjects">0 projects</span>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('project')" style="font-size: 11px; font-weight: 600;" title="Create new project">+ New Project</button>
+              <button class="action-icon-btn manual-create-btn" id="manualAddProjectBtn" onclick="Dashboard.openManualCreateModal('project')" style="font-size: 11px; font-weight: 600;" title="Create new project">+ New Project</button>
               <button class="action-icon-btn" onclick="App.navigateToGlobalProjects()" style="font-size: 11px; font-weight: 600;" title="View all ongoing projects in Exploded View">All Ongoing Projects →</button>
             </div>
           </div>
@@ -475,7 +475,7 @@
           <div class="column-header">
             <h3 class="column-title focus-title"><i data-lucide="crosshair" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus Tasks (Deep Work)</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus')" style="font-size: 11px; font-weight: 600;" title="Directly add deep work focus task">+ Add Focus Task</button>
+              <button class="action-icon-btn manual-create-btn" id="manualAddFocusBtn" onclick="Dashboard.openManualCreateModal('focus')" style="font-size: 11px; font-weight: 600;" title="Directly add deep work focus task">+ Add Focus Task</button>
               <span class="panel-count-badge" id="badgeCountFocus">0 tasks</span>
               <span style="font-size: 11px; color: var(--text-muted);">Drag ≡</span>
             </div>
@@ -490,7 +490,7 @@
           <div class="column-header">
             <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Tasks (Quick Errands)</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick errand">+ Add Errand</button>
+              <button class="action-icon-btn manual-create-btn" id="manualAddTrivialBtn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick errand">+ Add Errand</button>
               <span class="panel-count-badge" id="badgeCountTrivial">0 tasks</span>
               <span style="font-size: 11px; color: var(--text-muted);">Drag ≡</span>
             </div>
@@ -505,7 +505,7 @@
           <div class="column-header">
             <h3 class="column-title"><i data-lucide="bell" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders for Today</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('reminder')" style="font-size: 11px; font-weight: 600;" title="Directly add reminder">+ Add Reminder</button>
+              <button class="action-icon-btn manual-create-btn" id="manualAddReminderBtn" onclick="Dashboard.openManualCreateModal('reminder')" style="font-size: 11px; font-weight: 600;" title="Directly add reminder">+ Add Reminder</button>
               <span class="panel-count-badge" id="badgeCountReminders">0 notes</span>
             </div>
           </div>
