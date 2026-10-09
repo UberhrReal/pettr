@@ -363,3 +363,22 @@ def test_urgency_label_never_urgent(temp_db, monkeypatch):
     assert urgency_soon["label"] != "Urgent"
 
 
+@pytest.mark.anyio
+async def test_time_only_task_defaults_to_today(temp_db):
+    """Verify that inputs with time-only like 'Get compressor model for Jodan 12pm' default to today."""
+    ref_now = datetime.datetime(2026, 10, 9, 9, 30, 0)
+    user_input = "Get compressor model for Jodan 12pm"
+    result = await process_user_input(user_input, ref_datetime=ref_now, db_path=temp_db)
+
+    assert result["status"] == "success"
+    assert result["entity_type"] == "task"
+    task = result["entity"]
+    assert "Get compressor model for Jodan" in task["title"]
+    assert "2026-10-09 12:00:00" in task["due_date"]
+
+    # Ensure unorganized queue is empty
+    unorg = database.get_unorganized_items(db_path=temp_db)
+    assert len(unorg) == 0
+
+
+

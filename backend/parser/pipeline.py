@@ -53,22 +53,8 @@ def check_date_validity(raw_text: str, temporal_data: Dict[str, Any], entity_typ
     if date_cues and not temporal_data.get("has_date"):
         return False, f"Unparseable date following '{date_cues.group(1)}'"
 
-    # 5. Missing set day: time-only specified without a set day (parsedatetime flag == 2)
-    # e.g., user said "at 14:00" or "at 3pm" without saying today, tomorrow, this evening, or a date
-    if temporal_data.get("has_date") and temporal_data.get("flag") == 2:
-        day_indicators = (
-            r'\b(?:today|tonight|tomorrow|yesterday|'
-            r'(?:this\s+)?(?:morning|afternoon|evening|night|noon)|'
-            r'monday|tuesday|wednesday|thursday|friday|saturday|sunday|'
-            r'mon|tue|wed|thu|fri|sat|sun|'
-            r'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|'
-            r'next\s+(?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|'
-            r'in\s+\d+\s*(?:day|days|hour|hours|min|mins|minute|minutes))\b'
-        )
-        if not re.search(day_indicators, raw_lower):
-            return False, "Time specified without at least a set day"
-
-    # 6. Standalone Tasks and Events strictly require a set day or deadline
+    # 5. Standalone Tasks and Events strictly require a set day or deadline
+    # (Time-only specifications like '12pm' or 'at 14:00' default to today)
     # BUT: Project tasks do NOT need a due date to belong to their project!
     if entity_type == "task" and not project_name and not temporal_data.get("has_date"):
         return False, "Standalone task has no specified day or deadline — sent to unorganised queue for review"

@@ -107,8 +107,8 @@ def test_invalid_date_routing_to_unorganized(tmp_path, monkeypatch):
         assert data["status"] == "unorganized"
         assert "Uncertain date/time" in data["reasoning"] or "manual review" in data["reasoning"]
 
-        # 2. Time-only without a set day
-        res = test_client.post("/api/ingest", json={"text": "Standup call at 14:00"})
+        # 2. Standalone task with missing day/deadline
+        res = test_client.post("/api/ingest", json={"text": "Review budget figures and file receipts"})
         assert res.status_code == 200
         data = res.json()
         assert data["status"] == "unorganized"
