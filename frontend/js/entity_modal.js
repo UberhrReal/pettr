@@ -496,10 +496,15 @@ const EntityModal = {
 
       const data = await res.json();
       if (res.ok) {
-        if (this.fromType === "task" && toType !== "task" && typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
-          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === 'task' || !item.type)));
-          Dashboard.renderDailyOrder();
-          Dashboard.saveDailyOrder();
+        const newDay = (dueDate || "").split("T")[0].split(" ")[0];
+        const hasMovedDay = Boolean(newDay && typeof Dashboard !== "undefined" && Dashboard.selectedDate && newDay !== Dashboard.selectedDate);
+        if (typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
+          if (toType !== this.fromType || hasMovedDay) {
+            Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
+            localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
+            Dashboard.renderDailyOrder();
+            Dashboard.saveDailyOrder();
+          }
         }
         App.showToast("Changes saved successfully!");
         this.close();
@@ -532,8 +537,9 @@ const EntityModal = {
 
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
-        if (this.fromType === "task" && typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
-          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === 'task' || !item.type)));
+        if (typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
+          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
+          localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
           Dashboard.renderDailyOrder();
           Dashboard.saveDailyOrder();
         }

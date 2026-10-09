@@ -305,6 +305,12 @@ async def update_task(task_id: int, req: UpdateTaskRequest):
         updates.append("tier = ?")
         values.append(req.tier)
     if req.due_date is not None:
+        old_due = existing_task.get("due_date")
+        if old_due:
+            old_day = str(old_due).split("T")[0].split(" ")[0]
+            new_day = str(req.due_date).split("T")[0].split(" ")[0] if req.due_date else None
+            if old_day and new_day and old_day != new_day:
+                database.remove_from_daily_order_for_date(task_id, "task", old_day)
         updates.append("due_date = ?")
         values.append(req.due_date)
     if req.status is not None:

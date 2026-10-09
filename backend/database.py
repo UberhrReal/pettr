@@ -1598,6 +1598,12 @@ def reclassify_entity(from_type: str,
     if clean_from == clean_to:
         with conn:
             if clean_to == "task":
+                old_task = conn.execute("SELECT due_date FROM tasks WHERE id = ?", (from_id,)).fetchone()
+                old_day = (old_task["due_date"].split("T")[0].split(" ")[0]) if (old_task and old_task["due_date"]) else None
+                new_day = (due_date.split("T")[0].split(" ")[0]) if due_date else None
+                if old_day and new_day and old_day != new_day:
+                    remove_from_daily_order_for_date(from_id, "task", old_day, conn=conn)
+
                 task_status = "completed" if status == "completed" else ("cancelled" if status == "cancelled" else "pending")
                 ts_clause = ""
                 ts_params = []
@@ -1616,6 +1622,13 @@ def reclassify_entity(from_type: str,
                 event_end = end_time
                 if event_end and len(event_end) == 16:
                     event_end += ":00"
+
+                old_ev = conn.execute("SELECT start_time FROM events WHERE id = ?", (from_id,)).fetchone()
+                old_day = (old_ev["start_time"].split("T")[0].split(" ")[0]) if (old_ev and old_ev["start_time"]) else None
+                new_day = (event_time.split("T")[0].split(" ")[0]) if event_time else None
+                if old_day and new_day and old_day != new_day:
+                    remove_from_daily_order_for_date(from_id, "event", old_day, conn=conn)
+
                 conn.execute("""
                     UPDATE events SET title = ?, description = ?, project_id = ?, start_time = ?, end_time = ?, status = ?, recurrence = ?
                     WHERE id = ?
@@ -1725,17 +1738,76 @@ def remove_from_daily_order(entity_id: int, entity_type: str = "task", db_path: 
     if conn is None:
         target_conn.commit()
 
+def remove_from_daily_order_for_date(entity_id: int, entity_type: str = "task", date_str: str = "", db_path: Optional[Path] = None, conn: Optional[sqlite3.Connection] = None) -> None:
+    """Removes an entity from a specific date's daily_order sequence (e.g. when moved to another day)."""
+    if not date_str:
+        return
+    target_conn = conn or get_connection(db_path)
+    row = target_conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (date_str,)).fetchone()
+    if not row or not row["order_data"]:
+        return
+    try:
+        items = json.loads(row["order_data"] or "[]")
+        new_items = [it for it in items if not (it.get("id") == entity_id and (it.get("type") == entity_type or (not it.get("type") and entity_type == "task")))]
+        if len(new_items) != len(items):
+            target_conn.execute("UPDATE daily_orders SET order_data = ?, updated_at = CURRENT_TIMESTAMP WHERE date = ?", (json.dumps(new_items), date_str))
+            if conn is None:
+                target_conn.commit()
+    except Exception:
+        pass
+
 def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     conn = get_connection(db_path)
     row = conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (date_str,)).fetchone()
-    if row and row["order_data"]:
-        try:
-            raw_items = json.loads(row["order_data"])
-            # Reminders never belong in daily priority tasking order
-            return [it for it in raw_items if it.get("type") != "reminder"]
-        except Exception:
-            return []
-    return []
+    if not row or not row["order_data"]:
+        return []
+    try:
+        raw_items = json.loads(row["order_data"])
+    except Exception:
+        return []
+
+    valid_items = []
+    has_changes = False
+
+    for it in raw_items:
+        itype = it.get("type", "task")
+        iid = it.get("id")
+        if not iid:
+            continue
+        # Reminders never belong in daily priority tasking order
+        if itype == "reminder":
+            has_changes = True
+            continue
+
+        if itype == "task":
+            t_row = conn.execute("SELECT id, due_date FROM tasks WHERE id = ?", (iid,)).fetchone()
+            if t_row:
+                due_d = t_row["due_date"]
+                if due_d:
+                    task_day = str(due_d).split("T")[0].split(" ")[0]
+                    # If the task has an explicit due date on a different calendar day, it has moved!
+                    if task_day != date_str:
+                        has_changes = True
+                        continue
+            valid_items.append(it)
+        elif itype == "event":
+            e_row = conn.execute("SELECT id, start_time FROM events WHERE id = ?", (iid,)).fetchone()
+            if e_row:
+                ev_start = e_row["start_time"]
+                if ev_start:
+                    ev_day = str(ev_start).split("T")[0].split(" ")[0]
+                    if ev_day != date_str:
+                        has_changes = True
+                        continue
+            valid_items.append(it)
+        else:
+            valid_items.append(it)
+
+    if has_changes:
+        with conn:
+            conn.execute("UPDATE daily_orders SET order_data = ?, updated_at = CURRENT_TIMESTAMP WHERE date = ?", (json.dumps(valid_items), date_str))
+
+    return valid_items
 
 def save_daily_order(date_str: str, order_data: List[Dict[str, Any]], db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     conn = get_connection(db_path)

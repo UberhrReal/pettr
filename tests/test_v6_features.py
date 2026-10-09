@@ -739,6 +739,71 @@ def test_articulate_typewriter_phrases_length_and_substance():
         assert avg_len > 45, f"Average phrase length too low: {avg_len}"
 
 
+def test_daily_order_pruned_when_due_date_moves_to_another_day(temp_db, monkeypatch):
+    """Test that moving a task's due date to another day removes it from the daily order sequence."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today().isoformat()
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+
+    # 1. Create a task due today
+    task1 = database.create_task(
+        title="Task Moving Via Patch",
+        tier="focus",
+        due_date=f"{today} 14:00:00",
+        db_path=temp_db
+    )
+    task1_id = task1["id"]
+
+    # 2. Add task1 to today's daily order
+    order_items = [
+        {"id": task1_id, "type": "task", "title": "Task Moving Via Patch", "tier": "focus"}
+    ]
+    database.save_daily_order(today, order_items, db_path=temp_db)
+
+    # Verify task is currently in today's daily order
+    cur_order = database.get_daily_order(today, db_path=temp_db)
+    assert any(it["id"] == task1_id for it in cur_order)
+
+    # 3. Update task due date to tomorrow via PATCH endpoint
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.patch(f"/api/tasks/{task1_id}", json={"due_date": f"{tomorrow} 10:00:00"})
+        assert res.status_code == 200
+
+        # Verify today's daily order no longer contains task1
+        res_today = client.get(f"/api/daily-order?date={today}")
+        assert res_today.status_code == 200
+        today_order = res_today.json()["order"]
+        assert not any(it["id"] == task1_id for it in today_order)
+
+    # 4. Test reclassify_entity (used by EntityModal)
+    task2 = database.create_task(
+        title="Task Moving Via Reclassify",
+        tier="focus",
+        due_date=f"{today} 16:00:00",
+        db_path=temp_db
+    )
+    task2_id = task2["id"]
+    database.save_daily_order(today, [{"id": task2_id, "type": "task", "title": "Task Moving Via Reclassify"}], db_path=temp_db)
+
+    cur_order2 = database.get_daily_order(today, db_path=temp_db)
+    assert any(it["id"] == task2_id for it in cur_order2)
+
+    database.reclassify_entity(
+        from_type="task",
+        from_id=task2_id,
+        to_type="task",
+        title="Task Moving Via Reclassify",
+        due_date=f"{tomorrow} 16:00:00",
+        db_path=temp_db
+    )
+
+    today_order2 = database.get_daily_order(today, db_path=temp_db)
+    assert not any(it["id"] == task2_id for it in today_order2)
+
+
+
 
 
 

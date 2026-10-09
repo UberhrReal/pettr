@@ -1062,25 +1062,56 @@ const Dashboard = {
 
   reconcileDailyOrderTitles() {
     if (!this.dailyOrder || !this.dailyOrder.length) return;
-    const allTasks = [
+    const tasksLoaded = Boolean(this.tasks && (Array.isArray(this.tasks.focus) || Array.isArray(this.tasks.trivial)));
+    const eventsLoaded = Array.isArray(this.events);
+    if (!tasksLoaded && !eventsLoaded) return;
+
+    const allTasks = tasksLoaded ? [
       ...((this.tasks && this.tasks.focus) || []),
       ...((this.tasks && this.tasks.trivial) || [])
-    ];
+    ] : [];
+
     let modified = false;
-    this.dailyOrder.forEach(item => {
+    const initialLen = this.dailyOrder.length;
+    this.dailyOrder = this.dailyOrder.filter(item => {
       if (item.type === "task" || !item.type) {
+        if (!tasksLoaded) return true;
         const found = allTasks.find(t => t.id === item.id);
-        if (found && found.title) {
+        if (!found) {
+          modified = true;
+          return false;
+        }
+        if (found.title) {
           const clean = found.title.replace(/^\s*\[.*?\]\s*/, '');
           if (item.title !== clean) {
             item.title = clean;
             modified = true;
           }
         }
+        return true;
       }
+      if (item.type === "event") {
+        if (!eventsLoaded) return true;
+        const found = this.events.find(e => e.id === item.id);
+        if (!found) {
+          modified = true;
+          return false;
+        }
+        if (found.title && item.title !== found.title) {
+          item.title = found.title;
+          modified = true;
+        }
+        return true;
+      }
+      return true;
     });
+
     if (modified) {
       localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+      if (this.dailyOrder.length !== initialLen) {
+        this.renderDailyOrder();
+        this.saveDailyOrder();
+      }
     }
   },
 
@@ -1753,6 +1784,7 @@ const Dashboard = {
       const res = await fetch(`/api/events?date=${this.selectedDate}`);
       if (!res.ok) return;
       this.events = await res.json();
+      this.reconcileDailyOrderTitles();
       const container = document.getElementById("eventsList");
       if (!container) return;
       container.innerHTML = "";
