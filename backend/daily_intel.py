@@ -118,6 +118,74 @@ DAY_OF_WEEK_INTEL = {
     6: "Sunday debrief: Rest, reflect, reset the mission clock, and plan ahead."
 }
 
+MORNING_KEYWORDS = [
+    "good morning", "morning", "first coffee", "coffee", "dawn", "sunrise",
+    "kick off", "kickstart", "start strong", "start today", "start the day", "starting today",
+    "early start", "early hours", "rise and shine", "wake up", "am sprint"
+]
+
+AFTERNOON_KEYWORDS = [
+    "good afternoon", "afternoon", "midday", "lunch", "post-lunch",
+    "halfway through", "afternoon sprint", "midday boost", "midday check-in", "power through the afternoon",
+    "working hard or hardly working"
+]
+
+EVENING_KEYWORDS = [
+    "good evening", "evening", "wrap it up", "wrap up", "wrapping up",
+    "wind down", "winding down", "call it a day", "landing", "rest soon",
+    "relax", "sign off", "signing off", "close out the day", "close out today", "end of day",
+    "eod", "bedtime", "smooth landing", "evening debrief", "time to unwind"
+]
+
+NIGHT_KEYWORDS = [
+    "midnight", "night owl", "quiet hours", "late night", "burn the midnight oil",
+    "burning the midnight oil", "sleep soon", "rest your eyes", "recharge batteries"
+]
+
+def filter_phrases_for_diurnal_window(
+    phrases: List[str],
+    client_hour: Optional[int],
+    target_date: Optional[datetime.date] = None,
+    user_name: str = "Hong Rong"
+) -> List[str]:
+    """
+    Filters out typewriter phrases that contradict the client's current time of day.
+    Supplements with appropriate curated phrases if filtering leaves fewer than 3 lines.
+    """
+    if client_hour is None or not phrases:
+        return list(phrases)
+
+    hour = client_hour % 24
+    is_morning = 5 <= hour < 12
+    is_afternoon = 12 <= hour < 18
+    is_evening = 18 <= hour < 23
+    is_night = hour >= 23 or hour < 5
+
+    filtered = []
+    for p in phrases:
+        if not isinstance(p, str):
+            continue
+        lower = p.lower()
+        if not is_morning and any(k in lower for k in MORNING_KEYWORDS):
+            continue
+        if not is_afternoon and any(k in lower for k in AFTERNOON_KEYWORDS):
+            continue
+        if not is_evening and any(k in lower for k in EVENING_KEYWORDS):
+            continue
+        if not is_night and any(k in lower for k in NIGHT_KEYWORDS):
+            continue
+        filtered.append(p)
+
+    if len(filtered) < 3:
+        curated = get_curated_phrases(target_date or datetime.date.today(), user_name, client_hour=hour)
+        for c in curated:
+            if c not in filtered:
+                filtered.append(c)
+            if len(filtered) >= 5:
+                break
+
+    return filtered
+
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
     """Generates curated time-of-day phrases as resilient fallback."""
     morning_phrases = [
@@ -165,15 +233,13 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
     else:
         top_phrases = list(night_phrases)
 
-    if milestone:
-        top_phrases.insert(1, f"Special milestone today, {user_name}.")
-
     return top_phrases
 
 async def generate_llm_typewriter_lines(target_date: datetime.date,
                                        user_name: str,
                                        milestone_info: Optional[str] = None,
-                                       timeout_seconds: float = 30.0) -> Optional[Any]:
+                                       timeout_seconds: float = 30.0,
+                                       client_hour: Optional[int] = None) -> Optional[Any]:
     """
     Prompts the configured local/remote LLM to generate fresh, date-aware typewriter greeting lines
     and a fascinating fun fact relevant to today's date in history.
@@ -194,8 +260,17 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     target_model = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model") or config.get("active_llm") or "llama3.2:3b"
 
     date_str = target_date.strftime("%A, %B %d, %Y")
-    weekday_name = target_date.strftime("%A")
-    milestone_ctx = f"Historical anniversary / milestone today: {milestone_info}" if milestone_info else f"Day of the week: {weekday_name}"
+    diurnal_period = "afternoon"
+    if client_hour is not None:
+        h = client_hour % 24
+        if 5 <= h < 12:
+            diurnal_period = "morning"
+        elif 12 <= h < 18:
+            diurnal_period = "afternoon"
+        elif 18 <= h < 23:
+            diurnal_period = "evening"
+        else:
+            diurnal_period = "night"
 
     system_prompt = (
         "You are the sharp, witty, cultured personal AI companion for PETTR "
@@ -208,18 +283,23 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
     )
 
+    milestone_hint = f"Context / anniversary hint: {milestone_info}\n" if milestone_info else ""
     user_prompt = (
-        f"Today is {date_str}.\n"
-        f"{milestone_ctx}\n"
-        f"User's name: {user_name}\n\n"
-        "Requirements:\n"
-        f"1. In 'phrases': generate exactly 5 short, witty, and motivating typewriter phrases tailored to today's date and {user_name}.\n"
-        "2. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
-        "3. Blend grounded real-world productivity, deep work, coursework, subtle aerospace/technical touches, and warm date-relevant humor.\n"
-        "4. Cover different daily momentum perspectives (morning start, midday sprint, evening wrap-up).\n"
-        f"5. Mention {user_name} naturally in at least two lines.\n"
-        "6. In 'fact': provide 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history (across science, space, computing, biology, engineering, or culture). Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
-        "7. Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
+        f"Today's date: {date_str}.\n"
+        f"Current time window: {diurnal_period.capitalize()}.\n"
+        f"User's name: {user_name}.\n\n"
+        "Task 1 — Dashboard Typewriter Greetings ('phrases'):\n"
+        f"1. Generate exactly 5 punchy, witty, motivating typewriter phrases for {user_name}.\n"
+        f"2. Keep phrases appropriate for the current {diurnal_period} time window or universally time-neutral (high focus, deep work, execution).\n"
+        "3. DO NOT mix contradictory times of day (do NOT include morning wake-up phrases if it is afternoon/evening, and do NOT include evening wrap-up phrases if it is morning/afternoon).\n"
+        "4. DO NOT try to force puns, jokes, or thematic references to the historical milestone or fun fact into the typewriter greetings. Keep typewriter greetings independently focused on daily momentum, engineering craft, coursework, and productivity.\n"
+        "5. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
+        f"6. Mention {user_name} naturally in at least two lines.\n\n"
+        "Task 2 — Historical Fun Fact ('fact'):\n"
+        f"1. Provide exactly 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history ({target_date.strftime('%B %d')}).\n"
+        f"{milestone_hint}"
+        "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n\n"
+        "Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
     )
 
     for ollama_url in candidate_urls:
@@ -281,6 +361,8 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                             fact_str = None
 
                     if len(cleaned) >= 3:
+                        if client_hour is not None:
+                            cleaned = filter_phrases_for_diurnal_window(cleaned, client_hour, target_date, user_name)
                         logger.info(f"Successfully generated {len(cleaned)} daily typewriter lines and fun fact via LLM ({model_name} at {ollama_url})")
                         return {
                             "phrases": cleaned,
@@ -321,9 +403,13 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 cached_subtext = default_subtext
 
             phrases_to_return = cached["phrases"]
-            # If cache source was curated fallback and client specified an hour, provide diurnal-appropriate phrases
-            if cached.get("source") != "llm" and client_hour is not None:
-                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+            if client_hour is not None:
+                phrases_to_return = filter_phrases_for_diurnal_window(
+                    phrases_to_return,
+                    client_hour=client_hour,
+                    target_date=today,
+                    user_name=user_name
+                )
 
             return {
                 "date": date_key,
@@ -336,7 +422,12 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             }
 
     # 2. Generate via LLM
-    llm_res = await generate_llm_typewriter_lines(today, user_name, fact)
+    import inspect
+    sig = inspect.signature(generate_llm_typewriter_lines)
+    if "client_hour" in sig.parameters:
+        llm_res = await generate_llm_typewriter_lines(today, user_name, fact, client_hour=client_hour)
+    else:
+        llm_res = await generate_llm_typewriter_lines(today, user_name, fact)
 
     llm_phrases = None
     llm_fact = None
@@ -348,7 +439,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
 
     if llm_phrases and len(llm_phrases) >= 3:
         source = "llm"
-        final_phrases = llm_phrases
+        final_phrases = filter_phrases_for_diurnal_window(llm_phrases, client_hour, today, user_name) if client_hour is not None else llm_phrases
         chosen_fact = llm_fact or fact
     else:
         source = "curated_fallback"

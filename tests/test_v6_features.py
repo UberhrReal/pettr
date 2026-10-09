@@ -220,6 +220,84 @@ async def test_llm_typewriter_generation_and_cache(temp_db, monkeypatch):
     assert cached["source"] == "llm"
 
 
+def test_diurnal_filter_strips_conflicting_times():
+    """Test diurnal filtering removes time-conflicting phrases and supplements appropriate ones."""
+    from backend import daily_intel
+
+    test_lines = [
+        "Start strong today!",
+        "First coffee, then deep work.",
+        "Midday boost!",
+        "Executing afternoon sprint.",
+        "Wrap it up!",
+        "Smooth landing for today's sprint."
+    ]
+
+    # Afternoon test (hour 14:00)
+    afternoon = daily_intel.filter_phrases_for_diurnal_window(test_lines, client_hour=14)
+    for p in afternoon:
+        lower = p.lower()
+        assert "start strong" not in lower
+        assert "first coffee" not in lower
+        assert "wrap it up" not in lower
+        assert "smooth landing" not in lower
+    assert any("midday" in p.lower() or "afternoon" in p.lower() for p in afternoon)
+
+    # Morning test (hour 8:00)
+    morning = daily_intel.filter_phrases_for_diurnal_window(test_lines, client_hour=8)
+    for p in morning:
+        lower = p.lower()
+        assert "midday boost" not in lower
+        assert "afternoon sprint" not in lower
+        assert "wrap it up" not in lower
+    assert any("start strong" in p.lower() or "first coffee" in p.lower() or "good morning" in p.lower() for p in morning)
+
+    # Evening test (hour 20:00)
+    evening = daily_intel.filter_phrases_for_diurnal_window(test_lines, client_hour=20)
+    for p in evening:
+        lower = p.lower()
+        assert "start strong" not in lower
+        assert "first coffee" not in lower
+        assert "midday boost" not in lower
+        assert "afternoon sprint" not in lower
+    assert any("wrap it up" in p.lower() or "smooth landing" in p.lower() or "good evening" in p.lower() for p in evening)
+
+
+def test_cached_mixed_phrases_filtered_by_client_hour(temp_db, monkeypatch):
+    """Ensure cache containing mixed-diurnal phrases filters out contradictions when client supplies an hour."""
+    from backend import daily_intel
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # Save mixed lines in cache
+    mixed_lines = [
+        "Start strong today!",
+        "Midday boost!",
+        "Wrap it up!",
+        "Focus on core tasks.",
+        "Precision engineering craft."
+    ]
+    database.save_daily_typewriter_cache(
+        date_str="2026-10-09",
+        phrases=mixed_lines,
+        subtext="Friday, October 09 · 💡 1872: Aaron Montgomery Ward test",
+        source="llm",
+        db_path=temp_db
+    )
+
+    # Request with hour=14 (afternoon)
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.get("/api/daily-intel?date=2026-10-09&hour=14")
+        assert res.status_code == 200
+        data = res.json()
+        phrases = data["phrases"]
+        for p in phrases:
+            lower = p.lower()
+            assert "start strong" not in lower
+            assert "wrap it up" not in lower
+        assert any("midday boost" in p.lower() or "cruising" in p.lower() or "focus" in p.lower() for p in phrases)
+
+
 def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
     """Test evening debrief seal locks the day's completion rate and blocks further edits."""
     monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)

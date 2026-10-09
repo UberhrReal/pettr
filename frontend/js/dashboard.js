@@ -250,20 +250,32 @@ const Dashboard = {
     }
 
     // Filter out phrases that contradict current diurnal time-of-day
+    const morningKws = [
+      'good morning', 'morning', 'first coffee', 'dawn', 'sunrise',
+      'kick off', 'kickstart', 'start strong', 'start today', 'start the day',
+      'starting today', 'early start', 'early hours', 'rise and shine', 'wake up', 'am sprint'
+    ];
+    const afternoonKws = [
+      'good afternoon', 'afternoon', 'midday', 'midday boost', 'midday check-in',
+      'lunch', 'post-lunch', 'halfway through', 'afternoon sprint', 'working hard or hardly working'
+    ];
+    const eveningKws = [
+      'good evening', 'evening', 'wrap it up', 'wrap up', 'wrapping up',
+      'wind down', 'winding down', 'call it a day', 'landing', 'rest soon',
+      'relax', 'sign off', 'signing off', 'close out the day', 'close out today',
+      'end of day', 'eod', 'bedtime', 'evening debrief', 'time to unwind', 'smooth landing'
+    ];
+    const nightKws = [
+      'midnight', 'night owl', 'quiet hours', 'late night', 'burn the midnight oil',
+      'burning the midnight oil', 'sleep soon', 'recharge batteries', 'recharge soon'
+    ];
+
     phrases = phrases.filter(p => {
       const lower = p.toLowerCase();
-      if (!isNight && (lower.includes('midnight') || lower.includes('night owl') || lower.includes('quiet hours') || lower.includes('late night') || lower.includes('recharge batteries') || lower.includes('recharge soon'))) {
-        return false;
-      }
-      if (!isMorning && (lower.includes('good morning') || lower.includes('first coffee') || lower.includes('morning momentum') || lower.includes('early morning'))) {
-        return false;
-      }
-      if (!isAfternoon && (lower.includes('good afternoon') || lower.includes('midday check-in') || lower.includes('working hard or hardly working'))) {
-        return false;
-      }
-      if (!isEvening && (lower.includes('good evening') || lower.includes('evening status') || lower.includes('wrapping up'))) {
-        return false;
-      }
+      if (!isNight && nightKws.some(k => lower.includes(k))) return false;
+      if (!isMorning && morningKws.some(k => lower.includes(k))) return false;
+      if (!isAfternoon && afternoonKws.some(k => lower.includes(k))) return false;
+      if (!isEvening && eveningKws.some(k => lower.includes(k))) return false;
       return true;
     });
 
