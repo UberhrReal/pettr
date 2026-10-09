@@ -791,8 +791,11 @@ const Dashboard = {
 
       // Full-width morning briefing visual formatting and raw markdown
       this.briefingData = data;
-      const textRes = await fetch(`/api/briefing/text?date=${this.selectedDate}`);
-      if (textRes.ok) {
+      const [textRes] = await Promise.all([
+        fetch(`/api/briefing/text?date=${this.selectedDate}`).catch(() => null),
+        this.loadDailyOrder()
+      ]);
+      if (textRes && textRes.ok) {
         const textData = await textRes.json();
         this.briefingMarkdown = textData.markdown || "";
         const richEl = document.getElementById("briefingRichContent");
@@ -801,7 +804,6 @@ const Dashboard = {
       } else {
         this.renderVisualBriefing(data, "");
       }
-      await this.loadDailyOrder();
     } catch (err) {
       console.error("Error loading briefing:", err);
     }
@@ -1041,6 +1043,9 @@ const Dashboard = {
     this.reconcileDailyOrderTitles();
     this.renderDailyOrder();
     this.initDailyOrderDropZone();
+    if (this.briefingData) {
+      this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+    }
   },
 
   reconcileDailyOrderTitles() {
