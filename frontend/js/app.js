@@ -1477,7 +1477,7 @@ const App = {
             <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
               ${counts.tasks_total || 0} tasks (${counts.tasks_completed_30d || 0} completed, ${counts.tasks_pending || 0} pending)<br>
               ${counts.projects_total || 0} projects · ${counts.events || 0} events · ${counts.reminders || 0} reminders<br>
-              <strong style="color: var(--normal-green);">${counts.day_seals_metrics || 0} daily metric seals</strong> (preserved forever)
+              <strong style="color: var(--normal-green);">${counts.day_seals_metrics || 0} daily metric seals</strong>${counts.day_seals_manual ? ` (${counts.day_seals_manual} sealed via debrief)` : ''} (preserved forever)
             </div>
           </div>
 
@@ -1566,7 +1566,7 @@ const App = {
         <!-- Retention Policy & Live Clock -->
         <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-muted);">
           <div>
-            <strong style="color: var(--text-main);">Retention Policy:</strong> Completed tasks retained for <strong>30 days</strong>. Projects, notes, and daily metric seals are stored <strong>indefinitely</strong>.
+            <strong style="color: var(--text-main);">Retention Policy:</strong> Completed tasks retained for <strong>30 days</strong>. Projects, notes, and daily metric seals are stored <strong>indefinitely</strong> (automatically tracked daily).
           </div>
           <div style="font-family: var(--font-mono); font-size: 11px;">
             Updated: ${data.timestamp || 'Just now'}

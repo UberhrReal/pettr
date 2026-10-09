@@ -161,7 +161,8 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             completion_rate INTEGER,
             total_tasks INTEGER,
             completed_tasks INTEGER,
-            retro_notes TEXT
+            retro_notes TEXT,
+            is_sealed INTEGER DEFAULT 0
         );
 
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
@@ -188,7 +189,15 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
         except Exception:
             pass
         try:
+            conn.execute("ALTER TABLE day_seals ADD COLUMN is_sealed INTEGER DEFAULT 0")
+        except Exception:
+            pass
+        try:
             conn.execute("UPDATE events SET status = 'scheduled' WHERE status = 'pending'")
+        except Exception:
+            pass
+        try:
+            sync_daily_metrics(conn=conn)
         except Exception:
             pass
 
@@ -885,25 +894,29 @@ def purge_old_completed_tasks(retention_days: int = 30, ref_date: Optional[datet
             d_str = row["comp_date"]
             if not d_str:
                 continue
-            seal = conn.execute("SELECT 1 FROM day_seals WHERE date = ?", (d_str,)).fetchone()
+            seal = conn.execute("SELECT 1 FROM day_seals WHERE date = ? AND is_sealed = 1", (d_str,)).fetchone()
             if not seal:
                 completed_cnt = conn.execute("""
                     SELECT COUNT(*) FROM tasks
-                    WHERE status = 'completed' AND date(COALESCE(completed_at, due_date, created_at)) = ?
-                """, (d_str,)).fetchone()[0]
+                    WHERE status = 'completed' AND (date(completed_at) = ? OR (completed_at IS NULL AND date(due_date) = ?))
+                """, (d_str, d_str)).fetchone()[0]
 
                 total_cnt = conn.execute("""
                     SELECT COUNT(DISTINCT id) FROM tasks
-                    WHERE (date(due_date) = ? OR (status = 'completed' AND date(COALESCE(completed_at, due_date, created_at)) = ?))
+                    WHERE (date(due_date) = ? OR (status = 'completed' AND (date(completed_at) = ? OR date(due_date) = ?)))
                       AND status != 'cancelled'
-                """, (d_str, d_str)).fetchone()[0]
+                """, (d_str, d_str, d_str)).fetchone()[0]
 
                 rate = min(100, round((completed_cnt / total_cnt) * 100)) if total_cnt > 0 else 0
 
                 conn.execute("""
-                    INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes)
-                    VALUES (?, ?, ?, ?, 'Archived metrics (30-day task retention)')
-                    ON CONFLICT(date) DO NOTHING
+                    INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes, is_sealed)
+                    VALUES (?, ?, ?, ?, 'Archived metrics (30-day task retention)', 1)
+                    ON CONFLICT(date) DO UPDATE SET
+                        completion_rate = excluded.completion_rate,
+                        total_tasks = excluded.total_tasks,
+                        completed_tasks = excluded.completed_tasks,
+                        is_sealed = 1
                 """, (d_str, rate, total_cnt, completed_cnt))
 
         # 3. Disconnect any reminders linked to tasks that are about to be deleted
@@ -1189,10 +1202,12 @@ def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
     total_db_bytes = db_size + wal_size + shm_size
 
     # Table counts
+    sync_daily_metrics(conn=conn)
     task_total = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
     task_completed = conn.execute("SELECT COUNT(*) FROM tasks WHERE status = 'completed'").fetchone()[0]
     task_pending = conn.execute("SELECT COUNT(*) FROM tasks WHERE status != 'completed' AND status != 'cancelled'").fetchone()[0]
     day_seals_count = conn.execute("SELECT COUNT(*) FROM day_seals").fetchone()[0]
+    day_seals_manual = conn.execute("SELECT COUNT(*) FROM day_seals WHERE is_sealed = 1").fetchone()[0]
     projects_total = conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
     projects_completed = conn.execute("SELECT COUNT(*) FROM projects WHERE status = 'completed'").fetchone()[0]
     events_count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
@@ -1256,6 +1271,7 @@ def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
                 "tasks_completed_30d": task_completed,
                 "tasks_pending": task_pending,
                 "day_seals_metrics": day_seals_count,
+                "day_seals_manual": day_seals_manual,
                 "projects_total": projects_total,
                 "projects_completed": projects_completed,
                 "events": events_count,
@@ -2341,6 +2357,7 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         target_date = datetime.date.fromisoformat(target_date)
 
     conn = get_connection(db_path)
+    sync_daily_metrics(conn=conn, db_path=db_path)
 
     # 1. Weekly view: Monday through Sunday for current week
     start_of_week = target_date - datetime.timedelta(days=target_date.weekday())
@@ -2353,8 +2370,8 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         curr_str = curr_d.strftime("%Y-%m-%d")
 
         # Check if day was finalized/sealed by Evening Debrief
-        seal_row = conn.execute("SELECT completion_rate, total_tasks, completed_tasks FROM day_seals WHERE date = ?", (curr_str,)).fetchone()
-        if seal_row:
+        seal_row = conn.execute("SELECT completion_rate, total_tasks, completed_tasks, is_sealed FROM day_seals WHERE date = ?", (curr_str,)).fetchone()
+        if seal_row and seal_row["is_sealed"]:
             completed_cnt = seal_row["completed_tasks"]
             total_cnt = seal_row["total_tasks"]
             rate = seal_row["completion_rate"]
@@ -2474,14 +2491,15 @@ def seal_day(
     conn = get_connection(db_path)
     with conn:
         conn.execute("""
-            INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes, is_sealed)
+            VALUES (?, ?, ?, ?, ?, 1)
             ON CONFLICT(date) DO UPDATE SET
                 sealed_at = CURRENT_TIMESTAMP,
                 completion_rate = excluded.completion_rate,
                 total_tasks = excluded.total_tasks,
                 completed_tasks = excluded.completed_tasks,
-                retro_notes = excluded.retro_notes
+                retro_notes = excluded.retro_notes,
+                is_sealed = 1
         """, (date_str, completion_rate, total_tasks, completed_tasks, retro_notes))
     return {
         "date": date_str,
@@ -2498,13 +2516,88 @@ def get_day_seal(date_str: str, db_path: Optional[Path] = None) -> Optional[Dict
     row = conn.execute("SELECT * FROM day_seals WHERE date = ?", (date_str,)).fetchone()
     if not row:
         return None
-    return dict(row)
+    res = dict(row)
+    res["is_sealed"] = bool(res.get("is_sealed"))
+    return res
 
 def is_day_sealed(date_str: str, db_path: Optional[Path] = None) -> bool:
     """Checks whether a given date has been sealed and locked."""
     conn = get_connection(db_path)
-    row = conn.execute("SELECT 1 FROM day_seals WHERE date = ?", (date_str,)).fetchone()
-    return bool(row)
+    row = conn.execute("SELECT is_sealed FROM day_seals WHERE date = ?", (date_str,)).fetchone()
+    if not row:
+        return False
+    return bool(row["is_sealed"] == 1 or row["is_sealed"] == "1" or row["is_sealed"] is True)
+
+def sync_daily_metrics(db_path: Optional[Path] = None, conn: Optional[sqlite3.Connection] = None) -> int:
+    """
+    Ensures daily productivity metrics (total scheduled, completed, and completion rate)
+    are tracked and stored in day_seals for all dates that have task activity,
+    regardless of whether the user manually hit debrief to seal the day or not.
+    Days that have been manually sealed (is_sealed = 1) retain their sealed metrics.
+    """
+    target_conn = conn or get_connection(db_path)
+
+    # 1. Identify all distinct calendar dates where tasks were scheduled, completed, or created
+    date_rows = target_conn.execute("""
+        SELECT DISTINCT date(due_date) as d FROM tasks WHERE due_date IS NOT NULL
+        UNION
+        SELECT DISTINCT date(completed_at) as d FROM tasks WHERE completed_at IS NOT NULL
+        UNION
+        SELECT DISTINCT date(created_at) as d FROM tasks WHERE created_at IS NOT NULL
+    """).fetchall()
+
+    dates = [r["d"] for r in date_rows if r["d"]]
+    synced_count = 0
+
+    with target_conn:
+        for d_str in dates:
+            # Check if this date has already been sealed manually
+            existing = target_conn.execute("SELECT is_sealed FROM day_seals WHERE date = ?", (d_str,)).fetchone()
+            if existing and existing["is_sealed"]:
+                continue
+
+            # Calculate total tasks and completed tasks for this date
+            completed_cnt = target_conn.execute("""
+                SELECT COUNT(DISTINCT id) FROM tasks
+                WHERE status = 'completed' AND (date(due_date) = ? OR date(completed_at) = ?)
+            """, (d_str, d_str)).fetchone()[0]
+
+            total_cnt = target_conn.execute("""
+                SELECT COUNT(DISTINCT id) FROM tasks
+                WHERE (date(due_date) = ? OR date(completed_at) = ?)
+                  AND status != 'cancelled'
+            """, (d_str, d_str)).fetchone()[0]
+
+            if total_cnt == 0 and completed_cnt == 0:
+                continue
+
+            rate = min(100, round((completed_cnt / total_cnt) * 100)) if total_cnt > 0 else 0
+
+            target_conn.execute("""
+                INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes, is_sealed)
+                VALUES (?, ?, ?, ?, 'Auto-tracked daily metrics', 0)
+                ON CONFLICT(date) DO UPDATE SET
+                    completion_rate = excluded.completion_rate,
+                    total_tasks = excluded.total_tasks,
+                    completed_tasks = excluded.completed_tasks
+                WHERE day_seals.is_sealed = 0
+            """, (d_str, rate, total_cnt, completed_cnt))
+            synced_count += 1
+
+        # Clean up any unsealed rows where all tasks were removed
+        target_conn.execute("""
+            DELETE FROM day_seals
+            WHERE is_sealed = 0
+              AND date NOT IN (
+                  SELECT DISTINCT date(due_date) FROM tasks WHERE due_date IS NOT NULL
+                  UNION
+                  SELECT DISTINCT date(completed_at) FROM tasks WHERE completed_at IS NOT NULL
+                  UNION
+                  SELECT DISTINCT date(created_at) FROM tasks WHERE created_at IS NOT NULL
+              )
+        """)
+
+    return synced_count
 
 
 

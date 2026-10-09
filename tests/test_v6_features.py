@@ -803,6 +803,72 @@ def test_daily_order_pruned_when_due_date_moves_to_another_day(temp_db, monkeypa
     assert not any(it["id"] == task2_id for it in today_order2)
 
 
+def test_auto_tracking_daily_metrics_without_manual_debrief(temp_db, monkeypatch):
+    """Test that daily metrics are tracked for each active day without requiring a manual debrief seal."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today().isoformat()
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    two_days_ago = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
+
+    # Day 1 (two days ago): 2 tasks (2 completed = 100%)
+    t1 = database.create_task("Task 1 Day -2", tier="focus", due_date=f"{two_days_ago} 10:00:00", db_path=temp_db)
+    t2 = database.create_task("Task 2 Day -2", tier="trivial", due_date=f"{two_days_ago} 12:00:00", db_path=temp_db)
+    database.update_task_status(t1["id"], "completed", db_path=temp_db)
+    database.update_task_status(t2["id"], "completed", db_path=temp_db)
+
+    # Day 2 (yesterday): 2 tasks (1 completed, 1 pending = 50%)
+    t3 = database.create_task("Task 3 Day -1", tier="focus", due_date=f"{yesterday} 09:00:00", db_path=temp_db)
+    t4 = database.create_task("Task 4 Day -1", tier="trivial", due_date=f"{yesterday} 15:00:00", db_path=temp_db)
+    database.update_task_status(t3["id"], "completed", db_path=temp_db)
+
+    # Day 3 (today): 1 task pending
+    database.create_task("Task 5 Today", tier="focus", due_date=f"{today} 14:00:00", db_path=temp_db)
+
+    # User never hit debrief to seal any of these days
+    assert database.is_day_sealed(two_days_ago, db_path=temp_db) is False
+    assert database.is_day_sealed(yesterday, db_path=temp_db) is False
+    assert database.is_day_sealed(today, db_path=temp_db) is False
+
+    # Check storage breakdown API
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.get("/api/system/storage")
+        assert res.status_code == 200
+        data = res.json()
+        counts = data["database"]["counts"]
+
+        # All 3 days must be tracked in daily metric seals!
+        assert counts["day_seals_metrics"] == 3
+        assert counts["day_seals_manual"] == 0
+
+    # Verify individual tracked metrics in day_seals
+    seal_day2 = database.get_day_seal(two_days_ago, db_path=temp_db)
+    assert seal_day2 is not None
+    assert seal_day2["completion_rate"] == 100
+    assert seal_day2["completed_tasks"] == 2
+    assert seal_day2["total_tasks"] == 2
+    assert seal_day2["is_sealed"] is False
+
+    seal_day1 = database.get_day_seal(yesterday, db_path=temp_db)
+    assert seal_day1 is not None
+    assert seal_day1["completion_rate"] == 50
+    assert seal_day1["completed_tasks"] == 1
+    assert seal_day1["total_tasks"] == 2
+    assert seal_day1["is_sealed"] is False
+
+    # Now manually seal yesterday via seal_day
+    database.seal_day(yesterday, completion_rate=50, total_tasks=2, completed_tasks=1, retro_notes="Solid day", db_path=temp_db)
+    assert database.is_day_sealed(yesterday, db_path=temp_db) is True
+
+    # Recheck storage counts: total tracked remains 3, manual is 1
+    storage_info = database.get_storage_breakdown(db_path=temp_db)
+    counts2 = storage_info["database"]["counts"]
+    assert counts2["day_seals_metrics"] == 3
+    assert counts2["day_seals_manual"] == 1
+
+
+
 
 
 
