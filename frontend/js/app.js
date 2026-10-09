@@ -1417,20 +1417,33 @@ const App = {
       const media = data.media || {};
       const backups = data.backups || {};
       const appCode = data.app_code || {};
+      const runtimeEnv = data.runtime_env || {};
+      const llm = data.llm || {};
       const totalApp = data.total_app_storage || {};
       const disk = data.disk || {};
       const counts = db.counts || {};
 
       const diskPct = disk.used_percent || 0;
 
+      // Build model tags preview if models exist
+      let modelTagsHtml = "";
+      if (llm.models && llm.models.length > 0) {
+        modelTagsHtml = `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">` +
+          llm.models.map(m => `<span style="font-size: 10.5px; background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); border: 1px solid var(--card-border); color: var(--text-main);">${m.name} (${m.formatted || ''})</span>`).join("") +
+          `</div>`;
+      }
+
       container.innerHTML = `
         <!-- Host Disk & App Footprint Banner -->
         <div class="storage-overview-banner">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <div>
-              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">PETTR Total Footprint</span>
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">PETTR Total Footprint (Everything Included)</span>
               <div style="font-size: 22px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); margin-top: 2px;">
                 ${totalApp.formatted || '0 B'}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                Includes SQLite DB, local LLM weights, Python runtime, backups &amp; media
               </div>
             </div>
             <div style="text-align: right;">
@@ -1449,7 +1462,7 @@ const App = {
           </div>
         </div>
 
-        <!-- 4 Storage Breakdown Cards -->
+        <!-- 6 Storage Breakdown Cards -->
         <div class="storage-grid-cards">
           <!-- 1. SQLite Database -->
           <div class="storage-stat-card">
@@ -1468,7 +1481,40 @@ const App = {
             </div>
           </div>
 
-          <!-- 2. Media & Uploads -->
+          <!-- 2. Local LLM Models (Ollama) -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                🤖 Local LLM Models (Ollama)
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--urgent-orange);">
+                ${llm.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              ${llm.model_count || 0} model${llm.model_count === 1 ? '' : 's'} detected · Active: <code>${llm.active_model || 'llama3.2:3b'}</code><br>
+              ${llm.online ? '<span style="color: var(--normal-green); font-weight: 600;">● Ollama Online</span>' : '<span style="color: var(--text-muted);">○ Ollama Standby / Disk Cache</span>'}
+              ${modelTagsHtml}
+            </div>
+          </div>
+
+          <!-- 3. Python Runtime Environment -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                ⚙️ Runtime Environment (venv)
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--accent-cyan);">
+                ${runtimeEnv.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              Python ${runtimeEnv.python_version || ''} isolated virtualenv.<br>
+              ${runtimeEnv.file_count || 0} dependencies &amp; package files installed.
+            </div>
+          </div>
+
+          <!-- 4. Notes & Media Attachments -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
@@ -1484,7 +1530,7 @@ const App = {
             </div>
           </div>
 
-          <!-- 3. Backup Archives -->
+          <!-- 5. Backup Archives -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
@@ -1500,7 +1546,7 @@ const App = {
             </div>
           </div>
 
-          <!-- 4. Application Codebase -->
+          <!-- 6. Application Codebase -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">

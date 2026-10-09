@@ -655,9 +655,25 @@ def test_server_storage_breakdown_api(temp_db, monkeypatch):
         assert "media" in data
         assert "backups" in data
         assert "app_code" in data
+        assert "runtime_env" in data
+        assert "llm" in data
         assert "total_app_storage" in data
         assert "disk" in data
         assert "retention_policy" in data
+
+        # Check runtime env
+        rt_info = data["runtime_env"]
+        assert "size_bytes" in rt_info
+        assert "formatted" in rt_info
+        assert "python_version" in rt_info
+
+        # Check LLM info
+        llm_info = data["llm"]
+        assert "total_bytes" in llm_info
+        assert "formatted" in llm_info
+        assert "model_count" in llm_info
+        assert "online" in llm_info
+        assert "active_model" in llm_info
 
         # Check database metrics
         db_info = data["database"]
@@ -669,6 +685,15 @@ def test_server_storage_breakdown_api(temp_db, monkeypatch):
         assert "day_seals_metrics" in counts
         assert "projects_total" in counts
 
+        # Check total app storage breakdown sums
+        total_app = data["total_app_storage"]
+        assert "breakdown" in total_app
+        bd = total_app["breakdown"]
+        assert bd["database_bytes"] == db_info["total_bytes"]
+        assert bd["runtime_env_bytes"] == rt_info["size_bytes"]
+        assert bd["llm_bytes"] == llm_info["total_bytes"]
+        assert total_app["size_bytes"] == sum(bd.values())
+
         # Check disk info
         disk_info = data["disk"]
         assert disk_info["total_bytes"] > 0
@@ -678,6 +703,22 @@ def test_server_storage_breakdown_api(temp_db, monkeypatch):
         # Check retention policy description
         assert data["retention_policy"]["completed_tasks_days"] == 30
         assert data["retention_policy"]["projects"] == "Indefinite"
+
+
+def test_llm_storage_discovery_mocked(tmp_path, monkeypatch):
+    """Test LLM storage footprint calculation with mocked model directory and API."""
+    mock_models_dir = tmp_path / "ollama_models"
+    mock_models_dir.mkdir()
+    blob_file = mock_models_dir / "sha256-abc123"
+    blob_file.write_bytes(b"x" * 1024 * 1024 * 5)  # 5 MB mock blob
+
+    monkeypatch.setenv("OLLAMA_MODELS", str(mock_models_dir))
+
+    # Test disk fallback calculation
+    llm_info = database._get_llm_storage_info(force_refresh=True)
+    assert llm_info["total_bytes"] == 1024 * 1024 * 5
+    assert "5.00 MB" in llm_info["formatted"]
+    assert llm_info["storage_path"] == str(mock_models_dir.resolve())
 
 
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 import os
 import shutil
+import sys
 
 DEFAULT_DATA_DIR = Path(os.environ.get("PETTR_DATA_DIR", Path(__file__).resolve().parent.parent))
 DEFAULT_DB_PATH = DEFAULT_DATA_DIR / "pettr.sqlite"
@@ -1018,10 +1019,162 @@ def _get_dir_size_and_count(dir_path: Path) -> Tuple[int, int]:
         pass
     return total, count
 
+_STORAGE_INFO_CACHE: Dict[str, Any] = {
+    "llm": {"timestamp": 0.0, "data": None},
+    "runtime": {"timestamp": 0.0, "data": None}
+}
+
+def _get_llm_storage_info(force_refresh: bool = False) -> Dict[str, Any]:
+    """
+    Discovers local Ollama models on the host or in on-disk caches, computing
+    the exact storage footprint of local AI models/weights.
+    """
+    global _STORAGE_INFO_CACHE
+    import time
+    now = time.time()
+    cache_entry = _STORAGE_INFO_CACHE.get("llm", {})
+    if not force_refresh and cache_entry.get("data") is not None and (now - cache_entry.get("timestamp", 0) < 15.0):
+        return cache_entry["data"]
+
+    # 1. Configured target model & candidate endpoints
+    target_model = "llama3.2:3b"
+    candidate_urls = []
+    try:
+        from config.config import get_or_create_config
+        cfg = get_or_create_config()
+        if cfg.get("ollama_model"):
+            target_model = cfg["ollama_model"]
+        elif cfg.get("active_llm"):
+            target_model = cfg["active_llm"]
+        if cfg.get("ollama_url"):
+            candidate_urls.append(cfg["ollama_url"])
+    except Exception:
+        pass
+
+    if os.environ.get("OLLAMA_MODEL"):
+        target_model = os.environ["OLLAMA_MODEL"]
+    if os.environ.get("OLLAMA_URL"):
+        candidate_urls.append(os.environ["OLLAMA_URL"])
+
+    if not candidate_urls:
+        candidate_urls = ["http://127.0.0.1:11434"]
+
+    # 2. Check candidate Ollama on-disk directories
+    candidate_dirs: List[Path] = []
+    if os.environ.get("OLLAMA_MODELS"):
+        candidate_dirs.append(Path(os.environ["OLLAMA_MODELS"]))
+
+    # Windows paths
+    candidate_dirs.append(Path.home() / ".ollama" / "models")
+    if os.environ.get("LOCALAPPDATA"):
+        candidate_dirs.append(Path(os.environ["LOCALAPPDATA"]) / "Ollama" / "models")
+
+    # Linux systemd service / standard paths (e.g. Shuttle PC Ubuntu install)
+    candidate_dirs.append(Path("/usr/share/ollama/.ollama/models"))
+    candidate_dirs.append(Path("/root/.ollama/models"))
+
+    disk_bytes = 0
+    disk_count = 0
+    found_disk_path: Optional[str] = None
+    seen_dirs = set()
+    for d in candidate_dirs:
+        try:
+            resolved_d = d.resolve()
+            if resolved_d in seen_dirs:
+                continue
+            seen_dirs.add(resolved_d)
+            if resolved_d.exists() and resolved_d.is_dir():
+                b, c = _get_dir_size_and_count(resolved_d)
+                if b > disk_bytes:
+                    disk_bytes = b
+                    disk_count = c
+                    found_disk_path = str(resolved_d)
+        except Exception:
+            pass
+
+    # 3. Query Ollama API if accessible
+    api_online = False
+    api_models: List[Dict[str, Any]] = []
+    api_total_bytes = 0
+    endpoint_used: Optional[str] = None
+
+    import httpx
+    for url in candidate_urls:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(1.0, connect=0.4)) as client:
+                resp = client.get(f"{url.rstrip('/')}/api/tags")
+                if resp.status_code == 200:
+                    payload = resp.json()
+                    raw_models = payload.get("models", [])
+                    api_online = True
+                    endpoint_used = url
+                    for m in raw_models:
+                        m_size = int(m.get("size", 0))
+                        api_total_bytes += m_size
+                        details = m.get("details", {})
+                        api_models.append({
+                            "name": m.get("name", "unknown"),
+                            "size_bytes": m_size,
+                            "formatted": format_bytes(m_size),
+                            "modified_at": m.get("modified_at"),
+                            "parameter_size": details.get("parameter_size", ""),
+                            "quantization": details.get("quantization_level", "")
+                        })
+                    break
+        except Exception:
+            continue
+
+    total_bytes = max(api_total_bytes, disk_bytes)
+    result = {
+        "online": api_online,
+        "endpoint": endpoint_used,
+        "active_model": target_model,
+        "model_count": len(api_models) if api_models else (1 if disk_bytes > 0 else 0),
+        "total_bytes": total_bytes,
+        "formatted": format_bytes(total_bytes),
+        "models": api_models,
+        "storage_path": found_disk_path
+    }
+    _STORAGE_INFO_CACHE["llm"] = {"timestamp": now, "data": result}
+    return result
+
+def _get_runtime_env_info(base_dir: Path, force_refresh: bool = False) -> Dict[str, Any]:
+    """Computes the footprint of the active Python virtual environment."""
+    global _STORAGE_INFO_CACHE
+    import time
+    now = time.time()
+    cache_entry = _STORAGE_INFO_CACHE.get("runtime", {})
+    if not force_refresh and cache_entry.get("data") is not None and (now - cache_entry.get("timestamp", 0) < 30.0):
+        return cache_entry["data"]
+
+    venv_bytes = 0
+    venv_count = 0
+    found_venv_path: Optional[str] = None
+    for vname in ["venv", ".venv", "env"]:
+        candidate_venv = base_dir / vname
+        if candidate_venv.exists() and candidate_venv.is_dir():
+            v_b, v_c = _get_dir_size_and_count(candidate_venv)
+            if v_b > venv_bytes:
+                venv_bytes = v_b
+                venv_count = v_c
+                found_venv_path = str(candidate_venv)
+
+    result = {
+        "path": found_venv_path,
+        "size_bytes": venv_bytes,
+        "formatted": format_bytes(venv_bytes),
+        "file_count": venv_count,
+        "python_version": sys.version.split()[0],
+        "detected": found_venv_path is not None
+    }
+    _STORAGE_INFO_CACHE["runtime"] = {"timestamp": now, "data": result}
+    return result
+
 def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Computes a real-time storage breakdown of PETTR and its data on the host server.
-    Measures database size, media folder, backup archives, codebase, and disk space.
+    Measures database size, media folder, backup archives, codebase, Python runtime venv,
+    local LLM models, and host disk space.
     """
     conn = get_connection(db_path)
     actual_db_path = resolve_db_path(db_path)
@@ -1071,10 +1224,18 @@ def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
     app_code_bytes = fe_bytes + be_bytes
     app_code_count = fe_count + be_count
 
-    # 5. Total PETTR footprint
-    total_pettr_bytes = total_db_bytes + media_bytes + backups_bytes + app_code_bytes
+    # 5. Python Runtime environment (virtualenv)
+    runtime_info = _get_runtime_env_info(base_dir)
+    venv_bytes = runtime_info["size_bytes"]
 
-    # 6. Host server disk usage
+    # 6. Local LLM models footprint
+    llm_info = _get_llm_storage_info()
+    llm_bytes = llm_info["total_bytes"]
+
+    # 7. Total PETTR footprint
+    total_pettr_bytes = total_db_bytes + media_bytes + backups_bytes + app_code_bytes + venv_bytes + llm_bytes
+
+    # 8. Host server disk usage
     try:
         drive_path = str(db_file.parent if db_file.parent.exists() else base_dir)
         disk_total, disk_used, disk_free = shutil.disk_usage(drive_path)
@@ -1120,9 +1281,19 @@ def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
             "size_bytes": app_code_bytes,
             "formatted": format_bytes(app_code_bytes)
         },
+        "runtime_env": runtime_info,
+        "llm": llm_info,
         "total_app_storage": {
             "size_bytes": total_pettr_bytes,
-            "formatted": format_bytes(total_pettr_bytes)
+            "formatted": format_bytes(total_pettr_bytes),
+            "breakdown": {
+                "database_bytes": total_db_bytes,
+                "media_bytes": media_bytes,
+                "backups_bytes": backups_bytes,
+                "app_code_bytes": app_code_bytes,
+                "runtime_env_bytes": venv_bytes,
+                "llm_bytes": llm_bytes
+            }
         },
         "disk": {
             "total_bytes": disk_total,
