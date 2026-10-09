@@ -789,6 +789,14 @@ const App = {
     return str;
   },
 
+  formatEventPeriod(startTime, endTime, includeDate = false) {
+    if (!startTime) return "Today";
+    const startMil = this.formatMilitaryTime(startTime, includeDate);
+    if (!endTime) return startMil;
+    const endMil = this.formatMilitaryTime(endTime, false);
+    return `${startMil} – ${endMil}`;
+  },
+
   async pollNetworkStatus() {
     try {
       const res = await fetch("/api/network/status");

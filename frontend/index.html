@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=7.7">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=7.8">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1327,8 +1327,8 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             <option value="">-- No Project --</option>
           </select>
         </div>
-        <div>
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Due Date &amp; Time (24hr Military)</label>
+        <div id="entityModalTaskDateContainer">
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="entityModalDueDateLabel">Due Date &amp; Time (24hr Military)</label>
           <div class="date-picker-group">
             <input type="datetime-local" id="entityModalDueDate" class="modal-input modal-datetime-input">
             <div class="date-presets-row">
@@ -1339,6 +1339,38 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
               <button type="button" class="preset-chip" onclick="EntityModal.setPreset('tomorrow_18')">Tomorrow 18:00</button>
               <button type="button" class="preset-chip" onclick="EntityModal.setPreset('in_2_days')">In 2 Days</button>
               <button type="button" class="preset-chip clear" onclick="EntityModal.setPreset('clear')">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div id="entityModalEventPeriodContainer" style="display: none;">
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Event Time Period (Start &amp; End Time)</label>
+          <div class="date-picker-group">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div>
+                <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Start Time</span>
+                <input type="datetime-local" id="entityModalEventStart" class="modal-input modal-datetime-input">
+              </div>
+              <div>
+                <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">End Time</span>
+                <input type="datetime-local" id="entityModalEventEnd" class="modal-input modal-datetime-input">
+              </div>
+            </div>
+            <div class="date-presets-row" style="margin-top: 6px;">
+              <span style="font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 2px;">Duration:</span>
+              <button type="button" class="preset-chip" onclick="EntityModal.setDuration(30)">+30m</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setDuration(60)">+1h</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setDuration(120)">+2h</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setDuration(180)">+3h</button>
+              <button type="button" class="preset-chip clear" onclick="EntityModal.clearEnd()">Clear End</button>
+            </div>
+            <div class="date-presets-row" style="margin-top: 4px;">
+              <span style="font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 2px;">Start at:</span>
+              <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_now')">Now</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_12')">12:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_14')">14:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_16')">16:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_18')">18:00</button>
+              <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('tomorrow_09')">Tom 09:00</button>
             </div>
           </div>
         </div>
@@ -1439,7 +1471,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </select>
       </div>
 
-      <!-- Date & Time (Tasks, Events, Reminders) -->
+      <!-- Date & Time (Tasks, Reminders) -->
       <div id="manualDateRow">
         <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="manualInputDateLabel">Scheduled Date / Time (24hr Military)</label>
         <div style="display: flex; gap: 8px; align-items: center;">
@@ -1453,6 +1485,38 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('tomorrow_18')">Tomorrow 18:00</button>
           <button type="button" class="preset-chip" onclick="Dashboard.setManualDatePreset('in_2_days')">In 2 Days</button>
           <button type="button" class="preset-chip clear" onclick="Dashboard.setManualDatePreset('clear')"><i data-lucide="x" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Clear</button>
+        </div>
+      </div>
+
+      <!-- Time Period for Events -->
+      <div id="manualEventPeriodRow" style="display: none; margin-bottom: 12px;">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Event Time Period (Start &amp; End Time) *</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Start Time</span>
+            <input type="datetime-local" id="manualEventStart" class="modal-input">
+          </div>
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">End Time</span>
+            <input type="datetime-local" id="manualEventEnd" class="modal-input">
+          </div>
+        </div>
+        <div class="preset-chips-container" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);">Duration:</span>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(30)">+30m</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(60)">+1h</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(120)">+2h</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(180)">+3h</button>
+          <button type="button" class="preset-chip clear" onclick="Dashboard.clearManualEventEnd()">Clear End</button>
+        </div>
+        <div class="preset-chips-container" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);">Start at:</span>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_now')">Now</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_12')">12:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_14')">14:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_16')">16:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_18')">18:00</button>
+          <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('tomorrow_09')">Tom 09:00</button>
         </div>
       </div>
 
@@ -1775,20 +1839,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=7.7"></script>
-  <script src="/static/js/app.js?v=7.7"></script>
-  <script src="/static/js/drag_drop.js?v=7.7"></script>
-  <script src="/static/js/wave_canvas.js?v=7.7"></script>
-  <script src="/static/js/entity_modal.js?v=7.7"></script>
-  <script src="/static/js/timeline.js?v=7.7"></script>
-  <script src="/static/js/mindmap.js?v=7.7"></script>
-  <script src="/static/js/dashboard.js?v=7.7"></script>
-  <script src="/static/js/simplified_mode.js?v=7.7"></script>
-  <script src="/static/js/exploded.js?v=7.7"></script>
-  <script src="/static/js/notes.js?v=7.7"></script>
-  <script src="/static/js/history.js?v=7.7"></script>
-  <script src="/static/js/command_palette.js?v=7.7"></script>
-  <script src="/static/js/focus_cockpit.js?v=7.7"></script>
-  <script src="/static/js/evening_debrief.js?v=7.7"></script>
+  <script src="/static/js/pin_lock.js?v=7.8"></script>
+  <script src="/static/js/app.js?v=7.8"></script>
+  <script src="/static/js/drag_drop.js?v=7.8"></script>
+  <script src="/static/js/wave_canvas.js?v=7.8"></script>
+  <script src="/static/js/entity_modal.js?v=7.8"></script>
+  <script src="/static/js/timeline.js?v=7.8"></script>
+  <script src="/static/js/mindmap.js?v=7.8"></script>
+  <script src="/static/js/dashboard.js?v=7.8"></script>
+  <script src="/static/js/simplified_mode.js?v=7.8"></script>
+  <script src="/static/js/exploded.js?v=7.8"></script>
+  <script src="/static/js/notes.js?v=7.8"></script>
+  <script src="/static/js/history.js?v=7.8"></script>
+  <script src="/static/js/command_palette.js?v=7.8"></script>
+  <script src="/static/js/focus_cockpit.js?v=7.8"></script>
+  <script src="/static/js/evening_debrief.js?v=7.8"></script>
 </body>
 </html>

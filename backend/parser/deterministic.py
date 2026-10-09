@@ -28,6 +28,112 @@ RECURRING_REGEX = re.compile(
 # Military time like "2359", "0930", "1400"
 MILITARY_TIME_REGEX = re.compile(r'\b([01]\d|2[0-3])([0-5]\d)\b')
 
+TIME_RANGE_REGEX = re.compile(
+    r'\b(?:(?:from|between)\s+)?'
+    r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*'
+    r'(?:-|–|—|to|till|until|and)\s*'
+    r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b',
+    re.IGNORECASE
+)
+
+DATE_TOKENS_REGEX = re.compile(
+    r'\b(?:on\s+)?(today|tonight|tomorrow|this\s+[a-z]+|next\s+[a-z]+|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b',
+    re.IGNORECASE
+)
+
+def resolve_hours_and_minutes(h1_s: str, m1_s: Optional[str], ampm1_s: Optional[str],
+                              h2_s: str, m2_s: Optional[str], ampm2_s: Optional[str]) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    h1 = int(h1_s)
+    h2 = int(h2_s)
+    m1 = int(m1_s) if m1_s else 0
+    m2 = int(m2_s) if m2_s else 0
+    ampm1 = ampm1_s.lower() if ampm1_s else None
+    ampm2 = ampm2_s.lower() if ampm2_s else None
+
+    if ampm1 and ampm2:
+        start_h = (0 if h1 == 12 else h1) if ampm1 == "am" else (12 if h1 == 12 else h1 + 12)
+        end_h = (0 if h2 == 12 else h2) if ampm2 == "am" else (12 if h2 == 12 else h2 + 12)
+    elif not ampm1 and ampm2:
+        if ampm2 == "pm":
+            end_h = 12 if h2 == 12 else h2 + 12
+            if h1 == 12:
+                start_h = 12
+            elif h1 > (h2 % 12):
+                start_h = h1
+            else:
+                start_h = h1 + 12
+        else:
+            end_h = 0 if h2 == 12 else h2
+            start_h = 0 if h1 == 12 else h1
+    elif ampm1 and not ampm2:
+        start_h = (0 if h1 == 12 else h1) if ampm1 == "am" else (12 if h1 == 12 else h1 + 12)
+        if ampm1 == "pm":
+            end_h = 12 if h2 == 12 else h2 + 12
+        else:
+            end_h = h2 if h2 >= start_h else (12 if h2 == 12 else h2 + 12)
+    else:
+        start_h = h1
+        end_h = h2
+
+    return (min(start_h, 23), min(m1, 59)), (min(end_h, 23), min(m2, 59))
+
+def parse_time_range(text: str, ref_datetime: datetime.datetime) -> Optional[Dict[str, Any]]:
+    """
+    Parses a time span or period (e.g. '4-6pm', '10am - 12pm', '14:00 - 16:00', 'from 2 to 4pm').
+    Returns structured dictionary with start and end times, or None if no time range found.
+    """
+    cal = pdt.Calendar()
+    m = TIME_RANGE_REGEX.search(text)
+    if not m:
+        return None
+    h1, m1, ampm1, h2, m2, ampm2 = m.groups()
+    if not ampm1 and not ampm2 and ':' not in m.group(0):
+        return None
+
+    range_matched = m.group(0)
+    rem_text = text[:m.start()] + ' ' + text[m.end():]
+    target_date = ref_datetime.date()
+    matched_date_token = None
+
+    dm = DATE_TOKENS_REGEX.search(rem_text)
+    if dm:
+        matched_date_token = dm.group(0)
+        dt_res, flag = cal.parseDT(matched_date_token, sourceTime=ref_datetime)
+        if flag > 0:
+            target_date = dt_res.date()
+        rem_text = rem_text[:dm.start()] + ' ' + rem_text[dm.end():]
+    else:
+        nlp_res = cal.nlp(rem_text, sourceTime=ref_datetime)
+        if nlp_res:
+            p_dt, flag, s_idx, e_idx, token = nlp_res[0]
+            if flag in (1, 3) and len(token.strip()) > 1:
+                target_date = p_dt.date()
+                matched_date_token = token
+                rem_text = rem_text[:s_idx] + ' ' + rem_text[e_idx:]
+
+    cleaned = re.sub(r'\s+', ' ', rem_text).strip(' .,;:-')
+    (start_h, start_m), (end_h, end_m) = resolve_hours_and_minutes(h1, m1, ampm1, h2, m2, ampm2)
+    start_dt = datetime.datetime.combine(target_date, datetime.time(start_h, start_m))
+    end_dt = datetime.datetime.combine(target_date, datetime.time(end_h, end_m))
+    if end_dt <= start_dt:
+        end_dt += datetime.timedelta(days=1)
+
+    full_token = f"{matched_date_token} {range_matched}".strip() if matched_date_token else range_matched
+
+    return {
+        "has_date": True,
+        "datetime": start_dt,
+        "datetime_str": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "end_datetime": end_dt,
+        "end_datetime_str": end_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "is_time_range": True,
+        "is_recurring": False,
+        "rrule": None,
+        "matched_token": full_token,
+        "cleaned_text": cleaned,
+        "flag": 3
+    }
+
 def parse_deterministic_date(text: str, ref_datetime: Optional[datetime.datetime] = None) -> Dict[str, Any]:
     """
     Deterministically parses dates, times, and recurrence rules from text.
@@ -38,6 +144,9 @@ def parse_deterministic_date(text: str, ref_datetime: Optional[datetime.datetime
         "has_date": bool,
         "datetime": Optional[datetime.datetime],
         "datetime_str": Optional[str], # YYYY-MM-DD HH:MM:SS
+        "end_datetime": Optional[datetime.datetime],
+        "end_datetime_str": Optional[str],
+        "is_time_range": bool,
         "is_recurring": bool,
         "rrule": Optional[str],
         "matched_token": Optional[str],
@@ -49,6 +158,11 @@ def parse_deterministic_date(text: str, ref_datetime: Optional[datetime.datetime
 
     cal = pdt.Calendar()
     original_text = text.strip()
+    
+    # 1. Check for time range / period (e.g. "4-6pm", "10am to 12pm", "14:00 - 16:00")
+    range_res = parse_time_range(original_text, ref_datetime)
+    if range_res:
+        return range_res
     
     # 1. Check for recurring pattern (e.g. "every Tuesday night")
     recurring_match = RECURRING_REGEX.search(original_text)

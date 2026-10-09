@@ -475,5 +475,97 @@ def test_complete_overdue_task_allowed(temp_db, monkeypatch):
         assert data["task"]["completed_at"] is not None
 
 
+@pytest.mark.anyio
+async def test_event_time_range_nlp_parsing(temp_db):
+    """Verify natural language parsing for time periods like 4-6pm and auto-classification as event."""
+    ref_now = datetime.datetime(2026, 10, 9, 10, 0, 0)
+
+    # 1. With explicit 'Event' prefix
+    res1 = await process_user_input("Event Tim's birthday 4-6pm", ref_datetime=ref_now, db_path=temp_db)
+    assert res1["status"] == "success"
+    assert res1["entity_type"] == "event"
+    ev1 = res1["entity"]
+    assert "Tim's birthday" in ev1["title"]
+    assert "16:00:00" in ev1["start_time"]
+    assert "18:00:00" in ev1["end_time"]
+
+    # 2. Without explicit prefix - time period auto-classifies as event
+    res2 = await process_user_input("Board meeting 2-4pm", ref_datetime=ref_now, db_path=temp_db)
+    assert res2["status"] == "success"
+    assert res2["entity_type"] == "event"
+    ev2 = res2["entity"]
+    assert "Board meeting" in ev2["title"]
+    assert "14:00:00" in ev2["start_time"]
+    assert "16:00:00" in ev2["end_time"]
+
+    # 3. 24-hour military time range
+    res3 = await process_user_input("Hackathon sync 14:00 - 15:30", ref_datetime=ref_now, db_path=temp_db)
+    assert res3["status"] == "success"
+    assert res3["entity_type"] == "event"
+    ev3 = res3["entity"]
+    assert "Hackathon sync" in ev3["title"]
+    assert "14:00:00" in ev3["start_time"]
+    assert "15:30:00" in ev3["end_time"]
+
+
+def test_event_api_and_reclassify_time_periods(temp_db, monkeypatch):
+    """Test manual creation and reclassification of events with start and end times."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 1. Create event with start and end time via API
+        create_res = client.post("/api/events", json={
+            "title": "Strategy Workshop",
+            "start_time": "2026-10-15 13:00:00",
+            "end_time": "2026-10-15 16:30:00",
+            "description": "Quarterly roadmap review"
+        })
+        assert create_res.status_code == 200
+        ev_data = create_res.json()["event"]
+        assert ev_data["title"] == "Strategy Workshop"
+        assert ev_data["start_time"] == "2026-10-15 13:00:00"
+        assert ev_data["end_time"] == "2026-10-15 16:30:00"
+
+        # 2. Reclassify / update event end_time
+        reclass_res = client.post("/api/entities/reclassify", json={
+            "from_type": "event",
+            "from_id": ev_data["id"],
+            "to_type": "event",
+            "title": "Strategy Workshop (Extended)",
+            "due_date": "2026-10-15 13:00:00",
+            "end_time": "2026-10-15 17:30:00"
+        })
+        assert reclass_res.status_code == 200
+        updated = reclass_res.json()["entity"]
+        assert updated["title"] == "Strategy Workshop (Extended)"
+        assert updated["start_time"] == "2026-10-15 13:00:00"
+        assert updated["end_time"] == "2026-10-15 17:30:00"
+
+        # 3. Convert a task into an event with start and end time
+        task = database.create_task("Presentation Prep", tier="focus", db_path=temp_db)
+        conv_res = client.post("/api/entities/reclassify", json={
+            "from_type": "task",
+            "from_id": task["id"],
+            "to_type": "event",
+            "title": "Presentation Rehearsal",
+            "due_date": "2026-10-16 10:00:00",
+            "end_time": "2026-10-16 11:30:00"
+        })
+        assert conv_res.status_code == 200
+        conv_ev = conv_res.json()["entity"]
+        assert conv_ev["title"] == "Presentation Rehearsal"
+        assert conv_ev["start_time"] == "2026-10-16 10:00:00"
+        assert conv_ev["end_time"] == "2026-10-16 11:30:00"
+
+        # 4. Check get_events_for_day returns end_time_military
+        events_day = database.get_events_for_day(datetime.date(2026, 10, 16), db_path=temp_db)
+        assert len(events_day) == 1
+        assert events_day[0]["start_time_military"] == "10:00"
+        assert events_day[0]["end_time_military"] == "11:30"
+
+
+
 
 

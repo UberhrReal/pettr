@@ -318,7 +318,7 @@ const Timeline = {
 
       if (item.type === "event") {
         const e = item.data;
-        const timePart = e.start_time ? App.formatMilitaryTime(e.start_time) : "All Day";
+        const timePart = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : "All Day";
         card.innerHTML = `
           <div class="ut-card-header">
             <div style="display:flex; align-items:center; gap:5px;">
@@ -660,7 +660,7 @@ const Timeline = {
 
         if (item.type === "event") {
           const e = item.data;
-          const timePart = e.start_time ? App.formatMilitaryTime(e.start_time) : "All Day";
+          const timePart = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : "All Day";
           card.innerHTML = `
             <div class="ut-card-header">
               <div style="display:flex; align-items:center; gap:5px;">

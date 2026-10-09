@@ -95,6 +95,8 @@ async def process_user_input(raw_input: str,
     temporal_data = parse_deterministic_date(input_for_date_parsing, ref_datetime=ref_datetime)
     has_date = temporal_data["has_date"]
     due_date_str = temporal_data["datetime_str"]
+    end_date_str = temporal_data.get("end_datetime_str")
+    is_time_range = temporal_data.get("is_time_range", False)
     is_recurring = temporal_data["is_recurring"]
     rrule = temporal_data["rrule"]
     matched_token = temporal_data["matched_token"]
@@ -133,7 +135,13 @@ async def process_user_input(raw_input: str,
         explicit_tier=explicit_tier
     )
 
-    entity_type = explicit_type or classification.get("entity_type", "task")
+    if explicit_type:
+        entity_type = explicit_type
+    elif is_time_range:
+        entity_type = "event"
+    else:
+        entity_type = classification.get("entity_type", "task")
+
     raw_title = classification.get("title", cleaned_text)
     # Ensure title is stripped of any remaining priority tokens or leading entity type labels
     clean_candidate, _, _ = extract_priority(raw_title)
@@ -203,6 +211,7 @@ async def process_user_input(raw_input: str,
         created_entity = database.create_event(
             title=title,
             start_time=start_time,
+            end_time=end_date_str,
             description=classification.get("description", ""),
             project_name=project_name,
             recurrence=rrule,

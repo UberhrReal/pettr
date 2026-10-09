@@ -79,10 +79,30 @@ const EntityModal = {
       projSelect.appendChild(opt);
     });
 
-    // Date / Time
+    // Date / Time vs Event Time Period
     const rawDate = e.due_date || e.start_time || e.reminder_date || e.parsed_date || "";
     const dateInput = document.getElementById("entityModalDueDate");
-    dateInput.value = this.formatForInput(rawDate);
+    if (dateInput) dateInput.value = this.formatForInput(rawDate);
+
+    const taskDateCont = document.getElementById("entityModalTaskDateContainer");
+    const eventPeriodCont = document.getElementById("entityModalEventPeriodContainer");
+    const evStartInput = document.getElementById("entityModalEventStart");
+    const evEndInput = document.getElementById("entityModalEventEnd");
+
+    if (activeType === "event") {
+      if (taskDateCont) taskDateCont.style.display = "none";
+      if (eventPeriodCont) eventPeriodCont.style.display = "block";
+      const startVal = this.formatForInput(e.start_time || rawDate);
+      if (evStartInput) evStartInput.value = startVal;
+      let endVal = this.formatForInput(e.end_time || "");
+      if (!endVal && startVal) {
+        endVal = this.addMinutesToDateStr(startVal, 60);
+      }
+      if (evEndInput) evEndInput.value = endVal;
+    } else {
+      if (taskDateCont) taskDateCont.style.display = "block";
+      if (eventPeriodCont) eventPeriodCont.style.display = "none";
+    }
 
     // Status
     const statusSelect = document.getElementById("entityModalStatus");
@@ -154,6 +174,82 @@ const EntityModal = {
     return "";
   },
 
+  addMinutesToDateStr(isoOrLocalStr, minutes) {
+    if (!isoOrLocalStr) return "";
+    let s = String(isoOrLocalStr).trim().replace(" ", "T");
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return "";
+    d.setMinutes(d.getMinutes() + minutes);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  },
+
+  setDuration(minutes) {
+    const startInput = document.getElementById("entityModalEventStart");
+    const endInput = document.getElementById("entityModalEventEnd");
+    if (!startInput || !endInput) return;
+    let startVal = startInput.value;
+    if (!startVal) {
+      const now = new Date();
+      startVal = this.formatForInput(now);
+      startInput.value = startVal;
+    }
+    endInput.value = this.addMinutesToDateStr(startVal, minutes);
+    App.haptic("light");
+  },
+
+  clearEnd() {
+    const endInput = document.getElementById("entityModalEventEnd");
+    if (endInput) endInput.value = "";
+    App.haptic("light");
+  },
+
+  setEventStartPreset(preset) {
+    const startInput = document.getElementById("entityModalEventStart");
+    const endInput = document.getElementById("entityModalEventEnd");
+    if (!startInput) return;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+
+    function formatDate(d, hours, minutes) {
+      const target = new Date(d);
+      target.setHours(hours, minutes, 0, 0);
+      const yyyy = target.getFullYear();
+      const mm = pad(target.getMonth() + 1);
+      const dd = target.getDate();
+      const hh = pad(target.getHours());
+      const min = pad(target.getMinutes());
+      return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    }
+
+    let newStart = "";
+    if (preset === "today_now") {
+      newStart = this.formatForInput(now);
+    } else if (preset === "today_12") {
+      newStart = formatDate(now, 12, 0);
+    } else if (preset === "today_14") {
+      newStart = formatDate(now, 14, 0);
+    } else if (preset === "today_16") {
+      newStart = formatDate(now, 16, 0);
+    } else if (preset === "today_18") {
+      newStart = formatDate(now, 18, 0);
+    } else if (preset === "tomorrow_09") {
+      const tom = new Date(now);
+      tom.setDate(tom.getDate() + 1);
+      newStart = formatDate(tom, 9, 0);
+    }
+
+    if (newStart) {
+      startInput.value = newStart;
+      if (endInput) {
+        if (!endInput.value || endInput.value <= newStart) {
+          endInput.value = this.addMinutesToDateStr(newStart, 60);
+        }
+      }
+    }
+    App.haptic("light");
+  },
+
   setPreset(preset) {
     const input = document.getElementById("entityModalDueDate");
     if (!input) return;
@@ -199,6 +295,12 @@ const EntityModal = {
     const isAlreadyActive = btn.classList.contains("active");
     const targetType = btn.dataset.type;
 
+    const taskDateCont = document.getElementById("entityModalTaskDateContainer");
+    const eventPeriodCont = document.getElementById("entityModalEventPeriodContainer");
+    const dueDateInput = document.getElementById("entityModalDueDate");
+    const evStartInput = document.getElementById("entityModalEventStart");
+    const evEndInput = document.getElementById("entityModalEventEnd");
+
     if (isAlreadyActive) {
       // Unselecting the current classification sends item to Unorganised Queue
       document.querySelectorAll("#entityModalOverlay .type-pill-btn").forEach(b => b.classList.remove("active"));
@@ -208,6 +310,8 @@ const EntityModal = {
       }
       const projectOptsRow = document.getElementById("entityModalProjectOptionsRow");
       if (projectOptsRow) projectOptsRow.style.display = "none";
+      if (taskDateCont) taskDateCont.style.display = "block";
+      if (eventPeriodCont) eventPeriodCont.style.display = "none";
       App.showToast("Classification unselected — saving will return item to Unorganised Queue.");
       return;
     }
@@ -219,6 +323,24 @@ const EntityModal = {
     if (projectOptsRow) {
       projectOptsRow.style.display = targetType === "project" ? "block" : "none";
     }
+
+    if (targetType === "event") {
+      if (taskDateCont) taskDateCont.style.display = "none";
+      if (eventPeriodCont) eventPeriodCont.style.display = "block";
+      if (dueDateInput && dueDateInput.value && (!evStartInput || !evStartInput.value)) {
+        evStartInput.value = dueDateInput.value;
+        if (evEndInput && !evEndInput.value) {
+          evEndInput.value = this.addMinutesToDateStr(dueDateInput.value, 60);
+        }
+      }
+    } else {
+      if (taskDateCont) taskDateCont.style.display = "block";
+      if (eventPeriodCont) eventPeriodCont.style.display = "none";
+      if (evStartInput && evStartInput.value && (!dueDateInput || !dueDateInput.value)) {
+        dueDateInput.value = evStartInput.value;
+      }
+    }
+
     const statusSelect = document.getElementById("entityModalStatus");
     if (statusSelect) {
       const isCompleted = statusSelect.value === "completed";
@@ -241,6 +363,7 @@ const EntityModal = {
   async returnToUnorganized(skipConfirm = false) {
     if (!skipConfirm && !confirm("Return this item back to the Unorganised Queue?")) return;
     try {
+      const fallbackDate = (document.getElementById("entityModalEventStart")?.value || document.getElementById("entityModalDueDate")?.value || "").trim() || null;
       const res = await fetch("/api/entities/reclassify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -250,7 +373,7 @@ const EntityModal = {
           to_type: "unorganized",
           title: document.getElementById("entityModalTitle").value.trim() || (this.currentEntity.title || "Untitled"),
           description: document.getElementById("entityModalDesc").value || "",
-          due_date: document.getElementById("entityModalDueDate").value.trim() || null,
+          due_date: fallbackDate,
           project_name: document.getElementById("entityModalProject").value || null
         })
       });
@@ -288,10 +411,33 @@ const EntityModal = {
 
     const description = document.getElementById("entityModalDesc").value;
     const projectName = document.getElementById("entityModalProject").value || null;
-    const dueDateRaw = document.getElementById("entityModalDueDate").value.trim();
-    let dueDate = dueDateRaw ? dueDateRaw.replace("T", " ") : null;
-    if (dueDate && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(dueDate)) {
-      dueDate += ":00";
+    let dueDate = null;
+    let endTime = null;
+
+    if (toType === "event") {
+      const startRaw = (document.getElementById("entityModalEventStart")?.value || "").trim();
+      const endRaw = (document.getElementById("entityModalEventEnd")?.value || "").trim();
+      const fallbackRaw = (document.getElementById("entityModalDueDate")?.value || "").trim();
+      
+      const effectiveStart = startRaw || fallbackRaw;
+      if (effectiveStart) {
+        dueDate = effectiveStart.replace("T", " ");
+        if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(dueDate)) {
+          dueDate += ":00";
+        }
+      }
+      if (endRaw) {
+        endTime = endRaw.replace("T", " ");
+        if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(endTime)) {
+          endTime += ":00";
+        }
+      }
+    } else {
+      const dueDateRaw = document.getElementById("entityModalDueDate").value.trim();
+      dueDate = dueDateRaw ? dueDateRaw.replace("T", " ") : null;
+      if (dueDate && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(dueDate)) {
+        dueDate += ":00";
+      }
     }
 
     const d = new Date();
@@ -339,6 +485,7 @@ const EntityModal = {
           project_name: projectName,
           tier: toTier,
           due_date: dueDate,
+          end_time: endTime,
           status: status,
           recurrence: recurrence,
           color: color,

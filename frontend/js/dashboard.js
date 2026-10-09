@@ -939,7 +939,7 @@ const Dashboard = {
       events.forEach((e, i) => {
         const isDone = e.status === "completed";
         const cleanTitle = (e.title || "").replace(/^\s*\[.*?\]\s*/, '');
-        const timeMil = e.start_time ? App.formatMilitaryTime(e.start_time) : 'Today';
+        const timeMil = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : 'Today';
         const inSeq = (this.dailyOrder || []).some(d => d.id === e.id && d.type === 'event');
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true"
@@ -1764,7 +1764,7 @@ const Dashboard = {
       const isFuture = this.isFutureDay();
       this.events.forEach((e, idx) => {
         const rankStr = String(idx + 1).padStart(2, "0");
-        const timePart = e.start_time ? App.formatMilitaryTime(e.start_time) : "Today";
+        const timePart = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : "Today";
         const isCompleted = e.status === "completed";
         const div = document.createElement("div");
         div.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
@@ -2097,9 +2097,13 @@ const Dashboard = {
     const titleInput = document.getElementById("manualInputTitle");
     const descInput = document.getElementById("manualInputDesc");
     const dateInput = document.getElementById("manualInputDate");
+    const evStart = document.getElementById("manualEventStart");
+    const evEnd = document.getElementById("manualEventEnd");
     if (titleInput) titleInput.value = "";
     if (descInput) descInput.value = "";
     if (dateInput) dateInput.value = "";
+    if (evStart) evStart.value = "";
+    if (evEnd) evEnd.value = "";
     
     this.populateManualProjectDropdown();
 
@@ -2146,6 +2150,7 @@ const Dashboard = {
 
     const projectRow = document.getElementById("manualProjectRow");
     const dateRow = document.getElementById("manualDateRow");
+    const eventPeriodRow = document.getElementById("manualEventPeriodRow");
     const colorRow = document.getElementById("manualProjectColorRow");
     const categoryRow = document.getElementById("manualProjectCategoryRow");
     const titleLabel = document.getElementById("manualInputTitleLabel");
@@ -2154,6 +2159,7 @@ const Dashboard = {
     if (type === "project") {
       if (projectRow) projectRow.style.display = "none";
       if (dateRow) dateRow.style.display = "none";
+      if (eventPeriodRow) eventPeriodRow.style.display = "none";
       if (categoryRow) categoryRow.style.display = "block";
       if (colorRow) colorRow.style.display = "block";
       if (titleLabel) titleLabel.textContent = "Project Name *";
@@ -2167,14 +2173,24 @@ const Dashboard = {
       }
     } else if (type === "event") {
       if (projectRow) projectRow.style.display = "block";
-      if (dateRow) dateRow.style.display = "block";
+      if (dateRow) dateRow.style.display = "none";
+      if (eventPeriodRow) eventPeriodRow.style.display = "block";
       if (categoryRow) categoryRow.style.display = "none";
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Event Title *";
-      if (dateLabel) dateLabel.textContent = "Event Date & Time (YYYY-MM-DD HH:MM) *";
+      const dateInput = document.getElementById("manualInputDate");
+      const evStart = document.getElementById("manualEventStart");
+      const evEnd = document.getElementById("manualEventEnd");
+      if (dateInput && dateInput.value && evStart && !evStart.value) {
+        evStart.value = dateInput.value;
+        if (evEnd && !evEnd.value) {
+          evEnd.value = this.addMinutesToDateStr(dateInput.value, 60);
+        }
+      }
     } else if (type === "reminder") {
       if (projectRow) projectRow.style.display = "none";
       if (dateRow) dateRow.style.display = "block";
+      if (eventPeriodRow) eventPeriodRow.style.display = "none";
       if (categoryRow) categoryRow.style.display = "none";
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Reminder Note *";
@@ -2183,11 +2199,87 @@ const Dashboard = {
       // focus or trivial task
       if (projectRow) projectRow.style.display = "block";
       if (dateRow) dateRow.style.display = "block";
+      if (eventPeriodRow) eventPeriodRow.style.display = "none";
       if (categoryRow) categoryRow.style.display = "none";
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Task Title *";
       if (dateLabel) dateLabel.textContent = "Due Date / Time (24hr Military)";
     }
+  },
+
+  addMinutesToDateStr(isoOrLocalStr, minutes) {
+    if (!isoOrLocalStr) return "";
+    let s = String(isoOrLocalStr).trim().replace(" ", "T");
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return "";
+    d.setMinutes(d.getMinutes() + minutes);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  },
+
+  setManualDuration(minutes) {
+    const startInput = document.getElementById("manualEventStart");
+    const endInput = document.getElementById("manualEventEnd");
+    if (!startInput || !endInput) return;
+    let startVal = startInput.value;
+    if (!startVal) {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      startVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      startInput.value = startVal;
+    }
+    endInput.value = this.addMinutesToDateStr(startVal, minutes);
+    App.haptic("light");
+  },
+
+  clearManualEventEnd() {
+    const endInput = document.getElementById("manualEventEnd");
+    if (endInput) endInput.value = "";
+    App.haptic("light");
+  },
+
+  setManualEventStartPreset(preset) {
+    const startInput = document.getElementById("manualEventStart");
+    const endInput = document.getElementById("manualEventEnd");
+    if (!startInput) return;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+
+    function formatDate(d, hours, minutes) {
+      const target = new Date(d);
+      target.setHours(hours, minutes, 0, 0);
+      const yyyy = target.getFullYear();
+      const mm = pad(target.getMonth() + 1);
+      const dd = target.getDate();
+      const hh = pad(target.getHours());
+      const min = pad(target.getMinutes());
+      return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    }
+
+    let newStart = "";
+    if (preset === "today_now") {
+      newStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    } else if (preset === "today_12") {
+      newStart = formatDate(now, 12, 0);
+    } else if (preset === "today_14") {
+      newStart = formatDate(now, 14, 0);
+    } else if (preset === "today_16") {
+      newStart = formatDate(now, 16, 0);
+    } else if (preset === "today_18") {
+      newStart = formatDate(now, 18, 0);
+    } else if (preset === "tomorrow_09") {
+      const tom = new Date(now);
+      tom.setDate(tom.getDate() + 1);
+      newStart = formatDate(tom, 9, 0);
+    }
+
+    if (newStart) {
+      startInput.value = newStart;
+      if (endInput && (!endInput.value || endInput.value <= newStart)) {
+        endInput.value = this.addMinutesToDateStr(newStart, 60);
+      }
+    }
+    App.haptic("light");
   },
 
   setManualDatePreset(preset) {
@@ -2201,7 +2293,7 @@ const Dashboard = {
       target.setHours(hours, minutes, 0, 0);
       const yyyy = target.getFullYear();
       const mm = pad(target.getMonth() + 1);
-      const dd = pad(target.getDate());
+      const dd = target.getDate();
       const hh = pad(target.getHours());
       const min = pad(target.getMinutes());
       return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
@@ -2279,16 +2371,31 @@ const Dashboard = {
           return;
         }
       } else if (this.currentManualType === "event") {
-        if (!dueDate) {
-          App.showToast("Date/time is required for events", true);
+        const evStartInput = document.getElementById("manualEventStart");
+        const evEndInput = document.getElementById("manualEventEnd");
+        const rawStart = evStartInput ? evStartInput.value.trim() : "";
+        const rawEnd = evEndInput ? evEndInput.value.trim() : "";
+        let eventStart = rawStart ? rawStart.replace("T", " ") : dueDate;
+        let eventEnd = rawEnd ? rawEnd.replace("T", " ") : null;
+
+        if (!eventStart) {
+          App.showToast("Start time is required for events", true);
           return;
         }
+        if (eventStart && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(eventStart)) {
+          eventStart += ":00";
+        }
+        if (eventEnd && /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(eventEnd)) {
+          eventEnd += ":00";
+        }
+
         const res = await fetch("/api/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
-            start_time: dueDate,
+            start_time: eventStart,
+            end_time: eventEnd,
             description,
             project_name: projectName
           })

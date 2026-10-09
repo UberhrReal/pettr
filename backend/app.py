@@ -93,6 +93,7 @@ class ResolveUnorganizedRequest(BaseModel):
     tier: Optional[str] = "focus"
     project_name: Optional[str] = None
     due_date: Optional[str] = None
+    end_time: Optional[str] = None
 
 class DailyOrderRequest(BaseModel):
     date: str
@@ -111,6 +112,7 @@ class ReclassifyRequest(BaseModel):
     project_name: Optional[str] = None
     tier: Optional[str] = "focus"
     due_date: Optional[str] = None
+    end_time: Optional[str] = None
     status: Optional[str] = "pending"
     recurrence: Optional[str] = None
     color: Optional[str] = None
@@ -569,6 +571,7 @@ async def resolve_unorganized(item_id: int, req: ResolveUnorganizedRequest):
         created = database.create_event(
             title=req.title,
             start_time=effective_due_date,
+            end_time=req.end_time,
             project_name=assigned_project
         )
     elif req.entity_type == "reminder":
@@ -682,6 +685,7 @@ async def reclassify_item(req: ReclassifyRequest):
         project_name=req.project_name,
         tier=req.tier or "focus",
         due_date=req.due_date,
+        end_time=req.end_time,
         status=req.status or "pending",
         recurrence=req.recurrence,
         color=req.color,

@@ -733,6 +733,7 @@ def get_events_for_day(target_date: Optional[datetime.date] = None, db_path: Opt
     for r in rows:
         ed = dict(r)
         ed["start_time_military"] = format_military_time(ed.get("start_time"))
+        ed["end_time_military"] = format_military_time(ed.get("end_time"))
         events_list.append(ed)
     return events_list
 
@@ -1177,6 +1178,7 @@ def reclassify_entity(from_type: str,
                       project_name: Optional[str] = None,
                       tier: str = "focus",
                       due_date: Optional[str] = None,
+                      end_time: Optional[str] = None,
                       status: str = "pending",
                       recurrence: Optional[str] = None,
                       color: Optional[str] = None,
@@ -1216,10 +1218,13 @@ def reclassify_entity(from_type: str,
                 event_time = due_date or str(datetime.datetime.now())
                 if event_time and len(event_time) == 16:
                     event_time += ":00"
+                event_end = end_time
+                if event_end and len(event_end) == 16:
+                    event_end += ":00"
                 conn.execute("""
-                    UPDATE events SET title = ?, description = ?, project_id = ?, start_time = ?, status = ?, recurrence = ?
+                    UPDATE events SET title = ?, description = ?, project_id = ?, start_time = ?, end_time = ?, status = ?, recurrence = ?
                     WHERE id = ?
-                """, (title, description, project_id, event_time, event_status, recurrence, from_id))
+                """, (title, description, project_id, event_time, event_end, event_status, recurrence, from_id))
             elif clean_to == "reminder":
                 rem_date = due_date.split(" ")[0] if due_date else None
                 conn.execute("""
@@ -1279,7 +1284,10 @@ def reclassify_entity(from_type: str,
         event_time = effective_due_date or str(datetime.datetime.now())
         if event_time and len(event_time) == 16:
             event_time += ":00"
-        new_entity = create_event(title=title, description=description, project_name=project_name, start_time=event_time, recurrence=recurrence, db_path=db_path)
+        event_end = end_time
+        if event_end and len(event_end) == 16:
+            event_end += ":00"
+        new_entity = create_event(title=title, description=description, project_name=project_name, start_time=event_time, end_time=event_end, recurrence=recurrence, db_path=db_path)
         if event_status != "scheduled":
             update_event_status(new_entity["id"], event_status, db_path=db_path)
             new_entity["status"] = event_status
