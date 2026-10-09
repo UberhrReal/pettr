@@ -6095,3 +6095,40 @@ body {
   flex-direction: column;
   gap: 6px;
 }
+
+/* --- Settings Tab Layout & Responsive Alignment --- */
+.settings-container {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-header {
+  margin-bottom: 2px;
+}
+
+.settings-columns-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 860px) {
+  .settings-columns-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-full-width {
+  width: 100%;
+}
