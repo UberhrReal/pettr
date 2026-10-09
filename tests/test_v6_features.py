@@ -566,6 +566,121 @@ def test_event_api_and_reclassify_time_periods(temp_db, monkeypatch):
         assert events_day[0]["end_time_military"] == "11:30"
 
 
+def test_completed_tasks_30_day_retention_and_metrics_preservation(temp_db, monkeypatch):
+    """
+    Test 30-day history retention for completed tasks:
+    - Tasks completed > 30 days ago are purged.
+    - Day completion metrics are permanently snapshotted into day_seals before purging.
+    - Projects stay indefinite (never purged).
+    - Monthly productivity stats for past months leverage day_seals metrics.
+    """
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    today = datetime.date.today()
+    conn = database.get_connection(temp_db)
+
+    # 1. Create a recent completed task (5 days ago) -> should be kept
+    d_recent = (today - datetime.timedelta(days=5)).strftime("%Y-%m-%d")
+    t_recent = database.create_task("Recent task", tier="focus", due_date=f"{d_recent} 10:00:00", db_path=temp_db)
+    with conn:
+        conn.execute("UPDATE tasks SET status = 'completed', completed_at = ? WHERE id = ?", (f"{d_recent} 11:00:00", t_recent["id"]))
+
+    # 2. Create an old completed task (45 days ago) -> should be purged, metrics archived
+    d_old1 = (today - datetime.timedelta(days=45)).strftime("%Y-%m-%d")
+    t_old1 = database.create_task("Old task 1", tier="focus", due_date=f"{d_old1} 09:00:00", db_path=temp_db)
+    with conn:
+        conn.execute("UPDATE tasks SET status = 'completed', completed_at = ? WHERE id = ?", (f"{d_old1} 10:00:00", t_old1["id"]))
+
+    # 3. Create another old completed task on same old day (45 days ago)
+    t_old2 = database.create_task("Old task 2", tier="trivial", due_date=f"{d_old1} 14:00:00", db_path=temp_db)
+    with conn:
+        conn.execute("UPDATE tasks SET status = 'completed', completed_at = ? WHERE id = ?", (f"{d_old1} 15:00:00", t_old2["id"]))
+
+    # 4. Create a completed project from 45 days ago -> should REMAIN indefinite!
+    p_old = database.create_project("Historical Capstone", category="School", db_path=temp_db)
+    database.complete_project(p_old["id"], db_path=temp_db)
+    with conn:
+        conn.execute("UPDATE projects SET completed_at = ? WHERE id = ?", (f"{d_old1} 12:00:00", p_old["id"]))
+
+    # 5. Check before purge
+    tasks_before = conn.execute("SELECT COUNT(*) FROM tasks WHERE status = 'completed'").fetchone()[0]
+    assert tasks_before == 3
+
+    # 6. Run purge
+    deleted = database.purge_old_completed_tasks(retention_days=30, db_path=temp_db)
+    assert deleted == 2
+
+    # 7. Verify remaining completed tasks in tasks table
+    remaining_tasks = conn.execute("SELECT id, title FROM tasks WHERE status = 'completed'").fetchall()
+    assert len(remaining_tasks) == 1
+    assert remaining_tasks[0]["title"] == "Recent task"
+
+    # 8. Verify project was NOT deleted
+    p_check = database.get_entity_detail("project", p_old["id"], db_path=temp_db)
+    assert p_check is not None
+    assert p_check["name"] == "Historical Capstone"
+    assert p_check["status"] == "completed"
+
+    # 9. Verify metrics for 45 days ago were permanently preserved in day_seals
+    seal = database.get_day_seal(d_old1, db_path=temp_db)
+    assert seal is not None
+    assert seal["date"] == d_old1
+    assert seal["completed_tasks"] == 2
+    assert seal["total_tasks"] == 2
+    assert seal["completion_rate"] == 100
+
+    # 10. Verify get_history_archive returns only tasks within the 30-day window but indefinite projects
+    archive = database.get_history_archive(limit=100, db_path=temp_db)
+    assert len(archive["completed_tasks"]) == 1
+    assert archive["completed_tasks"][0]["title"] == "Recent task"
+    assert len(archive["completed_projects"]) >= 1
+
+
+def test_server_storage_breakdown_api(temp_db, monkeypatch):
+    """Test real-time storage diagnostics API endpoint."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    with TestClient(app) as client:
+        # Without auth -> 401
+        unauth = client.get("/api/system/storage")
+        assert unauth.status_code == 401
+
+        # With auth
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.get("/api/system/storage")
+        assert res.status_code == 200
+        data = res.json()
+
+        # Check required breakdown sections
+        assert "database" in data
+        assert "media" in data
+        assert "backups" in data
+        assert "app_code" in data
+        assert "total_app_storage" in data
+        assert "disk" in data
+        assert "retention_policy" in data
+
+        # Check database metrics
+        db_info = data["database"]
+        assert db_info["total_bytes"] >= 0
+        assert "formatted" in db_info
+        assert "counts" in db_info
+        counts = db_info["counts"]
+        assert "tasks_total" in counts
+        assert "day_seals_metrics" in counts
+        assert "projects_total" in counts
+
+        # Check disk info
+        disk_info = data["disk"]
+        assert disk_info["total_bytes"] > 0
+        assert disk_info["free_bytes"] > 0
+        assert "used_percent" in disk_info
+
+        # Check retention policy description
+        assert data["retention_policy"]["completed_tasks_days"] == 30
+        assert data["retention_policy"]["projects"] == "Indefinite"
+
+
+
 
 
 

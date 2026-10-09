@@ -955,6 +955,7 @@ const App = {
       this.loadProfileSettings();
       this.loadPinInfo();
       this.loadLlmStatus();
+      this.loadStorageMetrics();
     }
     this.renderIcons();
   },
@@ -1398,6 +1399,140 @@ const App = {
         resultEl.style.color = "var(--urgent-orange)";
         resultEl.textContent = "Network error testing LLM latency.";
       }
+    }
+  },
+
+  async loadStorageMetrics() {
+    const container = document.getElementById("storageMetricsContainer");
+    if (!container) return;
+
+    try {
+      const res = await fetch("/api/system/storage");
+      if (!res.ok) {
+        container.innerHTML = `<div style="color: var(--urgent-orange); font-size: 13px; padding: 10px 0;">Failed to load storage metrics.</div>`;
+        return;
+      }
+      const data = await res.json();
+      const db = data.database || {};
+      const media = data.media || {};
+      const backups = data.backups || {};
+      const appCode = data.app_code || {};
+      const totalApp = data.total_app_storage || {};
+      const disk = data.disk || {};
+      const counts = db.counts || {};
+
+      const diskPct = disk.used_percent || 0;
+
+      container.innerHTML = `
+        <!-- Host Disk & App Footprint Banner -->
+        <div class="storage-overview-banner">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">PETTR Total Footprint</span>
+              <div style="font-size: 22px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); margin-top: 2px;">
+                ${totalApp.formatted || '0 B'}
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">Server Drive Capacity</span>
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 2px;">
+                ${disk.used_formatted || '0 B'} used / ${disk.free_formatted || '0 B'} free (${diskPct}%)
+              </div>
+            </div>
+          </div>
+          <div class="storage-progress-bar-bg" title="Host Server Drive Usage: ${diskPct}%">
+            <div class="storage-progress-bar-fill" style="width: ${Math.min(100, Math.max(2, diskPct))}%;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
+            <span>0 GB</span>
+            <span>Total Host Storage: ${disk.total_formatted || '0 B'}</span>
+          </div>
+        </div>
+
+        <!-- 4 Storage Breakdown Cards -->
+        <div class="storage-grid-cards">
+          <!-- 1. SQLite Database -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                🗄️ SQLite Database
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--focus-indigo);">
+                ${db.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              ${counts.tasks_total || 0} tasks (${counts.tasks_completed_30d || 0} completed, ${counts.tasks_pending || 0} pending)<br>
+              ${counts.projects_total || 0} projects · ${counts.events || 0} events · ${counts.reminders || 0} reminders<br>
+              <strong style="color: var(--normal-green);">${counts.day_seals_metrics || 0} daily metric seals</strong> (preserved forever)
+            </div>
+          </div>
+
+          <!-- 2. Media & Uploads -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                🖼️ Notes &amp; Media Attachments
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--accent-cyan);">
+                ${media.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              ${media.count || 0} uploaded image${media.count === 1 ? '' : 's'} &amp; files in <code>data/media</code><br>
+              Linked directly inside your rich notes &amp; mindmap items.
+            </div>
+          </div>
+
+          <!-- 3. Backup Archives -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                📦 Backup Archives
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--recurrence-purple);">
+                ${backups.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              ${backups.count || 0} zip archive${backups.count === 1 ? '' : 's'} in <code>backups/</code><br>
+              Full snapshots containing SQLite, Markdown, and JSON.
+            </div>
+          </div>
+
+          <!-- 4. Application Codebase -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                ⚡ Application Codebase
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--text-main);">
+                ${appCode.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              ${appCode.count || 0} frontend and backend source files.<br>
+              Zero external heavy build steps; lightweight vanilla assets.
+            </div>
+          </div>
+        </div>
+
+        <!-- Retention Policy & Live Clock -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-muted);">
+          <div>
+            <strong style="color: var(--text-main);">Retention Policy:</strong> Completed tasks retained for <strong>30 days</strong>. Projects, notes, and daily metric seals are stored <strong>indefinitely</strong>.
+          </div>
+          <div style="font-family: var(--font-mono); font-size: 11px;">
+            Updated: ${data.timestamp || 'Just now'}
+          </div>
+        </div>
+      `;
+      if (window.lucide) {
+        try { lucide.createIcons(); } catch (_) {}
+      }
+    } catch (err) {
+      console.error("Error loading storage metrics:", err);
+      container.innerHTML = `<div style="color: var(--urgent-orange); font-size: 13px; padding: 10px 0;">Error fetching storage metrics.</div>`;
     }
   }
 };

@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=7.8">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=7.9">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -710,14 +710,20 @@
           </div>
         </div>
 
-        <!-- Panel 2: Completed Tasks -->
+        <!-- Panel 2: Completed Tasks (30-Day Retention) -->
         <div class="column-card history-panel">
-          <div class="column-header">
-            <h3 class="column-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Completed Tasks</h3>
-            <span class="panel-count-badge" id="historyCountTasks">0 completed</span>
+          <div class="column-header" style="flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <h3 class="column-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Completed Tasks (30-Day Archive)</h3>
+              <span class="panel-count-badge" id="historyCountTasks">0 completed</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-icon-btn" onclick="History.toggleAllDays(true)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;">Expand All</button>
+              <button class="action-icon-btn" onclick="History.toggleAllDays(false)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;">Collapse All</button>
+            </div>
           </div>
-          <div id="historyTasksList" class="dynamic-grid-list" style="--grid-cols: repeat(auto-fill, minmax(300px, 1fr));">
-            <!-- Completed tasks injected here -->
+          <div id="historyTasksList" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Completed task daily collapsible sub-panels injected here -->
           </div>
         </div>
 
@@ -849,6 +855,27 @@
             <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
           </div>
           <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
+        </div>
+
+        <!-- Server Storage & Real-Time Usage Card -->
+        <div class="column-card" id="settingsStorageCard">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h3 style="font-size: 15px; font-weight: 700;">
+                <i data-lucide="hard-drive" style="width:16px;height:16px;color:var(--accent-cyan);display:inline-block;vertical-align:-2px;"></i> Server Storage &amp; Resource Footprint
+              </h3>
+              <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
+                Real-time breakdown of storage consumed by your database, media attachments, backup archives, and host disk space.
+              </p>
+            </div>
+            <button class="action-icon-btn" onclick="App.loadStorageMetrics()" style="font-size: 12px; font-weight: 600;">
+              <i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh
+            </button>
+          </div>
+
+          <div id="storageMetricsContainer">
+            <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading real-time storage metrics...</div>
+          </div>
         </div>
 
         <!-- Tailscale & Node Information -->
@@ -1839,20 +1866,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=7.8"></script>
-  <script src="/static/js/app.js?v=7.8"></script>
-  <script src="/static/js/drag_drop.js?v=7.8"></script>
-  <script src="/static/js/wave_canvas.js?v=7.8"></script>
-  <script src="/static/js/entity_modal.js?v=7.8"></script>
-  <script src="/static/js/timeline.js?v=7.8"></script>
-  <script src="/static/js/mindmap.js?v=7.8"></script>
-  <script src="/static/js/dashboard.js?v=7.8"></script>
-  <script src="/static/js/simplified_mode.js?v=7.8"></script>
-  <script src="/static/js/exploded.js?v=7.8"></script>
-  <script src="/static/js/notes.js?v=7.8"></script>
-  <script src="/static/js/history.js?v=7.8"></script>
-  <script src="/static/js/command_palette.js?v=7.8"></script>
-  <script src="/static/js/focus_cockpit.js?v=7.8"></script>
-  <script src="/static/js/evening_debrief.js?v=7.8"></script>
+  <script src="/static/js/pin_lock.js?v=7.9"></script>
+  <script src="/static/js/app.js?v=7.9"></script>
+  <script src="/static/js/drag_drop.js?v=7.9"></script>
+  <script src="/static/js/wave_canvas.js?v=7.9"></script>
+  <script src="/static/js/entity_modal.js?v=7.9"></script>
+  <script src="/static/js/timeline.js?v=7.9"></script>
+  <script src="/static/js/mindmap.js?v=7.9"></script>
+  <script src="/static/js/dashboard.js?v=7.9"></script>
+  <script src="/static/js/simplified_mode.js?v=7.9"></script>
+  <script src="/static/js/exploded.js?v=7.9"></script>
+  <script src="/static/js/notes.js?v=7.9"></script>
+  <script src="/static/js/history.js?v=7.9"></script>
+  <script src="/static/js/command_palette.js?v=7.9"></script>
+  <script src="/static/js/focus_cockpit.js?v=7.9"></script>
+  <script src="/static/js/evening_debrief.js?v=7.9"></script>
 </body>
 </html>

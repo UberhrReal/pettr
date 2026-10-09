@@ -648,6 +648,13 @@ async def download_backup(filename: str):
     media_type = "application/zip" if file_path.suffix == ".zip" else "application/gzip"
     return FileResponse(path=str(file_path), filename=filename, media_type=media_type)
 
+# --- Server Storage Diagnostics ---
+
+@app.get("/api/system/storage", dependencies=[Depends(auth.require_auth)])
+async def get_storage_metrics():
+    """Returns real-time server storage breakdown: database, media, backups, codebase, and disk usage."""
+    return database.get_storage_breakdown()
+
 # --- Network & Tailscale Live Diagnostics ---
 
 @app.get("/api/network/status")

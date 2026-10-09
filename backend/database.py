@@ -3,9 +3,9 @@ import json
 import random
 import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-
+from typing import List, Dict, Any, Optional, Tuple
 import os
+import shutil
 
 DEFAULT_DATA_DIR = Path(os.environ.get("PETTR_DATA_DIR", Path(__file__).resolve().parent.parent))
 DEFAULT_DB_PATH = DEFAULT_DATA_DIR / "pettr.sqlite"
@@ -856,11 +856,83 @@ def get_history(limit: int = 50, db_path: Optional[Path] = None) -> List[Dict[st
         res.append(d)
     return res
 
-def get_history_archive(limit: int = 100, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def purge_old_completed_tasks(retention_days: int = 30, ref_date: Optional[datetime.date] = None, db_path: Optional[Path] = None) -> int:
+    """
+    Enforces 30-day history retention for completed tasks only.
+    Deletes completed tasks older than retention_days ago.
+    Before deleting, automatically snapshots and archives daily completion metrics
+    (total scheduled, completed, and completion percentage) into day_seals for each affected date
+    so productivity statistics can be referenced indefinitely far in the future.
+    Projects, notes, events, reminders, and historical day_seals stay indefinite.
+    """
+    conn = get_connection(db_path)
+    base_date = ref_date or datetime.date.today()
+    cutoff_date = (base_date - datetime.timedelta(days=retention_days)).strftime("%Y-%m-%d")
+
+    with conn:
+        # 1. Identify distinct dates for completed tasks older than the 30-day cutoff
+        old_day_rows = conn.execute("""
+            SELECT DISTINCT date(COALESCE(completed_at, due_date, created_at)) as comp_date
+            FROM tasks
+            WHERE status = 'completed'
+              AND date(COALESCE(completed_at, due_date, created_at)) < ?
+              AND COALESCE(completed_at, due_date, created_at) IS NOT NULL
+        """, (cutoff_date,)).fetchall()
+
+        # 2. Permanently record daily metrics into day_seals if not already sealed
+        for row in old_day_rows:
+            d_str = row["comp_date"]
+            if not d_str:
+                continue
+            seal = conn.execute("SELECT 1 FROM day_seals WHERE date = ?", (d_str,)).fetchone()
+            if not seal:
+                completed_cnt = conn.execute("""
+                    SELECT COUNT(*) FROM tasks
+                    WHERE status = 'completed' AND date(COALESCE(completed_at, due_date, created_at)) = ?
+                """, (d_str,)).fetchone()[0]
+
+                total_cnt = conn.execute("""
+                    SELECT COUNT(DISTINCT id) FROM tasks
+                    WHERE (date(due_date) = ? OR (status = 'completed' AND date(COALESCE(completed_at, due_date, created_at)) = ?))
+                      AND status != 'cancelled'
+                """, (d_str, d_str)).fetchone()[0]
+
+                rate = min(100, round((completed_cnt / total_cnt) * 100)) if total_cnt > 0 else 0
+
+                conn.execute("""
+                    INSERT INTO day_seals (date, completion_rate, total_tasks, completed_tasks, retro_notes)
+                    VALUES (?, ?, ?, ?, 'Archived metrics (30-day task retention)')
+                    ON CONFLICT(date) DO NOTHING
+                """, (d_str, rate, total_cnt, completed_cnt))
+
+        # 3. Disconnect any reminders linked to tasks that are about to be deleted
+        conn.execute("""
+            UPDATE reminders SET task_id = NULL
+            WHERE task_id IN (
+                SELECT id FROM tasks
+                WHERE status = 'completed'
+                  AND date(COALESCE(completed_at, due_date, created_at)) < ?
+            )
+        """, (cutoff_date,))
+
+        # 4. Delete the completed tasks older than cutoff
+        del_cursor = conn.execute("""
+            DELETE FROM tasks
+            WHERE status = 'completed'
+              AND date(COALESCE(completed_at, due_date, created_at)) < ?
+        """, (cutoff_date,))
+        deleted_count = del_cursor.rowcount
+
+    return deleted_count
+
+def get_history_archive(limit: int = 500, db_path: Optional[Path] = None) -> Dict[str, Any]:
     """Returns structured archive data for the History tab: completed projects, completed tasks, inactive reminders, and audit log."""
+    # Enforce 30-day retention for completed tasks
+    purge_old_completed_tasks(retention_days=30, db_path=db_path)
+
     conn = get_connection(db_path)
 
-    # 1. Completed projects
+    # 1. Completed projects (stay indefinite)
     proj_rows = conn.execute("""
         SELECT p.*,
                (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed') as completed_tasks_count,
@@ -876,7 +948,7 @@ def get_history_archive(limit: int = 100, db_path: Optional[Path] = None) -> Dic
         d["completed_at_military"] = format_military_time(d.get("completed_at") or d.get("updated_at"), include_date=True)
         completed_projects.append(d)
 
-    # 2. Completed tasks
+    # 2. Completed tasks (30-day retention)
     task_rows = conn.execute("""
         SELECT t.*, p.name as project_name, p.color as project_color
         FROM tasks t
@@ -915,6 +987,158 @@ def get_history_archive(limit: int = 100, db_path: Optional[Path] = None) -> Dic
         "completed_tasks": completed_tasks,
         "inactive_reminders": inactive_reminders,
         "audit_log": audit_log
+    }
+
+def format_bytes(size_bytes: int) -> str:
+    """Formats raw bytes into a human-readable string (B, KB, MB, GB)."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.2f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+def _get_dir_size_and_count(dir_path: Path) -> Tuple[int, int]:
+    """Calculates total file size and file count inside a directory tree."""
+    if not dir_path.exists():
+        return 0, 0
+    total = 0
+    count = 0
+    try:
+        for p in dir_path.rglob("*"):
+            if p.is_file():
+                try:
+                    total += p.stat().st_size
+                    count += 1
+                except (OSError, FileNotFoundError):
+                    pass
+    except (OSError, FileNotFoundError):
+        pass
+    return total, count
+
+def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Computes a real-time storage breakdown of PETTR and its data on the host server.
+    Measures database size, media folder, backup archives, codebase, and disk space.
+    """
+    conn = get_connection(db_path)
+    actual_db_path = resolve_db_path(db_path)
+
+    # 1. Database files
+    db_file = Path(actual_db_path).resolve()
+    db_size = db_file.stat().st_size if db_file.exists() else 0
+    wal_file = Path(str(db_file) + "-wal")
+    wal_size = wal_file.stat().st_size if wal_file.exists() else 0
+    shm_file = Path(str(db_file) + "-shm")
+    shm_size = shm_file.stat().st_size if shm_file.exists() else 0
+    total_db_bytes = db_size + wal_size + shm_size
+
+    # Table counts
+    task_total = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+    task_completed = conn.execute("SELECT COUNT(*) FROM tasks WHERE status = 'completed'").fetchone()[0]
+    task_pending = conn.execute("SELECT COUNT(*) FROM tasks WHERE status != 'completed' AND status != 'cancelled'").fetchone()[0]
+    day_seals_count = conn.execute("SELECT COUNT(*) FROM day_seals").fetchone()[0]
+    projects_total = conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
+    projects_completed = conn.execute("SELECT COUNT(*) FROM projects WHERE status = 'completed'").fetchone()[0]
+    events_count = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+    reminders_count = conn.execute("SELECT COUNT(*) FROM reminders").fetchone()[0]
+    notes_count = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+    audit_count = conn.execute("SELECT COUNT(*) FROM history").fetchone()[0]
+
+    # 2. Media / Uploads directory
+    base_dir = Path(__file__).resolve().parent.parent
+    media_dir = Path(os.environ.get("PETTR_DATA_DIR", base_dir / "data")) / "media"
+    media_bytes, media_count = _get_dir_size_and_count(media_dir)
+
+    # 3. Backups directory
+    try:
+        from config.config import get_or_create_config
+        config = get_or_create_config()
+        backup_dir = Path(config.get("backup_dir", "./backups"))
+    except Exception:
+        backup_dir = Path("./backups")
+    if not backup_dir.is_absolute():
+        backup_dir = base_dir / backup_dir
+    backups_bytes, backups_count = _get_dir_size_and_count(backup_dir)
+
+    # 4. App codebase & static assets (frontend and backend)
+    frontend_dir = base_dir / "frontend"
+    backend_dir = base_dir / "backend"
+    fe_bytes, fe_count = _get_dir_size_and_count(frontend_dir)
+    be_bytes, be_count = _get_dir_size_and_count(backend_dir)
+    app_code_bytes = fe_bytes + be_bytes
+    app_code_count = fe_count + be_count
+
+    # 5. Total PETTR footprint
+    total_pettr_bytes = total_db_bytes + media_bytes + backups_bytes + app_code_bytes
+
+    # 6. Host server disk usage
+    try:
+        drive_path = str(db_file.parent if db_file.parent.exists() else base_dir)
+        disk_total, disk_used, disk_free = shutil.disk_usage(drive_path)
+        disk_pct = round((disk_used / disk_total) * 100, 1) if disk_total > 0 else 0
+    except Exception:
+        disk_total, disk_used, disk_free, disk_pct = 0, 0, 0, 0
+
+    return {
+        "database": {
+            "path": str(db_file),
+            "db_size_bytes": db_size,
+            "wal_size_bytes": wal_size,
+            "shm_size_bytes": shm_size,
+            "total_bytes": total_db_bytes,
+            "formatted": format_bytes(total_db_bytes),
+            "counts": {
+                "tasks_total": task_total,
+                "tasks_completed_30d": task_completed,
+                "tasks_pending": task_pending,
+                "day_seals_metrics": day_seals_count,
+                "projects_total": projects_total,
+                "projects_completed": projects_completed,
+                "events": events_count,
+                "reminders": reminders_count,
+                "notes": notes_count,
+                "audit_entries": audit_count
+            }
+        },
+        "media": {
+            "path": str(media_dir),
+            "count": media_count,
+            "size_bytes": media_bytes,
+            "formatted": format_bytes(media_bytes)
+        },
+        "backups": {
+            "path": str(backup_dir),
+            "count": backups_count,
+            "size_bytes": backups_bytes,
+            "formatted": format_bytes(backups_bytes)
+        },
+        "app_code": {
+            "count": app_code_count,
+            "size_bytes": app_code_bytes,
+            "formatted": format_bytes(app_code_bytes)
+        },
+        "total_app_storage": {
+            "size_bytes": total_pettr_bytes,
+            "formatted": format_bytes(total_pettr_bytes)
+        },
+        "disk": {
+            "total_bytes": disk_total,
+            "total_formatted": format_bytes(disk_total),
+            "used_bytes": disk_used,
+            "used_formatted": format_bytes(disk_used),
+            "free_bytes": disk_free,
+            "free_formatted": format_bytes(disk_free),
+            "used_percent": disk_pct
+        },
+        "retention_policy": {
+            "completed_tasks_days": 30,
+            "projects": "Indefinite",
+            "historical_metrics": "Stored forever"
+        },
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
 # --- Briefing & Exploded View Computations ---
@@ -1930,20 +2154,34 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
 
     week_avg = round((total_week_completed / total_week_due) * 100) if total_week_due > 0 else 0
 
-    # 2. Monthly view: Current month completion metrics
+    # 2. Monthly view: Completion metrics combining permanently archived day_seals and active tasks
     month_str = target_date.strftime("%Y-%m")
     
-    month_completed = conn.execute("""
+    # Permanently archived daily metrics from day_seals
+    seal_stats = conn.execute("""
+        SELECT COALESCE(SUM(completed_tasks), 0), COALESCE(SUM(total_tasks), 0)
+        FROM day_seals
+        WHERE strftime('%Y-%m', date) = ?
+    """, (month_str,)).fetchone()
+    sealed_completed = seal_stats[0] if seal_stats else 0
+    sealed_total = seal_stats[1] if seal_stats else 0
+
+    # Tasks for dates not sealed in day_seals
+    unsealed_completed = conn.execute("""
         SELECT COUNT(*) FROM tasks 
         WHERE status = 'completed' AND strftime('%Y-%m', completed_at) = ?
+          AND date(completed_at) NOT IN (SELECT date FROM day_seals WHERE date IS NOT NULL)
     """, (month_str,)).fetchone()[0]
 
-    month_total = conn.execute("""
+    unsealed_total = conn.execute("""
         SELECT COUNT(DISTINCT id) FROM tasks 
-        WHERE (strftime('%Y-%m', due_date) = ? OR (status = 'completed' AND strftime('%Y-%m', completed_at) = ?))
+        WHERE strftime('%Y-%m', due_date) = ?
           AND status != 'cancelled'
-    """, (month_str, month_str)).fetchone()[0]
+          AND date(due_date) NOT IN (SELECT date FROM day_seals WHERE date IS NOT NULL)
+    """, (month_str,)).fetchone()[0]
 
+    month_completed = sealed_completed + unsealed_completed
+    month_total = max(month_completed, sealed_total + unsealed_total)
     monthly_rate = round((month_completed / month_total) * 100) if month_total > 0 else 0
 
     active_projects_cnt = conn.execute("SELECT COUNT(*) FROM projects WHERE status = 'active'").fetchone()[0]
