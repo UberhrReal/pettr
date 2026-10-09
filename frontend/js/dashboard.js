@@ -273,16 +273,16 @@ const Dashboard = {
       if (isMorning) {
         defaults = [
           `Good morning, ${this.userName}.`,
-          `Systems online and primed for launch.`,
-          `First coffee, then tasks, ${this.userName}.`,
+          `First coffee, then the deep work, ${this.userName}.`,
           `Ready to prioritise today's objectives?`,
-          `Systems synchronised and primed for takeoff.`
+          `Telemetry nominal. Let's conquer today.`,
+          `Systems primed and synchronised, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
       } else if (isAfternoon) {
         defaults = [
           `Working hard or hardly working, ${this.userName}?`,
-          `Maintaining steady cruising velocity.`,
+          `Maintaining steady cruising momentum.`,
           `Midday check-in, ${this.userName}.`,
           `Executing afternoon sprints with focus.`,
           `Deep focus block in progress.`
@@ -291,10 +291,10 @@ const Dashboard = {
       } else if (isEvening) {
         defaults = [
           `Good evening, ${this.userName}.`,
-          `Evening status report, ${this.userName}.`,
+          `Reviewing completed objectives, ${this.userName}.`,
           `Tying off open loops and wrapping up.`,
-          `Reviewing daily objectives achieved.`,
-          `Preparing for smooth orbit wrap-up.`
+          `Smooth landing for today's sprint, ${this.userName}.`,
+          `Great execution today. Time to relax.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
@@ -302,6 +302,7 @@ const Dashboard = {
           `Burning the midnight oil, ${this.userName}?`,
           `Night owl hours active.`,
           `Quiet focus time, ${this.userName}.`,
+          `Quiet hours telemetry online. Rest soon.`,
           `Deep work in the quiet hours.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";

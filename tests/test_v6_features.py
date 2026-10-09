@@ -223,7 +223,8 @@ async def test_llm_typewriter_generation_and_cache(temp_db, monkeypatch):
 def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
     """Test evening debrief seal locks the day's completion rate and blocks further edits."""
     monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
-    target_date = "2026-10-08"
+    target_date = datetime.date.today().isoformat()
+    tomorrow_date = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
 
     # Step 1: Create 2 tasks for target date (1 completed, 1 pending)
     t1 = database.create_task("Finish Thesis Chapter", tier="focus", due_date=target_date, db_path=temp_db)
@@ -253,7 +254,7 @@ def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
 
     # Step 3: Simulate task rollover to tomorrow
     conn = database.get_connection(temp_db)
-    conn.execute("UPDATE tasks SET due_date = '2026-10-09' WHERE id = ?", (t2_id,))
+    conn.execute("UPDATE tasks SET due_date = ? WHERE id = ?", (tomorrow_date, t2_id))
     conn.commit()
 
     # Productivity stats for the sealed day must remain 50.0% (not jump to 100%!)
@@ -287,7 +288,7 @@ def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
 def test_convert_task_to_reminder_cleans_priority_order(temp_db, monkeypatch):
     """Test that converting a task to a reminder purges it from daily priority sequences."""
     monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
-    today = "2026-10-08"
+    today = datetime.date.today().isoformat()
 
     # 1. Create a task and add to daily order
     task = database.create_task("Buy lab notebook", tier="trivial", due_date=today, db_path=temp_db)

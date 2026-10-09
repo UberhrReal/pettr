@@ -17,27 +17,39 @@ from backend import database
 
 logger = logging.getLogger("pettr.daily_intel")
 
-# Curated Space, Engineering & World Milestones by (Month, Day)
+# Curated World, Science, Computing, Engineering & Space Milestones by (Month, Day)
 HISTORICAL_MILESTONES = {
     (1, 1): "New Year's Day · System epoch reset and trajectory baseline initialized.",
+    (1, 15): "1889: The Coca-Cola Company was incorporated in Atlanta, Georgia.",
     (1, 28): "1986: Challenger STS-51-L remembrance · Honoring space pioneers.",
     (2, 1): "2003: Columbia STS-107 remembrance · Engineering vigilance and duty.",
+    (2, 11): "1847: Thomas Edison was born in Milan, Ohio, going on to hold 1,093 patents.",
     (2, 14): "1990: Voyager 1 took the iconic 'Pale Blue Dot' portrait of Earth.",
+    (2, 28): "1953: James Watson and Francis Crick announced the double-helix structure of DNA.",
+    (3, 10): "1876: Alexander Graham Bell made the first telephone call: 'Mr. Watson, come here.'",
     (3, 14): "Pi Day (3.14) · Celebrating mathematics and aerospace precision.",
+    (3, 21): "Vernal Equinox · Equal light and dark across the planet.",
     (4, 12): "1961: Yuri Gagarin became the first human in space aboard Vostok 1.",
     (4, 24): "1990: Hubble Space Telescope launched into orbit aboard Discovery.",
+    (4, 25): "1953: The landmark paper describing the double-helix structure of DNA was published in Nature.",
     (5, 5): "1961: Alan Shepard became the first American in space.",
+    (5, 6): "1954: Roger Bannister broke the four-minute mile barrier in Oxford (3:59.4).",
+    (5, 29): "1953: Edmund Hillary and Tenzing Norgay became the first climbers to summit Mount Everest.",
     (5, 30): "2020: Crew Dragon Demo-2 restored commercial human spaceflight.",
     (6, 16): "1963: Valentina Tereshkova became the first woman in space.",
+    (6, 23): "1912: Alan Turing was born in London, founding the mathematical basis of computing.",
+    (7, 10): "1856: Nikola Tesla was born in Smiljan, pioneer of modern alternating current power.",
     (7, 20): "1969: Apollo 11 Lunar Module touched down on the Sea of Tranquility.",
-    (8, 9): "Singapore National Day · Majulah Singapura orbital salute.",
+    (8, 6): "1991: Tim Berners-Lee launched the world's very first website online at CERN.",
+    (8, 9): "Singapore National Day · Majulah Singapura salute.",
     (8, 20): "1977: Voyager 2 launched on its interstellar grand tour.",
-    (8, 25): "2012: Voyager 1 officially crossed the heliopause into interstellar space.",
-    (9, 12): "1962: JFK delivered the 'We choose to go to the Moon' address.",
+    (8, 25): "1991: Linus Torvalds announced the Linux kernel project.",
+    (9, 12): "1958: Jack Kilby tested the world's first working integrated circuit microchip.",
+    (9, 28): "1928: Alexander Fleming discovered penicillin, revolutionising medicine.",
     (10, 4): "1957: Sputnik 1 launched, inaugurating the Space Age.",
     (10, 7): "1959: Luna 3 transmitted the first photographs of the far side of the Moon.",
-    (10, 8): "1984: Kathryn Sullivan became the first American woman to perform a spacewalk aboard Challenger STS-41-G.",
-    (10, 9): "1604: Kepler's Supernova (SN 1604) was first observed in the constellation Ophiuchus.",
+    (10, 8): "1958: Dr. William Chardack and Wilson Greatbatch tested the first internal cardiac pacemaker.",
+    (10, 9): "1872: Aaron Montgomery Ward produced the first mail-order catalogue, pioneering modern consumer logistics.",
     (10, 10): "1967: The Outer Space Treaty entered into force, declaring space the province of all humankind.",
     (10, 11): "1968: Apollo 7 launched on the first crewed Apollo mission with Wally Schirra.",
     (10, 12): "1964: Voskhod 1 launched, carrying the first multi-person crew into orbit.",
@@ -45,37 +57,46 @@ HISTORICAL_MILESTONES = {
     (10, 14): "1947: Chuck Yeager broke the sound barrier aboard the Bell X-1 rocket plane.",
     (10, 15): "1997: Cassini-Huygens launched on its epic mission to explore Saturn and Titan.",
     (10, 18): "1989: Galileo spacecraft launched toward Jupiter aboard Atlantis STS-34.",
+    (10, 29): "1969: The first message was transmitted across ARPANET between UCLA and Stanford.",
     (11, 3): "1957: Sputnik 2 launched into orbit.",
+    (11, 8): "1895: Wilhelm Röntgen discovered X-rays, producing the first medical radiograph.",
     (11, 12): "2014: Rosetta's Philae lander achieved the first soft landing on a comet.",
     (11, 20): "1998: Zarya module launched, beginning ISS assembly in low Earth orbit.",
+    (11, 30): "1609: Galileo Galilei first observed the Moon through a telescope and sketched its craters.",
+    (12, 10): "1815: Ada Lovelace was born in London, celebrated as the first computer programmer.",
     (12, 14): "1972: Apollo 17 commander Gene Cernan stepped off the Moon.",
-    (12, 17): "1903: Wright brothers achieved the first powered heavier-than-air flight.",
+    (12, 17): "1903: Wright brothers achieved the first powered heavier-than-air flight at Kitty Hawk.",
     (12, 25): "2021: James Webb Space Telescope launched aboard Ariane 5.",
 }
 
 CALENDAR_FUN_FACTS = [
-    "1984: Kathryn Sullivan became the first American woman to perform a spacewalk aboard Challenger STS-41-G.",
-    "1958: Dr. William Chardack and Wilson Greatbatch implanted the world's first internal cardiac pacemaker.",
-    "1906: Karl Nessler demonstrated the world's first permanent wave machine in London.",
     "1971: Ray Tomlinson sent the very first network email across ARPANET using the '@' symbol.",
+    "1958: Dr. William Chardack and Wilson Greatbatch implanted the world's first internal cardiac pacemaker.",
     "1969: The Apollo 11 guidance computer operated on just 4KB of RAM and 72KB of ROM.",
-    "1977: Voyager 1 carries the Golden Record, preserving sounds and images of Earth for deep space.",
-    "1961: Yuri Gagarin whistled the tune 'The Motherland Hears' during his 108-minute orbital flight.",
-    "1990: Voyager 1 captured the Pale Blue Dot photograph from 3.7 billion miles away.",
+    "1977: Voyager 1 carries the Golden Record, preserving sounds, music, and images of Earth for deep space.",
+    "1991: Tim Berners-Lee opened the World Wide Web to the public from his NeXT workstation at CERN.",
+    "1879: Thomas Edison perfected the long-lasting incandescent light bulb filament after thousands of trials.",
+    "1908: Melitta Bentz invented the paper coffee filter using brass foil and her son's blotting paper.",
     "1903: The Wright brothers' first flight lasted 12 seconds and covered 120 feet.",
+    "1968: Douglas Engelbart demonstrated the mouse, hypertext, and video calling in 'The Mother of All Demos'.",
+    "1928: Alexander Fleming discovered penicillin after returning from holiday to a contaminated petri dish.",
+    "1984: Kathryn Sullivan became the first American woman to perform a spacewalk aboard Challenger STS-41-G.",
     "1957: Sputnik 1 transmitted its iconic radio beacon at 20.005 MHz for 21 days straight.",
     "1965: Alexei Leonov became the first human to conduct an EVA spacewalk, lasting 12 minutes.",
     "1981: Space Shuttle Columbia launched on STS-1, the first reusable orbital spacecraft flight.",
-    "1968: Apollo 8 astronauts became the first humans to witness an 'Earthrise' over the lunar horizon.",
-    "1995: Galileo atmospheric probe plunged into Jupiter's atmosphere at 106,000 mph.",
-    "2012: Voyager 1 officially crossed the heliopause into the uncharted interstellar medium.",
-    "2004: Opportunity rover landed on Mars and operated for 14 years instead of its planned 90-day mission.",
+    "1968: Apollo 8 astronauts captured 'Earthrise', shifting humanity's perspective on our fragile home.",
+    "1997: IBM's Deep Blue computer defeated world chess champion Garry Kasparov in a six-game match.",
     "1947: Chuck Yeager piloted the Bell X-1 past Mach 1.05, shattering the sound barrier.",
     "1986: Voyager 2 flew within 50,600 miles of Uranus, discovering 10 new moons.",
     "1989: Voyager 2 swept past Neptune and detected high-speed 1,300 mph supersonic winds.",
-    "1997: Mars Pathfinder deployed the Sojourner rover, the first wheeled robot on another planet.",
-    "2020: Perseverance rover launched toward Mars carrying the Ingenuity helicopter drone.",
-    "2021: Ingenuity achieved the first powered, controlled flight on another world.",
+    "1954: Roger Bannister ran the first sub-four-minute mile (3:59.4) at Iffley Road Track.",
+    "1976: The Cray-1 supercomputer was installed at Los Alamos, setting a new benchmark for scientific computing.",
+    "1990: Voyager 1 captured the Pale Blue Dot photograph from 3.7 billion miles away.",
+    "The human brain generates roughly 20 watts of electrical power while awake and processing thoughts.",
+    "Octopuses possess three hearts, nine brains, and blue copper-based blood called hemocyanin.",
+    "Honey never spoils: archaeologists have found 3,000-year-old still-edible honey in Egyptian tombs.",
+    "The Eiffel Tower grows up to 15 cm taller in the summer heat due to the thermal expansion of iron.",
+    "2021: Ingenuity achieved the first powered, controlled flight on another world aboard Mars.",
     "2022: James Webb Space Telescope deployed its 21-foot gold-coated beryllium mirror at Lagrange Point 2."
 ]
 
@@ -88,58 +109,50 @@ def get_historical_milestone_or_fact(target_date: datetime.date) -> str:
 
 # Day of week momentum taglines
 DAY_OF_WEEK_INTEL = {
-    0: "Monday ignition: Establish orbital velocity and lock priority objectives.",
-    1: "Tuesday trajectory: High-efficiency execution across active projects.",
-    2: "Wednesday midpoint: Mid-course telemetry review and errand clearing.",
-    3: "Thursday thrust: Deep work sprint before weekly wrap-up.",
-    4: "Friday circularization: Finalize deliverables and close out task queues.",
-    5: "Saturday tactical: Personal research, hardware tinker, and maintenance.",
-    6: "Sunday debrief: Rest, retrospective analysis, and mission planning."
+    0: "Monday momentum: Set the baseline, organise the week, and tackle priority objectives.",
+    1: "Tuesday trajectory: High-efficiency execution across core projects and coursework.",
+    2: "Wednesday midpoint: Mid-week telemetry review, steady pacing, and errand clearing.",
+    3: "Thursday focus: Deep work sprint before the weekly wrap-up.",
+    4: "Friday finish: Finalise key deliverables and close out open loops for the weekend.",
+    5: "Saturday craft: Personal tinker projects, reading, maintenance, and flow.",
+    6: "Sunday debrief: Rest, reflect, reset the mission clock, and plan ahead."
 }
 
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
     """Generates curated time-of-day phrases as resilient fallback."""
     morning_phrases = [
         f"Good morning, {user_name}.",
-        f"Orbital telemetry nominal, {user_name}.",
-        f"First coffee, then tasks, {user_name}.",
-        f"Ready to conquer today's agenda?",
-        f"Hi, Me! Systems primed for takeoff."
-    ]
-
-    morning_phrases = [
-        f"Good morning, {user_name}.",
-        f"Orbital telemetry nominal, {user_name}.",
-        f"First coffee, then tasks, {user_name}.",
+        f"First coffee, then the deep work, {user_name}.",
         f"Ready to prioritise today's objectives?",
-        f"Systems synchronised and primed for takeoff.",
-        f"Hi, Me! Systems primed for launch."
+        f"Clear head, clear desk, {user_name}.",
+        f"Telemetry nominal. Let's conquer today.",
+        f"Systems primed and synchronised, {user_name}."
     ]
 
     afternoon_phrases = [
-        f"Maintaining steady cruising velocity, {user_name}.",
-        f"Deep focus block in progress.",
+        f"Deep focus block in progress, {user_name}.",
         f"Working hard or hardly working, {user_name}?",
-        f"Midday check-in, {user_name}.",
+        f"Midday check-in. Time to power through.",
+        f"Maintaining steady cruising momentum, {user_name}.",
         f"Executing afternoon sprint with focus.",
         f"Hi, Me! Clear through that queue."
     ]
 
     evening_phrases = [
         f"Good evening, {user_name}.",
-        f"Entering dusk debrief window.",
         f"Reviewing completed objectives, {user_name}.",
-        f"Preparing for smooth orbit wrap-up.",
-        f"Hi, Me! Tying off open loops.",
-        f"Reviewing daily priorities achieved."
+        f"Tying off open loops before winding down.",
+        f"Smooth landing for today's sprint, {user_name}.",
+        f"Great execution today. Time to relax.",
+        f"Evening debrief window active, {user_name}."
     ]
 
     night_phrases = [
         f"Burning the midnight oil, {user_name}?",
         f"Night owl session active.",
-        f"Quiet hours telemetry online.",
         f"Deep focus in the quiet hours, {user_name}.",
-        f"Quiet hours telemetry online. Rest soon."
+        f"Quiet hours telemetry online. Rest soon.",
+        f"Wrap up that last thought, {user_name}."
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
@@ -185,11 +198,13 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     milestone_ctx = f"Historical anniversary / milestone today: {milestone_info}" if milestone_info else f"Day of the week: {weekday_name}"
 
     system_prompt = (
-        "You are the witty, sharp, tech-forward onboard AI companion for PETTR "
-        "(Personal Errands, Task Tracker & Repository), an aerospace-grade personal mission dashboard. "
+        "You are the sharp, witty, cultured personal AI companion for PETTR "
+        "(Personal Errands, Task Tracker & Repository), an executive dashboard for coursework, "
+        "engineering craft, personal life, and high-focus productivity.\n"
         "Your task is to generate:\n"
         "1. Exactly 5 distinctive, punchy typewriter greeting lines for the user's dashboard banner.\n"
-        "2. Exactly 1 fascinating, genuine fun fact or significant historical event specifically relevant to today's date.\n"
+        "2. Exactly 1 fascinating, genuine fun fact or historical event relevant to today's date "
+        "(spanning science, computing, space, engineering, biology, history, or everyday human invention).\n"
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
     )
 
@@ -200,10 +215,10 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Requirements:\n"
         f"1. In 'phrases': generate exactly 5 short, witty, and motivating typewriter phrases tailored to today's date and {user_name}.\n"
         "2. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
-        "3. Blend subtle space exploration / engineering telemetry flavour, high-performance focus, and date-relevant humour.\n"
-        "4. Cover different daily momentum perspectives (morning launch, deep work focus, evening orbit wrap-up).\n"
+        "3. Blend grounded real-world productivity, deep work, coursework, subtle aerospace/technical touches, and warm date-relevant humor.\n"
+        "4. Cover different daily momentum perspectives (morning start, midday sprint, evening wrap-up).\n"
         f"5. Mention {user_name} naturally in at least two lines.\n"
-        "6. In 'fact': provide 1 fascinating, genuine historical event, scientific breakthrough, or quirky fun fact that happened on this calendar date in history. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
+        "6. In 'fact': provide 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history (across science, space, computing, biology, engineering, or culture). Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
         "7. Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
     )
 

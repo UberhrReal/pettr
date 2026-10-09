@@ -984,6 +984,26 @@ const App = {
           this.submitLog();
         }
       });
+
+      // Dynamic rotating placeholder showcasing realistic examples across study, engineering, fitness, and life
+      const naturalPlaceholders = [
+        "Log anything naturally... e.g. 'Finish literature review draft for capstone. Tonight 2359'",
+        "Log anything naturally... e.g. 'Gym session & stretch tomorrow 1700'",
+        "Log anything naturally... e.g. 'Review propulsion telemetry test tomorrow 1400 top priority'",
+        "Log anything naturally... e.g. 'Faculty sync on CAD project Friday 1500'",
+        "Log anything naturally... e.g. 'Pick up coffee beans & groceries this evening'",
+        "Log anything naturally... e.g. 'Derive equations for problem set 3 tonight 2359'",
+        "Log anything naturally... e.g. 'Dentist appointment next Tuesday 1030'"
+      ];
+      let pIdx = Math.floor(Math.random() * naturalPlaceholders.length);
+      input.placeholder = naturalPlaceholders[pIdx];
+
+      setInterval(() => {
+        if (document.activeElement !== input && !input.value) {
+          pIdx = (pIdx + 1) % naturalPlaceholders.length;
+          input.placeholder = naturalPlaceholders[pIdx];
+        }
+      }, 12000);
     }
   },
 
