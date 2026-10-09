@@ -721,6 +721,24 @@ def test_llm_storage_discovery_mocked(tmp_path, monkeypatch):
     assert llm_info["storage_path"] == str(mock_models_dir.resolve())
 
 
+def test_articulate_typewriter_phrases_length_and_substance():
+    """Verify typewriter phrases are substantive, articulate, and allow longer character counts."""
+    from backend import daily_intel
+    import datetime
+
+    today = datetime.date.today()
+    for hour in [8, 14, 20, 1]:
+        phrases = daily_intel.get_curated_phrases(today, "Hong Rong", client_hour=hour)
+        assert len(phrases) >= 5
+        # Check that phrases are substantial sentences rather than tiny 2-word slogans
+        for p in phrases:
+            assert len(p) >= 30, f"Phrase too short: {p}"
+            assert len(p) <= 125, f"Phrase too long: {p}"
+        # Average length should be comfortably over 45 characters
+        avg_len = sum(len(p) for p in phrases) / len(phrases)
+        assert avg_len > 45, f"Average phrase length too low: {avg_len}"
+
+
 
 
 

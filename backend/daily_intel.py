@@ -119,7 +119,7 @@ DAY_OF_WEEK_INTEL = {
 }
 
 MORNING_KEYWORDS = [
-    "good morning", "morning", "first coffee", "coffee", "dawn", "sunrise",
+    "good morning", "morning", "first coffee", "morning coffee", "dawn", "sunrise",
     "kick off", "kickstart", "start strong", "start today", "start the day", "starting today",
     "early start", "early hours", "rise and shine", "wake up", "am sprint"
 ]
@@ -189,38 +189,38 @@ def filter_phrases_for_diurnal_window(
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
     """Generates curated time-of-day phrases as resilient fallback."""
     morning_phrases = [
-        f"Good morning, {user_name}.",
-        f"First coffee, then the deep work, {user_name}.",
-        f"Ready to prioritise today's objectives?",
-        f"Clear head, clear desk, {user_name}.",
-        f"Telemetry nominal. Let's conquer today.",
-        f"Systems primed and synchronised, {user_name}."
+        f"Good morning, {user_name}. Let's tackle the highest-leverage task while focus is fresh.",
+        f"First coffee brewed and workspace primed - ready to turn intentions into progress, {user_name}?",
+        f"Clear head, clear queue: prioritise the essential objectives before the noise begins, {user_name}.",
+        f"Telemetry nominal. Time to dive into the deep work and build steady momentum, {user_name}.",
+        f"Systems synchronised, {user_name}. What's the one milestone that will make today count?",
+        f"Morning diagnostics green: single-task focus beats context-switching every time."
     ]
 
     afternoon_phrases = [
-        f"Deep focus block in progress, {user_name}.",
-        f"Working hard or hardly working, {user_name}?",
-        f"Midday check-in. Time to power through.",
-        f"Maintaining steady cruising momentum, {user_name}.",
-        f"Executing afternoon sprint with focus.",
-        f"Hi, Me! Clear through that queue."
+        f"Cruising altitude reached, {user_name} - keep the momentum steady through the afternoon sprint.",
+        f"Working hard or hardly working, {user_name}? Either way, let's close out that next priority.",
+        f"Midday checkpoint: resist the urge to context-switch and see this focus block through, {user_name}.",
+        f"Solid execution so far, {user_name}. Power through the remainder of the active queue.",
+        f"Hydrate, reset posture, and lock back into the flow state for the afternoon stretch.",
+        f"Steady cadence, {user_name} - quality engineering craft takes patience and deliberate focus."
     ]
 
     evening_phrases = [
-        f"Good evening, {user_name}.",
-        f"Reviewing completed objectives, {user_name}.",
-        f"Tying off open loops before winding down.",
-        f"Smooth landing for today's sprint, {user_name}.",
-        f"Great execution today. Time to relax.",
-        f"Evening debrief window active, {user_name}."
+        f"Good evening, {user_name}. Time to tie off open loops and review today's accomplishments.",
+        f"Smooth landing approach active: review your completed tasks and shut down the terminal cleanly.",
+        f"Great execution across today's sprint, {user_name}. The queue will keep until tomorrow.",
+        f"Mission objectives checked off. Step away from the workstation and enjoy a well-earned evening.",
+        f"Evening debrief window: log final notes, close active tabs, and wind down, {user_name}.",
+        f"Another productive day sealed, {user_name}. Rest is just as critical as the hustle."
     ]
 
     night_phrases = [
-        f"Burning the midnight oil, {user_name}?",
-        f"Night owl session active.",
-        f"Deep focus in the quiet hours, {user_name}.",
-        f"Quiet hours telemetry online. Rest soon.",
-        f"Wrap up that last thought, {user_name}."
+        f"Burning the midnight oil, {user_name}? The quiet hours make for great breakthroughs.",
+        f"Night owl session active: finish this last train of thought before fatigue sets in, {user_name}.",
+        f"Deep work in the quiet stillness - just remember that good sleep is part of good engineering.",
+        f"Late-night telemetry online, {user_name}. Wrap up this final sprint and get some proper rest.",
+        f"Quiet hours focus window. Save your work, commit the progress, and rest soon, {user_name}."
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
@@ -277,7 +277,8 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "(Personal Errands, Task Tracker & Repository), an executive dashboard for coursework, "
         "engineering craft, personal life, and high-focus productivity.\n"
         "Your task is to generate:\n"
-        "1. Exactly 5 distinctive, punchy typewriter greeting lines for the user's dashboard banner.\n"
+        "1. Exactly 5 intelligent, articulate, slightly longer typewriter greeting lines for the user's dashboard banner "
+        "that make genuine sense rather than generic slogans.\n"
         "2. Exactly 1 fascinating, genuine fun fact or historical event relevant to today's date "
         "(spanning science, computing, space, engineering, biology, history, or everyday human invention).\n"
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
@@ -289,12 +290,14 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         f"Current time window: {diurnal_period.capitalize()}.\n"
         f"User's name: {user_name}.\n\n"
         "Task 1 — Dashboard Typewriter Greetings ('phrases'):\n"
-        f"1. Generate exactly 5 punchy, witty, motivating typewriter phrases for {user_name}.\n"
-        f"2. Keep phrases appropriate for the current {diurnal_period} time window or universally time-neutral (high focus, deep work, execution).\n"
-        "3. DO NOT mix contradictory times of day (do NOT include morning wake-up phrases if it is afternoon/evening, and do NOT include evening wrap-up phrases if it is morning/afternoon).\n"
-        "4. DO NOT try to force puns, jokes, or thematic references to the historical milestone or fun fact into the typewriter greetings. Keep typewriter greetings independently focused on daily momentum, engineering craft, coursework, and productivity.\n"
-        "5. Keep each phrase punchy (4 to 9 words, under 50 characters each).\n"
-        f"6. Mention {user_name} naturally in at least two lines.\n\n"
+        f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines for {user_name}.\n"
+        "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
+        f"3. Allow lines to be slightly longer complete thoughts (8 to 16 words, roughly 45 to 95 characters) so they make genuine sense and have substance.\n"
+        f"4. Frame them as a sharp, cultured, slightly witty personal companion: focus on engineering craft, deep problem-solving, coursework, deliberate focus, or wry observations about daily momentum.\n"
+        f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
+        "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
+        "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone. Keep the greetings independently focused on personal momentum and craft.\n"
+        f"8. Address or mention {user_name} naturally in at least two lines.\n\n"
         "Task 2 — Historical Fun Fact ('fact'):\n"
         f"1. Provide exactly 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history ({target_date.strftime('%B %d')}).\n"
         f"{milestone_hint}"
@@ -324,7 +327,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                 "stream": False,
                 "options": {
                     "temperature": 0.75,
-                    "num_predict": 260
+                    "num_predict": 450
                 }
             }
 
@@ -352,7 +355,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                     for p in raw_phrases:
                         if isinstance(p, str):
                             s = p.strip().strip('"').strip("'")
-                            if s and len(s) > 3 and len(s) < 80:
+                            if s and len(s) > 5 and len(s) < 130:
                                 cleaned.append(s)
 
                     if isinstance(fact_str, str):
@@ -403,6 +406,10 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 cached_subtext = default_subtext
 
             phrases_to_return = cached["phrases"]
+            # Upgrade stale legacy short fallback phrases if present
+            if any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"]):
+                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+
             if client_hour is not None:
                 phrases_to_return = filter_phrases_for_diurnal_window(
                     phrases_to_return,

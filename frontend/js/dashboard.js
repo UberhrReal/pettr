@@ -284,38 +284,38 @@ const Dashboard = {
       let defaults = [];
       if (isMorning) {
         defaults = [
-          `Good morning, ${this.userName}.`,
-          `First coffee, then the deep work, ${this.userName}.`,
-          `Ready to prioritise today's objectives?`,
-          `Telemetry nominal. Let's conquer today.`,
-          `Systems primed and synchronised, ${this.userName}.`
+          `Good morning, ${this.userName}. Let's tackle the highest-leverage task while focus is fresh.`,
+          `First coffee brewed and workspace primed - ready to turn intentions into progress, ${this.userName}?`,
+          `Clear head, clear queue: prioritise the essential objectives before the noise begins, ${this.userName}.`,
+          `Telemetry nominal. Time to dive into the deep work and build steady momentum, ${this.userName}.`,
+          `Systems synchronised, ${this.userName}. What's the one milestone that will make today count?`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
       } else if (isAfternoon) {
         defaults = [
-          `Working hard or hardly working, ${this.userName}?`,
-          `Maintaining steady cruising momentum.`,
-          `Midday check-in, ${this.userName}.`,
-          `Executing afternoon sprints with focus.`,
-          `Deep focus block in progress.`
+          `Cruising altitude reached, ${this.userName} - keep the momentum steady through the afternoon sprint.`,
+          `Working hard or hardly working, ${this.userName}? Either way, let's close out that next priority.`,
+          `Midday checkpoint: resist the urge to context-switch and see this focus block through, ${this.userName}.`,
+          `Solid execution so far, ${this.userName}. Power through the remainder of the active queue.`,
+          `Hydrate, reset posture, and lock back into the flow state for the afternoon stretch.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Deep work window active.";
       } else if (isEvening) {
         defaults = [
-          `Good evening, ${this.userName}.`,
-          `Reviewing completed objectives, ${this.userName}.`,
-          `Tying off open loops and wrapping up.`,
-          `Smooth landing for today's sprint, ${this.userName}.`,
-          `Great execution today. Time to relax.`
+          `Good evening, ${this.userName}. Time to tie off open loops and review today's accomplishments.`,
+          `Smooth landing approach active: review your completed tasks and shut down the terminal cleanly.`,
+          `Great execution across today's sprint, ${this.userName}. The queue will keep until tomorrow.`,
+          `Mission objectives checked off. Step away from the workstation and enjoy a well-earned evening.`,
+          `Evening debrief window: log final notes, close active tabs, and wind down, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
         defaults = [
-          `Burning the midnight oil, ${this.userName}?`,
-          `Night owl hours active.`,
-          `Quiet focus time, ${this.userName}.`,
-          `Quiet hours telemetry online. Rest soon.`,
-          `Deep work in the quiet hours.`
+          `Burning the midnight oil, ${this.userName}? The quiet hours make for great breakthroughs.`,
+          `Night owl session active: finish this last train of thought before fatigue sets in, ${this.userName}.`,
+          `Deep work in the quiet stillness - just remember that good sleep is part of good engineering.`,
+          `Late-night telemetry online, ${this.userName}. Wrap up this final sprint and get some proper rest.`,
+          `Quiet hours focus window. Save your work, commit the progress, and rest soon, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";
       }
@@ -353,10 +353,10 @@ const Dashboard = {
         greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
         if (this.typewriterCharIndex >= currentPhrase.length) {
           this.isTypewriterDeleting = true;
-          this.typewriterGreetingTimer = setTimeout(tick, 4500);
+          this.typewriterGreetingTimer = setTimeout(tick, 4800);
           return;
         }
-        this.typewriterGreetingTimer = setTimeout(tick, 45);
+        this.typewriterGreetingTimer = setTimeout(tick, 38);
       } else {
         this.typewriterCharIndex--;
         greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
@@ -366,7 +366,7 @@ const Dashboard = {
           this.typewriterGreetingTimer = setTimeout(tick, 600);
           return;
         }
-        this.typewriterGreetingTimer = setTimeout(tick, 25);
+        this.typewriterGreetingTimer = setTimeout(tick, 18);
       }
     };
 
