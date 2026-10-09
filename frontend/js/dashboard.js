@@ -1118,15 +1118,16 @@ const Dashboard = {
       const rank = String(idx + 1).padStart(2, "0");
       let isDone = item.completed || false;
       // Reconcile with live tasks and events
-      if (item.type === "task" && this.tasks) {
-        const allTasks = [...(this.tasks.focus || []), ...(this.tasks.trivial || [])];
-        const match = allTasks.find(t => t.id === item.id);
+      if ((item.type === "task" || !item.type) && this.tasks) {
+        const projectTasks = (this.tasks.projects || []).flatMap(p => p.tasks || []);
+        const allTasks = [...(this.tasks.focus || []), ...(this.tasks.trivial || []), ...projectTasks];
+        const match = allTasks.find(t => String(t.id) === String(item.id));
         if (match) {
           isDone = match.status === "completed";
           item.completed = isDone;
         }
       } else if (item.type === "event" && this.briefingData && this.briefingData.events_today) {
-        const match = this.briefingData.events_today.find(e => e.id === item.id);
+        const match = this.briefingData.events_today.find(e => String(e.id) === String(item.id));
         if (match) {
           isDone = match.status === "completed";
           item.completed = isDone;
@@ -1298,7 +1299,7 @@ const Dashboard = {
       this.saveDailyOrder();
       // If task, also sync underlying task
       const item = this.dailyOrder[idx];
-      if (item.type === "task" && item.id) {
+      if ((item.type === "task" || !item.type) && item.id) {
         this.toggleTaskStatus(item.id, isCompleted);
       } else if (item.type === "event" && item.id) {
         this.toggleEventStatus(item.id, isCompleted);
@@ -1657,16 +1658,22 @@ const Dashboard = {
       return;
     }
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: isCompleted ? "completed" : "pending" })
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        App.showToast(err.detail || "Failed to update task status", true);
+        this.renderDailyOrder();
+        return;
+      }
       App.showToast(isCompleted ? "Task completed! Marked with strikethrough." : "Task reopened.");
       if (this.dailyOrder && this.dailyOrder.length > 0) {
         let changed = false;
         this.dailyOrder.forEach(item => {
-          if (item.type === "task" && item.id === taskId) {
+          if ((item.type === "task" || !item.type) && String(item.id) === String(taskId)) {
             item.completed = isCompleted;
             changed = true;
           }
@@ -1790,16 +1797,22 @@ const Dashboard = {
       return;
     }
     try {
-      await fetch(`/api/events/${eventId}/status`, {
+      const res = await fetch(`/api/events/${eventId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: isCompleted ? "completed" : "scheduled" })
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        App.showToast(err.detail || "Failed to update appointment status", true);
+        this.renderDailyOrder();
+        return;
+      }
       App.showToast(isCompleted ? "Appointment completed!" : "Appointment reopened.");
       if (this.dailyOrder && this.dailyOrder.length > 0) {
         let changed = false;
         this.dailyOrder.forEach(item => {
-          if (item.type === "event" && item.id === eventId) {
+          if (item.type === "event" && String(item.id) === String(eventId)) {
             item.completed = isCompleted;
             changed = true;
           }

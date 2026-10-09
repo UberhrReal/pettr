@@ -267,12 +267,22 @@ async def update_task(task_id: int, req: UpdateTaskRequest):
 
     # Protection: Sealed days are completely locked from any edits; past unsealed days lock status toggles
     task_date_str = existing_task.get("due_date")
+    is_historical_completed = (existing_task.get("status") == "completed")
     if task_date_str:
         try:
             task_date = datetime.date.fromisoformat(task_date_str.split("T")[0].split(" ")[0])
-            if database.is_day_sealed(task_date.strftime("%Y-%m-%d")):
-                raise HTTPException(status_code=403, detail="The day has been sealed by Evening Debrief and is locked from further edits.")
-            if req.status is not None and task_date < datetime.date.today():
+            is_sealed = database.is_day_sealed(task_date.strftime("%Y-%m-%d"))
+            is_past = (task_date < datetime.date.today())
+
+            # Sealed day protection:
+            # If day is sealed, completed tasks on that day cannot be edited or reopened.
+            # Active pending tasks rolling over can still be completed today!
+            if is_sealed:
+                if is_historical_completed or req.title is not None or req.due_date is not None or req.status == "pending":
+                    raise HTTPException(status_code=403, detail="The day has been sealed by Evening Debrief and is locked from further edits.")
+            # Past day protection:
+            # Historical completed records from past days cannot have their status toggled (reopened)
+            if is_past and is_historical_completed and req.status == "pending":
                 raise HTTPException(status_code=403, detail="Historical records from past days are locked and uneditable to preserve productivity score integrity.")
         except HTTPException:
             raise

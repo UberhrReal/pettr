@@ -381,4 +381,21 @@ async def test_time_only_task_defaults_to_today(temp_db):
     assert len(unorg) == 0
 
 
+def test_complete_overdue_task_allowed(temp_db, monkeypatch):
+    """Verify that a pending task with a past due date (overdue) can be checked off and completed today."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    past_date = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
+    t = database.create_task("Fix broken pump", tier="focus", due_date=f"{past_date} 12:00:00", db_path=temp_db)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.patch(f"/api/tasks/{t['id']}", json={"status": "completed"})
+        assert res.status_code == 200
+        data = res.json()
+        assert data["status"] == "success"
+        assert data["task"]["status"] == "completed"
+        assert data["task"]["completed_at"] is not None
+
+
+
 
