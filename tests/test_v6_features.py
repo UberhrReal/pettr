@@ -1645,4 +1645,69 @@ def test_scratchpad_media_folder_api_and_ui(temp_db, monkeypatch, tmp_path):
     assert ".notes-media-lightbox-card" in css_text
 
 
+@pytest.mark.anyio
+async def test_horace_telemetry_grounding_and_reliability(temp_db, monkeypatch):
+    """Verify Horace telemetry builder provides grounded overdue, today, upcoming, and project data with anti-hallucination guardrails."""
+    from backend import horace
 
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    today = datetime.date.today()
+    today_str = today.isoformat()
+    yesterday_str = (today - datetime.timedelta(days=1)).isoformat()
+    tomorrow_str = (today + datetime.timedelta(days=1)).isoformat()
+
+    # 1. Create Projects
+    p1 = database.create_project(name="Mars Rover CAD", category="School", db_path=temp_db)
+    p2 = database.create_project(name="2027 Bohol Trip", category="External", db_path=temp_db)
+
+    # 2. Create Overdue Task
+    database.create_task(
+        title="Overdue propulsion specs review",
+        tier="focus",
+        project_name=p1["name"],
+        due_date=f"{yesterday_str} 14:00:00",
+        db_path=temp_db
+    )
+
+    # 3. Create Today's Focus Task
+    database.create_task(
+        title="Write Kalman filter estimator",
+        tier="focus",
+        project_name=p1["name"],
+        due_date=f"{today_str} 11:30:00",
+        db_path=temp_db
+    )
+
+    # 4. Create Today's Trivial Task
+    database.create_task(
+        title="Mail lab parcel",
+        tier="trivial",
+        due_date=f"{today_str} 16:00:00",
+        db_path=temp_db
+    )
+
+    # 5. Create Upcoming Task
+    database.create_task(
+        title="Order flight hardware batteries",
+        tier="trivial",
+        due_date=f"{tomorrow_str} 10:00:00",
+        db_path=temp_db
+    )
+
+    telemetry = horace.build_live_telemetry_context(db_path=temp_db)
+    assert "Mars Rover CAD" in telemetry
+    assert "Overdue propulsion specs review" in telemetry
+    assert "Write Kalman filter estimator" in telemetry
+    assert "Mail lab parcel" in telemetry
+    assert "Order flight hardware batteries" in telemetry
+    assert "Server Host Node:" in telemetry
+    assert "[OVERDUE TASKS" in telemetry
+    assert "[SCHEDULED FOR TODAY" in telemetry
+    assert "[UPCOMING TASKS" in telemetry
+    assert "[ACTIVE PROJECT INITIATIVES" in telemetry
+
+    # Verify prompt contains anti-hallucination and single-focus rules
+    prompt = horace.get_horace_system_prompt("Hong Rong")
+    assert "Strict Single-Focus Principle" in prompt
+    assert "Absolute Prohibition on Action Hallucination" in prompt
+    assert "Ground Truth on Dates and Projects" in prompt
