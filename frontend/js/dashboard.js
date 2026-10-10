@@ -264,12 +264,19 @@ const Dashboard = {
       const res = await fetch("/api/profile");
       if (res.ok) {
         const data = await res.json();
-        if (data.user_name) this.userName = data.user_name;
+        if (data.user_name) {
+          this.userName = data.user_name;
+          localStorage.setItem("pettr_user_name", this.userName);
+        }
       }
     } catch (e) {
       const saved = localStorage.getItem("pettr_user_name");
       if (saved) this.userName = saved;
     }
+    const chipEl = document.getElementById("nameDisplayChip");
+    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
+    const settingsInput = document.getElementById("settingsProfileNameInput");
+    if (settingsInput) settingsInput.value = this.userName;
     this.renderGreeting();
   },
 
@@ -529,8 +536,6 @@ const Dashboard = {
     const settingsInput = document.getElementById("settingsProfileNameInput");
     if (settingsInput) settingsInput.value = this.userName;
 
-    this.renderGreeting();
-
     try {
       const res = await fetch("/api/profile", {
         method: "POST",
@@ -541,9 +546,13 @@ const Dashboard = {
         if (typeof App !== "undefined" && App.showToast) {
           App.showToast(`Display name updated to "${this.userName}"!`);
         }
+        await this.refreshDailyIntel();
+      } else {
+        this.renderGreeting();
       }
     } catch (e) {
       console.warn("Could not persist name to server:", e);
+      this.renderGreeting();
     }
   },
 

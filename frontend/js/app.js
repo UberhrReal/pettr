@@ -1289,7 +1289,11 @@ const App = {
           localStorage.setItem("pettr_user_name", name);
           const chipEl = document.getElementById("nameDisplayChip");
           if (chipEl) chipEl.textContent = `👤 ${name}`;
-          Dashboard.renderGreeting();
+          if (Dashboard.refreshDailyIntel) {
+            Dashboard.refreshDailyIntel();
+          } else {
+            Dashboard.renderGreeting();
+          }
         }
         if (resultEl) {
           resultEl.style.color = "var(--normal-green)";

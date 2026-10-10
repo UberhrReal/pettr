@@ -235,6 +235,22 @@ async def update_profile(req: ProfileUpdateRequest, user=Depends(auth.require_au
     success, msg = update_user_name(req.user_name)
     if not success:
         raise HTTPException(status_code=400, detail=msg)
+    
+    # Invalidate cached daily typewriter lines so the new name takes effect immediately
+    try:
+        conn = database.get_connection()
+        with conn:
+            conn.execute("DELETE FROM daily_typewriter_cache")
+    except Exception as e:
+        logger.warning(f"Could not clear daily_typewriter_cache on profile update: {e}")
+
+    # Synchronise Horace persona base system prompt with the newly configured user name
+    try:
+        from backend import horace
+        horace.HORACE_BASE_SYSTEM_PROMPT = horace.get_horace_system_prompt(req.user_name.strip())
+    except Exception as e:
+        logger.warning(f"Could not refresh Horace base prompt: {e}")
+
     return {"status": "success", "message": msg, "profile": get_user_profile()}
 
 # --- Core Ingestion Route ---

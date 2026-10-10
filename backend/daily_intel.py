@@ -434,9 +434,19 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 cached_subtext = default_subtext
 
             phrases_to_return = cached["phrases"]
-            # Upgrade stale legacy short fallback phrases if present
-            if any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"]):
+            # Upgrade stale legacy phrases or phrases containing Hong Rong
+            if any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,", "Hong Rong"]):
                 phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+                try:
+                    database.save_daily_typewriter_cache(
+                        date_str=date_key,
+                        phrases=phrases_to_return,
+                        subtext=cached_subtext,
+                        source="single_line_upgrade",
+                        db_path=db_path
+                    )
+                except Exception:
+                    pass
 
             # Upgrade stale multi-clause long phrases that stretch onto 2 lines or clip off (> 46 chars)
             if any(len(p) > 46 for p in phrases_to_return):
