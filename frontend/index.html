@@ -98,6 +98,10 @@
       </div>
 
       <div class="header-right-controls">
+        <button class="action-icon-btn horace-toggle-btn" id="horaceToggleBtn" onclick="HoraceChat.toggle()" title="Chat with Horace (Home Server LLM) [Alt+H]">
+          <i data-lucide="bot" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> <span class="horace-toggle-btn-text">Horace</span>
+          <span class="horace-status-dot online" id="horaceStatusDot" title="Horace Status"></span>
+        </button>
         <button class="action-icon-btn mobile-simplified-btn" id="mobileSimplifiedBtn" onclick="SimplifiedMode.toggle()" title="Simplified Mode (Today Focus)">
           <i data-lucide="zap" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> <span class="mobile-simplified-btn-text">Simplified</span>
         </button>
@@ -1878,24 +1882,93 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     </div>
   </div>
 
+  <!-- Horace Local LLM Collapsible Chat Side Panel -->
+  <aside class="horace-panel" id="horacePanel" aria-label="Horace Local LLM Chat" style="display:none;">
+    <!-- Panel Header -->
+    <div class="horace-panel-header">
+      <div class="horace-header-info">
+        <div class="horace-avatar">
+          <i data-lucide="bot"></i>
+          <span class="horace-avatar-pulse"></span>
+        </div>
+        <div class="horace-header-text">
+          <div class="horace-header-title">
+            <span>Horace</span>
+            <span class="horace-badge online" id="horaceModelBadge">Local LLM</span>
+          </div>
+          <div class="horace-header-subtitle" id="horaceStatusSubtitle">
+            Home server · Little bro PETTR's guardian
+          </div>
+        </div>
+      </div>
+      <div class="horace-header-actions">
+        <button class="action-icon-btn horace-action-btn" onclick="HoraceChat.clearChat()" title="Clear Chat History">
+          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        </button>
+        <button class="action-icon-btn horace-action-btn" onclick="HoraceChat.close()" title="Close Panel (Esc)">
+          <i data-lucide="x" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Panel Body / Message History -->
+    <div class="horace-panel-body" id="horaceMessageBody">
+      <div class="horace-messages" id="horaceMessages">
+        <!-- Message bubbles or intro card rendered here -->
+      </div>
+      <div class="horace-typing-indicator" id="horaceTypingIndicator" style="display:none;">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-label">Horace is cooking a response...</span>
+      </div>
+    </div>
+
+    <!-- Panel Footer / Input Area -->
+    <div class="horace-panel-footer">
+      <form class="horace-input-form" id="horaceInputForm" onsubmit="HoraceChat.handleSubmit(event)">
+        <div class="horace-input-wrapper">
+          <textarea
+            id="horaceInput"
+            class="horace-textarea"
+            placeholder="Talk to Horace... (Shift+Enter for newline)"
+            rows="1"
+            onkeydown="HoraceChat.handleKeyDown(event)"
+            oninput="HoraceChat.autoResizeInput(this)"
+          ></textarea>
+          <button type="submit" class="horace-send-btn" id="horaceSendBtn" title="Send (Enter)">
+            <i data-lucide="send" style="width:14px;height:14px;"></i>
+          </button>
+        </div>
+      </form>
+      <div class="horace-footer-caption">
+        <span id="horaceFooterModel">Connected to local node</span> · 100% private
+      </div>
+    </div>
+  </aside>
+
+  <!-- Horace Backdrop for overlay dismissal -->
+  <div class="horace-backdrop" id="horaceBackdrop" onclick="HoraceChat.close()"></div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=7.9"></script>
-  <script src="/static/js/app.js?v=7.9"></script>
-  <script src="/static/js/drag_drop.js?v=7.9"></script>
-  <script src="/static/js/wave_canvas.js?v=7.9"></script>
-  <script src="/static/js/entity_modal.js?v=7.9"></script>
-  <script src="/static/js/timeline.js?v=7.9"></script>
-  <script src="/static/js/mindmap.js?v=7.9"></script>
-  <script src="/static/js/dashboard.js?v=7.9"></script>
-  <script src="/static/js/simplified_mode.js?v=7.9"></script>
-  <script src="/static/js/exploded.js?v=7.9"></script>
-  <script src="/static/js/notes.js?v=7.9"></script>
-  <script src="/static/js/history.js?v=7.9"></script>
-  <script src="/static/js/command_palette.js?v=7.9"></script>
-  <script src="/static/js/focus_cockpit.js?v=7.9"></script>
-  <script src="/static/js/evening_debrief.js?v=7.9"></script>
+  <script src="/static/js/pin_lock.js?v=8.0"></script>
+  <script src="/static/js/app.js?v=8.0"></script>
+  <script src="/static/js/drag_drop.js?v=8.0"></script>
+  <script src="/static/js/wave_canvas.js?v=8.0"></script>
+  <script src="/static/js/entity_modal.js?v=8.0"></script>
+  <script src="/static/js/timeline.js?v=8.0"></script>
+  <script src="/static/js/mindmap.js?v=8.0"></script>
+  <script src="/static/js/dashboard.js?v=8.0"></script>
+  <script src="/static/js/simplified_mode.js?v=8.0"></script>
+  <script src="/static/js/exploded.js?v=8.0"></script>
+  <script src="/static/js/notes.js?v=8.0"></script>
+  <script src="/static/js/history.js?v=8.0"></script>
+  <script src="/static/js/command_palette.js?v=8.0"></script>
+  <script src="/static/js/focus_cockpit.js?v=8.0"></script>
+  <script src="/static/js/evening_debrief.js?v=8.0"></script>
+  <script src="/static/js/horace_chat.js?v=8.0"></script>
 </body>
 </html>

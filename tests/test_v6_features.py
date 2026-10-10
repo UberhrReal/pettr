@@ -1201,6 +1201,125 @@ def test_overdue_snapshot_time_marker_distinction(temp_db, monkeypatch):
     assert "Due ${relativeDay}" in dash_code
 
 
+@pytest.mark.anyio
+async def test_horace_persona_instructions_and_context(temp_db, monkeypatch):
+    """Verify Horace persona instructions contain required traits, little brother relationship, and telemetry context."""
+    from backend import horace
+
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # Check persona instructions
+    prompt = horace.HORACE_BASE_SYSTEM_PROMPT
+    assert "Horace" in prompt
+    assert "little brother" in prompt
+    assert "PETTR" in prompt
+    assert "Hong Rong" in prompt
+    assert "witty" in prompt.lower()
+    assert "sarcastic" in prompt.lower()
+    assert "vulgar" in prompt.lower() or "profanity" in prompt.lower()
+    assert "Priority Tasking" in prompt
+
+    # Create dummy active project and task to test telemetry injection
+    database.create_project(name="Hyperion-1", category="External", db_path=temp_db)
+    today_str = datetime.date.today().isoformat()
+    database.create_task(title="Calibrate gyroscopes", tier="focus", due_date=f"{today_str} 10:00:00", db_path=temp_db)
+
+    telemetry = horace.build_live_telemetry_context(db_path=temp_db)
+    assert "Horace" in telemetry
+    assert "Hyperion-1" in telemetry
+    assert "Calibrate gyroscopes" in telemetry
+
+
+@pytest.mark.anyio
+async def test_horace_chat_persistence_and_api(temp_db, monkeypatch):
+    """Test persistent Horace chat history, database operations, and API endpoints."""
+    from backend import horace
+    import httpx
+
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Test database operations
+    msg1 = database.save_chat_message(role="user", content="Yo Horace, you online?", db_path=temp_db)
+    assert msg1["id"] is not None
+    assert msg1["role"] == "user"
+    assert msg1["content"] == "Yo Horace, you online?"
+
+    msg2 = database.save_chat_message(role="assistant", content="Always online, Hong Rong. What do you need?", model="llama3.2:latest", db_path=temp_db)
+    assert msg2["id"] is not None
+    assert msg2["role"] == "assistant"
+
+    history = database.get_chat_history(db_path=temp_db)
+    assert len(history) == 2
+    assert history[0]["content"] == "Yo Horace, you online?"
+    assert history[1]["content"] == "Always online, Hong Rong. What do you need?"
+
+    # 2. Test chat API with mock Ollama response
+    async def mock_post(url, *args, **kwargs):
+        class MockResp:
+            status_code = 200
+            def json(self):
+                return {
+                    "model": "llama3.2:latest",
+                    "message": {
+                        "role": "assistant",
+                        "content": "Of course I'm here. PETTR's running smooth, stop slacking off."
+                    }
+                }
+        return MockResp()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Get history endpoint
+        res_hist = client.get("/api/llm/chat/history")
+        assert res_hist.status_code == 200
+        assert len(res_hist.json()["messages"]) == 2
+
+        # Send new message via chat endpoint
+        res_chat = client.post("/api/llm/chat", json={"message": "Roast my task list."})
+        assert res_chat.status_code == 200
+        chat_data = res_chat.json()
+        assert chat_data["status"] == "success"
+        assert "stop slacking off" in chat_data["reply"]
+        assert chat_data["online"] is True
+
+        # Check history increased
+        res_hist2 = client.get("/api/llm/chat/history")
+        assert res_hist2.status_code == 200
+        hist_msgs = res_hist2.json()["messages"]
+        assert len(hist_msgs) == 4
+        assert hist_msgs[-2]["role"] == "user"
+        assert hist_msgs[-2]["content"] == "Roast my task list."
+        assert hist_msgs[-1]["role"] == "assistant"
+        assert "stop slacking off" in hist_msgs[-1]["content"]
+
+        # Clear history endpoint
+        res_del = client.delete("/api/llm/chat/history")
+        assert res_del.status_code == 200
+
+        res_hist_empty = client.get("/api/llm/chat/history")
+        assert res_hist_empty.status_code == 200
+        assert len(res_hist_empty.json()["messages"]) == 0
+
+    # 3. Verify frontend integration
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "horaceToggleBtn" in index_html
+    assert "horacePanel" in index_html
+    assert "horace_chat.js" in index_html
+
+    css_content = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert ".horace-panel" in css_content
+    assert ".horace-toggle-btn" in css_content
+    assert ".horace-msg-bubble" in css_content
+
+    js_content = Path("frontend/js/horace_chat.js").read_text(encoding="utf-8")
+    assert "const HoraceChat =" in js_content
+    assert "/api/llm/chat" in js_content
+
+
+
 
 
 

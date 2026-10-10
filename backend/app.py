@@ -157,6 +157,10 @@ class CreateReminderRequest(BaseModel):
 class SelectLlmModelRequest(BaseModel):
     model: str
 
+class HoraceChatRequest(BaseModel):
+    message: str
+    model: Optional[str] = None
+
 # --- Auth Routes ---
 
 @app.get("/api/auth/status")
@@ -844,6 +848,32 @@ async def test_llm_ping():
         "sample_result": res,
         "diagnostics": res.get("diagnostics", {})
     }
+
+@app.get("/api/llm/chat/history", dependencies=[Depends(auth.require_auth)])
+async def get_horace_chat_history():
+    """Returns persistent Horace LLM chat history in chronological order."""
+    history = database.get_chat_history(limit=60)
+    return {"status": "success", "messages": history}
+
+@app.post("/api/llm/chat", dependencies=[Depends(auth.require_auth)])
+async def post_horace_chat(req: HoraceChatRequest):
+    """Chats with Horace the home server via local Ollama and persists the turns."""
+    from backend.horace import chat_with_horace
+    result = await chat_with_horace(user_message=req.message, model_override=req.model)
+    return {
+        "status": "success",
+        "reply": result["reply"],
+        "model": result.get("model", "unknown"),
+        "online": result.get("online", False),
+        "message_id": result.get("message_id"),
+        "created_at": result.get("created_at")
+    }
+
+@app.delete("/api/llm/chat/history", dependencies=[Depends(auth.require_auth)])
+async def clear_horace_chat_history():
+    """Wipes Horace persistent chat history."""
+    database.clear_chat_history()
+    return {"status": "success", "message": "Horace chat history wiped"}
 
 # --- Static Frontend Serving ---
 

@@ -35,6 +35,7 @@ const App = {
     if (typeof CommandPalette !== "undefined") CommandPalette.init();
     if (typeof FocusCockpit !== "undefined") FocusCockpit.init();
     if (typeof EveningDebrief !== "undefined") EveningDebrief.init();
+    if (typeof HoraceChat !== "undefined") HoraceChat.init();
     PinLock.init();
   },
 

@@ -32,6 +32,19 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE projects ADD COLUMN due_date TEXT")
     except Exception:
         pass
+    try:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS llm_chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            model TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_created ON llm_chat_messages(created_at);")
+    except Exception:
+        pass
 
 def get_connection(db_path: Optional[Path] = None, auto_init: bool = True) -> sqlite3.Connection:
     """Creates a connection with WAL mode, normal synchronous durability, and row factory enabled."""
@@ -165,12 +178,21 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             is_sealed INTEGER DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS llm_chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            model TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
         CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_time);
         CREATE INDEX IF NOT EXISTS idx_reminders_task ON reminders(task_id);
         CREATE INDEX IF NOT EXISTS idx_reminders_date ON reminders(reminder_date);
+        CREATE INDEX IF NOT EXISTS idx_chat_created ON llm_chat_messages(created_at);
         """)
         try:
             conn.execute("ALTER TABLE projects ADD COLUMN completed_at TIMESTAMP")
@@ -2704,4 +2726,30 @@ def sync_daily_metrics(db_path: Optional[Path] = None, conn: Optional[sqlite3.Co
     return synced_count
 
 
+# --- Horace Local LLM Chat Operations ---
 
+def save_chat_message(role: str, content: str, model: Optional[str] = None, db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Persists a chat turn into the persistent SQLite Horace chat log."""
+    conn = get_connection(db_path)
+    with conn:
+        cursor = conn.execute(
+            "INSERT INTO llm_chat_messages (role, content, model) VALUES (?, ?, ?)",
+            (role, content, model)
+        )
+        row = conn.execute("SELECT * FROM llm_chat_messages WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        return dict(row)
+
+def get_chat_history(limit: int = 60, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Retrieves recent chat history in chronological order."""
+    conn = get_connection(db_path)
+    rows = conn.execute(
+        "SELECT * FROM (SELECT * FROM llm_chat_messages ORDER BY id DESC LIMIT ?) ORDER BY id ASC",
+        (limit,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+def clear_chat_history(db_path: Optional[Path] = None) -> None:
+    """Clears all persistent Horace chat messages."""
+    conn = get_connection(db_path)
+    with conn:
+        conn.execute("DELETE FROM llm_chat_messages")
