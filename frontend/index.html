@@ -866,145 +866,148 @@
 
     <!-- Tab 6: Settings -->
     <section id="tabSettings" class="tab-pane">
-      <div class="settings-container">
-        <div class="settings-header">
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
           <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">PETTR Configuration & Host Management</h2>
-          <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">
-            Manage identity, localhost security PIN, offline Ollama integration, cloud backups, and server resources.
+          <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Manage identity, localhost security PIN, offline Ollama integration, cloud backups, and server resources.</p>
+        </div>
+      </div>
+
+      <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Panel 1: Display Name -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="user" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Display Name</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+            Customise the name PETTR uses to greet and address you on the dashboard.
+          </p>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Alex, Me)" class="modal-input" style="max-width: 260px;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
+          </div>
+          <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
+        </div>
+
+        <!-- Panel 2: PIN Change & Inspection Card -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="shield" style="width:15px;height:15px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Security PIN Management</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+            To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
+          </p>
+
+          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Current Active PIN</div>
+              <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 3px; color: var(--text-main);">••••</div>
+            </div>
+            <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Change 4-Digit PIN</div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="password" id="newPinInput" maxlength="4" placeholder="New 4-Digit PIN" 
+                   style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; width: 180px; font-size: 16px; letter-spacing: 4px; text-align: center;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
+          </div>
+          <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
+        </div>
+
+        <!-- Panel 3: Tailscale Access Information -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="network" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Tailscale Access Information</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+            PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
+            <br>
+            <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; color: var(--text-main); display: inline-block; margin-top: 6px;">http://&lt;your-tailscale-pc-name&gt;:8000</code>
+            <br>
+            No router ports are opened, ensuring 100% private data isolation.
           </p>
         </div>
 
-        <!-- Vertical Single-Column Layout for Settings Cards (Centered) -->
-        <div class="settings-columns-row">
-          <!-- 1. Display Name Card -->
-          <div class="column-card">
-            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Display Name</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-              Customise the name PETTR uses to greet and address you on the dashboard.
-            </p>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Alex, Me)" class="modal-input" style="max-width: 260px;">
-              <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
+        <!-- Panel 4: Local LLM Engine (Ollama Integration) -->
+        <div class="column-card history-panel">
+          <div class="column-header" style="flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 class="column-title"><i data-lucide="cpu" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Local LLM Engine (Ollama Integration)</h3>
             </div>
-            <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
+            <div id="llmStatusPill" class="network-badge offline">
+              <span class="network-dot"></span>
+              <span id="llmStatusText">Checking...</span>
+            </div>
           </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
+            Connect to local Ollama on this mini PC for 100% offline, zero-cloud intent understanding.
+          </p>
 
-          <!-- 2. PIN Change & Inspection Card -->
-          <div class="column-card">
-            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Security PIN Management</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-              To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
-            </p>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <div>
-                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Current Active PIN</div>
-                <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 3px; color: var(--text-main);">••••</div>
+                <span style="font-size: 12px; color: var(--text-muted);">Active Classifier Model:</span>
+                <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
               </div>
-              <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
+              <div style="display: flex; gap: 8px;">
+                <select id="llmModelSelect" class="modal-input" style="padding: 4px 8px; font-size: 12px; max-width: 180px;" onchange="App.selectLlmModel(this.value)">
+                  <option value="llama3.2:3b">llama3.2:3b</option>
+                </select>
+                <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;">⚡ Test Latency</button>
+              </div>
             </div>
-
-            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Change 4-Digit PIN</div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <input type="password" id="newPinInput" maxlength="4" placeholder="New 4-Digit PIN" 
-                     style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; width: 180px; font-size: 16px; letter-spacing: 4px; text-align: center;">
-              <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
-            </div>
-            <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
+            <div id="llmTestResult" style="font-size: 12px; color: var(--text-muted);"></div>
           </div>
 
-          <!-- 3. Tailscale & Node Information -->
-          <div class="column-card">
-            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Tailscale Access Information</h3>
-            <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-              PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
-              <br>
-              <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; color: var(--text-main); display: inline-block; margin-top: 6px;">http://&lt;your-tailscale-pc-name&gt;:8000</code>
-              <br>
-              No router ports are opened, ensuring 100% private data isolation.
-            </p>
+          <!-- Quick Beginner Walkthrough Accordion -->
+          <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
+            <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
+            <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
+              <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
+                <li><strong>Pull your first fast model</strong>: Run in terminal:<br>
+                  <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
+                  <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
+                </li>
+                <li><strong>Running outside Docker?</strong>: If PETTR runs in Docker and Ollama runs natively on the host server, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> in Ollama's systemd environment so Docker can reach it across the bridge.</li>
+                <li><strong>Zero Configuration</strong>: PETTR automatically probes candidate endpoints (<code>host.docker.internal</code>, Docker gateway <code>172.17.0.1</code>, and <code>localhost</code>). When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
+              </ol>
+            </div>
+          </details>
+        </div>
+
+        <!-- Panel 5: Local Backups & Google Drive Sync -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="archive" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Local Backups &amp; Google Drive Sync</h3>
           </div>
-
-          <!-- 4. Ollama Local LLM Integration & Diagnostics Card -->
-          <div class="column-card">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-              <div>
-                <h3 style="font-size: 15px; font-weight: 700;"><i data-lucide="cpu" style="width:16px;height:16px;color:var(--focus-indigo);display:inline-block;vertical-align:-2px;"></i> Local LLM Engine (Ollama Integration)</h3>
-                <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
-                  Connect to local Ollama on this mini PC for 100% offline, zero-cloud intent understanding.
-                </p>
-              </div>
-              <div id="llmStatusPill" class="network-badge offline">
-                <span class="network-dot"></span>
-                <span id="llmStatusText">Checking...</span>
-              </div>
-            </div>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <span style="font-size: 12px; color: var(--text-muted);">Active Classifier Model:</span>
-                  <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <select id="llmModelSelect" class="modal-input" style="padding: 4px 8px; font-size: 12px; max-width: 180px;" onchange="App.selectLlmModel(this.value)">
-                    <option value="llama3.2:3b">llama3.2:3b</option>
-                  </select>
-                  <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;">⚡ Test Latency</button>
-                </div>
-              </div>
-              <div id="llmTestResult" style="font-size: 12px; color: var(--text-muted);"></div>
-            </div>
-
-            <!-- Quick Beginner Walkthrough Accordion -->
-            <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
-              <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
-              <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
-                <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
-                  <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
-                  <li><strong>Pull your first fast model</strong>: Run in terminal:<br>
-                    <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
-                    <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
-                  </li>
-                  <li><strong>Running outside Docker?</strong>: If PETTR runs in Docker and Ollama runs natively on the host server, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> in Ollama's systemd environment so Docker can reach it across the bridge.</li>
-                  <li><strong>Zero Configuration</strong>: PETTR automatically probes candidate endpoints (<code>host.docker.internal</code>, Docker gateway <code>172.17.0.1</code>, and <code>localhost</code>). When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
-                </ol>
-              </div>
-            </details>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+            Creates a local archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your SQLite database, Markdown summary, and JSON data. If <code>rclone</code> is configured with Google Drive, snapshots are also synced offsite automatically.
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Run Backup &amp; Sync Now</button>
+            <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
           </div>
+          <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
+        </div>
 
-          <!-- 5. Backup & Cloud Autosave Card -->
-          <div class="column-card">
-            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Local Backups &amp; Google Drive Sync</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-              Creates a local archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your SQLite database, Markdown summary, and JSON data. If <code>rclone</code> is configured with Google Drive, snapshots are also synced offsite automatically.
-            </p>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Run Backup &amp; Sync Now</button>
-              <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
+        <!-- Panel 6: Server Storage & Resource Footprint -->
+        <div class="column-card history-panel" id="settingsStorageCard">
+          <div class="column-header" style="flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h3 class="column-title"><i data-lucide="hard-drive" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Server Storage &amp; Resource Footprint</h3>
             </div>
-            <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
+            <button class="action-icon-btn" onclick="App.loadStorageMetrics(true)" style="font-size: 12px; font-weight: 600;">
+              <i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh
+            </button>
           </div>
+          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
+            Real-time breakdown of host drive storage, PETTR process memory, local LLM RAM allocation, and server hardware capacity.
+          </p>
 
-          <!-- 6. Server Storage & Resource Footprint Card -->
-          <div class="column-card" id="settingsStorageCard">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-              <div>
-                <h3 style="font-size: 15px; font-weight: 700;">
-                  <i data-lucide="hard-drive" style="width:16px;height:16px;color:var(--accent-cyan);display:inline-block;vertical-align:-2px;"></i> Server Storage &amp; Resource Footprint
-                </h3>
-                <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
-                  Real-time breakdown of host drive storage, PETTR process memory, local LLM RAM allocation, and server hardware capacity.
-                </p>
-              </div>
-              <button class="action-icon-btn" onclick="App.loadStorageMetrics(true)" style="font-size: 12px; font-weight: 600;">
-                <i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh
-              </button>
-            </div>
-
-            <div id="storageMetricsContainer">
-              <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading real-time storage metrics...</div>
-            </div>
+          <div id="storageMetricsContainer">
+            <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading real-time storage metrics...</div>
           </div>
         </div>
       </div>

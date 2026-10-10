@@ -6602,40 +6602,15 @@ body {
   gap: 6px;
 }
 
-/* --- Settings Tab Layout & Responsive Alignment --- */
+/* --- Settings Tab Layout & Responsive Alignment (Matches History Tab) --- */
+.settings-grid-container,
 .settings-container {
-  max-width: 780px;
-  width: 100%;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  align-items: center;
-}
-
-.settings-header {
-  margin-bottom: 6px;
-  width: 100%;
-  text-align: center;
-}
-
-.settings-columns-row {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  align-items: stretch;
-}
-
-.settings-col {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  max-width: 1400px;
   width: 100%;
 }
 
-.settings-full-width {
-  width: 100%;
+.settings-panel {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* ==========================================================================
