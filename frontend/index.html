@@ -978,14 +978,14 @@
               </details>
             </div>
 
-            <!-- Google Drive Backup Card -->
+            <!-- Backup & Cloud Autosave Card -->
             <div class="column-card">
-              <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Weekly Google Drive Autosave</h3>
+              <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Local Backups &amp; Google Drive Sync</h3>
               <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-                Backs up every 7 days as <code>PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your full SQLite database, readable Markdown digest, and JSON dump.
+                Creates a local archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your SQLite database, Markdown summary, and JSON data. If <code>rclone</code> is configured with Google Drive, snapshots are also synced offsite automatically.
               </p>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Backup to Google Drive Now</button>
+                <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Run Backup &amp; Sync Now</button>
                 <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
               </div>
               <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>

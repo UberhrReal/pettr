@@ -1692,15 +1692,15 @@ const App = {
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                📦 Backup Archives
+                📦 Local Backup Archives
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--recurrence-purple);">
                 ${backups.formatted || '0 B'}
               </span>
             </div>
             <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
-              ${backups.count || 0} zip archive${backups.count === 1 ? '' : 's'} in <code>backups/</code><br>
-              Full snapshots containing SQLite, Markdown, and JSON.
+              ${backups.count || 0} local snapshot archive${backups.count === 1 ? '' : 's'} on disk in <code>backups/</code>.<br>
+              Full snapshots (SQLite, Markdown, JSON). Offsite Google Drive cloud backups consume 0 B local disk.
             </div>
           </div>
 
