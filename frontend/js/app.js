@@ -1411,6 +1411,16 @@ const App = {
             </div>`;
         } else {
           resultEl.style.color = "inherit";
+          const diags = data.diagnostics || (data.sample_result && data.sample_result.diagnostics) || {};
+          const attempts = Array.isArray(diags.attempts) ? diags.attempts : [];
+          const modelReq = diags.model_requested || "llama3.2:3b";
+          const attemptsJoined = attempts.join("<br>• ");
+
+          let hintMsg = "💡 <em>Running in Docker? Ensure Ollama is listening on <code>0.0.0.0</code> (not 127.0.0.1) on the host server and rebuild PETTR with <code>git pull && docker compose up -d --build</code>. If local, start via <code>ollama serve</code>.</em>";
+          if (attemptsJoined.includes("404") || attemptsJoined.includes("not found")) {
+            hintMsg = `💡 <em>Ollama is reachable, but model <code>${this.escapeHtml(modelReq)}</code> has not been pulled! Run <code>ollama pull ${this.escapeHtml(modelReq)}</code> on your server.</em>`;
+          }
+
           resultEl.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 6px; background: var(--urgent-orange-bg); padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid rgba(255, 69, 0, 0.25); margin-top: 4px;">
               <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
@@ -1418,10 +1428,11 @@ const App = {
                 <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">Fallback Latency: <strong>${data.latency_ms}ms</strong></span>
               </div>
               <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45;">
-                Ollama is currently unreachable on <code>127.0.0.1:11434</code>. PETTR is operating in zero-downtime offline mode using its built-in <strong>Deterministic Regex Engine</strong>. Test sample parsed: <em>"${cleanTitle}" (${sampleType})</em>.
+                Ollama could not be reached for inference. Operating in zero-downtime offline mode using <strong>Deterministic Regex Engine</strong>. Test sample parsed: <em>"${cleanTitle}" (${sampleType})</em>.
               </div>
+              ${attempts.length > 0 ? `<div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); background: var(--bg-tertiary); padding: 6px 8px; border-radius: 4px; overflow-x: auto; line-height: 1.4;"><strong>Probe attempts:</strong><br>• ${attemptsJoined}</div>` : ''}
               <div style="font-size: 11px; color: var(--text-dim);">
-                💡 <em>To enable neural LLM inference, start Ollama via <code>ollama serve</code> or launch the Ollama desktop app.</em>
+                ${hintMsg}
               </div>
             </div>`;
         }

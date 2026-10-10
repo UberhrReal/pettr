@@ -829,7 +829,8 @@ async def test_llm_ping():
         "engine": engine_name,
         "is_model_online": is_model_online,
         "latency_ms": elapsed_ms,
-        "sample_result": res
+        "sample_result": res,
+        "diagnostics": res.get("diagnostics", {})
     }
 
 # --- Static Frontend Serving ---

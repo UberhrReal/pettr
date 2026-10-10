@@ -395,6 +395,7 @@ async def classify_with_llm(cleaned_text: str,
         }
     }
 
+    attempts = []
     for ollama_url in candidate_urls:
         try:
             async with httpx.AsyncClient(timeout=timeout_seconds) as client:
@@ -443,8 +444,15 @@ async def classify_with_llm(cleaned_text: str,
                         "reasoning": parsed.get("reasoning", "Classified by local LLM"),
                         "engine": f"ollama ({model_name})"
                     }
-        except Exception:
-            continue
+                else:
+                    err_msg = ""
+                    try:
+                        err_msg = resp.json().get("error", resp.text[:120])
+                    except Exception:
+                        err_msg = resp.text[:120]
+                    attempts.append(f"{ollama_url} (HTTP {resp.status_code}: {err_msg})")
+        except Exception as e:
+            attempts.append(f"{ollama_url} ({type(e).__name__})")
 
     # Fallback to deterministic heuristic classifier
     heuristic_res = heuristic_classify(
@@ -455,4 +463,9 @@ async def classify_with_llm(cleaned_text: str,
         explicit_tier=explicit_tier
     )
     heuristic_res["engine"] = "heuristic_fallback"
+    heuristic_res["diagnostics"] = {
+        "candidate_urls": candidate_urls,
+        "attempts": attempts,
+        "model_requested": model_name
+    }
     return heuristic_res
