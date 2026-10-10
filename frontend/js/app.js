@@ -755,6 +755,21 @@ const App = {
     });
     if (btnEl) {
       btnEl.classList.add("active");
+      try {
+        btnEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      } catch (_) {}
+    }
+
+    if (window.innerWidth <= 900) {
+      const guideContainer = document.querySelector(".guide-container");
+      if (guideContainer) {
+        const navOffset = 110;
+        const targetPos = guideContainer.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({
+          top: Math.max(0, targetPos - navOffset),
+          behavior: "smooth"
+        });
+      }
     }
 
     this.haptic("light");
