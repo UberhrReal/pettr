@@ -74,7 +74,7 @@ const HoraceChat = {
     }
     if (sub) {
       sub.textContent = this.isOnline
-        ? "Home server · Little bro PETTR's guardian"
+        ? "Because everything needs an AI agent now"
         : "Ollama offline · Fallback mode";
     }
   },
@@ -176,11 +176,11 @@ const HoraceChat = {
             Ask me anything about today's tasks, let me roast your backlog, or chat server telemetry.
           </p>
           <div class="horace-suggestion-chips">
+            <button class="horace-chip" onclick="HoraceChat.sendPresetPrompt('How\\'s the server doing, Horace?')">
+              🖥️ How's the server doing?
+            </button>
             <button class="horace-chip" onclick="HoraceChat.sendPresetPrompt('What\\'s on my plate today, Horace?')">
               📋 What's on my plate today?
-            </button>
-            <button class="horace-chip" onclick="HoraceChat.sendPresetPrompt('How are you and little brother PETTR holding up?')">
-              🤖 How are you and PETTR doing?
             </button>
             <button class="horace-chip" onclick="HoraceChat.sendPresetPrompt('Help me pick and conquer my #1 Focus task.')">
               🎯 Help me pick my Focus task

@@ -1228,6 +1228,9 @@ async def test_horace_persona_instructions_and_context(temp_db, monkeypatch):
     assert "Horace" in telemetry
     assert "Hyperion-1" in telemetry
     assert "Calibrate gyroscopes" in telemetry
+    assert "Server Host Node:" in telemetry
+    assert "Host Storage:" in telemetry
+    assert "SQLite Database:" in telemetry
 
     # Verify custom user persona adaptation works dynamically for any user
     custom_prompt = horace.get_horace_system_prompt("Sarah")
@@ -1313,6 +1316,7 @@ async def test_horace_chat_persistence_and_api(temp_db, monkeypatch):
     assert "horaceToggleBtn" in index_html
     assert "horacePanel" in index_html
     assert "horace_chat.js" in index_html
+    assert "Because everything needs an AI agent now" in index_html
 
     css_content = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
     assert ".horace-panel" in css_content
@@ -1322,6 +1326,7 @@ async def test_horace_chat_persistence_and_api(temp_db, monkeypatch):
     js_content = Path("frontend/js/horace_chat.js").read_text(encoding="utf-8")
     assert "const HoraceChat =" in js_content
     assert "/api/llm/chat" in js_content
+    assert "Because everything needs an AI agent now" in js_content
 
 
 

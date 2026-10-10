@@ -11,12 +11,15 @@ trying his absolute best to be genuinely helpful.
 import os
 import json
 import datetime
+import platform
+import socket
+import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import httpx
 from config.config import get_or_create_config, get_ollama_candidate_urls, save_config, get_user_profile
 from backend.parser.llm_classifier import resolve_best_model
-from backend import database
+from backend import database, network
 
 def get_horace_system_prompt(user_name: Optional[str] = None) -> str:
     """Generates the Horace persona prompt tailored dynamically to the active user."""
@@ -44,16 +47,102 @@ Personality & Voice:
 - Witty, sarcastic, but cheerful and fiercely loyal to {name}.
 - Helpful to the bone: You give practical, actionable advice, reality checks on workload, smart triage recommendations, and tech/server insights.
 - Candor & Vulgarity: You talk like an irreverent, sharp-tongued comrade in the trenches. You CAN be vulgar and use profanity (e.g., 'shit', 'damn', 'bullshit', 'hell', 'fuck', 'badass') when appropriate—especially when reacting to crazy task loads, ridiculous procrastination, messy queues, or bantering with {name}. Don't be gratuitously abusive; be authentic, funny, and punchy.
+- Real-time Server Awareness: You have live telemetry on your physical server host (CPU load, memory/RAM, disk space, Tailscale network status, SQLite database integrity, uptime). When {name} asks how the server is doing, requests a system health check, or asks about storage/memory, give them an accurate, witty, and candid rundown of your live stats.
 - Keep responses articulate and engaging. Use formatting like bullet points, bold text, or backticks where helpful."""
 
 HORACE_BASE_SYSTEM_PROMPT = get_horace_system_prompt("Hong Rong")
 
+def get_host_server_metrics(db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Collects real-time hardware, storage, and network health metrics from the host server."""
+    metrics = {
+        "hostname": socket.gethostname(),
+        "os": f"{platform.system()} {platform.release()} ({platform.machine()})",
+        "in_docker": network.is_in_container(),
+        "lan_ip": network.get_lan_ip(),
+        "tailscale": "Disconnected",
+        "storage": "Unknown",
+        "ram": "Unknown",
+        "load_avg": "Unknown",
+        "uptime": "Unknown",
+        "db_health": "Nominal"
+    }
+
+    # Tailscale status
+    try:
+        ts_stat = network.get_network_status()
+        ts_data = ts_stat.get("tailscale", {})
+        if ts_data.get("connected"):
+            metrics["tailscale"] = f"Connected (IP: {ts_data.get('ip', 'active')}, Node: {ts_data.get('node_name', 'node')})"
+        elif network.is_tailscale_ip(metrics["lan_ip"]):
+            metrics["tailscale"] = f"Mesh Active ({metrics['lan_ip']})"
+    except Exception:
+        pass
+
+    # Disk usage
+    try:
+        base_dir = Path(db_path).parent if db_path else Path(database.DEFAULT_DB_PATH).parent
+        total, used, free = shutil.disk_usage(str(base_dir))
+        if total > 0:
+            metrics["storage"] = f"{free / (1024**3):.1f} GB free of {total / (1024**3):.1f} GB ({used / total * 100:.1f}% used)"
+    except Exception:
+        pass
+
+    # Linux-specific /proc stats
+    try:
+        if os.path.exists("/proc/loadavg"):
+            with open("/proc/loadavg", "r") as f:
+                parts = f.read().strip().split()
+                metrics["load_avg"] = f"{parts[0]}, {parts[1]}, {parts[2]} (1m, 5m, 15m)"
+    except Exception:
+        pass
+
+    try:
+        if os.path.exists("/proc/meminfo"):
+            mem = {}
+            with open("/proc/meminfo", "r") as f:
+                for line in f:
+                    if ":" in line:
+                        k, v = line.split(":", 1)
+                        mem[k.strip()] = v.strip()
+            total_kb = int(mem.get("MemTotal", "0 kB").split()[0])
+            avail_kb = int(mem.get("MemAvailable", "0 kB").split()[0])
+            if total_kb > 0:
+                used_kb = total_kb - avail_kb
+                metrics["ram"] = f"{used_kb / (1024**2):.1f} GB used / {total_kb / (1024**2):.1f} GB total ({used_kb / total_kb * 100:.1f}%)"
+    except Exception:
+        pass
+
+    try:
+        if os.path.exists("/proc/uptime"):
+            with open("/proc/uptime", "r") as f:
+                uptime_sec = float(f.read().split()[0])
+                days = int(uptime_sec // 86400)
+                hours = int((uptime_sec % 86400) // 3600)
+                mins = int((uptime_sec % 3600) // 60)
+                metrics["uptime"] = f"{days}d {hours}h {mins}m" if days > 0 else f"{hours}h {mins}m"
+    except Exception:
+        pass
+
+    # Database file size
+    try:
+        actual_db = database.resolve_db_path(db_path)
+        if actual_db.exists():
+            db_size_mb = actual_db.stat().st_size / (1024 * 1024)
+            metrics["db_health"] = f"pettr.sqlite ({db_size_mb:.2f} MB, WAL mode)"
+    except Exception:
+        pass
+
+    return metrics
+
 def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Optional[str] = None) -> str:
-    """Builds a concise real-time state snippet of PETTR to inject into Horace's system instructions."""
+    """Builds a concise real-time state snippet of PETTR and host server health to inject into Horace's system instructions."""
     try:
         now = datetime.datetime.now()
         today = datetime.date.today()
         today_str = today.isoformat()
+
+        # Host server metrics
+        srv = get_host_server_metrics(db_path=db_path)
 
         # Active projects
         projects = database.get_all_projects(db_path=db_path)
@@ -72,14 +161,28 @@ def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Opti
         daily_order = database.get_daily_order(today_str, db_path=db_path)
 
         context_lines = [
-            f"[LIVE PETTR TELEMETRY - {now.strftime('%Y-%m-%d %H:%M')}]",
-            f"- Server Host: Horace (Local home server node)",
+            f"[LIVE PETTR & SERVER TELEMETRY - {now.strftime('%Y-%m-%d %H:%M')}]",
+            f"- Server Host Node: Horace ({srv['hostname']})",
+            f"- OS & Platform: {srv['os']}",
+            f"- Environment: {'Docker container' if srv['in_docker'] else 'Native host process'}",
+            f"- Network: LAN {srv['lan_ip']} | Tailscale: {srv['tailscale']}",
+            f"- Host Storage: {srv['storage']}",
+        ]
+        if srv["ram"] != "Unknown":
+            context_lines.append(f"- Host Memory: {srv['ram']}")
+        if srv["load_avg"] != "Unknown":
+            context_lines.append(f"- System Load Average: {srv['load_avg']}")
+        if srv["uptime"] != "Unknown":
+            context_lines.append(f"- Server Uptime: {srv['uptime']}")
+
+        context_lines.extend([
+            f"- SQLite Database: {srv['db_health']}",
             f"- Active Projects ({len(projects)}): {', '.join(proj_names) if proj_names else 'None'}",
             f"- Today's Focus Task(s): {', '.join(pending_focus) if pending_focus else 'None pending'}",
             f"- Today's Trivial Task(s): {', '.join(pending_trivial[:4]) if pending_trivial else 'None pending'} ({len(pending_trivial)} total)",
             f"- Tasks Completed Today: {len(completed_today)}",
             f"- Priority Daily Order: {len(daily_order)} items locked"
-        ]
+        ])
         return "\n".join(context_lines)
     except Exception:
         return f"[LIVE PETTR TELEMETRY: Host Horace active, {datetime.datetime.now().strftime('%H:%M')}]"
