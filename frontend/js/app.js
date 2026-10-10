@@ -43,15 +43,30 @@ const App = {
     const headerClock = document.getElementById("headerClockPill");
     if (!headerClock) return;
 
-    const missionClock = document.getElementById("missionClockWidget");
     const isDashboard = !this.currentTab || this.currentTab === "dashboard";
 
-    if (isDashboard && missionClock && missionClock.offsetParent !== null) {
-      const header = document.querySelector(".app-header");
-      const headerBottom = header ? header.getBoundingClientRect().bottom : 80;
-      const rect = missionClock.getBoundingClientRect();
-      
-      // If any portion of the main mission clock is visible below the sticky header, hide the mini clock
+    if (!isDashboard) {
+      // On non-dashboard tabs where the main mission clock is absent, display header clock
+      headerClock.classList.add("visible");
+      return;
+    }
+
+    // On dashboard tab:
+    const missionClock = document.getElementById("missionClockWidget");
+    if (!missionClock) {
+      headerClock.classList.remove("visible");
+      return;
+    }
+
+    const header = document.querySelector(".app-header");
+    const headerBottom = header ? header.getBoundingClientRect().bottom : 80;
+    const rect = missionClock.getBoundingClientRect();
+
+    // Check if mission clock is rendered and visible in viewport
+    const isClockInDOM = missionClock.offsetParent !== null;
+
+    if (isClockInDOM) {
+      // If any portion of the main mission clock is visible below sticky header, hide mini clock
       if (rect.bottom > headerBottom + 10) {
         headerClock.classList.remove("visible");
       } else {
@@ -59,8 +74,13 @@ const App = {
         headerClock.classList.add("visible");
       }
     } else {
-      // On non-dashboard tabs where the main mission clock is absent, display header clock
-      headerClock.classList.add("visible");
+      // Fallback while dashboard tab is mounting / reflowing:
+      // if scrolled near top, mission clock is physically present at the top, so hide mini clock
+      if (window.scrollY < 80) {
+        headerClock.classList.remove("visible");
+      } else {
+        headerClock.classList.add("visible");
+      }
     }
   },
 
@@ -912,7 +932,6 @@ const App = {
 
   switchTab(tabName) {
     this.currentTab = tabName;
-    this.updateHeaderClockVisibility();
 
     // Update tab button active states
     document.querySelectorAll(".nav-tabs .tab-btn").forEach(btn => {
@@ -935,6 +954,12 @@ const App = {
     if (targetPane) {
       targetPane.classList.add("active");
     }
+
+    // Update header clock visibility now that the target pane is mounted and active
+    this.updateHeaderClockVisibility();
+    requestAnimationFrame(() => this.updateHeaderClockVisibility());
+    setTimeout(() => this.updateHeaderClockVisibility(), 50);
+    setTimeout(() => this.updateHeaderClockVisibility(), 150);
 
     // Refresh tab content
     if (tabName === "dashboard") {

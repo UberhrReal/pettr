@@ -1329,15 +1329,26 @@ async def test_horace_chat_persistence_and_api(temp_db, monkeypatch):
     assert "Because everything needs an AI agent now" in js_content
 
 
+def test_header_clock_visibility_logic_on_tab_switch():
+    """Verify that mini clock properly hides when mission clock is visible on dashboard,
+    even after switching back and forth between tabs."""
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
 
+    # 1. Verify updateHeaderClockVisibility handles non-dashboard vs dashboard correctly
+    assert "updateHeaderClockVisibility()" in app_js
+    assert "if (!isDashboard)" in app_js
+    assert 'headerClock.classList.add("visible")' in app_js
+    assert "isClockInDOM = missionClock.offsetParent !== null" in app_js
+    assert "window.scrollY < 80" in app_js
 
+    # 2. Verify switchTab sets targetPane to active BEFORE updating header clock visibility
+    switch_tab_idx = app_js.find("switchTab(tabName)")
+    assert switch_tab_idx != -1
+    switch_tab_code = app_js[switch_tab_idx:switch_tab_idx + 1200]
 
+    active_pane_idx = switch_tab_code.find("targetPane.classList.add(\"active\")")
+    clock_call_idx = switch_tab_code.find("this.updateHeaderClockVisibility()")
 
-
-
-
-
-
-
-
-
+    assert active_pane_idx != -1, "targetPane.classList.add('active') should be in switchTab"
+    assert clock_call_idx != -1, "this.updateHeaderClockVisibility() should be in switchTab"
+    assert active_pane_idx < clock_call_idx, "targetPane must be made active before updateHeaderClockVisibility is called"
