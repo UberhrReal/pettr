@@ -1700,7 +1700,7 @@ const App = {
             </div>
             <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
               ${backups.count || 0} local snapshot archive${backups.count === 1 ? '' : 's'} on disk in <code>backups/</code>.<br>
-              Full snapshots (SQLite, Markdown, JSON). Offsite Google Drive cloud backups consume 0 B local disk.
+              Full snapshots containing SQLite, Markdown digest, and JSON data.
             </div>
           </div>
 
