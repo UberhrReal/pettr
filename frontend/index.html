@@ -1936,6 +1936,42 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
     <!-- Panel Footer / Input Area -->
     <div class="horace-panel-footer">
+      <!-- Quick Menu of Curated Questions -->
+      <div class="horace-quick-menu-section" id="horaceQuickMenuSection">
+        <div class="horace-quick-menu-header">
+          <span class="horace-quick-menu-label">
+            <i data-lucide="sparkles" style="width:11px;height:11px;"></i> Quick Questions
+          </span>
+          <button type="button" class="horace-quick-menu-toggle-btn" id="horaceQuickMenuToggleBtn" onclick="HoraceChat.toggleQuickMenuExpanded()" title="Toggle full question list">
+            <span id="horaceQuickMenuToggleLabel">View all</span>
+            <i data-lucide="chevron-up" id="horaceQuickMenuChevron" style="width:12px;height:12px;"></i>
+          </button>
+        </div>
+        <div class="horace-quick-prompts-tray" id="horaceQuickPromptsTray">
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('How\'s the server doing, Horace?')">
+            🖥️ Server Status
+          </button>
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('Is Tailscale and the network running properly?')">
+            🌐 Tailscale & Network
+          </button>
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('What\'s on my plate today, Horace?')">
+            📋 Today's Queue
+          </button>
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('Help me pick and conquer my #1 Focus task.')">
+            🎯 Pick Focus Task
+          </button>
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('What\'s the host RAM and LLM footprint right now?')">
+            💾 RAM & LLM Footprint
+          </button>
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('Roast my task list and tell me what I\'m putting off.')">
+            🔥 Roast Backlog
+          </button>
+          <button type="button" class="horace-quick-pill" onclick="HoraceChat.sendPresetPrompt('Review my open loops and tell me what needs triage.')">
+            🧹 Triage Open Loops
+          </button>
+        </div>
+      </div>
+
       <form class="horace-input-form" id="horaceInputForm" onsubmit="HoraceChat.handleSubmit(event)">
         <div class="horace-input-wrapper">
           <textarea

@@ -406,15 +406,15 @@ const Dashboard = {
       }
     }
 
-    // Strict single-line length enforcement: clamp phrases to 52 chars max
+    // Strict single-line length enforcement: clamp phrases to 46 chars max so they never stretch or wrap
     phrases = phrases.map(p => {
       let s = String(p || "").trim();
-      if (s.length > 52) {
+      if (s.length > 46) {
         const parts = s.split(/[\.\:\;\—\-]\s+/);
-        if (parts && parts[0].length >= 20 && parts[0].length <= 52) {
+        if (parts && parts[0].length >= 15 && parts[0].length <= 46) {
           s = parts[0].trim() + ".";
         } else {
-          s = s.slice(0, 50).trim() + "…";
+          s = s.slice(0, 44).trim() + "…";
         }
       }
       return s;

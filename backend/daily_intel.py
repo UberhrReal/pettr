@@ -198,45 +198,45 @@ def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optiona
     """Generates curated time-of-day phrases as resilient fallback."""
     wee_hours_phrases = [
         f"Stillness of the wee hours, {user_name}.",
-        f"Zero distractions in the quiet hours, {user_name}.",
-        f"The terminal glows in the dead of night.",
-        f"Deep nocturnal velocity and craft, {user_name}.",
+        f"Zero distractions tonight, {user_name}.",
+        f"The terminal glows in the quiet hours.",
+        f"Deep nocturnal velocity, {user_name}.",
         f"Breakthroughs happen in the small hours.",
         f"Quiet hours focus window, {user_name}."
     ]
 
     morning_phrases = [
         f"Good morning, {user_name}. Workspace primed.",
-        f"First coffee poured. Time for deep work.",
+        f"First coffee poured. Ready for deep work.",
         f"Clear head, clear queue, {user_name}.",
-        f"Telemetry nominal. Building steady momentum.",
-        f"Prioritise the essential objectives today, {user_name}.",
-        f"Morning diagnostics green: locked in focus."
+        f"Telemetry nominal. Building momentum.",
+        f"Prioritise the essentials, {user_name}.",
+        f"Morning diagnostics green: locked in."
     ]
 
     afternoon_phrases = [
         f"Cruising altitude reached, {user_name}.",
-        f"Steady cadence through the afternoon sprint.",
-        f"Midday checkpoint: stay locked in flow, {user_name}.",
+        f"Steady cadence through the sprint.",
+        f"Midday checkpoint: locked in flow, {user_name}.",
         f"Solid execution today, {user_name}.",
-        f"Hydrate, reset posture, and maintain momentum.",
+        f"Reset posture, maintain momentum.",
         f"Quality craft takes patience, {user_name}."
     ]
 
     evening_phrases = [
-        f"Good evening, {user_name}. Tie off open loops.",
-        f"Smooth landing: review your completed work.",
-        f"Mission objectives checked off, {user_name}.",
+        f"Good evening, {user_name}. Close open loops.",
+        f"Smooth landing: review completed work.",
+        f"Mission objectives checked, {user_name}.",
         f"Great execution today. Time to wind down.",
         f"Evening debrief window open, {user_name}.",
-        f"Another productive day sealed, {user_name}."
+        f"Productive day sealed, {user_name}."
     ]
 
     night_phrases = [
         f"Burning the midnight oil, {user_name}?",
-        f"Night owl session active: wrap up and rest.",
+        f"Night owl session active: rest soon.",
         f"Late-night telemetry nominal, {user_name}.",
-        f"Quiet hours focus window. Rest soon, {user_name}.",
+        f"Quiet hours active. Rest soon, {user_name}.",
         f"Commit your progress and recharge tonight."
     ]
 
@@ -437,6 +437,20 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             # Upgrade stale legacy short fallback phrases if present
             if any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"]):
                 phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+
+            # Upgrade stale multi-clause long phrases that stretch onto 2 lines or clip off (> 46 chars)
+            if any(len(p) > 46 for p in phrases_to_return):
+                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+                try:
+                    database.save_daily_typewriter_cache(
+                        date_str=date_key,
+                        phrases=phrases_to_return,
+                        subtext=cached_subtext,
+                        source="single_line_upgrade",
+                        db_path=db_path
+                    )
+                except Exception:
+                    pass
 
             if client_hour is not None:
                 phrases_to_return = filter_phrases_for_diurnal_window(

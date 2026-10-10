@@ -120,6 +120,8 @@ const HoraceChat = {
     this.checkStatus();
     this.scrollToBottom();
 
+    if (window.lucide) window.lucide.createIcons();
+
     if (focusInput) {
       setTimeout(() => {
         const input = document.getElementById("horaceInput");
@@ -313,7 +315,33 @@ const HoraceChat = {
     });
   },
 
+  isQuickMenuExpanded: false,
+
+  toggleQuickMenuExpanded() {
+    this.isQuickMenuExpanded = !this.isQuickMenuExpanded;
+    const tray = document.getElementById("horaceQuickPromptsTray");
+    const chevron = document.getElementById("horaceQuickMenuChevron");
+    const label = document.getElementById("horaceQuickMenuToggleLabel");
+
+    if (tray) {
+      if (this.isQuickMenuExpanded) {
+        tray.classList.add("expanded");
+      } else {
+        tray.classList.remove("expanded");
+      }
+    }
+    if (chevron) {
+      chevron.style.transform = this.isQuickMenuExpanded ? "rotate(180deg)" : "rotate(0deg)";
+    }
+    if (label) {
+      label.textContent = this.isQuickMenuExpanded ? "Collapse" : "View all";
+    }
+  },
+
   sendPresetPrompt(promptText) {
+    if (this.isQuickMenuExpanded) {
+      this.toggleQuickMenuExpanded();
+    }
     const input = document.getElementById("horaceInput");
     if (input) input.value = promptText;
     this.handleSubmit();

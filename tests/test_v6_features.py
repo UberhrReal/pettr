@@ -767,13 +767,13 @@ def test_articulate_typewriter_phrases_length_and_substance():
     for hour in [8, 14, 20, 23, 1, 3]:
         phrases = daily_intel.get_curated_phrases(today, "Hong Rong", client_hour=hour)
         assert len(phrases) >= 5
-        # Check that phrases are single-line complete thoughts (between 30 and 55 characters)
+        # Check that phrases are single-line complete thoughts (between 30 and 46 characters)
         for p in phrases:
             assert len(p) >= 30, f"Phrase too short: {p}"
-            assert len(p) <= 55, f"Phrase too long: {p}"
-        # Average length should be comfortably in the articulate 38-45 character range
+            assert len(p) <= 46, f"Phrase too long (must fit on single line <= 46 chars): {p}"
+        # Average length should be comfortably in the articulate 36-43 character range
         avg_len = sum(len(p) for p in phrases) / len(phrases)
-        assert avg_len >= 38, f"Average phrase length too low: {avg_len}"
+        assert avg_len >= 36, f"Average phrase length too low: {avg_len}"
 
 
 def test_daily_order_pruned_when_due_date_moves_to_another_day(temp_db, monkeypatch):
@@ -1492,4 +1492,64 @@ def test_horace_tailscale_telemetry_accuracy(monkeypatch):
     cached_status = network.get_network_status(request=None)
     assert cached_status["connected"] is True
     assert cached_status["tailscale_ip"] == "100.109.253.121"
+
+
+@pytest.mark.anyio
+async def test_horace_quick_menu_and_typewriter_single_line_regeneration(temp_db, monkeypatch):
+    """Verify Horace chat has a persistent quick curated questions menu, and typewriter auto-regenerates stale long lines."""
+    from backend import daily_intel
+
+    # 1. Verify frontend quick menu structure and scripts
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "horace-quick-menu-section" in index_html
+    assert "horaceQuickPromptsTray" in index_html
+    assert "Server Status" in index_html
+    assert "Tailscale & Network" in index_html
+    assert "Today's Queue" in index_html
+    assert "Pick Focus Task" in index_html
+    assert "RAM & LLM Footprint" in index_html
+    assert "Roast Backlog" in index_html
+
+    chat_js = Path("frontend/js/horace_chat.js").read_text(encoding="utf-8")
+    assert "toggleQuickMenuExpanded" in chat_js
+    assert "isQuickMenuExpanded" in chat_js
+
+    css_text = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert ".horace-quick-menu-section" in css_text
+    assert ".horace-quick-pill" in css_text
+    assert ".greeting-text" in css_text
+    assert "clamp(19px, 2.2vw, 26px)" in css_text
+
+    # 2. Test auto-regeneration of stale long typewriter phrases (> 46 chars) in SQLite cache
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    test_date = "2026-10-10"
+    stale_long_phrases = [
+        "Cruising altitude reached, Hong Rong - keep the momentum steady through the afternoon sprint.",
+        "Working hard or hardly working, Hong Rong? Either way, let's close out that next priority.",
+        "Midday checkpoint: resist the urge to context-switch and see this focus block through, Hong Rong."
+    ]
+    # Manually populate database cache with stale long lines
+    database.save_daily_typewriter_cache(
+        date_str=test_date,
+        phrases=stale_long_phrases,
+        subtext="Saturday, October 10 · 💡 Fun fact",
+        source="stale_test",
+        db_path=temp_db
+    )
+
+    # Fetch daily intel without force_refresh - should detect length > 46 and upgrade to single-line phrases
+    d_obj = datetime.date(2026, 10, 10)
+    intel = await daily_intel.get_or_generate_daily_intel(d_obj, "Hong Rong", force_refresh=False, client_hour=14, db_path=temp_db)
+    assert intel["phrases"] is not None
+    assert len(intel["phrases"]) >= 3
+    for phrase in intel["phrases"]:
+        assert len(phrase) <= 46, f"Upgraded phrase still exceeds 46 characters: {phrase}"
+        assert "keep the momentum steady through the afternoon sprint" not in phrase
+
+    # Verify SQLite cache was updated with the clean single-line phrases
+    cached_after = database.get_daily_typewriter_cache(test_date, db_path=temp_db)
+    assert cached_after["source"] == "single_line_upgrade"
+    for phrase in cached_after["phrases"]:
+        assert len(phrase) <= 46
+
 
