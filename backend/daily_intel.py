@@ -197,47 +197,47 @@ def filter_phrases_for_diurnal_window(
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
     """Generates curated time-of-day phrases as resilient fallback."""
     wee_hours_phrases = [
-        f"In the stillness of the wee hours, {user_name} - true hyperfocus thrives when the rest of the world is asleep.",
-        f"The small hours are where breakthroughs happen. Keep that train of thought rolling, {user_name}.",
-        f"Dead of night, terminal glowing. Pure undisturbed concentration in the quietest hours, {user_name}.",
-        f"Zero notifications, zero distractions. Just you and the craft in the wee hours, {user_name}.",
-        f"Deep nocturnal velocity, {user_name} - capture the breakthrough, but remember to catch some sleep before dawn.",
-        f"Operating on after-hours fuel: make these quiet wee-hours blocks count, {user_name}."
+        f"Stillness of the wee hours, {user_name}.",
+        f"Zero distractions in the quiet hours, {user_name}.",
+        f"The terminal glows in the dead of night.",
+        f"Deep nocturnal velocity and craft, {user_name}.",
+        f"Breakthroughs happen in the small hours.",
+        f"Quiet hours focus window, {user_name}."
     ]
 
     morning_phrases = [
-        f"Good morning, {user_name}. Let's tackle the highest-leverage task while focus is fresh.",
-        f"First coffee brewed and workspace primed - ready to turn intentions into progress, {user_name}?",
-        f"Clear head, clear queue: prioritise the essential objectives before the noise begins, {user_name}.",
-        f"Telemetry nominal. Time to dive into the deep work and build steady momentum, {user_name}.",
-        f"Systems synchronised, {user_name}. What's the one milestone that will make today count?",
-        f"Morning diagnostics green: single-task focus beats context-switching every time."
+        f"Good morning, {user_name}. Workspace primed.",
+        f"First coffee poured. Time for deep work.",
+        f"Clear head, clear queue, {user_name}.",
+        f"Telemetry nominal. Building steady momentum.",
+        f"Prioritise the essential objectives today, {user_name}.",
+        f"Morning diagnostics green: locked in focus."
     ]
 
     afternoon_phrases = [
-        f"Cruising altitude reached, {user_name} - keep the momentum steady through the afternoon sprint.",
-        f"Working hard or hardly working, {user_name}? Either way, let's close out that next priority.",
-        f"Midday checkpoint: resist the urge to context-switch and see this focus block through, {user_name}.",
-        f"Solid execution so far, {user_name}. Power through the remainder of the active queue.",
-        f"Hydrate, reset posture, and lock back into the flow state for the afternoon stretch.",
-        f"Steady cadence, {user_name} - quality engineering craft takes patience and deliberate focus."
+        f"Cruising altitude reached, {user_name}.",
+        f"Steady cadence through the afternoon sprint.",
+        f"Midday checkpoint: stay locked in flow, {user_name}.",
+        f"Solid execution today, {user_name}.",
+        f"Hydrate, reset posture, and maintain momentum.",
+        f"Quality craft takes patience, {user_name}."
     ]
 
     evening_phrases = [
-        f"Good evening, {user_name}. Time to tie off open loops and review today's accomplishments.",
-        f"Smooth landing approach active: review your completed tasks and shut down the terminal cleanly.",
-        f"Great execution across today's sprint, {user_name}. The queue will keep until tomorrow.",
-        f"Mission objectives checked off. Step away from the workstation and enjoy a well-earned evening.",
-        f"Evening debrief window: log final notes, close active tabs, and wind down, {user_name}.",
-        f"Another productive day sealed, {user_name}. Rest is just as critical as the hustle."
+        f"Good evening, {user_name}. Tie off open loops.",
+        f"Smooth landing: review your completed work.",
+        f"Mission objectives checked off, {user_name}.",
+        f"Great execution today. Time to wind down.",
+        f"Evening debrief window open, {user_name}.",
+        f"Another productive day sealed, {user_name}."
     ]
 
     night_phrases = [
-        f"Burning the midnight oil, {user_name}? The quiet hours make for great breakthroughs.",
-        f"Night owl session active: finish this last train of thought before fatigue sets in, {user_name}.",
-        f"Deep work in the quiet stillness - just remember that good sleep is part of good engineering.",
-        f"Late-night telemetry online, {user_name}. Wrap up this final sprint and get some proper rest.",
-        f"Quiet hours focus window. Save your work, commit the progress, and rest soon, {user_name}."
+        f"Burning the midnight oil, {user_name}?",
+        f"Night owl session active: wrap up and rest.",
+        f"Late-night telemetry nominal, {user_name}.",
+        f"Quiet hours focus window. Rest soon, {user_name}.",
+        f"Commit your progress and recharge tonight."
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
@@ -298,8 +298,8 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "(Personal Errands, Task Tracker & Repository), an executive dashboard for coursework, "
         "engineering craft, personal life, and high-focus productivity.\n"
         "Your task is to generate:\n"
-        "1. Exactly 5 intelligent, articulate, slightly longer typewriter greeting lines for the user's dashboard banner "
-        "that make genuine sense rather than generic slogans.\n"
+        "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
+        "(strictly 6 to 9 words, max 48 characters so they fit cleanly on a single line without wrapping).\n"
         "2. Exactly 1 fascinating, genuine fun fact or historical event relevant to today's date "
         "(spanning science, computing, space, engineering, biology, history, or everyday human invention).\n"
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
@@ -313,7 +313,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Task 1 — Dashboard Typewriter Greetings ('phrases'):\n"
         f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines for {user_name}.\n"
         "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
-        f"3. Allow lines to be slightly longer complete thoughts (8 to 16 words, roughly 45 to 95 characters) so they make genuine sense and have substance.\n"
+        "3. Strict Single-Line Constraint: Every line MUST fit on a single line (strictly 6 to 9 words, roughly 32 to 48 characters, absolute maximum 52 characters). Do NOT generate multi-clause compound sentences.\n"
         f"4. Frame them as a sharp, cultured, slightly witty personal companion: focus on engineering craft, deep problem-solving, coursework, deliberate focus, or wry observations about daily momentum.\n"
         f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
         "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
@@ -376,7 +376,14 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                     for p in raw_phrases:
                         if isinstance(p, str):
                             s = p.strip().strip('"').strip("'")
-                            if s and len(s) > 5 and len(s) < 130:
+                            # Clamp to strict single-line max (52 chars)
+                            if len(s) > 52:
+                                parts = re.split(r'[\.\:\;\—\-]\s+', s)
+                                if parts and len(parts[0]) >= 20 and len(parts[0]) <= 52:
+                                    s = parts[0].strip() + "."
+                                else:
+                                    s = s[:50].rsplit(' ', 1)[0].rstrip(' ,;:-') + "."
+                            if s and len(s) >= 15 and len(s) <= 55:
                                 cleaned.append(s)
 
                     if isinstance(fact_str, str):

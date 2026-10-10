@@ -353,47 +353,51 @@ const Dashboard = {
       let defaults = [];
       if (isWeeHours) {
         defaults = [
-          `In the stillness of the wee hours, ${this.userName} - true hyperfocus thrives when the rest of the world is asleep.`,
-          `The small hours are where breakthroughs happen. Keep that train of thought rolling, ${this.userName}.`,
-          `Dead of night, terminal glowing. Pure undisturbed concentration in the quietest hours, ${this.userName}.`,
-          `Zero notifications, zero distractions. Just you and the craft in the wee hours, ${this.userName}.`,
-          `Deep nocturnal velocity, ${this.userName} - capture the breakthrough, but remember to catch some sleep before dawn.`
+          `Stillness of the wee hours, ${this.userName}.`,
+          `Zero distractions in the quiet hours, ${this.userName}.`,
+          `The terminal glows in the dead of night.`,
+          `Deep nocturnal velocity and craft, ${this.userName}.`,
+          `Breakthroughs happen in the small hours.`,
+          `Quiet hours focus window, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Wee hours hyperfocus active. Undisturbed quiet.";
       } else if (isMorning) {
         defaults = [
-          `Good morning, ${this.userName}. Let's tackle the highest-leverage task while focus is fresh.`,
-          `First coffee brewed and workspace primed - ready to turn intentions into progress, ${this.userName}?`,
-          `Clear head, clear queue: prioritise the essential objectives before the noise begins, ${this.userName}.`,
-          `Telemetry nominal. Time to dive into the deep work and build steady momentum, ${this.userName}.`,
-          `Systems synchronised, ${this.userName}. What's the one milestone that will make today count?`
+          `Good morning, ${this.userName}. Workspace primed.`,
+          `First coffee poured. Time for deep work.`,
+          `Clear head, clear queue, ${this.userName}.`,
+          `Telemetry nominal. Building steady momentum.`,
+          `Prioritise the essential objectives today, ${this.userName}.`,
+          `Morning diagnostics green: locked in focus.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
       } else if (isAfternoon) {
         defaults = [
-          `Cruising altitude reached, ${this.userName} - keep the momentum steady through the afternoon sprint.`,
-          `Working hard or hardly working, ${this.userName}? Either way, let's close out that next priority.`,
-          `Midday checkpoint: resist the urge to context-switch and see this focus block through, ${this.userName}.`,
-          `Solid execution so far, ${this.userName}. Power through the remainder of the active queue.`,
-          `Hydrate, reset posture, and lock back into the flow state for the afternoon stretch.`
+          `Cruising altitude reached, ${this.userName}.`,
+          `Steady cadence through the afternoon sprint.`,
+          `Midday checkpoint: stay locked in flow, ${this.userName}.`,
+          `Solid execution today, ${this.userName}.`,
+          `Hydrate, reset posture, and maintain momentum.`,
+          `Quality craft takes patience, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Deep work window active.";
       } else if (isEvening) {
         defaults = [
-          `Good evening, ${this.userName}. Time to tie off open loops and review today's accomplishments.`,
-          `Smooth landing approach active: review your completed tasks and shut down the terminal cleanly.`,
-          `Great execution across today's sprint, ${this.userName}. The queue will keep until tomorrow.`,
-          `Mission objectives checked off. Step away from the workstation and enjoy a well-earned evening.`,
-          `Evening debrief window: log final notes, close active tabs, and wind down, ${this.userName}.`
+          `Good evening, ${this.userName}. Tie off open loops.`,
+          `Smooth landing: review your completed work.`,
+          `Mission objectives checked off, ${this.userName}.`,
+          `Great execution today. Time to wind down.`,
+          `Evening debrief window open, ${this.userName}.`,
+          `Another productive day sealed, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
         defaults = [
-          `Burning the midnight oil, ${this.userName}? The quiet hours make for great breakthroughs.`,
-          `Night owl session active: finish this last train of thought before fatigue sets in, ${this.userName}.`,
-          `Deep work in the quiet stillness - just remember that good sleep is part of good engineering.`,
-          `Late-night telemetry online, ${this.userName}. Wrap up this final sprint and get some proper rest.`,
-          `Quiet hours focus window. Save your work, commit the progress, and rest soon, ${this.userName}.`
+          `Burning the midnight oil, ${this.userName}?`,
+          `Night owl session active: wrap up and rest.`,
+          `Late-night telemetry nominal, ${this.userName}.`,
+          `Quiet hours focus window. Rest soon, ${this.userName}.`,
+          `Commit your progress and recharge tonight.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";
       }
@@ -401,6 +405,20 @@ const Dashboard = {
         if (!phrases.includes(d)) phrases.push(d);
       }
     }
+
+    // Strict single-line length enforcement: clamp phrases to 52 chars max
+    phrases = phrases.map(p => {
+      let s = String(p || "").trim();
+      if (s.length > 52) {
+        const parts = s.split(/[\.\:\;\—\-]\s+/);
+        if (parts && parts[0].length >= 20 && parts[0].length <= 52) {
+          s = parts[0].trim() + ".";
+        } else {
+          s = s.slice(0, 50).trim() + "…";
+        }
+      }
+      return s;
+    }).filter(p => p.length > 0);
 
     // Guarantee top typewriter phrases NEVER duplicate the bottom subtext
     phrases = phrases.filter(p => p.trim().toLowerCase() !== sub.trim().toLowerCase());

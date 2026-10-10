@@ -540,8 +540,12 @@ body {
   letter-spacing: -0.03em;
   color: var(--text-main);
   line-height: 1.25;
+  height: 1.25em;
   min-height: 1.25em;
-  word-break: break-word;
+  max-height: 1.25em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .greeting-subtext {
@@ -4461,6 +4465,11 @@ body {
   .greeting-text {
     font-size: 22px;
     letter-spacing: -0.02em;
+    height: 1.25em;
+    max-height: 1.25em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .greeting-subtext {
