@@ -297,6 +297,11 @@ const SimplifiedMode = {
         <span class="time-sensitive-badge" style="font-size: 10px; padding: 2px 7px;">⚡ TIME SENSITIVE</span>
       ` : "";
 
+      const isItemOverdue = Boolean(!isDone && (item.is_overdue || item.is_rolled_over || (item.urgency && item.urgency.label === "Overdue")));
+      const overdueTag = isItemOverdue ? `
+        <span class="urgency-badge overdue" style="font-size: 10px; padding: 2px 7px;">OVERDUE</span>
+      ` : "";
+
       let checkbox = "";
       if (item.type === "task") {
         checkbox = `
@@ -330,6 +335,7 @@ const SimplifiedMode = {
           <div class="simplified-card-meta">
             ${typeBadge}
             ${projectTag}
+            ${overdueTag}
             ${timeSensitiveTag}
             ${timeMeta}
           </div>

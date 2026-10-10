@@ -1023,6 +1023,82 @@ def test_llm_ping_offline_and_online_clarity(temp_db, monkeypatch):
     assert "ollama serve" in app_js
 
 
+def test_overdue_tasks_persist_in_daily_order_and_tagged_overdue(temp_db, monkeypatch):
+    """Test that tasks due on a previous day are not pruned from daily order and are tagged OVERDUE."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today().isoformat()
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+
+    # 1. Create a task that was due yesterday and is still pending
+    overdue_task = database.create_task(
+        title="Fix telemetry data parser",
+        tier="focus",
+        due_date=f"{yesterday} 18:00:00",
+        db_path=temp_db
+    )
+    overdue_id = overdue_task["id"]
+
+    # 2. Verify get_tasks_for_day on today fetches it with is_overdue=True
+    tasks_today = database.get_tasks_for_day(datetime.date.today(), db_path=temp_db)
+    all_today = tasks_today["focus"] + tasks_today["trivial"]
+    found_task = next((t for t in all_today if t["id"] == overdue_id), None)
+    assert found_task is not None
+    assert found_task["is_overdue"] is True
+    assert found_task["is_rolled_over"] is True
+
+    # 3. Add overdue task to today's daily order
+    database.save_daily_order(today, [{"id": overdue_id, "type": "task", "title": "Fix telemetry data parser", "tier": "focus"}], db_path=temp_db)
+
+    # 4. Fetch daily order for today -> overdue task must NOT be pruned!
+    order_today = database.get_daily_order(today, db_path=temp_db)
+    assert len(order_today) == 1
+    assert order_today[0]["id"] == overdue_id
+    assert order_today[0]["is_overdue"] is True
+
+    # 5. Test automatic rollover from yesterday:
+    # Create another task in yesterday's daily order
+    task_yest = database.create_task(
+        title="Unfinished yesterday report",
+        tier="focus",
+        due_date=f"{yesterday} 12:00:00",
+        db_path=temp_db
+    )
+    database.save_daily_order(yesterday, [{"id": task_yest["id"], "type": "task", "title": "Unfinished yesterday report"}], db_path=temp_db)
+
+    # Clear today's order in daily_orders to simulate a fresh day opening
+    conn = database.get_connection(temp_db)
+    with conn:
+        conn.execute("DELETE FROM daily_orders WHERE date = ?", (today,))
+
+    # Now get_daily_order(today) should automatically roll over unfinished tasks from yesterday!
+    rolled_order = database.get_daily_order(today, db_path=temp_db)
+    assert len(rolled_order) >= 1
+    assert any(it["id"] == task_yest["id"] and it.get("is_overdue") is True for it in rolled_order)
+
+    # 6. Verify moving a task to tomorrow still prunes it from today
+    database.reclassify_entity(
+        from_type="task",
+        from_id=task_yest["id"],
+        to_type="task",
+        title="Unfinished yesterday report",
+        due_date=f"{tomorrow} 15:00:00",
+        db_path=temp_db
+    )
+    pruned_order = database.get_daily_order(today, db_path=temp_db)
+    assert not any(it["id"] == task_yest["id"] for it in pruned_order)
+
+    # 7. Check UI files for OVERDUE tag rendering
+    dash_code = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "OVERDUE" in dash_code
+    assert "is_overdue" in dash_code
+    simplified_code = Path("frontend/js/simplified_mode.js").read_text(encoding="utf-8")
+    assert "OVERDUE" in simplified_code
+    assert "is_overdue" in simplified_code
+
+
+
 
 
 

@@ -1184,6 +1184,11 @@ const Dashboard = {
             modified = true;
           }
         }
+        if (found.is_overdue && !item.is_overdue) {
+          item.is_overdue = true;
+          item.is_rolled_over = true;
+          modified = true;
+        }
         return true;
       }
       if (item.type === "event") {
@@ -1259,6 +1264,7 @@ const Dashboard = {
     container.innerHTML = this.dailyOrder.map((item, idx) => {
       const rank = String(idx + 1).padStart(2, "0");
       let isDone = item.completed || false;
+      let isOverdue = Boolean(item.is_overdue || item.is_rolled_over);
       // Reconcile with live tasks and events
       if ((item.type === "task" || !item.type) && this.tasks) {
         const projectTasks = (this.tasks.projects || []).flatMap(p => p.tasks || []);
@@ -1267,6 +1273,10 @@ const Dashboard = {
         if (match) {
           isDone = match.status === "completed";
           item.completed = isDone;
+          if (match.is_overdue || match.is_rolled_over || (match.urgency && match.urgency.label === "Overdue")) {
+            isOverdue = true;
+            item.is_overdue = true;
+          }
         }
       } else if (item.type === "event" && this.briefingData && this.briefingData.events_today) {
         const match = this.briefingData.events_today.find(e => String(e.id) === String(item.id));
@@ -1287,6 +1297,7 @@ const Dashboard = {
           <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''}
                  onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="Check off item">
           <span class="slot-title">${this.escapeHtml(item.title)}</span>
+          ${isOverdue && !isDone ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>` : ''}
           ${item.time ? `<span style="font-size:11px; font-family:var(--font-mono); color:var(--text-muted);">${item.time}</span>` : ''}
           <span class="urgency-badge ${item.tier || 'normal'}" style="font-size:10px; padding:1px 6px;">${(item.tier || item.type).toUpperCase()}</span>
           <span style="cursor:grab; color:var(--text-dim); font-size:12px;" title="Drag to re-order">⋮⋮</span>
@@ -1610,6 +1621,7 @@ const Dashboard = {
               cbDisabled = "disabled";
               cbTitle = "Cannot complete future tasks before the date arrives";
             }
+            const isSubOverdue = Boolean(!isCompleted && (t.is_overdue || t.is_rolled_over || (t.urgency && t.urgency.label === "Overdue")));
             return `
               <div class="task-item ${isCompleted ? 'completed' : ''} ${isPast ? 'is-locked' : ''}" style="padding: 8px 10px; font-size: 13px;">
                 <span class="priority-num-badge" title="Subtask priority #${idx + 1}">${rankStr}</span>
@@ -1619,6 +1631,7 @@ const Dashboard = {
                   <span class="task-title" style="font-size: 13px; ${isCompleted ? 'text-decoration: line-through; color: var(--text-dim);' : ''}">
                     ${this.escapeHtml(t.title)}
                   </span>
+                  ${isSubOverdue ? `<span class="urgency-badge overdue" style="font-size:9px; padding:1px 5px; margin-left:6px;">OVERDUE</span>` : ''}
                 </div>
                 ${isPast ? '<span style="font-size:11px; color:var(--text-dim);"><i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i></span>' : `<button class="action-icon-btn" onclick="event.stopPropagation(); EntityModal.open('task', ${t.id})" title="Edit / Re-sort" style="padding: 3px 8px;"><i data-lucide="edit-3" style="width:11px;height:11px;"></i></button>`}
               </div>
@@ -1720,11 +1733,14 @@ const Dashboard = {
       const dueText = task.due_date ? App.formatMilitaryTime(task.due_date) : (task.due_date_raw ? App.formatMilitaryTime(task.due_date_raw) : "");
 
       const isTimeSensitive = Boolean(task.is_time_sensitive);
+      const isOverdue = Boolean(!isCompleted && (task.is_overdue || task.is_rolled_over || (task.urgency && task.urgency.label === "Overdue")));
       const badgeHtml = isCompleted
         ? ''
-        : (isTimeSensitive
-          ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
-          : (urgencyLevel !== 'none' && urgencyLevel !== 'urgent' && urgencyLevel !== 'completed' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : (dueText ? `<span class="due-pill" style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${dueText}</span>` : '')));
+        : (isOverdue
+          ? `<span class="urgency-badge overdue">OVERDUE${dueText ? ` (${dueText})` : ''}</span>`
+          : (isTimeSensitive
+            ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE${dueText ? ` (${dueText})` : ''}</span>`
+            : (urgencyLevel !== 'none' && urgencyLevel !== 'urgent' && urgencyLevel !== 'completed' ? `<span class="urgency-badge ${urgencyLevel}">${urgencyLabel}${dueText ? ` (${dueText})` : ''}</span>` : (dueText ? `<span class="due-pill" style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${dueText}</span>` : ''))));
 
       let recurrenceHtml = "";
       if (task.recurrence) {

@@ -2039,6 +2039,14 @@ body {
   border: 1px solid var(--card-border);
 }
 
+.urgency-badge.overdue {
+  background: var(--urgent-orange-bg, rgba(255, 69, 0, 0.15)) !important;
+  color: var(--urgent-orange, #FF4500) !important;
+  border: 1px solid var(--urgent-orange, #FF4500) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+}
+
 .recurrence-badge {
   background: linear-gradient(135deg, #7C3AED, #8B5CF6, #A855F7, #7C3AED);
   background-size: 300% 300%;

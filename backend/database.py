@@ -601,6 +601,14 @@ def get_tasks_for_day(target_date: Optional[datetime.date] = None, db_path: Opti
         d = dict(r)
         d["urgency"] = compute_urgency(d["due_date"], is_completed=bool(d.get("completed") or d.get("status") == "completed"))
         d["due_date_military"] = format_military_time(d["due_date"])
+        # Check if overdue and rolled over from previous day
+        is_overdue = False
+        if d.get("due_date") and d.get("status") == "pending":
+            task_day = str(d["due_date"]).split("T")[0].split(" ")[0]
+            if task_day < date_str:
+                is_overdue = True
+        d["is_overdue"] = is_overdue
+        d["is_rolled_over"] = is_overdue
         # Fetch attached reminders
         rem_rows = conn.execute("SELECT * FROM reminders WHERE task_id = ?", (d["id"],)).fetchall()
         d["reminders"] = [dict(rem) for rem in rem_rows]
@@ -652,6 +660,13 @@ def get_tasks_for_day(target_date: Optional[datetime.date] = None, db_path: Opti
             pt_dict["urgency"] = compute_urgency(pt_dict["due_date"], is_completed=bool(pt_dict.get("completed") or pt_dict.get("status") == "completed"))
             pt_dict["due_date_military"] = format_military_time(pt_dict["due_date"])
             pt_dict["is_today"] = True
+            is_overdue = False
+            if pt_dict.get("due_date") and pt_dict.get("status") == "pending":
+                pt_day = str(pt_dict["due_date"]).split("T")[0].split(" ")[0]
+                if pt_day < date_str:
+                    is_overdue = True
+            pt_dict["is_overdue"] = is_overdue
+            pt_dict["is_rolled_over"] = is_overdue
             p_tasks.append(pt_dict)
             
         p_dict["tasks"] = p_tasks
@@ -1765,12 +1780,37 @@ def remove_from_daily_order_for_date(entity_id: int, entity_type: str = "task", 
 
 def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     conn = get_connection(db_path)
+    today_iso = datetime.date.today().isoformat()
     row = conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (date_str,)).fetchone()
-    if not row or not row["order_data"]:
-        return []
-    try:
-        raw_items = json.loads(row["order_data"])
-    except Exception:
+    
+    raw_items = []
+    if row and row["order_data"]:
+        try:
+            raw_items = json.loads(row["order_data"])
+        except Exception:
+            raw_items = []
+
+    # Rollover logic: If viewing today and today has no daily order saved yet,
+    # roll over unfinished pending tasks from yesterday's daily order!
+    if not raw_items and date_str == today_iso:
+        yesterday_str = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        prev_row = conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (yesterday_str,)).fetchone()
+        if prev_row and prev_row["order_data"]:
+            try:
+                prev_items = json.loads(prev_row["order_data"])
+                for pit in prev_items:
+                    if (pit.get("type") == "task" or not pit.get("type")) and pit.get("id"):
+                        t_check = conn.execute("SELECT id, title, status, due_date FROM tasks WHERE id = ?", (pit["id"],)).fetchone()
+                        if t_check and t_check["status"] == "pending":
+                            pit_copy = dict(pit)
+                            pit_copy["completed"] = False
+                            pit_copy["is_overdue"] = True
+                            pit_copy["is_rolled_over"] = True
+                            raw_items.append(pit_copy)
+            except Exception:
+                pass
+
+    if not raw_items:
         return []
 
     valid_items = []
@@ -1787,15 +1827,26 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
             continue
 
         if itype == "task":
-            t_row = conn.execute("SELECT id, title, due_date FROM tasks WHERE id = ?", (iid,)).fetchone()
+            t_row = conn.execute("SELECT id, title, due_date, status FROM tasks WHERE id = ?", (iid,)).fetchone()
             if t_row:
                 due_d = t_row["due_date"]
+                t_status = t_row["status"]
                 if due_d:
                     task_day = str(due_d).split("T")[0].split(" ")[0]
-                    # If the task has an explicit due date on a different calendar day, it has moved!
-                    if task_day != date_str:
+                    # If the task has an explicit due date moved into the future beyond date_str, prune it
+                    if task_day > date_str:
                         has_changes = True
                         continue
+                    # If task due date is on a past day:
+                    if task_day < date_str:
+                        # On today, an uncompleted task is an overdue rollover task and MUST be preserved!
+                        # Only prune if task is completed or viewing a different future day
+                        is_overdue_rollover = (date_str == today_iso and t_status == "pending")
+                        if not is_overdue_rollover:
+                            has_changes = True
+                            continue
+                        it["is_overdue"] = True
+                        it["is_rolled_over"] = True
                 if t_row["title"] and it.get("title") != t_row["title"]:
                     it["title"] = t_row["title"]
                     has_changes = True
@@ -1816,9 +1867,13 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
         else:
             valid_items.append(it)
 
-    if has_changes:
+    if has_changes or (not row and valid_items):
         with conn:
-            conn.execute("UPDATE daily_orders SET order_data = ?, updated_at = CURRENT_TIMESTAMP WHERE date = ?", (json.dumps(valid_items), date_str))
+            conn.execute("""
+                INSERT INTO daily_orders (date, order_data, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(date) DO UPDATE SET order_data = excluded.order_data, updated_at = CURRENT_TIMESTAMP
+            """, (date_str, json.dumps(valid_items)))
 
     return valid_items
 
