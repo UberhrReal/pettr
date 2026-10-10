@@ -434,6 +434,7 @@ const SimplifiedMode = {
 
     if (typeof Dashboard !== "undefined") {
       Dashboard.dailyOrder = newDailyOrder;
+      Dashboard.dailyOrderDate = targetDate;
       Dashboard.renderDailyOrder();
       Dashboard.saveDailyOrder();
     } else {

@@ -931,6 +931,73 @@ def test_manual_creation_locked_on_sealed_and_past_days(temp_db, monkeypatch):
     assert "if (this.isPastDay())" in dash_content
 
 
+def test_multiple_priority_lists_across_different_dates(temp_db, monkeypatch):
+    """Verifies creating priority lists on different dates preserves both lists without cross-date wiping."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    in_three_days = (datetime.date.today() + datetime.timedelta(days=3)).strftime("%Y-%m-%d")
+
+    # 1. Create tasks for each day
+    t_today = database.create_task("Today Deep Work", tier="focus", due_date=f"{today} 10:00:00", db_path=temp_db)
+    t_tomorrow = database.create_task("Tomorrow Prep", tier="focus", due_date=f"{tomorrow} 11:00:00", db_path=temp_db)
+    t_future = database.create_task("Future Sprint Item", tier="focus", due_date=f"{in_three_days} 14:00:00", db_path=temp_db)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 2. Save priority order for today
+        res1 = client.post("/api/daily-order", json={
+            "date": today,
+            "order": [{"id": t_today["id"], "type": "task", "title": "Today Deep Work", "completed": False}]
+        })
+        assert res1.status_code == 200
+
+        # 3. Hop over to tomorrow and save a priority list there
+        res2 = client.post("/api/daily-order", json={
+            "date": tomorrow,
+            "order": [{"id": t_tomorrow["id"], "type": "task", "title": "Tomorrow Prep", "completed": False}]
+        })
+        assert res2.status_code == 200
+
+        # 4. Hop over to in_three_days and save a priority list there
+        res3 = client.post("/api/daily-order", json={
+            "date": in_three_days,
+            "order": [{"id": t_future["id"], "type": "task", "title": "Future Sprint Item", "completed": False}]
+        })
+        assert res3.status_code == 200
+
+        # 5. Hop back to today -> today's priority list must NOT be wiped!
+        res_today = client.get(f"/api/daily-order?date={today}")
+        assert res_today.status_code == 200
+        today_order = res_today.json()["order"]
+        assert len(today_order) == 1
+        assert today_order[0]["id"] == t_today["id"]
+
+        # 6. Hop to tomorrow -> tomorrow's priority list must NOT be wiped!
+        res_tom = client.get(f"/api/daily-order?date={tomorrow}")
+        assert res_tom.status_code == 200
+        tom_order = res_tom.json()["order"]
+        assert len(tom_order) == 1
+        assert tom_order[0]["id"] == t_tomorrow["id"]
+
+        # 7. Hop to in_three_days -> future priority list must NOT be wiped!
+        res_fut = client.get(f"/api/daily-order?date={in_three_days}")
+        assert res_fut.status_code == 200
+        fut_order = res_fut.json()["order"]
+        assert len(fut_order) == 1
+        assert fut_order[0]["id"] == t_future["id"]
+
+    # 8. Check frontend dashboard code guarantees date-isolated state
+    dash_code = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "switchSelectedDate" in dash_code
+    assert "dailyOrderDate" in dash_code
+    assert "this.dailyOrderDate && this.dailyOrderDate !== this.selectedDate" in dash_code
+    assert "this.loadDailyOrder()" in dash_code
+
+
+
 
 
 

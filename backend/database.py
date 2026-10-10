@@ -1796,7 +1796,7 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
             continue
 
         if itype == "task":
-            t_row = conn.execute("SELECT id, due_date FROM tasks WHERE id = ?", (iid,)).fetchone()
+            t_row = conn.execute("SELECT id, title, due_date FROM tasks WHERE id = ?", (iid,)).fetchone()
             if t_row:
                 due_d = t_row["due_date"]
                 if due_d:
@@ -1805,9 +1805,12 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
                     if task_day != date_str:
                         has_changes = True
                         continue
+                if t_row["title"] and it.get("title") != t_row["title"]:
+                    it["title"] = t_row["title"]
+                    has_changes = True
             valid_items.append(it)
         elif itype == "event":
-            e_row = conn.execute("SELECT id, start_time FROM events WHERE id = ?", (iid,)).fetchone()
+            e_row = conn.execute("SELECT id, title, start_time FROM events WHERE id = ?", (iid,)).fetchone()
             if e_row:
                 ev_start = e_row["start_time"]
                 if ev_start:
@@ -1815,6 +1818,9 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
                     if ev_day != date_str:
                         has_changes = True
                         continue
+                if e_row["title"] and it.get("title") != e_row["title"]:
+                    it["title"] = e_row["title"]
+                    has_changes = True
             valid_items.append(it)
         else:
             valid_items.append(it)

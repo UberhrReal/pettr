@@ -11,6 +11,14 @@ const Dashboard = {
   userName: "Hong Rong",
   activeFilter: null,
   isUnorgCollapsed: false,
+  dailyOrder: [],
+  dailyOrderDate: (() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  })(),
   selectedDate: (() => {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -53,23 +61,32 @@ const Dashboard = {
     return false;
   },
 
+  switchSelectedDate(newDate) {
+    if (!newDate) return;
+    this.selectedDate = newDate;
+    this.dailyOrderDate = newDate;
+    // Swap dailyOrder array immediately to this specific date's cache to avoid stale cross-contamination
+    try {
+      const saved = localStorage.getItem("pettr_daily_order_" + newDate);
+      this.dailyOrder = saved ? JSON.parse(saved) : [];
+    } catch (_) {
+      this.dailyOrder = [];
+    }
+    this.renderDailyOrder();
+    this.refresh();
+  },
+
   navigateDay(direction) {
     const parts = this.selectedDate.split("-").map(Number);
     const d = new Date(parts[0], parts[1] - 1, parts[2] + direction);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
-    this.selectedDate = `${yyyy}-${mm}-${dd}`;
-    this.refresh();
+    this.switchSelectedDate(`${yyyy}-${mm}-${dd}`);
   },
 
   jumpToToday() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    this.selectedDate = `${yyyy}-${mm}-${dd}`;
-    this.refresh();
+    this.switchSelectedDate(this.getTodayString());
   },
 
   updateDateNavigatorUI() {
@@ -185,6 +202,11 @@ const Dashboard = {
   _taglineTimer: null,
 
   async init() {
+    this.dailyOrderDate = this.selectedDate;
+    try {
+      const saved = localStorage.getItem("pettr_daily_order_" + this.selectedDate);
+      if (saved) this.dailyOrder = JSON.parse(saved);
+    } catch (_) {}
     DragDrop.initContainer(document.getElementById("focusTasksList"));
     DragDrop.initContainer(document.getElementById("trivialTasksList"));
     this.bindSummaryPills();
@@ -536,13 +558,18 @@ const Dashboard = {
 
   async refresh() {
     this.updateDateNavigatorUI();
+    const refreshDate = this.selectedDate;
     await Promise.all([
       this.loadTasks(),
       this.loadEvents(),
       this.loadReminders(),
+      this.loadDailyOrder(),
       this.checkUnorganized(),
       this.loadProductivityStats()
     ]);
+    if (this.selectedDate === refreshDate) {
+      this.reconcileDailyOrderTitles();
+    }
     await this.loadBriefing();
     this.updateProgressRing();
     this.adjustPanelScaling();
@@ -859,10 +886,7 @@ const Dashboard = {
 
       // Full-width morning briefing visual formatting and raw markdown
       this.briefingData = data;
-      const [textRes] = await Promise.all([
-        fetch(`/api/briefing/text?date=${this.selectedDate}`).catch(() => null),
-        this.loadDailyOrder()
-      ]);
+      const textRes = await fetch(`/api/briefing/text?date=${this.selectedDate}`).catch(() => null);
       if (textRes && textRes.ok) {
         const textData = await textRes.json();
         this.briefingMarkdown = textData.markdown || "";
@@ -1094,44 +1118,60 @@ const Dashboard = {
   draggedSlotIdx: null,
 
   async loadDailyOrder() {
+    const targetDate = this.selectedDate;
     try {
-      const res = await fetch(`/api/daily-order?date=${this.selectedDate}`);
+      const res = await fetch(`/api/daily-order?date=${targetDate}`);
       if (res.ok) {
         const data = await res.json();
-        this.dailyOrder = data.order || [];
-        localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+        if (this.selectedDate === targetDate) {
+          this.dailyOrder = data.order || [];
+          this.dailyOrderDate = targetDate;
+          localStorage.setItem("pettr_daily_order_" + targetDate, JSON.stringify(this.dailyOrder));
+        }
       } else {
-        const saved = localStorage.getItem("pettr_daily_order_" + this.selectedDate);
-        this.dailyOrder = saved ? JSON.parse(saved) : [];
+        if (this.selectedDate === targetDate) {
+          const saved = localStorage.getItem("pettr_daily_order_" + targetDate);
+          this.dailyOrder = saved ? JSON.parse(saved) : [];
+          this.dailyOrderDate = targetDate;
+        }
       }
     } catch (e) {
-      const saved = localStorage.getItem("pettr_daily_order_" + this.selectedDate);
-      this.dailyOrder = saved ? JSON.parse(saved) : [];
+      if (this.selectedDate === targetDate) {
+        const saved = localStorage.getItem("pettr_daily_order_" + targetDate);
+        this.dailyOrder = saved ? JSON.parse(saved) : [];
+        this.dailyOrderDate = targetDate;
+      }
     }
-    this.reconcileDailyOrderTitles();
-    this.renderDailyOrder();
-    this.initDailyOrderDropZone();
-    if (this.briefingData) {
-      this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+    if (this.selectedDate === targetDate) {
+      this.renderDailyOrder();
+      this.initDailyOrderDropZone();
+      if (this.briefingData) {
+        this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+      }
     }
   },
 
   reconcileDailyOrderTitles() {
     if (!this.dailyOrder || !this.dailyOrder.length) return;
+    if (this.dailyOrderDate && this.dailyOrderDate !== this.selectedDate) return;
     const tasksLoaded = Boolean(this.tasks && (Array.isArray(this.tasks.focus) || Array.isArray(this.tasks.trivial)));
     const eventsLoaded = Array.isArray(this.events);
-    if (!tasksLoaded && !eventsLoaded) return;
+    if (!tasksLoaded || !eventsLoaded) return;
 
-    const allTasks = tasksLoaded ? [
+    const allTasks = [
       ...((this.tasks && this.tasks.focus) || []),
       ...((this.tasks && this.tasks.trivial) || [])
-    ] : [];
+    ];
+    (this.tasks && this.tasks.projects || []).forEach(p => {
+      (p.tasks || []).forEach(pt => {
+        if (!allTasks.some(t => t.id === pt.id)) allTasks.push(pt);
+      });
+    });
 
     let modified = false;
     const initialLen = this.dailyOrder.length;
     this.dailyOrder = this.dailyOrder.filter(item => {
       if (item.type === "task" || !item.type) {
-        if (!tasksLoaded) return true;
         const found = allTasks.find(t => t.id === item.id);
         if (!found) {
           modified = true;
@@ -1147,8 +1187,7 @@ const Dashboard = {
         return true;
       }
       if (item.type === "event") {
-        if (!eventsLoaded) return true;
-        const found = this.events.find(e => e.id === item.id);
+        const found = (this.events || []).find(e => e.id === item.id);
         if (!found) {
           modified = true;
           return false;
@@ -1172,22 +1211,26 @@ const Dashboard = {
   },
 
   async saveDailyOrder() {
+    const targetDate = this.selectedDate;
+    const orderToSave = [...(this.dailyOrder || [])];
     try {
-      localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+      localStorage.setItem("pettr_daily_order_" + targetDate, JSON.stringify(orderToSave));
       await fetch("/api/daily-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          date: this.selectedDate,
-          order: this.dailyOrder
+          date: targetDate,
+          order: orderToSave
         })
       });
     } catch (e) {
       console.warn("Error saving daily order:", e);
     }
-    this.renderDailyOrder();
-    if (this.briefingData) {
-      this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+    if (this.selectedDate === targetDate) {
+      this.renderDailyOrder();
+      if (this.briefingData) {
+        this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+      }
     }
   },
 
@@ -1493,8 +1536,6 @@ const Dashboard = {
       const res = await fetch(`/api/tasks?date=${this.selectedDate}`);
       if (!res.ok) return;
       this.tasks = await res.json();
-
-      this.reconcileDailyOrderTitles();
       if (this.briefingData) {
         this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
       }
@@ -1848,7 +1889,6 @@ const Dashboard = {
       const res = await fetch(`/api/events?date=${this.selectedDate}`);
       if (!res.ok) return;
       this.events = await res.json();
-      this.reconcileDailyOrderTitles();
       const container = document.getElementById("eventsList");
       if (!container) return;
       container.innerHTML = "";
