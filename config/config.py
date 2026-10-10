@@ -3,12 +3,42 @@ import os
 import hashlib
 import secrets
 from pathlib import Path
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 
 CONFIG_DIR = Path(os.environ.get("PETTR_CONFIG_DIR", Path(__file__).resolve().parent))
 DEFAULT_CONFIG_PATH = CONFIG_DIR / "pettr_config.json"
 DEFAULT_BACKUP_DIR = str(Path(os.environ.get("PETTR_BACKUP_DIR", Path(__file__).resolve().parent.parent / "backups")).resolve())
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+
+def get_ollama_candidate_urls() -> List[str]:
+    """
+    Returns prioritized candidate URLs to connect to Ollama,
+    supporting Docker-to-host bridges, Linux host gateways, and direct local endpoints.
+    """
+    candidate_urls: List[str] = []
+    if os.environ.get("OLLAMA_URL"):
+        candidate_urls.append(os.environ["OLLAMA_URL"].rstrip("/"))
+
+    try:
+        cfg = get_or_create_config()
+        cfg_url = cfg.get("ollama_url")
+        if cfg_url and cfg_url.rstrip("/") not in candidate_urls:
+            candidate_urls.append(cfg_url.rstrip("/"))
+    except Exception:
+        pass
+
+    defaults = [
+        "http://host.docker.internal:11434",
+        "http://172.17.0.1:11434",
+        "http://localhost:11434",
+        "http://127.0.0.1:11434"
+    ]
+    for d in defaults:
+        clean_d = d.rstrip("/")
+        if clean_d not in candidate_urls:
+            candidate_urls.append(clean_d)
+
+    return candidate_urls
 
 DEFAULT_CONFIG = {
     "host": "0.0.0.0",

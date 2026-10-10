@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 import httpx
-from config.config import get_or_create_config, update_pin, verify_pin, get_user_profile, update_user_name, get_current_pin, save_config
+from config.config import get_or_create_config, update_pin, verify_pin, get_user_profile, update_user_name, get_current_pin, save_config, get_ollama_candidate_urls
 from backend import database, auth, network, daily_intel
 from backend.parser.pipeline import process_user_input
 from backend.backup import run_backup, backup_scheduler_loop
@@ -772,27 +772,33 @@ async def clear_samples():
 
 @app.get("/api/llm/status", dependencies=[Depends(auth.require_auth)])
 async def get_llm_status():
-    """Checks local Ollama server connectivity and installed models."""
+    """Checks local Ollama server connectivity and installed models across candidate URLs."""
     config = get_or_create_config()
-    ollama_url = config.get("ollama_url", "http://localhost:11434")
     active_model = config.get("ollama_model", "llama3.2:3b")
+    candidate_urls = get_ollama_candidate_urls()
     models = []
     online = False
-    try:
-        async with httpx.AsyncClient(timeout=2.5) as client:
-            resp = await client.get(f"{ollama_url}/api/tags")
-            if resp.status_code == 200:
-                online = True
-                data = resp.json()
-                models = [m.get("name") for m in data.get("models", [])]
-    except Exception:
-        pass
+    connected_url = candidate_urls[0] if candidate_urls else "http://localhost:11434"
+
+    for url in candidate_urls:
+        try:
+            async with httpx.AsyncClient(timeout=1.5) as client:
+                resp = await client.get(f"{url}/api/tags")
+                if resp.status_code == 200:
+                    online = True
+                    connected_url = url
+                    data = resp.json()
+                    models = [m.get("name") for m in data.get("models", [])]
+                    break
+        except Exception:
+            continue
 
     return {
         "online": online,
-        "ollama_url": ollama_url,
+        "ollama_url": connected_url,
         "active_model": active_model,
-        "available_models": models
+        "available_models": models,
+        "candidate_urls": candidate_urls
     }
 
 @app.post("/api/llm/select", dependencies=[Depends(auth.require_auth), Depends(auth.require_host_only)])

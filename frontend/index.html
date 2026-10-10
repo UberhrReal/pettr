@@ -856,13 +856,13 @@
                 <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
                 <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
                   <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
-                    <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install the Windows installer.</li>
-                    <li><strong>Pull your first fast model</strong>: Open PowerShell on this PC and run:<br>
+                    <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
+                    <li><strong>Pull your first fast model</strong>: Run in terminal:<br>
                       <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
                       <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
                     </li>
-                    <li><strong>Always-on 24/7</strong>: Ollama automatically runs in the system tray at <code>http://127.0.0.1:11434</code>.</li>
-                    <li><strong>Zero Configuration</strong>: PETTR automatically detects it! When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
+                    <li><strong>Running outside Docker?</strong>: If PETTR runs in Docker and Ollama runs natively on the host server, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> in Ollama's systemd environment so Docker can reach it across the bridge.</li>
+                    <li><strong>Zero Configuration</strong>: PETTR automatically probes candidate endpoints (<code>host.docker.internal</code>, Docker gateway <code>172.17.0.1</code>, and <code>localhost</code>). When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
                   </ol>
                 </div>
               </details>

@@ -3,7 +3,7 @@ import json
 import re
 from typing import Dict, Any, List, Optional
 import httpx
-from config.config import get_or_create_config
+from config.config import get_or_create_config, get_ollama_candidate_urls
 
 SYSTEM_PROMPT = """You are PETTR's intelligent task and project intent classification engine.
 Your job is to understand natural language logs and transform them into structured JSON with contextual reasoning.
@@ -367,7 +367,7 @@ async def classify_with_llm(cleaned_text: str,
     Falls back seamlessly to the heuristic classifier if Ollama is unreachable.
     """
     config = get_or_create_config()
-    ollama_url = os.environ.get("OLLAMA_URL") or config.get("ollama_url", "http://localhost:11434")
+    candidate_urls = get_ollama_candidate_urls()
     model_name = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model", "llama3.2:3b")
 
     prompt_lines = [
@@ -395,55 +395,56 @@ async def classify_with_llm(cleaned_text: str,
         }
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-            resp = await client.post(f"{ollama_url}/api/generate", json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_response = data.get("response", "{}")
-                parsed = json.loads(raw_response)
-                
-                # Validate schema fields
-                entity_type = explicit_entity_type or parsed.get("entity_type", "task")
-                if entity_type not in ("project", "task", "event", "reminder", "unorganized"):
-                    entity_type = "task"
+    for ollama_url in candidate_urls:
+        try:
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                resp = await client.post(f"{ollama_url}/api/generate", json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_response = data.get("response", "{}")
+                    parsed = json.loads(raw_response)
+                    
+                    # Validate schema fields
+                    entity_type = explicit_entity_type or parsed.get("entity_type", "task")
+                    if entity_type not in ("project", "task", "event", "reminder", "unorganized"):
+                        entity_type = "task"
 
-                raw_title = parsed.get("title") or cleaned_text
-                # Clean prefix "new task" or "task" if LLM left it in title
-                cleaned_title = re.sub(r'^(?:(?:new\s+)?task|todo|add\s+task)\s*[:\-]?\s*', '', raw_title, flags=re.IGNORECASE).strip(' :-,')
-                if not cleaned_title:
-                    cleaned_title = raw_title
+                    raw_title = parsed.get("title") or cleaned_text
+                    # Clean prefix "new task" or "task" if LLM left it in title
+                    cleaned_title = re.sub(r'^(?:(?:new\s+)?task|todo|add\s+task)\s*[:\-]?\s*', '', raw_title, flags=re.IGNORECASE).strip(' :-,')
+                    if not cleaned_title:
+                        cleaned_title = raw_title
 
-                proj_name = parsed.get("project_name")
-                is_new_proj = bool(parsed.get("is_new_project", False))
-                # If entity is an event, prevent spurious new project creation unless explicitly commanded
-                if entity_type == "event" and is_new_proj:
-                    if not re.search(rf'\bproject\s+{re.escape(proj_name or "")}\b', cleaned_text, re.IGNORECASE):
-                        proj_name = None
-                        is_new_proj = False
+                    proj_name = parsed.get("project_name")
+                    is_new_proj = bool(parsed.get("is_new_project", False))
+                    # If entity is an event, prevent spurious new project creation unless explicitly commanded
+                    if entity_type == "event" and is_new_proj:
+                        if not re.search(rf'\bproject\s+{re.escape(proj_name or "")}\b', cleaned_text, re.IGNORECASE):
+                            proj_name = None
+                            is_new_proj = False
 
-                conf = float(parsed.get("confidence", 0.9))
-                if explicit_entity_type:
-                    conf = max(conf, 0.95)
-                elif proj_name and entity_type == "task":
-                    conf = max(conf, 0.95)
+                    conf = float(parsed.get("confidence", 0.9))
+                    if explicit_entity_type:
+                        conf = max(conf, 0.95)
+                    elif proj_name and entity_type == "task":
+                        conf = max(conf, 0.95)
 
-                task_tier = explicit_tier or parsed.get("task_tier")
+                    task_tier = explicit_tier or parsed.get("task_tier")
 
-                return {
-                    "entity_type": entity_type,
-                    "title": cleaned_title,
-                    "description": parsed.get("description", ""),
-                    "project_name": proj_name,
-                    "project_category": parsed.get("project_category"),
-                    "is_new_project": is_new_proj,
-                    "task_tier": task_tier,
-                    "confidence": conf,
-                    "reasoning": parsed.get("reasoning", "Classified by local LLM"),
-                    "engine": f"ollama ({model_name})"
-                }
-    except Exception:
-        pass
+                    return {
+                        "entity_type": entity_type,
+                        "title": cleaned_title,
+                        "description": parsed.get("description", ""),
+                        "project_name": proj_name,
+                        "project_category": parsed.get("project_category"),
+                        "is_new_project": is_new_proj,
+                        "task_tier": task_tier,
+                        "confidence": conf,
+                        "reasoning": parsed.get("reasoning", "Classified by local LLM"),
+                        "engine": f"ollama ({model_name})"
+                    }
+        except Exception:
+            continue
 
     # Fallback to deterministic heuristic classifier
     heuristic_res = heuristic_classify(

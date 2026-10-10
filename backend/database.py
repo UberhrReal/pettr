@@ -1053,23 +1053,14 @@ def _get_llm_storage_info(force_refresh: bool = False) -> Dict[str, Any]:
     target_model = "llama3.2:3b"
     candidate_urls = []
     try:
-        from config.config import get_or_create_config
+        from config.config import get_or_create_config, get_ollama_candidate_urls
         cfg = get_or_create_config()
         if cfg.get("ollama_model"):
             target_model = cfg["ollama_model"]
         elif cfg.get("active_llm"):
             target_model = cfg["active_llm"]
-        if cfg.get("ollama_url"):
-            candidate_urls.append(cfg["ollama_url"])
+        candidate_urls = get_ollama_candidate_urls()
     except Exception:
-        pass
-
-    if os.environ.get("OLLAMA_MODEL"):
-        target_model = os.environ["OLLAMA_MODEL"]
-    if os.environ.get("OLLAMA_URL"):
-        candidate_urls.append(os.environ["OLLAMA_URL"])
-
-    if not candidate_urls:
         candidate_urls = ["http://127.0.0.1:11434"]
 
     # 2. Check candidate Ollama on-disk directories
