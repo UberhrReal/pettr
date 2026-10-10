@@ -142,6 +142,7 @@ const CommandPalette = {
       { id: "act-theme-auto", title: "Set Theme: Auto Solar Transition", category: "ACTION", icon: "sun-moon", action: () => App.setTheme("auto") },
       { id: "act-theme-light", title: "Set Theme: Light Editorial", category: "ACTION", icon: "sun", action: () => App.setTheme("light") },
       { id: "act-theme-dark", title: "Set Theme: Deep Midnight Aurora", category: "ACTION", icon: "moon", action: () => App.setTheme("dark") },
+      { id: "act-horace", title: "Chat with Horace (Local LLM Drawer) [Alt+H]", category: "ACTION", icon: "bot", action: () => HoraceChat.open() },
       { id: "act-lock", title: "Lock Session & Require PIN", category: "ACTION", icon: "lock", action: () => App.logout() },
     ];
     this.items.push(...actionItems);

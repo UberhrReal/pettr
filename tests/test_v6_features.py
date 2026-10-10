@@ -1229,6 +1229,11 @@ async def test_horace_persona_instructions_and_context(temp_db, monkeypatch):
     assert "Hyperion-1" in telemetry
     assert "Calibrate gyroscopes" in telemetry
 
+    # Verify custom user persona adaptation works dynamically for any user
+    custom_prompt = horace.get_horace_system_prompt("Sarah")
+    assert "running PETTR for Sarah" in custom_prompt
+    assert "Sarah dumps total chaos" in custom_prompt
+
 
 @pytest.mark.anyio
 async def test_horace_chat_persistence_and_api(temp_db, monkeypatch):

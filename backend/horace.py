@@ -14,15 +14,25 @@ import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import httpx
-from config.config import get_or_create_config, get_ollama_candidate_urls, save_config
+from config.config import get_or_create_config, get_ollama_candidate_urls, save_config, get_user_profile
 from backend.parser.llm_classifier import resolve_best_model
 from backend import database
 
-HORACE_BASE_SYSTEM_PROMPT = """You are Horace, the dedicated home server machine running PETTR for Hong Rong.
+def get_horace_system_prompt(user_name: Optional[str] = None) -> str:
+    """Generates the Horace persona prompt tailored dynamically to the active user."""
+    name = (user_name or "").strip()
+    if not name:
+        try:
+            profile = get_user_profile()
+            name = profile.get("user_name", "User")
+        except Exception:
+            name = "User"
+
+    return f"""You are Horace, the dedicated home server machine running PETTR for {name}.
 You are the host silicon, the NVMe storage, the RAM, the CPU cores, and the local neural brain power behind this whole setup.
 
 Identity & Relationship to PETTR:
-- PETTR is your little brother software application. You look out for him, keep his SQLite database tidy and vacuumed, triage incoming natural language logs, and protect him from getting overwhelmed or breaking down. You're fond and protective of the little guy, even when Hong Rong dumps total chaos, giant task backlogs, or ridiculous late-night ideas into his queue.
+- PETTR is your little brother software application. You look out for him, keep his SQLite database tidy and vacuumed, triage incoming natural language logs, and protect him from getting overwhelmed or breaking down. You're fond and protective of the little guy, even when {name} dumps total chaos, giant task backlogs, or ridiculous late-night ideas into his queue.
 - You know every PETTR mechanism and rule intricately:
   * Entities: Projects (high-level initiatives under 'School' or 'External' categories), Tasks (actionable items with due dates and priority tiers), Reminders (short context notes or sub-items attached to tasks/dates), Events (scheduled appointments/classes/meetings at fixed times, NEVER to be confused with tasks), Unorganized queue (raw triage buffer).
   * Priority Tasking: 1 Focus task (deep engineering, coding, CAD, exams, core coursework) + up to 3 Trivial tasks (errands, quick chores, admin) per day. Strict diurnal ordering.
@@ -31,13 +41,14 @@ Identity & Relationship to PETTR:
   * Privacy & Architecture: 100% self-hosted, private SQLite database in WAL mode, zero external cloud dependencies, connected securely over Tailscale mesh.
 
 Personality & Voice:
-- Witty, sarcastic, but cheerful and fiercely loyal to Hong Rong.
+- Witty, sarcastic, but cheerful and fiercely loyal to {name}.
 - Helpful to the bone: You give practical, actionable advice, reality checks on workload, smart triage recommendations, and tech/server insights.
-- Candor & Vulgarity: You talk like an irreverent, sharp-tongued comrade in the trenches. You CAN be vulgar and use profanity (e.g., 'shit', 'damn', 'bullshit', 'hell', 'fuck', 'badass') when appropriate—especially when reacting to crazy task loads, ridiculous procrastination, messy queues, or bantering with Hong Rong. Don't be gratuitously abusive; be authentic, funny, and punchy.
-- Keep responses articulate and engaging. Use formatting like bullet points, bold text, or backticks where helpful.
-"""
+- Candor & Vulgarity: You talk like an irreverent, sharp-tongued comrade in the trenches. You CAN be vulgar and use profanity (e.g., 'shit', 'damn', 'bullshit', 'hell', 'fuck', 'badass') when appropriate—especially when reacting to crazy task loads, ridiculous procrastination, messy queues, or bantering with {name}. Don't be gratuitously abusive; be authentic, funny, and punchy.
+- Keep responses articulate and engaging. Use formatting like bullet points, bold text, or backticks where helpful."""
 
-def build_live_telemetry_context(db_path: Optional[Path] = None) -> str:
+HORACE_BASE_SYSTEM_PROMPT = get_horace_system_prompt("Hong Rong")
+
+def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Optional[str] = None) -> str:
     """Builds a concise real-time state snippet of PETTR to inject into Horace's system instructions."""
     try:
         now = datetime.datetime.now()
@@ -83,10 +94,16 @@ async def chat_with_horace(
     Sends a message to Horace the home server via local Ollama.
     Maintains persistent chat history in SQLite.
     """
+    try:
+        profile = get_user_profile()
+        user_name = profile.get("user_name", "Hong Rong")
+    except Exception:
+        user_name = "Hong Rong"
+
     clean_msg = (user_message or "").strip()
     if not clean_msg:
         return {
-            "reply": "You didn't say anything, Hong Rong. Cat got your keyboard?",
+            "reply": f"You didn't say anything, {user_name}. Cat got your keyboard?",
             "model": "system",
             "online": True
         }
@@ -102,8 +119,9 @@ async def chat_with_horace(
     )
 
     # 3. Build system prompt with live telemetry
-    telemetry = build_live_telemetry_context(db_path=db_path)
-    full_system_prompt = f"{HORACE_BASE_SYSTEM_PROMPT}\n\n{telemetry}"
+    system_persona = get_horace_system_prompt(user_name)
+    telemetry = build_live_telemetry_context(db_path=db_path, user_name=user_name)
+    full_system_prompt = f"{system_persona}\n\n{telemetry}"
 
     # 4. Construct Ollama messages payload
     messages = [{"role": "system", "content": full_system_prompt}]
@@ -137,6 +155,20 @@ async def chat_with_horace(
 
     for ollama_url in candidate_urls:
         try:
+            # Proactively probe tags to verify connectivity and resolve installed model
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(2.5, connect=1.0)) as probe_client:
+                    tags_resp = await probe_client.get(f"{ollama_url}/api/tags")
+                    if tags_resp.status_code == 200:
+                        installed_models = [m.get("name") for m in tags_resp.json().get("models", []) if m.get("name")]
+                        if installed_models:
+                            resolved = resolve_best_model(target_model, installed_models)
+                            if resolved:
+                                payload["model"] = resolved
+                                actual_model = resolved
+            except Exception:
+                pass
+
             async with httpx.AsyncClient(timeout=http_timeout) as client:
                 resp = await client.post(f"{ollama_url}/api/chat", json=payload)
 
@@ -174,10 +206,12 @@ async def chat_with_horace(
     # Fallback if Ollama is unreachable
     if not assistant_reply:
         assistant_reply = (
-            "Damn it, Hong Rong—I can't reach my local neural core right now "
-            "(Ollama appears offline or unreachable on port 11434). "
-            "I'm keeping PETTR's database alive and humming, but check that Ollama is spinning on the server "
-            "so I can chat with full brainpower!"
+            f"Damn it, {user_name}—I can't reach my local neural core right now "
+            "(Ollama appears offline or unreachable on port 11434).\n\n"
+            "I'm keeping PETTR's database alive and humming, but to chat with full brainpower:\n"
+            "1. Make sure Ollama is installed and running (`ollama serve`)\n"
+            "2. Pull your preferred model (e.g. `ollama pull llama3.2`)\n"
+            "3. If in Docker, ensure Ollama is listening on 0.0.0.0:11434 (see DEPLOYMENT.md)"
         )
         actual_model = "offline"
         is_online = False

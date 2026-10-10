@@ -115,6 +115,12 @@ Ollama runs natively on the Ubuntu host to maximize CPU AVX2 instructions and RA
    # ollama pull qwen2.5:3b
    ```
 
+5. **Horace AI Companion & Multi-Turn Chat Integration**:
+   - PETTR includes **Horace**, a local AI companion persona running on your home server.
+   - Horace communicates with Ollama via `/api/chat` using `keep_alive: "30m"` to eliminate cold-start latency.
+   - If `llama3.2:3b` or `llama3.2:latest` is installed, PETTR's smart model resolver dynamically matches tags without manual reconfiguration.
+   - All conversations are stored permanently in the host SQLite database (`llm_chat_messages`) in `./data/pettr.sqlite`.
+
 ---
 
 ## 5. Install Docker & Docker Compose

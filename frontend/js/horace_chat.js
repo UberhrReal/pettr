@@ -163,12 +163,13 @@ const HoraceChat = {
     if (!container) return;
 
     if (!this.messages || this.messages.length === 0) {
+      const userName = (typeof Dashboard !== "undefined" && Dashboard.userName) || localStorage.getItem("pettr_user_name") || "there";
       container.innerHTML = `
         <div class="horace-welcome-card">
           <div class="horace-welcome-avatar">
             <i data-lucide="bot"></i>
           </div>
-          <div class="horace-welcome-title">Yo Hong Rong! I'm Horace.</div>
+          <div class="horace-welcome-title">Yo ${this.escapeHtml(userName)}! I'm Horace.</div>
           <p class="horace-welcome-text">
             I'm the home server machine keeping this entire PETTR rig running. 
             PETTR is my little brother, so I keep his SQLite database tidy and his queues moving. 

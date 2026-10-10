@@ -31,6 +31,14 @@ A 24/7 self-hosted, lightweight personal productivity hub designed to run on a l
 - **Daily Contextual Intel Typewriter Banner**:
   - Generates date-specific typewriter intelligence lines via local LLM at midnight every day (e.g., historical milestones, mission briefings).
   - SQLite daily cache prevents redundant LLM calls; top and bottom typewriter phrases never duplicate each other.
+  - Strict single-line length constraints eliminate vertical layout jumping.
+- **Horace: Persistent Local AI Companion & Server Persona (`Alt+H`)**:
+  - Collapsible slide-out chat drawer to converse directly with the home server host running PETTR.
+  - **Persona & Disposition**: Horace treats PETTR as his little brother that he protects and keeps organized. Features an articulate, witty, sarcastic, and cheerful disposition, with freedom to use candid profanity/banter when appropriate.
+  - **Intricate PETTR Knowledge**: Deeply understands focus tiers, projects, reminders, appointments, diurnal rhythms, and day sealing.
+  - **Live Telemetry Context**: Dynamically injects real-time active project names and today's focus/trivial tasks into his context window so he can give actionable planning advice.
+  - **Persistent SQLite Storage**: Full multi-turn conversation memory stored in `llm_chat_messages` table across reboots and devices.
+  - **Omnipresent Accessibility**: Toggle via top navigation button, keyboard shortcut (`Alt+H` or `Cmd/Ctrl+Shift+H`), or the Command Palette (`Ctrl+K`).
 - **Intelligent Classification & Organization**:
   - **Projects**: Auto-added to the global pool on first mention (e.g. `"Social Science 1D"`, `"IDEA-1 Concept"`), segregated into **School** 🎓 and **External** 🌐 pools with distinct untaken colors.
   - **Redesigned Split View Pool Pills**: Capsule pill headers for School (Academic Violet/Indigo) and External (Radiant Amber/Gold) pools with theme-adaptive high contrast and subtle breathing pulses.
@@ -142,17 +150,28 @@ Because PETTR is designed to run headlessly on your server without a desktop GUI
 
 ---
 
-## Local LLM (Ollama) Setup
+## Local LLM (Ollama) Setup & Horace Integration
 
-To enable local AI classification and daily typewriter intelligence:
-- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
-- **Windows**: `winget install Ollama.Ollama`
+PETTR integrates deeply with local Ollama models for intent classification, midnight typewriter intelligence, and conversational companion chat with **Horace**.
 
-Pull the recommended fast 3B model:
-```bash
-ollama pull llama3.2:3b
-```
-PETTR will automatically detect Ollama and route task intent classification through structured JSON schemas, falling back gracefully to heuristic parsing if Ollama is unreachable.
+1. **Install Ollama**:
+   - **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
+   - **Windows**: `winget install Ollama.Ollama`
+   - **macOS**: `brew install ollama`
+
+2. **Pull Your Preferred Model**:
+   ```bash
+   # Recommended fast 3B model (~2GB RAM footprint):
+   ollama pull llama3.2:3b
+
+   # Or latest tag (automatically auto-resolved by PETTR):
+   ollama pull llama3.2
+   ```
+
+3. **How It Works**:
+   - **Intent Classifier**: Maps stream-of-consciousness logs into structured JSON schemas. Falls back to heuristic parsing if Ollama is unreachable.
+   - **Horace Chat**: Open the chat drawer via <kbd>Alt+H</kbd> or the top header button to talk directly to your server node. Multi-turn conversation history is preserved in SQLite (`llm_chat_messages`).
+   - **Model Flexibility**: PETTR automatically detects installed models via Ollama tags (`/api/tags`) and resolves tag aliases (e.g. `llama3.2:3b` $\leftrightarrow$ `llama3.2:latest` $\leftrightarrow$ `llama3`). You can also switch models anytime in Settings or via `/api/llm/select`.
 
 ---
 
