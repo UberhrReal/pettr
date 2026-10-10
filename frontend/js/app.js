@@ -1375,21 +1375,58 @@ const App = {
     }
   },
 
+  escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  },
+
   async testLlmPing() {
     const resultEl = document.getElementById("llmTestResult");
     if (resultEl) {
       resultEl.style.color = "var(--text-muted)";
-      resultEl.textContent = "Sending test inference to local engine...";
+      resultEl.innerHTML = `<span>⏳ Testing latency & connectivity...</span>`;
     }
     try {
       const res = await fetch("/api/llm/test", { method: "POST" });
       const data = await res.json();
       if (res.ok && resultEl) {
-        const engine = data.engine === "ollama" ? "🤖 Ollama Local LLM" : "⚡ Deterministic Regex Engine (Offline Fallback)";
-        resultEl.style.color = "var(--normal-green)";
+        const isOnline = Boolean(data.is_model_online || (typeof data.engine === "string" && data.engine.toLowerCase().startsWith("ollama")));
         const sampleTitle = (data.sample_result && data.sample_result.title) ? data.sample_result.title : "OK";
         const sampleType = (data.sample_result && data.sample_result.entity_type) ? data.sample_result.entity_type : "task";
-        resultEl.innerHTML = `<strong>${engine}</strong> · Latency: <strong>${data.latency_ms}ms</strong> · Result: "${sampleTitle}" (${sampleType})`;
+        const cleanTitle = this.escapeHtml(sampleTitle);
+
+        if (isOnline) {
+          resultEl.style.color = "var(--normal-green)";
+          const rawEngine = typeof data.engine === "string" ? data.engine : "ollama";
+          const modelTag = rawEngine.replace(/^ollama\s*/i, "").replace(/[\(\)]/g, "").trim() || "Active";
+          resultEl.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0;">
+              <div><strong>🤖 Ollama Local LLM (${this.escapeHtml(modelTag)}) Online</strong> · Latency: <strong>${data.latency_ms}ms</strong></div>
+              <div style="font-size: 11px; opacity: 0.85;">Neural classifier response: "${cleanTitle}" (${sampleType})</div>
+            </div>`;
+        } else {
+          resultEl.style.color = "inherit";
+          resultEl.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 6px; background: var(--urgent-orange-bg); padding: 10px 12px; border-radius: var(--radius-xs); border: 1px solid rgba(255, 69, 0, 0.25); margin-top: 4px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                <span style="font-weight: 700; color: var(--urgent-orange);">⚠️ Local LLM is Offline</span>
+                <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">Fallback Latency: <strong>${data.latency_ms}ms</strong></span>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.45;">
+                Ollama is currently unreachable on <code>127.0.0.1:11434</code>. PETTR is operating in zero-downtime offline mode using its built-in <strong>Deterministic Regex Engine</strong>. Test sample parsed: <em>"${cleanTitle}" (${sampleType})</em>.
+              </div>
+              <div style="font-size: 11px; color: var(--text-dim);">
+                💡 <em>To enable neural LLM inference, start Ollama via <code>ollama serve</code> or launch the Ollama desktop app.</em>
+              </div>
+            </div>`;
+        }
+        // Refresh the header pill to keep state synchronized
+        this.loadLlmStatus();
       } else if (resultEl) {
         resultEl.style.color = "var(--urgent-orange)";
         resultEl.textContent = "Test failed: " + (data.detail || "Could not reach engine");

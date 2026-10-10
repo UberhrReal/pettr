@@ -816,9 +816,12 @@ async def test_llm_ping():
         active_projects=["IDEA-1 Concept"]
     )
     elapsed_ms = round((time.time() - t0) * 1000)
+    engine_name = res.get("engine", "unknown")
+    is_model_online = str(engine_name).lower().startswith("ollama")
     return {
         "status": "success",
-        "engine": res.get("engine", "unknown"),
+        "engine": engine_name,
+        "is_model_online": is_model_online,
         "latency_ms": elapsed_ms,
         "sample_result": res
     }

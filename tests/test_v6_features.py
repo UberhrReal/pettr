@@ -997,6 +997,33 @@ def test_multiple_priority_lists_across_different_dates(temp_db, monkeypatch):
     assert "this.loadDailyOrder()" in dash_code
 
 
+def test_llm_ping_offline_and_online_clarity(temp_db, monkeypatch):
+    """Test /api/llm/test returns status, is_model_online, latency, and sample result."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 1. When Ollama is offline (default on CI / local without Ollama process)
+        res = client.post("/api/llm/test")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["status"] == "success"
+        assert "engine" in data
+        assert "is_model_online" in data
+        assert isinstance(data["latency_ms"], int)
+        assert data["latency_ms"] >= 0
+        assert data["sample_result"]["title"] == "Schedule engineering sprint review tomorrow at 14:00"
+        assert data["sample_result"]["entity_type"] == "task"
+
+    # 2. Verify frontend displays clear offline explanation instead of deceiving green
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    assert "Local LLM is Offline" in app_js
+    assert "Deterministic Regex Engine" in app_js
+    assert "ollama serve" in app_js
+
+
+
 
 
 
