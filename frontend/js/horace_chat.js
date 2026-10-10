@@ -211,12 +211,13 @@ const HoraceChat = {
           </div>
         `;
       } else {
+        const isNew = msg._isNew ? " just-arrived" : "";
         html += `
           <div class="horace-msg-row assistant">
             <div class="horace-msg-avatar" title="Horace (${msg.model || 'Local'})">
               <i data-lucide="bot"></i>
             </div>
-            <div class="horace-msg-bubble assistant">
+            <div class="horace-msg-bubble assistant${isNew}">
               <div class="horace-msg-sender">
                 <span class="horace-msg-name">Horace</span>
                 <span class="horace-msg-model-tag">${this.escapeHtml(msg.model || this.activeModel)}</span>
@@ -356,7 +357,10 @@ const HoraceChat = {
     });
     this.renderMessages();
 
-    // Show typing indicator
+    // Show typing indicator & trigger thinking animation
+    const panel = document.getElementById("horacePanel");
+    if (panel) panel.classList.add("thinking");
+
     const typing = document.getElementById("horaceTypingIndicator");
     if (typing) {
       typing.style.display = "flex";
@@ -364,7 +368,10 @@ const HoraceChat = {
     }
 
     const sendBtn = document.getElementById("horaceSendBtn");
-    if (sendBtn) sendBtn.disabled = true;
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.classList.add("sending");
+    }
 
     try {
       const res = await fetch("/api/llm/chat", {
@@ -379,7 +386,8 @@ const HoraceChat = {
           role: "assistant",
           content: data.reply,
           model: data.model || this.activeModel,
-          created_at: data.created_at || new Date().toISOString()
+          created_at: data.created_at || new Date().toISOString(),
+          _isNew: true
         });
         if (data.online !== undefined) {
           this.isOnline = data.online;
@@ -391,7 +399,8 @@ const HoraceChat = {
           role: "assistant",
           content: "Shit, something crashed on the backend route. Check server logs.",
           model: "system",
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          _isNew: true
         });
       }
     } catch (err) {
@@ -399,14 +408,19 @@ const HoraceChat = {
         role: "assistant",
         content: "Network hiccup or timeout reaching the server node. Tailscale might be re-authenticating.",
         model: "offline",
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        _isNew: true
       });
       this.isOnline = false;
       this.updateStatusUI();
     } finally {
       this.isSending = false;
+      if (panel) panel.classList.remove("thinking");
       if (typing) typing.style.display = "none";
-      if (sendBtn) sendBtn.disabled = false;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove("sending");
+      }
       this.renderMessages();
       this.scrollToBottom();
     }
