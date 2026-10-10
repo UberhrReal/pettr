@@ -1715,35 +1715,33 @@ async def test_horace_telemetry_grounding_and_reliability(temp_db, monkeypatch):
 
 @pytest.mark.anyio
 async def test_display_name_editing_tool_and_modal(temp_db, monkeypatch):
-    """Verify display name editing tool works on the frontend and persists via /api/profile."""
+    """Verify display name editing persists via /api/profile and is configured via Settings."""
     from backend import app
     from fastapi.testclient import TestClient
 
     # 1. Test backend /api/profile endpoint
     with TestClient(app.app) as client:
         client.post("/api/auth/login", json={"pin": "1234"})
-        res = client.post("/api/profile", json={"user_name": "Hong Rong Commander"})
+        res = client.post("/api/profile", json={"user_name": "Commander User"})
         assert res.status_code == 200
         assert res.json()["status"] == "success"
 
         get_res = client.get("/api/profile")
         assert get_res.status_code == 200
-        assert get_res.json()["user_name"] == "Hong Rong Commander"
+        assert get_res.json()["user_name"] == "Commander User"
 
         # Restore default name
         client.post("/api/profile", json={"user_name": "User"})
 
-    # 2. Test frontend markup contains display name editing tool components
+    # 2. Test frontend markup: Settings contains input, modal and chip are removed
     index_html = Path("frontend/index.html").read_text(encoding="utf-8")
-    assert "nameDisplayChip" in index_html
-    assert "name-editor-chip" in index_html
-    assert "editDisplayNameModal" in index_html
-    assert "editDisplayNameModalInput" in index_html
+    assert "settingsProfileNameInput" in index_html
+    assert "nameDisplayChip" not in index_html
+    assert "editDisplayNameModal" not in index_html
 
-    dashboard_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
-    assert "openEditNameModal" in dashboard_js
-    assert "saveDisplayNameFromModal" in dashboard_js
-    assert "promptEditUserName" in dashboard_js
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    assert "saveProfileFromSettings" in app_js
+    assert "loadProfileSettings" in app_js
 
     cmd_js = Path("frontend/js/command_palette.js").read_text(encoding="utf-8")
     assert "act-name" in cmd_js

@@ -143,7 +143,16 @@ const CommandPalette = {
       { id: "act-theme-light", title: "Set Theme: Light Editorial", category: "ACTION", icon: "sun", action: () => App.setTheme("light") },
       { id: "act-theme-dark", title: "Set Theme: Deep Midnight Aurora", category: "ACTION", icon: "moon", action: () => App.setTheme("dark") },
       { id: "act-horace", title: "Chat with Horace (Local LLM Drawer) [Alt+H]", category: "ACTION", icon: "bot", action: () => HoraceChat.open() },
-      { id: "act-name", title: "Edit Preferred Display Name", category: "ACTION", icon: "user-pen", action: () => Dashboard.openEditNameModal() },
+      { id: "act-name", title: "Change Display Name in Settings", category: "ACTION", icon: "user-pen", action: () => {
+        App.switchTab("settings");
+        setTimeout(() => {
+          const input = document.getElementById("settingsProfileNameInput");
+          if (input) {
+            input.scrollIntoView({ behavior: "smooth", block: "center" });
+            input.focus();
+          }
+        }, 150);
+      }},
       { id: "act-lock", title: "Lock Session & Require PIN", category: "ACTION", icon: "lock", action: () => App.logout() },
     ];
     this.items.push(...actionItems);

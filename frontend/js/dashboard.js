@@ -273,8 +273,6 @@ const Dashboard = {
       const saved = localStorage.getItem("pettr_user_name");
       if (saved) this.userName = saved;
     }
-    const chipEl = document.getElementById("nameDisplayChip");
-    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
     const settingsInput = document.getElementById("settingsProfileNameInput");
     if (settingsInput) settingsInput.value = this.userName;
     this.renderGreeting();
@@ -296,9 +294,7 @@ const Dashboard = {
     }
     const greetingEl = document.getElementById("greetingText");
     const subtextEl = document.getElementById("greetingSubtext");
-    const chipEl = document.getElementById("nameDisplayChip");
     if (!greetingEl) return;
-    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
 
     const clientHour = new Date().getHours();
     const isWeeHours = clientHour >= 0 && clientHour < 6;
@@ -491,47 +487,9 @@ const Dashboard = {
     }
   },
 
-  openEditNameModal() {
-    const modal = document.getElementById("editDisplayNameModal");
-    const input = document.getElementById("editDisplayNameModalInput");
-    if (!modal) {
-      this.promptEditUserName();
-      return;
-    }
-    if (input) {
-      input.value = this.userName || "";
-    }
-    modal.style.display = "flex";
-    if (input) {
-      setTimeout(() => input.focus(), 80);
-    }
-    if (window.lucide) window.lucide.createIcons();
-  },
-
-  closeEditNameModal() {
-    const modal = document.getElementById("editDisplayNameModal");
-    if (modal) modal.style.display = "none";
-  },
-
-  async saveDisplayNameFromModal() {
-    const input = document.getElementById("editDisplayNameModalInput");
-    const newName = input ? input.value.trim() : "";
-    if (!newName) {
-      if (typeof App !== "undefined" && App.showToast) {
-        App.showToast("Display name cannot be empty", true);
-      }
-      return;
-    }
-    await this.applyNewUserName(newName);
-    this.closeEditNameModal();
-  },
-
   async applyNewUserName(newName) {
     this.userName = (newName || "").trim();
     localStorage.setItem("pettr_user_name", this.userName);
-
-    const chipEl = document.getElementById("nameDisplayChip");
-    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
 
     const settingsInput = document.getElementById("settingsProfileNameInput");
     if (settingsInput) settingsInput.value = this.userName;
@@ -554,17 +512,6 @@ const Dashboard = {
       console.warn("Could not persist name to server:", e);
       this.renderGreeting();
     }
-  },
-
-  async promptEditUserName() {
-    const modal = document.getElementById("editDisplayNameModal");
-    if (modal) {
-      this.openEditNameModal();
-      return;
-    }
-    const newName = prompt("Enter your preferred display name (e.g. Alex, Me):", this.userName);
-    if (!newName || !newName.trim()) return;
-    await this.applyNewUserName(newName.trim());
   },
 
   bindSummaryPills() {

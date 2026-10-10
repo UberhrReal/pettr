@@ -1287,8 +1287,6 @@ const App = {
         if (typeof Dashboard !== "undefined") {
           Dashboard.userName = name;
           localStorage.setItem("pettr_user_name", name);
-          const chipEl = document.getElementById("nameDisplayChip");
-          if (chipEl) chipEl.textContent = `👤 ${name}`;
           if (Dashboard.refreshDailyIntel) {
             Dashboard.refreshDailyIntel();
           } else {
