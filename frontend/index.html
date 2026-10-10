@@ -630,16 +630,55 @@
     <!-- Tab 4: Notes -->
     <section id="tabNotes" class="tab-pane">
       <div class="notes-container">
+        <!-- Notes Sidebar -->
         <div class="notes-sidebar">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="font-size: 15px; font-weight: 700;">Scratchpad</h3>
-            <button class="action-icon-btn" onclick="Notes.createNewNote()" style="font-weight: 700; color: var(--text-main);">+ New</button>
+          <!-- Folder Navigation Switcher -->
+          <div class="notes-folder-nav">
+            <button type="button" class="notes-folder-nav-btn active" id="notesNavNotesBtn" onclick="Notes.switchView('notes')" title="Scratchpad Notes">
+              <i data-lucide="file-text" style="width:14px;height:14px;"></i>
+              <span>Scratchpad</span>
+              <span class="notes-badge-count" id="notesCountBadge">0</span>
+            </button>
+            <button type="button" class="notes-folder-nav-btn" id="notesNavMediaBtn" onclick="Notes.switchView('media')" title="Scratchpad Media Folder">
+              <i data-lucide="folder-image" style="width:14px;height:14px;"></i>
+              <span>Media Folder</span>
+              <span class="notes-badge-count" id="notesMediaCountBadge">0</span>
+            </button>
           </div>
-          <div id="notesListSidebar" style="display: flex; flex-direction: column; gap: 6px;">
-            <!-- Notes list injected here -->
+
+          <!-- Notes List View Section (active in 'notes' mode) -->
+          <div id="notesListViewSection">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; margin-top: 10px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Notes</span>
+              <button class="action-icon-btn" onclick="Notes.createNewNote()" style="font-weight: 700; color: var(--text-main); font-size: 11px;">+ New</button>
+            </div>
+            <div id="notesListSidebar" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Notes list injected here -->
+            </div>
+          </div>
+
+          <!-- Media Filters Section (active in 'media' mode) -->
+          <div id="notesMediaFiltersSection" style="display: none; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Filter Media</span>
+              <button class="action-icon-btn" onclick="Notes.refreshMediaList()" title="Refresh Media" style="font-size: 11px;"><i data-lucide="rotate-cw" style="width:11px;height:11px;"></i></button>
+            </div>
+            <div class="notes-media-filter-chips">
+              <button type="button" class="media-filter-chip active" data-filter="all" onclick="Notes.filterMedia('all')">All (<span id="mediaFilterAllCount">0</span>)</button>
+              <button type="button" class="media-filter-chip" data-filter="image" onclick="Notes.filterMedia('image')">Images (<span id="mediaFilterImageCount">0</span>)</button>
+              <button type="button" class="media-filter-chip" data-filter="video" onclick="Notes.filterMedia('video')">Videos (<span id="mediaFilterVideoCount">0</span>)</button>
+              <button type="button" class="media-filter-chip" data-filter="audio" onclick="Notes.filterMedia('audio')">Audio (<span id="mediaFilterAudioCount">0</span>)</button>
+              <button type="button" class="media-filter-chip" data-filter="file" onclick="Notes.filterMedia('file')">Files (<span id="mediaFilterFileCount">0</span>)</button>
+            </div>
+            <div class="notes-media-folder-stats" id="notesMediaFolderStats">
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Storage Used</div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text-main); margin-top: 2px;" id="notesMediaTotalSize">0 B</div>
+            </div>
           </div>
         </div>
-        <div class="notes-editor-card">
+
+        <!-- Note Editor Card (active in 'notes' mode) -->
+        <div class="notes-editor-card" id="notesEditorCard">
           <div class="notes-editor-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px;">
             <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Note Title..." style="flex: 1;">
           </div>
@@ -669,7 +708,10 @@
             <div class="notes-toolbar-divider"></div>
             <div class="notes-toolbar-group">
               <button type="button" class="notes-tool-btn upload-media-btn" onclick="document.getElementById('noteMediaFileInput').click()" title="Upload Image / Media">
-                <i data-lucide="image" style="width:13px;height:13px;"></i> <span style="font-size:11px; margin-left:3px;">Media</span>
+                <i data-lucide="upload" style="width:13px;height:13px;"></i> <span style="font-size:11px; margin-left:3px;">Upload</span>
+              </button>
+              <button type="button" class="notes-tool-btn browse-media-btn" onclick="Notes.switchView('media')" title="Browse Scratchpad Media Folder">
+                <i data-lucide="folder-image" style="width:13px;height:13px;"></i> <span style="font-size:11px; margin-left:3px;">Media Folder</span>
               </button>
               <input type="file" id="noteMediaFileInput" accept="image/*,video/*,audio/*,.pdf,.zip" style="display: none;" onchange="Notes.handleFileInput(event)">
             </div>
@@ -686,6 +728,70 @@
                 <i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Send to PETTR Parser
               </button>
               <button class="action-icon-btn" onclick="Notes.deleteCurrentNote()" style="color: var(--urgent-orange);">Delete Note</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scratchpad Media Folder View Card (active in 'media' mode) -->
+        <div class="notes-editor-card notes-media-folder-card" id="notesMediaFolderCard" style="display: none;">
+          <!-- Media Folder Header -->
+          <div class="notes-media-folder-header">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="folder-image" style="width:20px;height:20px;color:var(--accent-blue);"></i> Scratchpad Media Folder
+                </h3>
+                <span class="panel-count-badge" id="notesMediaFolderBadge">0 items</span>
+              </div>
+              <p style="color: var(--text-muted); font-size: 12.5px; margin: 4px 0 0 0;">
+                Quickly access, view, select into notes, or delete uploaded media assets.
+              </p>
+            </div>
+            <div class="notes-media-header-actions">
+              <div class="notes-media-search-wrapper">
+                <i data-lucide="search" style="width:13px;height:13px;color:var(--text-muted);"></i>
+                <input type="text" id="notesMediaSearchInput" placeholder="Filter by name..." class="notes-media-search-input" oninput="Notes.searchMedia(this.value)">
+              </div>
+              <button type="button" class="action-icon-btn notes-media-upload-btn" onclick="document.getElementById('notesMediaFolderUploadInput').click()">
+                <i data-lucide="upload" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Upload Media
+              </button>
+              <input type="file" id="notesMediaFolderUploadInput" multiple style="display: none;" onchange="Notes.handleFolderUploadInput(event)">
+            </div>
+          </div>
+
+          <!-- Dropzone area for dragging files directly into the media folder -->
+          <div class="notes-media-dropzone" id="notesMediaDropzone" ondragover="Notes.handleMediaDropzoneOver(event)" ondragleave="Notes.handleMediaDropzoneLeave(event)" ondrop="Notes.handleMediaDropzoneDrop(event)" onclick="document.getElementById('notesMediaFolderUploadInput').click()">
+            <div class="dropzone-icon-ring">
+              <i data-lucide="cloud-upload" style="width:20px;height:20px;color:var(--focus-indigo);"></i>
+            </div>
+            <div class="dropzone-text">
+              <strong>Drag &amp; drop media files here</strong> or <span>click to browse</span>
+              <div class="dropzone-sub">Images, videos, audio recordings, PDFs, archives</div>
+            </div>
+          </div>
+
+          <!-- Active Note Indicator & Back Link -->
+          <div class="notes-media-active-note-bar" id="notesMediaActiveNoteBar">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="file-text" style="width:13px;height:13px;color:var(--focus-indigo);"></i>
+              <span style="font-size: 12px; color: var(--text-muted);">Current Scratchpad: <strong id="notesMediaActiveNoteTitle" style="color: var(--text-main);">Untitled</strong></span>
+            </div>
+            <button type="button" class="notes-media-return-btn" onclick="Notes.switchView('notes')">
+              Return to Note ➔
+            </button>
+          </div>
+
+          <!-- Media Items Grid Container -->
+          <div class="notes-media-grid-scroll" id="notesMediaGridScroll">
+            <div class="notes-media-grid" id="notesMediaGrid">
+              <!-- Rendered media cards -->
+            </div>
+            <div class="notes-media-empty-state" id="notesMediaEmptyState" style="display: none;">
+              <i data-lucide="image-off" style="width:36px;height:36px;color:var(--text-muted);margin-bottom:8px;"></i>
+              <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No media in the scratchpad folder yet</div>
+              <div style="font-size: 12.5px; color: var(--text-muted); max-width: 340px; margin-top: 4px;">
+                Upload images, audio notes or attachments using the button above or paste them directly into any note.
+              </div>
             </div>
           </div>
         </div>
@@ -1995,6 +2101,30 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
   <!-- Horace Backdrop for overlay dismissal -->
   <div class="horace-backdrop" id="horaceBackdrop" onclick="HoraceChat.close()"></div>
+
+  <!-- Scratchpad Media Lightbox Modal -->
+  <div class="modal-backdrop" id="notesMediaLightboxModal" style="display: none;" onclick="Notes.closeMediaLightbox(event)">
+    <div class="modal-card notes-media-lightbox-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span class="media-type-pill" id="notesLightboxTypePill">IMAGE</span>
+          <h3 id="notesLightboxTitle" style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">Media Preview</h3>
+        </div>
+        <button class="action-icon-btn" onclick="Notes.closeMediaLightbox()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
+      </div>
+      <div class="notes-lightbox-content" id="notesLightboxContent">
+        <!-- Rendered preview -->
+      </div>
+      <div class="notes-lightbox-footer">
+        <div class="notes-lightbox-meta" id="notesLightboxMeta">
+          <!-- Size & Date -->
+        </div>
+        <div class="notes-lightbox-actions" id="notesLightboxActions">
+          <!-- Insert, Download, Delete -->
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>

@@ -613,6 +613,61 @@ async def delete_unorganized_item_endpoint(item_id: int):
         raise HTTPException(status_code=404, detail="Unorganized item not found")
     return {"status": "success", "message": "Item deleted from unorganized queue"}
 
+def _classify_media_type(suffix: str) -> str:
+    s = suffix.lower()
+    if s in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".avif", ".ico"]:
+        return "image"
+    elif s in [".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v"]:
+        return "video"
+    elif s in [".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".wma"]:
+        return "audio"
+    elif s in [".pdf"]:
+        return "pdf"
+    elif s in [".zip", ".tar", ".gz", ".7z", ".rar"]:
+        return "archive"
+    return "file"
+
+@app.get("/api/notes/media", dependencies=[Depends(auth.require_auth)])
+async def list_notes_media():
+    """Lists all uploaded media assets stored in the scratchpad media folder."""
+    MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    media_items = []
+    try:
+        entries = sorted(MEDIA_DIR.iterdir(), key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+        for item in entries:
+            if item.is_file():
+                try:
+                    stat = item.stat()
+                    name = item.name
+                    display_name = name
+                    parts = name.split("_", 1)
+                    if len(parts) == 2 and len(parts[0]) == 12:
+                        display_name = parts[1]
+                    
+                    media_type = _classify_media_type(item.suffix)
+                    media_items.append({
+                        "filename": name,
+                        "display_name": display_name,
+                        "url": f"/static/media/{name}",
+                        "size_bytes": stat.st_size,
+                        "size_formatted": database.format_bytes(stat.st_size),
+                        "media_type": media_type,
+                        "created_at": datetime.datetime.fromtimestamp(stat.st_mtime).isoformat()
+                    })
+                except Exception:
+                    pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read media folder: {e}")
+
+    total_bytes = sum(m["size_bytes"] for m in media_items)
+    return {
+        "status": "success",
+        "media": media_items,
+        "count": len(media_items),
+        "total_bytes": total_bytes,
+        "total_formatted": database.format_bytes(total_bytes)
+    }
+
 @app.post("/api/notes/upload-media", dependencies=[Depends(auth.require_auth)])
 async def upload_notes_media(file: UploadFile = File(...)):
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
@@ -622,11 +677,29 @@ async def upload_notes_media(file: UploadFile = File(...)):
     contents = await file.read()
     with open(dest_path, "wb") as f:
         f.write(contents)
+    media_type = _classify_media_type(suffix)
     return {
         "status": "success",
         "url": f"/static/media/{safe_name}",
-        "filename": file.filename or safe_name
+        "filename": file.filename or safe_name,
+        "safe_name": safe_name,
+        "media_type": media_type,
+        "size_bytes": len(contents),
+        "size_formatted": database.format_bytes(len(contents))
     }
+
+@app.delete("/api/notes/media/{filename}", dependencies=[Depends(auth.require_auth)])
+async def delete_notes_media(filename: str):
+    """Deletes a specific media asset from the scratchpad media folder."""
+    safe_name = Path(filename).name
+    target = MEDIA_DIR / safe_name
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Media file not found")
+    try:
+        target.unlink()
+        return {"status": "success", "message": f"Deleted {safe_name}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete media file: {e}")
 
 # --- Daily Sequence & Tasking Priority Order ---
 

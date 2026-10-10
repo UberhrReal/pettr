@@ -1553,3 +1553,96 @@ async def test_horace_quick_menu_and_typewriter_single_line_regeneration(temp_db
         assert len(phrase) <= 46
 
 
+def test_scratchpad_media_folder_api_and_ui(temp_db, monkeypatch, tmp_path):
+    """Verify Notes tab has a dedicated scratchpad media folder with listing, upload, selection, preview, and deletion."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    test_media_dir = tmp_path / "media_folder_test"
+    monkeypatch.setattr("backend.app.MEDIA_DIR", test_media_dir)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 1. Initially empty media folder
+        res_list = client.get("/api/notes/media")
+        assert res_list.status_code == 200
+        assert res_list.json()["count"] == 0
+        assert res_list.json()["media"] == []
+
+        # 2. Upload image and audio
+        img_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+        res_up1 = client.post(
+            "/api/notes/upload-media",
+            files={"file": ("circuit_board.png", io.BytesIO(img_bytes), "image/png")}
+        )
+        assert res_up1.status_code == 200
+        up1_data = res_up1.json()
+        assert up1_data["media_type"] == "image"
+        safe_name1 = Path(up1_data["url"]).name
+
+        audio_bytes = b"ID3\x03\x00\x00\x00\x00\x00#TSSE"
+        res_up2 = client.post(
+            "/api/notes/upload-media",
+            files={"file": ("meeting_audio.mp3", io.BytesIO(audio_bytes), "audio/mpeg")}
+        )
+        assert res_up2.status_code == 200
+        up2_data = res_up2.json()
+        assert up2_data["media_type"] == "audio"
+        safe_name2 = Path(up2_data["url"]).name
+
+        # 3. List media folder
+        res_list2 = client.get("/api/notes/media")
+        assert res_list2.status_code == 200
+        data2 = res_list2.json()
+        assert data2["count"] == 2
+        assert len(data2["media"]) == 2
+        filenames = [m["filename"] for m in data2["media"]]
+        assert safe_name1 in filenames
+        assert safe_name2 in filenames
+
+        # Verify media types
+        media_by_name = {m["filename"]: m for m in data2["media"]}
+        assert media_by_name[safe_name1]["media_type"] == "image"
+        assert media_by_name[safe_name2]["media_type"] == "audio"
+        assert "circuit_board" in media_by_name[safe_name1]["display_name"]
+
+        # 4. Delete one media file
+        res_del = client.delete(f"/api/notes/media/{safe_name1}")
+        assert res_del.status_code == 200
+        assert not (test_media_dir / safe_name1).exists()
+
+        # 5. List after deletion
+        res_list3 = client.get("/api/notes/media")
+        assert res_list3.status_code == 200
+        assert res_list3.json()["count"] == 1
+        assert res_list3.json()["media"][0]["filename"] == safe_name2
+
+        # 6. Delete non-existent file -> 404
+        res_del404 = client.delete("/api/notes/media/non_existent_file.png")
+        assert res_del404.status_code == 404
+
+    # 7. Verify frontend templates and scripts contain media folder components
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "notes-folder-nav" in index_html
+    assert "notesNavMediaBtn" in index_html
+    assert "notesMediaFiltersSection" in index_html
+    assert "notesMediaFolderCard" in index_html
+    assert "notesMediaGrid" in index_html
+    assert "notesMediaLightboxModal" in index_html
+    assert "browse-media-btn" in index_html
+
+    notes_js = Path("frontend/js/notes.js").read_text(encoding="utf-8")
+    assert "switchView" in notes_js
+    assert "loadMediaList" in notes_js
+    assert "selectMediaForNote" in notes_js
+    assert "openMediaLightbox" in notes_js
+    assert "confirmDeleteMedia" in notes_js
+
+    css_text = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert ".notes-folder-nav" in css_text
+    assert ".notes-media-folder-card" in css_text
+    assert ".notes-media-grid" in css_text
+    assert ".notes-media-card" in css_text
+    assert ".notes-media-lightbox-card" in css_text
+
+
+

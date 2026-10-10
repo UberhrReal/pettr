@@ -5,10 +5,16 @@
 const Notes = {
   currentNoteId: null,
   saveTimeout: null,
+  viewMode: "notes", // "notes" | "media"
+  mediaItems: [],
+  activeMediaFilter: "all",
+  mediaSearchQuery: "",
+  activeLightboxItem: null,
 
   async init() {
     this.bindEvents();
     await this.loadNotes();
+    await this.loadMediaList();
   },
 
   bindEvents() {
@@ -121,6 +127,8 @@ const Notes = {
 
   renderSidebar(notes) {
     const sidebar = document.getElementById("notesListSidebar");
+    const countBadge = document.getElementById("notesCountBadge");
+    if (countBadge) countBadge.textContent = notes ? notes.length : 0;
     if (!sidebar) return;
     sidebar.innerHTML = "";
 
@@ -141,7 +149,9 @@ const Notes = {
     this.currentNoteId = note.id;
     const titleInput = document.getElementById("noteTitleInput");
     const editor = document.getElementById("noteContentArea");
+    const activeNoteTitle = document.getElementById("notesMediaActiveNoteTitle");
     if (titleInput) titleInput.value = note.title;
+    if (activeNoteTitle) activeNoteTitle.textContent = note.title || "Untitled";
     if (editor) {
       let content = note.content || "";
       // If legacy content has markdown and does not have HTML block tags, convert so it displays styled immediately
@@ -502,8 +512,10 @@ const Notes = {
     event.target.value = "";
   },
 
-  async uploadMedia(file) {
-    App.showToast(`Uploading ${file.name}...`);
+  async uploadMedia(file, isFolderUpload = false) {
+    if (typeof App !== "undefined" && App.showToast) {
+      App.showToast(`Uploading ${file.name}...`);
+    }
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -515,24 +527,376 @@ const Notes = {
       const data = await res.json();
 
       if (res.ok && data.url) {
-        let mediaHtml = "";
-        if (data.media_type === "image") {
-          mediaHtml = `<div class="notes-media-wrapper"><img src="${data.url}" alt="${data.filename}" class="notes-inline-image" /><div class="notes-image-caption">${data.filename}</div></div><p><br></p>`;
-        } else if (data.media_type === "video") {
-          mediaHtml = `<div class="notes-media-wrapper"><video src="${data.url}" controls class="notes-inline-image"></video><div class="notes-image-caption">${data.filename}</div></div><p><br></p>`;
-        } else if (data.media_type === "audio") {
-          mediaHtml = `<div class="notes-media-wrapper"><audio src="${data.url}" controls></audio><div class="notes-image-caption">${data.filename}</div></div><p><br></p>`;
-        } else {
-          mediaHtml = `<p><a href="${data.url}" target="_blank" rel="noopener noreferrer">📎 ${data.filename}</a></p><p><br></p>`;
+        if (!isFolderUpload) {
+          let mediaHtml = "";
+          if (data.media_type === "image") {
+            mediaHtml = `<div class="notes-media-wrapper"><img src="${data.url}" alt="${this.escapeHtml(data.filename)}" class="notes-inline-image" /><div class="notes-image-caption">${this.escapeHtml(data.filename)}</div></div><p><br></p>`;
+          } else if (data.media_type === "video") {
+            mediaHtml = `<div class="notes-media-wrapper"><video src="${data.url}" controls class="notes-inline-image"></video><div class="notes-image-caption">${this.escapeHtml(data.filename)}</div></div><p><br></p>`;
+          } else if (data.media_type === "audio") {
+            mediaHtml = `<div class="notes-media-wrapper"><audio src="${data.url}" controls></audio><div class="notes-image-caption">${this.escapeHtml(data.filename)}</div></div><p><br></p>`;
+          } else {
+            mediaHtml = `<p><a href="${data.url}" target="_blank" rel="noopener noreferrer">📎 ${this.escapeHtml(data.filename)}</a></p><p><br></p>`;
+          }
+          this.insertHtmlAtCursor(mediaHtml);
+          this.scheduleAutoSave();
         }
-        this.insertHtmlAtCursor(mediaHtml);
-        App.showToast(`Uploaded ${file.name}!`);
+        if (typeof App !== "undefined" && App.showToast) {
+          App.showToast(`Uploaded ${file.name}!`, "success");
+        }
+        await this.loadMediaList();
       } else {
-        App.showToast("Media upload failed: " + (data.detail || "Server error"), true);
+        if (typeof App !== "undefined" && App.showToast) {
+          App.showToast("Media upload failed: " + (data.detail || "Server error"), true);
+        }
       }
     } catch (err) {
       console.error(err);
-      App.showToast("Network error uploading media", true);
+      if (typeof App !== "undefined" && App.showToast) {
+        App.showToast("Network error uploading media", true);
+      }
+    }
+  },
+
+  switchView(mode) {
+    this.viewMode = mode;
+    const notesBtn = document.getElementById("notesNavNotesBtn");
+    const mediaBtn = document.getElementById("notesNavMediaBtn");
+    const notesListView = document.getElementById("notesListViewSection");
+    const mediaFiltersView = document.getElementById("notesMediaFiltersSection");
+    const editorCard = document.getElementById("notesEditorCard");
+    const mediaFolderCard = document.getElementById("notesMediaFolderCard");
+    const activeNoteTitle = document.getElementById("notesMediaActiveNoteTitle");
+
+    if (notesBtn) notesBtn.classList.toggle("active", mode === "notes");
+    if (mediaBtn) mediaBtn.classList.toggle("active", mode === "media");
+
+    if (notesListView) notesListView.style.display = mode === "notes" ? "block" : "none";
+    if (mediaFiltersView) mediaFiltersView.style.display = mode === "media" ? "block" : "none";
+
+    if (editorCard) editorCard.style.display = mode === "notes" ? "flex" : "none";
+    if (mediaFolderCard) mediaFolderCard.style.display = mode === "media" ? "flex" : "none";
+
+    if (mode === "media") {
+      const titleInput = document.getElementById("noteTitleInput");
+      if (activeNoteTitle) activeNoteTitle.textContent = (titleInput && titleInput.value.trim()) || "Untitled Note";
+      this.loadMediaList();
+    }
+    if (window.lucide) window.lucide.createIcons();
+  },
+
+  async loadMediaList() {
+    try {
+      const res = await fetch("/api/notes/media");
+      if (!res.ok) return;
+      const data = await res.json();
+      this.mediaItems = data.media || [];
+
+      // Update badges & stats
+      const countBadge = document.getElementById("notesMediaCountBadge");
+      const folderBadge = document.getElementById("notesMediaFolderBadge");
+      const totalSize = document.getElementById("notesMediaTotalSize");
+      if (countBadge) countBadge.textContent = this.mediaItems.length;
+      if (folderBadge) folderBadge.textContent = `${this.mediaItems.length} item${this.mediaItems.length === 1 ? '' : 's'}`;
+      if (totalSize) totalSize.textContent = data.total_formatted || "0 B";
+
+      // Update filter counts
+      const allCount = document.getElementById("mediaFilterAllCount");
+      const imgCount = document.getElementById("mediaFilterImageCount");
+      const vidCount = document.getElementById("mediaFilterVideoCount");
+      const audCount = document.getElementById("mediaFilterAudioCount");
+      const fileCount = document.getElementById("mediaFilterFileCount");
+
+      if (allCount) allCount.textContent = this.mediaItems.length;
+      if (imgCount) imgCount.textContent = this.mediaItems.filter(m => m.media_type === "image").length;
+      if (vidCount) vidCount.textContent = this.mediaItems.filter(m => m.media_type === "video").length;
+      if (audCount) audCount.textContent = this.mediaItems.filter(m => m.media_type === "audio").length;
+      if (fileCount) fileCount.textContent = this.mediaItems.filter(m => !["image", "video", "audio"].includes(m.media_type)).length;
+
+      this.renderMediaGrid();
+    } catch (err) {
+      console.error("Failed to load scratchpad media:", err);
+    }
+  },
+
+  async refreshMediaList() {
+    await this.loadMediaList();
+    if (typeof App !== "undefined" && App.showToast) {
+      App.showToast("Refreshed media folder", "success");
+    }
+  },
+
+  filterMedia(type) {
+    this.activeMediaFilter = type;
+    document.querySelectorAll(".media-filter-chip").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.filter === type);
+    });
+    this.renderMediaGrid();
+  },
+
+  searchMedia(query) {
+    this.mediaSearchQuery = (query || "").trim().toLowerCase();
+    this.renderMediaGrid();
+  },
+
+  renderMediaGrid() {
+    const grid = document.getElementById("notesMediaGrid");
+    const empty = document.getElementById("notesMediaEmptyState");
+    if (!grid) return;
+
+    let filtered = this.mediaItems;
+    if (this.activeMediaFilter !== "all") {
+      if (this.activeMediaFilter === "file") {
+        filtered = filtered.filter(m => !["image", "video", "audio"].includes(m.media_type));
+      } else {
+        filtered = filtered.filter(m => m.media_type === this.activeMediaFilter);
+      }
+    }
+
+    if (this.mediaSearchQuery) {
+      filtered = filtered.filter(m =>
+        (m.display_name || m.filename).toLowerCase().includes(this.mediaSearchQuery)
+      );
+    }
+
+    if (filtered.length === 0) {
+      grid.innerHTML = "";
+      if (empty) empty.style.display = "flex";
+      return;
+    }
+
+    if (empty) empty.style.display = "none";
+
+    grid.innerHTML = filtered.map(item => {
+      const isImg = item.media_type === "image";
+      const isVid = item.media_type === "video";
+      const isAud = item.media_type === "audio";
+
+      let previewHtml = "";
+      if (isImg) {
+        previewHtml = `
+          <div class="media-card-preview image-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+            <img src="${item.url}" alt="${this.escapeHtml(item.display_name)}" loading="lazy" />
+            <div class="media-card-zoom-hint"><i data-lucide="zoom-in" style="width:16px;height:16px;"></i></div>
+          </div>`;
+      } else if (isVid) {
+        previewHtml = `
+          <div class="media-card-preview video-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+            <i data-lucide="video" style="width:36px;height:36px;color:var(--focus-indigo);"></i>
+            <span class="media-type-tag">VIDEO</span>
+            <div class="media-card-zoom-hint"><i data-lucide="play" style="width:16px;height:16px;"></i></div>
+          </div>`;
+      } else if (isAud) {
+        previewHtml = `
+          <div class="media-card-preview audio-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+            <i data-lucide="volume-2" style="width:36px;height:36px;color:var(--recurrence-purple);"></i>
+            <span class="media-type-tag">AUDIO</span>
+            <div class="media-card-zoom-hint"><i data-lucide="play" style="width:16px;height:16px;"></i></div>
+          </div>`;
+      } else {
+        previewHtml = `
+          <div class="media-card-preview doc-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+            <i data-lucide="file-text" style="width:36px;height:36px;color:var(--text-muted);"></i>
+            <span class="media-type-tag">${(item.media_type || "FILE").toUpperCase()}</span>
+            <div class="media-card-zoom-hint"><i data-lucide="external-link" style="width:16px;height:16px;"></i></div>
+          </div>`;
+      }
+
+      return `
+        <div class="notes-media-card" data-filename="${this.escapeHtml(item.filename)}">
+          ${previewHtml}
+          <div class="media-card-meta">
+            <div class="media-card-title" title="${this.escapeHtml(item.display_name)}">
+              ${this.escapeHtml(item.display_name)}
+            </div>
+            <div class="media-card-details">
+              <span>${item.size_formatted}</span>
+              <span>•</span>
+              <span>${item.created_at ? item.created_at.slice(0, 10) : ''}</span>
+            </div>
+          </div>
+          <div class="media-card-actions">
+            <button type="button" class="media-card-action-btn select-btn" onclick="Notes.selectMediaForNote('${this.escapeHtml(item.filename)}')" title="Insert this media into your current scratchpad note">
+              <i data-lucide="plus" style="width:12px;height:12px;"></i> Insert
+            </button>
+            <button type="button" class="media-card-action-btn view-btn" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')" title="View / Preview">
+              <i data-lucide="eye" style="width:12px;height:12px;"></i> View
+            </button>
+            <button type="button" class="media-card-action-btn delete-btn" onclick="Notes.confirmDeleteMedia('${this.escapeHtml(item.filename)}')" title="Delete permanently">
+              <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    if (window.lucide) window.lucide.createIcons();
+  },
+
+  selectMediaForNote(filename) {
+    const item = this.mediaItems.find(m => m.filename === filename);
+    if (!item) return;
+
+    let mediaHtml = "";
+    if (item.media_type === "image") {
+      mediaHtml = `<div class="notes-media-wrapper"><img src="${item.url}" alt="${this.escapeHtml(item.display_name)}" class="notes-inline-image" /><div class="notes-image-caption">${this.escapeHtml(item.display_name)}</div></div><p><br></p>`;
+    } else if (item.media_type === "video") {
+      mediaHtml = `<div class="notes-media-wrapper"><video src="${item.url}" controls class="notes-inline-image"></video><div class="notes-image-caption">${this.escapeHtml(item.display_name)}</div></div><p><br></p>`;
+    } else if (item.media_type === "audio") {
+      mediaHtml = `<div class="notes-media-wrapper"><audio src="${item.url}" controls></audio><div class="notes-image-caption">${this.escapeHtml(item.display_name)}</div></div><p><br></p>`;
+    } else {
+      mediaHtml = `<p><a href="${item.url}" target="_blank" rel="noopener noreferrer">📎 ${this.escapeHtml(item.display_name)}</a></p><p><br></p>`;
+    }
+
+    this.switchView("notes");
+    const editor = document.getElementById("noteContentArea");
+    if (editor) {
+      editor.focus();
+      this.insertHtmlAtCursor(mediaHtml);
+      this.scheduleAutoSave();
+    }
+
+    if (typeof App !== "undefined" && App.showToast) {
+      App.showToast(`Selected & inserted ${item.display_name} into note`, "success");
+    }
+  },
+
+  openMediaLightbox(filename) {
+    const item = this.mediaItems.find(m => m.filename === filename);
+    if (!item) return;
+
+    this.activeLightboxItem = item;
+    const modal = document.getElementById("notesMediaLightboxModal");
+    const title = document.getElementById("notesLightboxTitle");
+    const pill = document.getElementById("notesLightboxTypePill");
+    const content = document.getElementById("notesLightboxContent");
+    const meta = document.getElementById("notesLightboxMeta");
+    const actions = document.getElementById("notesLightboxActions");
+
+    if (!modal) return;
+
+    if (title) title.textContent = item.display_name;
+    if (pill) pill.textContent = (item.media_type || "FILE").toUpperCase();
+
+    if (content) {
+      if (item.media_type === "image") {
+        content.innerHTML = `<img src="${item.url}" alt="${this.escapeHtml(item.display_name)}" class="lightbox-preview-image" />`;
+      } else if (item.media_type === "video") {
+        content.innerHTML = `<video src="${item.url}" controls autoplay class="lightbox-preview-video"></video>`;
+      } else if (item.media_type === "audio") {
+        content.innerHTML = `<div class="lightbox-audio-player"><i data-lucide="volume-2" style="width:48px;height:48px;color:var(--recurrence-purple);margin-bottom:12px;"></i><audio src="${item.url}" controls autoplay></audio></div>`;
+      } else {
+        content.innerHTML = `
+          <div class="lightbox-doc-view">
+            <i data-lucide="file-text" style="width:54px;height:54px;color:var(--text-muted);margin-bottom:12px;"></i>
+            <div style="font-weight:700;font-size:16px;">${this.escapeHtml(item.display_name)}</div>
+            <div style="color:var(--text-muted);font-size:13px;margin-top:4px;">${item.size_formatted}</div>
+            <a href="${item.url}" download="${this.escapeHtml(item.display_name)}" class="action-icon-btn" style="margin-top:16px;background:var(--focus-indigo);color:#fff;padding:8px 16px;font-weight:600;border:none;">
+              <i data-lucide="download" style="width:14px;height:14px;display:inline-block;vertical-align:-1px;"></i> Download File
+            </a>
+          </div>`;
+      }
+    }
+
+    if (meta) {
+      meta.innerHTML = `
+        <span>Size: <strong>${item.size_formatted}</strong></span> • 
+        <span>Uploaded: <strong>${item.created_at ? item.created_at.slice(0, 16).replace('T', ' ') : ''}</strong></span>
+      `;
+    }
+
+    if (actions) {
+      actions.innerHTML = `
+        <button type="button" class="action-icon-btn" onclick="Notes.selectMediaForNote('${this.escapeHtml(item.filename)}'); Notes.closeMediaLightbox();" style="background:var(--focus-indigo);color:#fff;font-weight:600;border:none;">
+          <i data-lucide="plus" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Insert into Note
+        </button>
+        <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="action-icon-btn" style="color:var(--text-main);">
+          <i data-lucide="external-link" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Open URL
+        </a>
+        <button type="button" class="action-icon-btn" onclick="Notes.confirmDeleteMedia('${this.escapeHtml(item.filename)}')" style="color:var(--urgent-orange);">
+          <i data-lucide="trash-2" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Delete
+        </button>
+      `;
+    }
+
+    modal.style.display = "flex";
+    if (window.lucide) window.lucide.createIcons();
+  },
+
+  closeMediaLightbox(e) {
+    if (e && e.target && e.target.id !== "notesMediaLightboxModal") return;
+    const modal = document.getElementById("notesMediaLightboxModal");
+    if (modal) {
+      const media = modal.querySelectorAll("video, audio");
+      media.forEach(m => { m.pause(); m.src = ""; });
+      modal.style.display = "none";
+    }
+    this.activeLightboxItem = null;
+  },
+
+  async confirmDeleteMedia(filename) {
+    const item = this.mediaItems.find(m => m.filename === filename);
+    const displayName = item ? item.display_name : filename;
+    if (!confirm(`Permanently delete '${displayName}' from the scratchpad media folder?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/notes/media/${encodeURIComponent(filename)}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        this.mediaItems = this.mediaItems.filter(m => m.filename !== filename);
+        this.closeMediaLightbox();
+        await this.loadMediaList();
+        if (typeof App !== "undefined" && App.showToast) {
+          App.showToast(`Deleted ${displayName}`, "success");
+        }
+      } else {
+        const err = await res.json();
+        if (typeof App !== "undefined" && App.showToast) {
+          App.showToast(err.detail || "Failed to delete media", true);
+        }
+      }
+    } catch (err) {
+      console.error("Delete media error:", err);
+      if (typeof App !== "undefined" && App.showToast) {
+        App.showToast("Network error deleting media", true);
+      }
+    }
+  },
+
+  async handleFolderUploadInput(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    for (let i = 0; i < files.length; i++) {
+      await this.uploadMedia(files[i], true);
+    }
+    event.target.value = "";
+    await this.loadMediaList();
+  },
+
+  handleMediaDropzoneOver(e) {
+    e.preventDefault();
+    const dz = document.getElementById("notesMediaDropzone");
+    if (dz) dz.classList.add("drag-over");
+  },
+
+  handleMediaDropzoneLeave(e) {
+    const dz = document.getElementById("notesMediaDropzone");
+    if (dz) dz.classList.remove("drag-over");
+  },
+
+  async handleMediaDropzoneDrop(e) {
+    e.preventDefault();
+    const dz = document.getElementById("notesMediaDropzone");
+    if (dz) dz.classList.remove("drag-over");
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        await this.uploadMedia(e.dataTransfer.files[i], true);
+      }
+      await this.loadMediaList();
     }
   },
 
