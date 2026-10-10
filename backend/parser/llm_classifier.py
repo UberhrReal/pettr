@@ -434,7 +434,7 @@ async def classify_with_llm(cleaned_text: str,
         "system": SYSTEM_PROMPT,
         "format": "json",
         "stream": False,
-        "keep_alive": "30m",
+        "keep_alive": -1,
         "options": {
             "temperature": 0.1,
             "num_predict": 180

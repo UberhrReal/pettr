@@ -452,7 +452,7 @@ async def chat_with_horace(
         "model": target_model,
         "messages": messages,
         "stream": False,
-        "keep_alive": "30m",
+        "keep_alive": -1,
         "options": {
             "temperature": 0.5,
             "top_p": 0.9,
