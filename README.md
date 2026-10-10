@@ -6,194 +6,126 @@ A 24/7 self-hosted, lightweight personal productivity hub designed to run on a l
 
 ## Key Features
 
-- **24/7 Always-On Self-Hosted Node**: Runs on your home mini PC with zero router ports opened; accessible securely anywhere over Tailscale WireGuard mesh.
-- **Hybrid Parsing Engine**:
-  - Deterministic natural date/time parser: military time (`2359`, `Tonight 2359`), relative intervals (`in 30 mins`, `tomorrow morning`), explicit commands (`!task`, `!event`, `!reminder`, `!project`), and recurring schedules (`every Tuesday night`).
-  - Small local LLM layer (Ollama) with strictly enforced JSON schema output for intent categorisation and project matching.
-  - Safe Heuristic Fallback: Automatically handles input if the local model is offline.
-  - **Unorganized Queue**: Automatic safety net if classification is ambiguous. Items can be triaged or returned to the queue anytime with one click.
-- **Cross-Device Tasking Priority Sequence**:
-  - Drag and drop tasks, events, and projects into the execution order list.
-  - Synchronized in real time across desktop, laptop, and mobile devices via persistent database storage (`daily_orders`).
-  - Sequenced tasks are cleanly indicated in the left-hand snapshot view and sync status automatically when completed or reopened.
-- **Evening Debrief & Immutable Day Sealing**:
-  - End-of-day guided review triaging unfinished tasks (rollover to tomorrow, reschedule, or discard).
-  - **Baseline Completion Rate Freeze**: Captures and records your day's actual completion metrics into `day_seals` *before* rollover occurs, preventing artificial 100% inflation.
-  - **Day Sealing**: Permanently seals past/wrapped days from mutations, deletions, or late task insertions, preserving historical productivity score integrity.
-- **Diurnal Solar Theming & Golden Hour Engine**:
-  - **4 Diurnal Stages**:
-    - 🌅 **Morning Dawn** (06:00 – 11:59): Crisp sunrise daylight (`[data-theme="morning"]`)
-    - ☀️ **Daylight** (12:00 – 17:59): Balanced warm daylight (`[data-theme="light"]`)
-    - 🌇 **Golden Hour Dusk** (18:00 – 21:59): Warm amber, honey, and roasted umber twilight with velvety blue undertone shadows (`[data-theme="evening"]`)
-    - 🌙 **Obsidian Night** (22:00 – 05:59): Deep obsidian dark mode (`[data-theme="dark"]`)
-  - **Atmospheric Blowing Leaves Canvas**: Atmospheric gusts of wind blow tumbling, 3D-fluttering autumn leaves across the canvas during Golden Hour.
-  - **Interactive Solar Slider**: Scrub time of day from 00:00 to 23:00 with one click or set specific hour presets.
-- **Daily Contextual Intel Typewriter Banner**:
-  - Generates date-specific typewriter intelligence lines via local LLM at midnight every day (e.g., historical milestones, mission briefings).
-  - SQLite daily cache prevents redundant LLM calls; top and bottom typewriter phrases never duplicate each other.
-  - Strict single-line length constraints eliminate vertical layout jumping.
-- **Horace: Persistent Local AI Companion & Server Persona (`Alt+H`)**:
-  - Collapsible slide-out chat drawer to converse directly with the home server host running PETTR.
-  - **Persona & Disposition**: Horace treats PETTR as his little brother that he protects and keeps organized. Features an articulate, witty, sarcastic, and cheerful disposition, with freedom to use candid profanity/banter when appropriate.
-  - **Intricate PETTR Knowledge**: Deeply understands focus tiers, projects, reminders, appointments, diurnal rhythms, and day sealing.
-  - **Live Telemetry Context**: Dynamically injects real-time active project names and today's focus/trivial tasks into his context window so he can give actionable planning advice.
-  - **Persistent SQLite Storage**: Full multi-turn conversation memory stored in `llm_chat_messages` table across reboots and devices.
-  - **Omnipresent Accessibility**: Toggle via top navigation button, keyboard shortcut (`Alt+H` or `Cmd/Ctrl+Shift+H`), or the Command Palette (`Ctrl+K`).
-- **Intelligent Classification & Organization**:
-  - **Projects**: Auto-added to the global pool on first mention (e.g. `"Social Science 1D"`, `"IDEA-1 Concept"`), segregated into **School** 🎓 and **External** 🌐 pools with distinct untaken colors.
-  - **Redesigned Split View Pool Pills**: Capsule pill headers for School (Academic Violet/Indigo) and External (Radiant Amber/Gold) pools with theme-adaptive high contrast and subtle breathing pulses.
-  - **Tasks**: Divided into **Focus** (deep work, exams, CAD, design) and **Trivial** (errands, chores, parcel pickup).
-  - **Decoupled 'TIME SENSITIVE' Marker**: Manually toggled tag with distinct glowing orange badge to highlight time-critical tasks independently from raw due times.
-  - **Urgency Color Coding**:
-    - 🟧 **Bright Orange**: Due within $\le 2$ days ($\le 48\text{h}$) or overdue.
-    - 🟩 **Green**: Due in $> 2$ days.
-    - ⬜ **Grey**: No due date given.
-- **Interactive Multi-Scale Timeline**:
-  - Merged graphic timeline and detailed list views across **Day**, **Month**, and **Year** scales with zero clipping on mobile screens.
-- **Exploded View (Global Project Pool)**:
-  - **3D Constellation Cloud**: Interactive force-directed spherical graph visualizing project clusters and task dependencies with full mobile touch rotation and touch-scrollable filter pills dock.
-  - **Structured Project Cards**: Progress bars, collapsible descriptions, task backlogs, and category sorting (`🎓 School 1st`, `🌐 External 1st`, `A–Z`).
-- **Rich Scratchpad / Notes Tab**:
-  - Inline WYSIWYG editing surface with immediate formatting.
-  - Full markdown toolbar: Bold, Italic, Strikethrough, Headings, Bullet Lists, Interactive Checklists, Code Blocks, Quotes, and Tables.
-  - Direct clipboard pasting (`Ctrl+V`) and drag-and-drop media uploads, permanently stored in `./data/media/` and served via `/static/media/`.
-  - 1-click **"Send to PETTR Parser"** button to convert note content directly into organized tasks and events.
-- **Mobile Simplified Mode**:
-  - Lightweight, clutter-free mobile view presenting only today's tasks, events, and reminders with full drag-to-rearrange support and quick status toggling.
-- **Overseas Travel-Proof Timezone Handling**:
-  - Automatic browser timezone detection via `X-Client-Timezone` headers with manual override option in the top navigation bar.
-- **Automated Cloud Backup Pipeline (3-2-1 Strategy)**:
-  - Automated weekly `.zip` archives containing an SQLite snapshot, human-readable Markdown digest, and JSON export.
-  - Integrated `rclone` syncs backups directly to Google Drive (`gdrive:PETTR_Backups`).
-  - In-app **"Backup to Google Drive Now"** button with verified cloud sync status line, plus standalone direct browser download button.
-- **4-Digit PIN Security**:
-  - Rate-limited brute-force protection (lockout after 5 failed attempts).
-  - Headless server PIN update support via CLI, Docker exec, or direct config.
+- **24/7 Self-Hosted Node**: Runs on your home mini PC with zero router ports opened; accessible securely from any device via Tailscale WireGuard mesh.
+- **Hybrid Parsing Engine**: Deterministic date/time parsing (`2359`, `in 30 mins`, `every Tuesday`) paired with a local Ollama LLM for structured intent categorisation, heuristic fallbacks, and an unorganised triage buffer.
+- **Cross-Device Tasking Priority Sequence**: Drag-and-drop daily execution order enforcing single-focus tasking, synchronised in real time across mobile and desktop.
+- **Evening Debrief & Day Sealing**: Guided end-of-day triage that freezes baseline completion rates before rollover, permanently sealing past days to preserve historical score integrity.
+- **Diurnal Solar Theming**: Dynamic theme transitions across 4 diurnal stages (Dawn, Daylight, Golden Hour, Obsidian Night) with an interactive time-scrubbing solar slider.
+- **Local AI Companion (`Alt+H`)**: Collapsible slide-out chat drawer powered by local Ollama models, featuring persistent multi-turn SQLite memory, live server telemetry, and real-time task schedule context.
+- **Intelligent Categorisation**: Projects automatically segregated into School 🎓 and External 🌐 pools with distinct colours, Focus vs Trivial task tiers, and visual urgency indicators.
+- **Interactive Timeline & 3D Constellation Cloud**: Unified Day, Month, and Year scale timelines paired with a force-directed 3D spherical constellation graph visualising project clusters and dependencies.
+- **Rich Scratchpad & Media Folder**: WYSIWYG note editor with full Markdown formatting, 1-click parser triage, and a dedicated media manager with lightbox previews, direct note embeds, and file deletion.
+- **Mobile Simplified Mode**: Clean, distraction-free view presenting only today's priority tasks and events with drag-to-rearrange support.
+- **Automated Cloud Backup Pipeline**: 3-2-1 backup strategy with scheduled SQLite snapshots, Markdown digests, and direct `rclone` sync to Google Drive.
+- **4-Digit PIN Security**: Rate-limited brute-force lockout with headless CLI configuration support.
 
 ---
 
-## Mini PC Hardware Recommendations (Low-Cost & Power-Efficient)
+## Hardware Recommendations
 
-For running PETTR and a lightweight local LLM 24/7 smoothly at home:
+Optimised for low power draw (~8–12W idle) and 24/7 silent operation:
 
-| Component | Recommendation | Why |
+| Component | Recommendation | Details |
 |---|---|---|
-| **Form Factor** | **Shuttle XPC Slim DH610** or Mini PC (Beelink, GMKtec, Minisforum) | Shuttle DH610 features dual Intel NICs (1G + 2.5G), ICE twin-fan heatpipe cooling, and hardware always-on jumper (`JP01`). |
-| **CPU** | **Intel Core i3-12100 / 12th Gen** or **Intel N100 / N97** | High single-thread speed for SQLite, AVX2 support for Ollama 3B inference (~15-25 tok/s), ultra-low idle wattage (~8-12W). |
-| **RAM** | **16 GB DDR4/DDR5** (Dual-Channel) | 3B models need ~2.5 GB of RAM. 16 GB leaves ample headroom for Linux/Docker, Tailscale, Ollama, and SQLite caching without swap. |
-| **Storage** | **256 GB - 512 GB NVMe SSD** | Fast boot, silent operation, plenty of room for WAL-mode SQLite, uploaded media, and local model weights. |
-| **OS** | **Ubuntu Server 26.04.1 LTS** (Recommended) or Windows 11 | Ubuntu + Docker Compose provides zero-maintenance 24/7 reliability, automated rclone sync, and instant container updates. |
+| **Form Factor** | **Shuttle XPC Slim DH610** or Mini PC (Intel N100 / Beelink) | Dual Intel NICs, robust heatpipe cooling, and always-on power jumper (`JP01`). |
+| **CPU** | **Intel Core i3 (12th Gen+)** or **Intel N100 / N97** | Fast single-thread SQLite performance, AVX2 support for Ollama 3B inference (~15–25 tok/s). |
+| **RAM** | **16 GB DDR4/DDR5** | ~2.5 GB reserved for 3B LLM weights; leaves ample headroom for Docker, Tailscale, and OS caching. |
+| **Storage** | **256 GB – 512 GB NVMe SSD** | Fast WAL-mode SQLite database operations, media storage, and local model weights. |
+| **OS** | **Ubuntu Server 24.04+ LTS** or Windows 11 | Ubuntu + Docker Compose provides zero-maintenance 24/7 reliability and automated systemd management. |
 
 ---
 
-## Setup & Quickstart
+## Quickstart
 
-### Deployment Options
+### 1. Production (Docker Compose — Recommended)
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the complete production setup guide (Tailscale, systemd, and automated rclone backups).
 
-- **Production (24/7 Ubuntu Server / Docker)**: See the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) for full guide (hardware jumper tuning, Tailscale mesh, native Ollama bridge, Docker Compose, systemd, and rclone).
-  ```bash
-  git clone https://github.com/UberhrReal/pettr.git ~/pettr
-  cd ~/pettr
-  docker compose up -d --build
-  ```
-- **Local Development (Windows / macOS / Linux)**:
-  1. Clone repository and navigate into the folder:
-     ```bash
-     git clone https://github.com/UberhrReal/pettr.git
-     cd pettr
-     ```
-  2. Create a virtual environment and install dependencies:
-     ```bash
-     python -m venv venv
-     # Windows:
-     .\venv\Scripts\activate
-     # macOS/Linux:
-     source venv/bin/activate
+```bash
+git clone https://github.com/UberhrReal/pettr.git ~/pettr
+cd ~/pettr
+docker compose up -d --build
+```
 
-     pip install -r requirements.txt
-     ```
-  3. Start the application:
-     ```bash
-     # Windows batch launcher:
-     .\run_server.bat
+### 2. Local Development (Python)
 
-     # Or run directly via Python:
-     python run_server.py
-     ```
+```bash
+git clone https://github.com/UberhrReal/pettr.git
+cd pettr
 
-Open your browser to:
+# Set up virtual environment
+python -m venv venv
+# Windows:
+.\venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+# Start server
+python run_server.py
+```
+
+Access PETTR at:
 - **Local:** `http://127.0.0.1:8000`
-- **Tailscale (from phone/laptop):** `http://<your-tailscale-name>:8000` or `http://100.x.y.z:8000`
+- **Tailscale:** `http://<your-tailscale-node>:8000`
 
 ---
 
-## Managing Your PIN Headless
+## Local LLM (Ollama) Setup
 
-Default 4-digit code: **`1234`**
-
-Because PETTR is designed to run headlessly on your server without a desktop GUI, you can update your PIN anytime via the terminal:
-
-1. **Via Docker (Recommended)**:
-   ```bash
-   docker compose exec pettr python -m backend.cli set-pin <NEW_PIN>
-   ```
-2. **Via Local Python CLI**:
-   ```bash
-   python -m backend.cli set-pin <NEW_PIN>
-   ```
-3. **Direct Configuration File Edit**:
-   ```bash
-   nano config/pettr_config.json
-   # Update "pin": "<NEW_PIN>"
-   ```
-4. **Via Settings UI**: If accessing from the hosting PC localhost directly (`127.0.0.1`), PIN change is also available in the Settings tab.
-
----
-
-## Local LLM (Ollama) Setup & Horace Integration
-
-PETTR integrates deeply with local Ollama models for intent classification, midnight typewriter intelligence, and conversational companion chat with **Horace**.
+PETTR integrates with local Ollama models for natural language task classification, midnight typewriter briefings, and local chat assistance.
 
 1. **Install Ollama**:
    - **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
    - **Windows**: `winget install Ollama.Ollama`
    - **macOS**: `brew install ollama`
 
-2. **Pull Your Preferred Model**:
+2. **Pull Preferred Model**:
    ```bash
-   # Recommended fast 3B model (~2GB RAM footprint):
+   # Recommended fast 3B model (~2 GB RAM footprint):
    ollama pull llama3.2:3b
-
-   # Or latest tag (automatically auto-resolved by PETTR):
-   ollama pull llama3.2
    ```
 
-3. **How It Works**:
-   - **Intent Classifier**: Maps stream-of-consciousness logs into structured JSON schemas. Falls back to heuristic parsing if Ollama is unreachable.
-   - **Horace Chat**: Open the chat drawer via <kbd>Alt+H</kbd> or the top header button to talk directly to your server node. Multi-turn conversation history is preserved in SQLite (`llm_chat_messages`).
-   - **Model Flexibility**: PETTR automatically detects installed models via Ollama tags (`/api/tags`) and resolves tag aliases (e.g. `llama3.2:3b` $\leftrightarrow$ `llama3.2:latest` $\leftrightarrow$ `llama3`). You can also switch models anytime in Settings or via `/api/llm/select`.
+3. **Usage**:
+   - The parser automatically uses the model for ambiguous input and falls back to heuristic parsing if Ollama is offline.
+   - Press <kbd>Alt+H</kbd> or click the robot icon in the navigation bar to open the chat drawer.
+   - Models can be switched anytime in Settings or via `/api/llm/select`.
+
+---
+
+## Managing Your PIN Headless
+
+Default PIN: **`1234`**
+
+Update your PIN from the terminal without desktop access:
+
+```bash
+# Docker:
+docker compose exec pettr python -m backend.cli set-pin <NEW_PIN>
+
+# Native Python:
+python -m backend.cli set-pin <NEW_PIN>
+```
+
+Alternatively, edit `"pin": "<NEW_PIN>"` in `config/pettr_config.json`, or update it via the Settings tab when accessing from localhost.
 
 ---
 
 ## Tailscale Remote Access
 
-1. Install Tailscale on your server (`sudo tailscale up` on Linux or via desktop app).
-2. Install Tailscale on your mobile phone / remote laptop and log into the same Tailnet.
-3. Access PETTR securely from anywhere without port forwarding:
-   `http://<your-tailscale-name>:8000`
+1. Install Tailscale on your server host (`sudo tailscale up`).
+2. Install Tailscale on your phone or laptop and authenticate on the same Tailnet.
+3. Access PETTR securely from any network without port forwarding:
+   `http://<your-tailscale-node>:8000`
 
 ---
 
-## Automated Cloud Backups (3-2-1 Strategy)
+## Automated Backups (3-2-1 Strategy)
 
-- **Headless Linux (`rclone` + cron) — Recommended for 24/7 servers**:
-  Configure `rclone` with Google Drive and add a nightly cron sync:
+- **Headless Linux (`rclone` + cron)**:
   ```bash
-  # Test sync
-  rclone copy ~/pettr/backups gdrive:PETTR_Backups -v
-
-  # Nightly cron (via crontab -e)
+  # Nightly sync to Google Drive (via crontab -e)
   30 3 * * * /usr/bin/rclone copy /home/$USER/pettr/backups gdrive:PETTR_Backups --min-age 15m >> /home/$USER/rclone_backup.log 2>&1
   ```
-- **In-App Cloud Trigger**: Click **"Backup to Google Drive Now"** in the Settings tab. PETTR generates a timestamped `.zip` containing the SQLite database snapshot, JSON export, and Markdown digest, and immediately syncs it to Google Drive with on-screen verification.
-- **Direct Device Download**: Click **"Download Latest Backup (.zip)"** to download the archive directly to your current device without accessing Google Drive.
+- **In-App Trigger**: Click **"Backup to Google Drive Now"** in the Settings tab to generate a timestamped `.zip` (SQLite snapshot, JSON export, and Markdown digest) with immediate cloud sync verification.
+- **Direct Download**: Click **"Download Latest Backup (.zip)"** in Settings to save an archive directly to your current device.
