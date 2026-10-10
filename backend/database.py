@@ -1211,6 +1211,224 @@ def _get_runtime_env_info(base_dir: Path, force_refresh: bool = False) -> Dict[s
     _STORAGE_INFO_CACHE["runtime"] = {"timestamp": now, "data": result}
     return result
 
+def _get_process_ram_info() -> Dict[str, Any]:
+    """Computes physical resident memory (RSS) of the active PETTR Python process."""
+    rss_bytes = 0
+    pid = os.getpid()
+
+    # 1. Linux /proc/self/status
+    try:
+        if os.path.exists("/proc/self/status"):
+            with open("/proc/self/status", "r") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        rss_bytes = int(line.split()[1]) * 1024
+                        break
+    except Exception:
+        pass
+
+    # 2. Linux / macOS resource module
+    if rss_bytes == 0:
+        try:
+            import resource
+            ru = resource.getrusage(resource.RUSAGE_SELF)
+            if sys.platform == "darwin":
+                rss_bytes = int(ru.ru_maxrss)
+            else:
+                rss_bytes = int(ru.ru_maxrss) * 1024
+        except Exception:
+            pass
+
+    # 3. Windows ctypes API
+    if rss_bytes == 0 and sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            class _PM(ctypes.Structure):
+                _fields_ = [
+                    ("cb", wintypes.DWORD),
+                    ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t),
+                    ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t),
+                    ("PeakPagefileUsage", ctypes.c_size_t),
+                ]
+            p = _PM()
+            p.cb = ctypes.sizeof(_PM)
+            k32 = ctypes.windll.kernel32
+            fn = getattr(k32, "K32GetProcessMemoryInfo", None) or getattr(ctypes.windll.psapi, "GetProcessMemoryInfo", None)
+            if fn:
+                fn.argtypes = [wintypes.HANDLE, ctypes.POINTER(_PM), wintypes.DWORD]
+                fn.restype = wintypes.BOOL
+                if fn(k32.GetCurrentProcess(), ctypes.byref(p), p.cb):
+                    rss_bytes = int(p.WorkingSetSize)
+        except Exception:
+            pass
+
+    return {
+        "pid": pid,
+        "rss_bytes": rss_bytes,
+        "rss_formatted": format_bytes(rss_bytes),
+        "note": "Python ASGI application server resident memory"
+    }
+
+def _get_host_ram_info() -> Dict[str, Any]:
+    """Retrieves total, used, and free physical RAM on the host server."""
+    total_b, used_b, free_b, used_pct = 0, 0, 0, 0.0
+
+    # 1. Linux /proc/meminfo
+    try:
+        if os.path.exists("/proc/meminfo"):
+            mem = {}
+            with open("/proc/meminfo", "r") as f:
+                for line in f:
+                    if ":" in line:
+                        k, v = line.split(":", 1)
+                        mem[k.strip()] = v.strip()
+            total_kb = int(mem.get("MemTotal", "0 kB").split()[0])
+            avail_kb = int(mem.get("MemAvailable", "0 kB").split()[0])
+            if total_kb > 0:
+                total_b = total_kb * 1024
+                free_b = avail_kb * 1024
+                used_b = total_b - free_b
+                used_pct = round((used_b / total_b) * 100, 1)
+    except Exception:
+        pass
+
+    # 2. Windows GlobalMemoryStatusEx
+    if total_b == 0 and sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            class _MSE(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", wintypes.DWORD),
+                    ("dwMemoryLoad", wintypes.DWORD),
+                    ("ullTotalPhys", ctypes.c_uint64),
+                    ("ullAvailPhys", ctypes.c_uint64),
+                    ("ullTotalPageFile", ctypes.c_uint64),
+                    ("ullAvailPageFile", ctypes.c_uint64),
+                    ("ullTotalVirtual", ctypes.c_uint64),
+                    ("ullAvailVirtual", ctypes.c_uint64),
+                    ("ullAvailExtendedVirtual", ctypes.c_uint64),
+                ]
+            stat = _MSE()
+            stat.dwLength = ctypes.sizeof(_MSE)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+                total_b = int(stat.ullTotalPhys)
+                free_b = int(stat.ullAvailPhys)
+                used_b = total_b - free_b
+                used_pct = float(stat.dwMemoryLoad)
+        except Exception:
+            pass
+
+    return {
+        "total_bytes": total_b,
+        "total_formatted": format_bytes(total_b),
+        "used_bytes": used_b,
+        "used_formatted": format_bytes(used_b),
+        "free_bytes": free_b,
+        "free_formatted": format_bytes(free_b),
+        "used_percent": used_pct
+    }
+
+def _get_llm_ram_info(candidate_urls: Optional[List[str]] = None, target_model: str = "llama3.2:3b") -> Dict[str, Any]:
+    """Queries Ollama for active in-memory models and active VRAM/RAM consumption."""
+    global _STORAGE_INFO_CACHE
+    import time
+    now = time.time()
+    cache_entry = _STORAGE_INFO_CACHE.get("llm_ram", {})
+    if cache_entry.get("data") is not None and (now - cache_entry.get("timestamp", 0) < 8.0):
+        return cache_entry["data"]
+
+    if candidate_urls is None:
+        try:
+            from config.config import get_ollama_candidate_urls
+            candidate_urls = get_ollama_candidate_urls()
+        except Exception:
+            candidate_urls = ["http://127.0.0.1:11434"]
+
+    online = False
+    endpoint_used: Optional[str] = None
+    loaded_models: List[Dict[str, Any]] = []
+    total_llm_ram_bytes = 0
+
+    import httpx
+    for url in candidate_urls:
+        try:
+            with httpx.Client(timeout=httpx.Timeout(1.0, connect=0.4)) as client:
+                resp = client.get(f"{url.rstrip('/')}/api/ps")
+                if resp.status_code == 200:
+                    online = True
+                    endpoint_used = url
+                    payload = resp.json()
+                    for m in payload.get("models", []):
+                        m_size = int(m.get("size", 0))
+                        m_vram = int(m.get("size_vram", 0))
+                        total_llm_ram_bytes += m_size
+                        details = m.get("details", {})
+                        loaded_models.append({
+                            "name": m.get("name", "unknown"),
+                            "model": m.get("model", "unknown"),
+                            "size_bytes": m_size,
+                            "formatted": format_bytes(m_size),
+                            "size_vram_bytes": m_vram,
+                            "size_vram_formatted": format_bytes(m_vram),
+                            "expires_at": m.get("expires_at"),
+                            "parameter_size": details.get("parameter_size", ""),
+                            "quantization": details.get("quantization_level", "")
+                        })
+                    break
+                elif resp.status_code in [404, 400]:
+                    online = True
+                    endpoint_used = url
+                    break
+        except Exception:
+            continue
+
+    if online:
+        if loaded_models:
+            status_desc = f"Active in Memory ({format_bytes(total_llm_ram_bytes)})"
+        else:
+            status_desc = "Standby (Unloaded from RAM)"
+    else:
+        status_desc = "Offline / Standby"
+
+    result = {
+        "online": online,
+        "endpoint": endpoint_used,
+        "active_model": target_model,
+        "loaded_models": loaded_models,
+        "loaded_count": len(loaded_models),
+        "total_ram_bytes": total_llm_ram_bytes,
+        "formatted": format_bytes(total_llm_ram_bytes),
+        "status": status_desc
+    }
+    _STORAGE_INFO_CACHE["llm_ram"] = {"timestamp": now, "data": result}
+    return result
+
+def get_ram_breakdown(candidate_urls: Optional[List[str]] = None, target_model: str = "llama3.2:3b") -> Dict[str, Any]:
+    """Computes a complete real-time breakdown of RAM consumption across PETTR, Ollama, and host server."""
+    process_ram = _get_process_ram_info()
+    host_ram = _get_host_ram_info()
+    llm_ram = _get_llm_ram_info(candidate_urls=candidate_urls, target_model=target_model)
+    combined_bytes = process_ram["rss_bytes"] + llm_ram["total_ram_bytes"]
+
+    return {
+        "pettr_process": process_ram,
+        "llm_process": llm_ram,
+        "host_ram": host_ram,
+        "combined_pettr_ram": {
+            "total_bytes": combined_bytes,
+            "formatted": format_bytes(combined_bytes),
+            "description": "PETTR Python resident memory + active local LLM weights in RAM"
+        }
+    }
+
 def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Computes a real-time storage breakdown of PETTR and its data on the host server.
@@ -1348,6 +1566,7 @@ def get_storage_breakdown(db_path: Optional[Path] = None) -> Dict[str, Any]:
             "free_formatted": format_bytes(disk_free),
             "used_percent": disk_pct
         },
+        "ram": get_ram_breakdown(),
         "retention_policy": {
             "completed_tasks_days": 30,
             "projects": "Indefinite",

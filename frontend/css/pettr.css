@@ -6107,6 +6107,30 @@ body {
   border-radius: 4px;
   transition: width 0.4s ease;
 }
+.storage-progress-bar-fill.ram-fill {
+  background: linear-gradient(90deg, #10b981, #8b5cf6);
+}
+.storage-meters-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+@media (min-width: 680px) {
+  .storage-meters-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.storage-meter-item {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+}
+[data-theme="dark"] .storage-meter-item,
+[data-theme="evening"] .storage-meter-item {
+  background: rgba(255, 255, 255, 0.03);
+}
 .storage-grid-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

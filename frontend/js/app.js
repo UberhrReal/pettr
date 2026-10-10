@@ -1497,9 +1497,16 @@ const App = {
       const llm = data.llm || {};
       const totalApp = data.total_app_storage || {};
       const disk = data.disk || {};
+      const ram = data.ram || {};
       const counts = db.counts || {};
 
+      const procRam = ram.pettr_process || {};
+      const llmRam = ram.llm_process || {};
+      const hostRam = ram.host_ram || {};
+      const combinedRam = ram.combined_pettr_ram || {};
+
       const diskPct = disk.used_percent || 0;
+      const ramPct = hostRam.used_percent || 0;
 
       // Build model tags preview if models exist
       let modelTagsHtml = "";
@@ -1509,38 +1516,108 @@ const App = {
           `</div>`;
       }
 
+      // Build active in-RAM models preview
+      let hotModelBadgesHtml = "";
+      if (llmRam.loaded_models && llmRam.loaded_models.length > 0) {
+        hotModelBadgesHtml = `<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">` +
+          llmRam.loaded_models.map(m => `<span style="font-size: 10.5px; background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); border: 1px solid var(--card-border); color: var(--normal-green);">${m.name} (${m.formatted}${m.size_vram_bytes ? ` · ${m.size_vram_formatted} VRAM` : ''})</span>`).join("") +
+          `</div>`;
+      }
+
       container.innerHTML = `
-        <!-- Host Disk & App Footprint Banner -->
+        <!-- Host Disk & RAM Footprint Overview Banner -->
         <div class="storage-overview-banner">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
             <div>
-              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">PETTR Total Footprint (Everything Included)</span>
-              <div style="font-size: 22px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main); margin-top: 2px;">
-                ${totalApp.formatted || '0 B'}
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">PETTR Combined Footprint</span>
+              <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 2px; flex-wrap: wrap;">
+                <div>
+                  <span style="font-size: 20px; font-weight: 800; font-family: var(--font-mono); color: var(--text-main);">${totalApp.formatted || '0 B'}</span>
+                  <span style="font-size: 11px; color: var(--text-muted); margin-left: 4px;">Storage (Disk)</span>
+                </div>
+                <div style="color: var(--text-muted); font-size: 14px;">•</div>
+                <div>
+                  <span style="font-size: 20px; font-weight: 800; font-family: var(--font-mono); color: var(--normal-green);">${combinedRam.formatted || '0 B'}</span>
+                  <span style="font-size: 11px; color: var(--text-muted); margin-left: 4px;">Live RAM Footprint</span>
+                </div>
               </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-                Includes SQLite DB, local LLM weights, Python runtime, backups &amp; media
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700;">Server Drive Capacity</span>
-              <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-top: 2px;">
-                ${disk.used_formatted || '0 B'} used / ${disk.free_formatted || '0 B'} free (${diskPct}%)
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;">
+                Storage includes SQLite, model weights, venv &amp; backups · RAM includes PETTR process (${procRam.rss_formatted || '0 B'}) &amp; active LLM weights (${llmRam.formatted || '0 B'})
               </div>
             </div>
           </div>
-          <div class="storage-progress-bar-bg" title="Host Server Drive Usage: ${diskPct}%">
-            <div class="storage-progress-bar-fill" style="width: ${Math.min(100, Math.max(2, diskPct))}%;"></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
-            <span>0 GB</span>
-            <span>Total Host Storage: ${disk.total_formatted || '0 B'}</span>
+
+          <!-- Dual Hardware Capacity Meters: Drive Storage & Host RAM -->
+          <div class="storage-meters-row">
+            <!-- Meter 1: Server Drive Storage -->
+            <div class="storage-meter-item">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                <span style="font-weight: 700; color: var(--text-main);"><i data-lucide="hard-drive" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;color:var(--accent-cyan);"></i> Server Drive Storage</span>
+                <span style="font-family: var(--font-mono); font-weight: 600; color: var(--text-main);">${disk.used_formatted || '0 B'} / ${disk.total_formatted || '0 B'} (${diskPct}%)</span>
+              </div>
+              <div class="storage-progress-bar-bg" title="Drive Storage Usage: ${diskPct}%">
+                <div class="storage-progress-bar-fill" style="width: ${Math.min(100, Math.max(2, diskPct))}%;"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">
+                <span>${disk.free_formatted || '0 B'} free space</span>
+                <span>${disk.total_formatted || '0 B'} capacity</span>
+              </div>
+            </div>
+
+            <!-- Meter 2: Server System RAM -->
+            <div class="storage-meter-item">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px;">
+                <span style="font-weight: 700; color: var(--text-main);"><i data-lucide="cpu" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;color:var(--normal-green);"></i> Server System RAM</span>
+                <span style="font-family: var(--font-mono); font-weight: 600; color: var(--text-main);">${hostRam.used_formatted || '0 B'} / ${hostRam.total_formatted || '0 B'} (${ramPct}%)</span>
+              </div>
+              <div class="storage-progress-bar-bg" title="Host Server RAM Usage: ${ramPct}%">
+                <div class="storage-progress-bar-fill ram-fill" style="width: ${Math.min(100, Math.max(2, ramPct))}%;"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-muted); margin-top: 4px;">
+                <span>${hostRam.free_formatted || '0 B'} available memory</span>
+                <span>${hostRam.total_formatted || '0 B'} physical RAM</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 6 Storage Breakdown Cards -->
+        <!-- 8 Storage & Memory Breakdown Cards -->
         <div class="storage-grid-cards">
-          <!-- 1. SQLite Database -->
+          <!-- 1. PETTR Process RAM -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                🧠 PETTR Process RAM
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--focus-indigo);">
+                ${procRam.rss_formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              PID: <code>${procRam.pid || 'Active'}</code> · Python ASGI Server<br>
+              Physical resident memory (RSS): <strong>${procRam.rss_formatted || '0 B'}</strong><br>
+              Ultra-lean footprint; zero heavy Java/Node background daemons.
+            </div>
+          </div>
+
+          <!-- 2. Local LLM Active in RAM -->
+          <div class="storage-stat-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
+                ⚡ Active LLM (In-Memory)
+              </span>
+              <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: ${llmRam.loaded_count > 0 ? 'var(--normal-green)' : 'var(--text-muted)'};">
+                ${llmRam.formatted || '0 B'}
+              </span>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+              Status: <span style="font-weight: 600; color: ${llmRam.loaded_count > 0 ? 'var(--normal-green)' : 'var(--text-muted)'};">${llmRam.status || 'Standby'}</span><br>
+              ${llmRam.loaded_count > 0 ? 'Active in memory for instant, zero-latency inference.' : 'Weights are idle on disk and load into memory on demand.'}
+              ${hotModelBadgesHtml}
+            </div>
+          </div>
+
+          <!-- 3. SQLite Database -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
@@ -1557,11 +1634,11 @@ const App = {
             </div>
           </div>
 
-          <!-- 2. Local LLM Models (Ollama) -->
+          <!-- 4. Local LLM Models (Ollama on Disk) -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                🤖 Local LLM Models (Ollama)
+                🤖 Local LLM Weights (Disk)
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--urgent-orange);">
                 ${llm.formatted || '0 B'}
@@ -1574,7 +1651,7 @@ const App = {
             </div>
           </div>
 
-          <!-- 3. Python Runtime Environment -->
+          <!-- 5. Python Runtime Environment -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
@@ -1590,7 +1667,7 @@ const App = {
             </div>
           </div>
 
-          <!-- 4. Notes & Media Attachments -->
+          <!-- 6. Notes & Media Attachments -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
@@ -1606,7 +1683,7 @@ const App = {
             </div>
           </div>
 
-          <!-- 5. Backup Archives -->
+          <!-- 7. Backup Archives -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
@@ -1622,7 +1699,7 @@ const App = {
             </div>
           </div>
 
-          <!-- 6. Application Codebase -->
+          <!-- 8. Application Codebase -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">

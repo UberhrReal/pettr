@@ -96,8 +96,19 @@ def get_host_server_metrics(db_path: Optional[Path] = None) -> Dict[str, Any]:
     except Exception:
         pass
 
+    # RAM and Process footprint
     try:
-        if os.path.exists("/proc/meminfo"):
+        ram_breakdown = database.get_ram_breakdown()
+        host_ram = ram_breakdown.get("host_ram", {})
+        if host_ram.get("total_bytes", 0) > 0:
+            metrics["ram"] = f"{host_ram['used_formatted']} used / {host_ram['total_formatted']} total ({host_ram['used_percent']}%)"
+        metrics["pettr_ram"] = ram_breakdown.get("pettr_process", {}).get("rss_formatted", "Unknown")
+        metrics["llm_ram"] = ram_breakdown.get("llm_process", {}).get("status", "Unknown")
+    except Exception:
+        pass
+
+    try:
+        if metrics["ram"] == "Unknown" and os.path.exists("/proc/meminfo"):
             mem = {}
             with open("/proc/meminfo", "r") as f:
                 for line in f:
@@ -170,6 +181,10 @@ def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Opti
         ]
         if srv["ram"] != "Unknown":
             context_lines.append(f"- Host Memory: {srv['ram']}")
+        if srv.get("pettr_ram") and srv["pettr_ram"] != "Unknown":
+            context_lines.append(f"- PETTR Process RAM: {srv['pettr_ram']}")
+        if srv.get("llm_ram") and srv["llm_ram"] != "Unknown":
+            context_lines.append(f"- Local LLM In-Memory Status: {srv['llm_ram']}")
         if srv["load_avg"] != "Unknown":
             context_lines.append(f"- System Load Average: {srv['load_avg']}")
         if srv["uptime"] != "Unknown":

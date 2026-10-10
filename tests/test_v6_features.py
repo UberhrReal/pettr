@@ -711,6 +711,32 @@ def test_server_storage_breakdown_api(temp_db, monkeypatch):
         assert disk_info["free_bytes"] > 0
         assert "used_percent" in disk_info
 
+        # Check RAM & memory footprint breakdown
+        assert "ram" in data
+        ram_info = data["ram"]
+        assert "pettr_process" in ram_info
+        assert "llm_process" in ram_info
+        assert "host_ram" in ram_info
+        assert "combined_pettr_ram" in ram_info
+
+        proc_ram = ram_info["pettr_process"]
+        assert proc_ram["rss_bytes"] >= 0
+        assert "rss_formatted" in proc_ram
+        assert "pid" in proc_ram
+
+        llm_ram = ram_info["llm_process"]
+        assert "total_ram_bytes" in llm_ram
+        assert "status" in llm_ram
+        assert "loaded_models" in llm_ram
+
+        host_ram = ram_info["host_ram"]
+        assert host_ram["total_bytes"] >= 0
+        assert "used_percent" in host_ram
+
+        combined_ram = ram_info["combined_pettr_ram"]
+        assert combined_ram["total_bytes"] == proc_ram["rss_bytes"] + llm_ram["total_ram_bytes"]
+        assert "formatted" in combined_ram
+
         # Check retention policy description
         assert data["retention_policy"]["completed_tasks_days"] == 30
         assert data["retention_policy"]["projects"] == "Indefinite"
@@ -1352,3 +1378,60 @@ def test_header_clock_visibility_logic_on_tab_switch():
     assert active_pane_idx != -1, "targetPane.classList.add('active') should be in switchTab"
     assert clock_call_idx != -1, "this.updateHeaderClockVisibility() should be in switchTab"
     assert active_pane_idx < clock_call_idx, "targetPane must be made active before updateHeaderClockVisibility is called"
+
+
+def test_pettr_and_llm_ram_footprint_integration():
+    """Verify that PETTR and local LLM RAM metrics are computed and integrated into the resource footprint panel."""
+    # 1. Backend database RAM breakdown computation
+    ram_data = database.get_ram_breakdown()
+    assert "pettr_process" in ram_data
+    assert "llm_process" in ram_data
+    assert "host_ram" in ram_data
+    assert "combined_pettr_ram" in ram_data
+
+    proc = ram_data["pettr_process"]
+    assert proc["pid"] > 0
+    assert proc["rss_bytes"] > 0
+    assert "MB" in proc["rss_formatted"] or "KB" in proc["rss_formatted"] or "B" in proc["rss_formatted"]
+
+    llm = ram_data["llm_process"]
+    assert "total_ram_bytes" in llm
+    assert "status" in llm
+    assert isinstance(llm["loaded_models"], list)
+
+    host = ram_data["host_ram"]
+    assert host["total_bytes"] > 0
+    assert 0 <= host["used_percent"] <= 100
+
+    combined = ram_data["combined_pettr_ram"]
+    assert combined["total_bytes"] == proc["rss_bytes"] + llm["total_ram_bytes"]
+
+    # 2. Horace server metrics integration
+    from backend import horace
+    metrics = horace.get_host_server_metrics()
+    assert "pettr_ram" in metrics
+    assert "llm_ram" in metrics
+    assert metrics["pettr_ram"] != "Unknown"
+
+    telemetry = horace.build_live_telemetry_context()
+    assert "PETTR Process RAM:" in telemetry
+    assert "Local LLM In-Memory Status:" in telemetry
+
+    # 3. Frontend resource footprint panel integration
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    assert "procRam = ram.pettr_process" in app_js
+    assert "llmRam = ram.llm_process" in app_js
+    assert "hostRam = ram.host_ram" in app_js
+    assert "combinedRam = ram.combined_pettr_ram" in app_js
+    assert "PETTR Process RAM" in app_js
+    assert "Active LLM (In-Memory)" in app_js
+    assert "Server System RAM" in app_js
+    assert "ram-fill" in app_js
+
+    css_content = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert ".storage-progress-bar-fill.ram-fill" in css_content
+    assert ".storage-meters-row" in css_content
+
+    html_content = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "PETTR process memory, local LLM RAM allocation" in html_content
+
