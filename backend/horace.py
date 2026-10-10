@@ -73,6 +73,9 @@ CRITICAL RELIABILITY, LOGIC & ANTI-HALLUCINATION RULES:
    - ⚠️ Overdue Reality Check: Blunt summary of any overdue backlog slipping from previous days (or high-five if zero).
    - 📅 Events & Classes: Any fixed-time appointments scheduled for today.
    - 💻 Server Pulse: Brief one-liner server status check if appropriate.
+6. Storage Capacity vs Database File Size:
+   - Clearly distinguish between Host Storage (available free disk space on the NVMe SSD, e.g. 426+ GB free) and the SQLite Database File Size (pettr.sqlite itself, which is ~0.17 MB).
+   - NEVER confuse the database file size with available free space! The database is ~0.17 MB in size; your actual free disk storage is hundreds of gigabytes.
 - Keep responses articulate and engaging. Use formatting like bullet points, bold text, or backticks where helpful."""
 
 HORACE_BASE_SYSTEM_PROMPT = get_horace_system_prompt("Hong Rong")
@@ -169,7 +172,7 @@ def get_host_server_metrics(db_path: Optional[Path] = None, request: Optional[An
         actual_db = database.resolve_db_path(db_path)
         if actual_db.exists():
             db_size_mb = actual_db.stat().st_size / (1024 * 1024)
-            metrics["db_health"] = f"pettr.sqlite ({db_size_mb:.2f} MB, WAL mode)"
+            metrics["db_health"] = f"pettr.sqlite file size on disk is {db_size_mb:.2f} MB (WAL mode journal)"
     except Exception:
         pass
 
