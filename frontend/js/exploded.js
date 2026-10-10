@@ -115,7 +115,7 @@ const Exploded = {
     }
   },
 
-  async refresh() {
+  async refresh(showFeedback = false) {
     try {
       const res = await fetch("/api/exploded");
       if (!res.ok) return;
@@ -129,6 +129,9 @@ const Exploded = {
       }
       if (typeof Mindmap !== "undefined") {
         await Mindmap.refresh();
+      }
+      if (showFeedback && typeof App !== "undefined" && App.showToast) {
+        App.showToast("Exploded view refreshed", "success");
       }
     } catch (err) {
       console.error("Error loading exploded view:", err);

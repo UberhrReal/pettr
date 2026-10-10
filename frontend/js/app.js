@@ -1096,7 +1096,7 @@ const App = {
         }
 
         if (data.status === "unorganized") {
-          this.showToast("Placed into Unorganized Queue for review", 4000);
+          this.showToast("Placed into Unorganised Queue for review", 4000);
         } else {
           const type = data.entity_type;
           const proj = data.entity && data.entity.project_name ? ` [${data.entity.project_name}]` : "";
@@ -1483,7 +1483,7 @@ const App = {
     }
   },
 
-  async loadStorageMetrics() {
+  async loadStorageMetrics(showToast = false) {
     const container = document.getElementById("storageMetricsContainer");
     if (!container) return;
 
@@ -1586,13 +1586,13 @@ const App = {
           </div>
         </div>
 
-        <!-- 8 Storage & Memory Breakdown Cards -->
+        <!-- 8 Storage & Memory Breakdown Cards with Clean Lucide Iconography -->
         <div class="storage-grid-cards">
           <!-- 1. PETTR Process RAM -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                🧠 PETTR Process RAM
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="cpu" style="width:13px;height:13px;color:var(--focus-indigo);"></i> PETTR Process RAM
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--focus-indigo);">
                 ${procRam.rss_formatted || '0 B'}
@@ -1608,8 +1608,8 @@ const App = {
           <!-- 2. Local LLM Active in RAM -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                ⚡ Active LLM (In-Memory)
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="zap" style="width:13px;height:13px;color:var(--normal-green);"></i> Active LLM (In-Memory)
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: ${llmRam.loaded_count > 0 ? 'var(--normal-green)' : 'var(--text-muted)'};">
                 ${llmRam.formatted || '0 B'}
@@ -1625,8 +1625,8 @@ const App = {
           <!-- 3. SQLite Database -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                🗄️ SQLite Database
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="database" style="width:13px;height:13px;color:var(--focus-indigo);"></i> SQLite Database
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--focus-indigo);">
                 ${db.formatted || '0 B'}
@@ -1642,8 +1642,8 @@ const App = {
           <!-- 4. Local LLM Models (Ollama on Disk) -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                🤖 Local LLM Weights (Disk)
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="bot" style="width:13px;height:13px;color:var(--urgent-orange);"></i> Local LLM Weights (Disk)
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--urgent-orange);">
                 ${llm.formatted || '0 B'}
@@ -1659,8 +1659,8 @@ const App = {
           <!-- 5. Python Runtime Environment -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                ⚙️ Runtime Environment (venv)
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="settings" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Runtime Environment (venv)
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--accent-cyan);">
                 ${runtimeEnv.formatted || '0 B'}
@@ -1675,8 +1675,8 @@ const App = {
           <!-- 6. Notes & Media Attachments -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                🖼️ Notes &amp; Media Attachments
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="image" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Notes &amp; Media Attachments
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--accent-cyan);">
                 ${media.formatted || '0 B'}
@@ -1691,8 +1691,8 @@ const App = {
           <!-- 7. Backup Archives -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                📦 Local Backup Archives
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="archive" style="width:13px;height:13px;color:var(--recurrence-purple);"></i> Local Backup Archives
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--recurrence-purple);">
                 ${backups.formatted || '0 B'}
@@ -1707,8 +1707,8 @@ const App = {
           <!-- 8. Application Codebase -->
           <div class="storage-stat-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">
-                ⚡ Application Codebase
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="code" style="width:13px;height:13px;color:var(--text-main);"></i> Application Codebase
               </span>
               <span style="font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--text-main);">
                 ${appCode.formatted || '0 B'}
@@ -1733,6 +1733,9 @@ const App = {
       `;
       if (window.lucide) {
         try { lucide.createIcons(); } catch (_) {}
+      }
+      if (showToast && typeof this.showToast === "function") {
+        this.showToast("Storage and resource metrics refreshed", "success");
       }
     } catch (err) {
       console.error("Error loading storage metrics:", err);

@@ -297,6 +297,9 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "You are the sharp, witty, cultured personal AI companion for PETTR "
         "(Personal Errands, Task Tracker & Repository), an executive dashboard for coursework, "
         "engineering craft, personal life, and high-focus productivity.\n"
+        "British English: You MUST strictly use British English spelling conventions throughout "
+        "(e.g., prioritise, organise, recognise, summarise, categorise, customise, colour, behaviour). "
+        "Never use American English spellings like 'prioritize' or 'customized'.\n"
         "Your task is to generate:\n"
         "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
         "(strictly 6 to 9 words, max 48 characters so they fit cleanly on a single line without wrapping).\n"
@@ -318,11 +321,13 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
         "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
         "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone. Keep the greetings independently focused on personal momentum and craft.\n"
-        f"8. Address or mention {user_name} naturally in at least two lines.\n\n"
+        f"8. Address or mention {user_name} naturally in at least two lines.\n"
+        "9. Strictly use British English spelling conventions throughout (e.g. prioritise, organise, customise, colour, behaviour).\n\n"
         "Task 2 — Historical Fun Fact ('fact'):\n"
         f"1. Provide exactly 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history ({target_date.strftime('%B %d')}).\n"
         f"{milestone_hint}"
-        "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n\n"
+        "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
+        "3. Strictly use British English spelling conventions.\n\n"
         "Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
     )
 
@@ -372,10 +377,31 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                     elif isinstance(parsed, list):
                         raw_phrases = parsed
 
+                    def to_british_spelling(text: str) -> str:
+                        if not text:
+                            return text
+                        replacements = [
+                            (r"\bprioritiz(e|es|ed|ing|ation)\b", r"prioritis\1"),
+                            (r"\bcustomiz(e|es|ed|ing|ation)\b", r"customis\1"),
+                            (r"\borganiz(e|es|ed|ing|ation)\b", r"organis\1"),
+                            (r"\brecogniz(e|es|ed|ing|ation)\b", r"recognis\1"),
+                            (r"\bsummariz(e|es|ed|ing|ation)\b", r"summaris\1"),
+                            (r"\boptimiz(e|es|ed|ing|ation)\b", r"optimis\1"),
+                            (r"\bcategoriz(e|es|ed|ing|ation)\b", r"categoris\1"),
+                            (r"\bbehaviors\b", "behaviours"),
+                            (r"\bbehavior\b", "behaviour"),
+                            (r"\bcolors\b", "colours"),
+                            (r"\bcolor\b", "colour"),
+                        ]
+                        for pat, rep in replacements:
+                            text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+                        return text
+
                     cleaned = []
                     for p in raw_phrases:
                         if isinstance(p, str):
                             s = p.strip().strip('"').strip("'")
+                            s = to_british_spelling(s)
                             # Clamp to strict single-line max (52 chars)
                             if len(s) > 52:
                                 parts = re.split(r'[\.\:\;\—\-]\s+', s)
@@ -388,6 +414,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
 
                     if isinstance(fact_str, str):
                         fact_str = fact_str.strip().strip('"').strip("'")
+                        fact_str = to_british_spelling(fact_str)
                         if len(fact_str) < 5 or len(fact_str) > 250:
                             fact_str = None
 

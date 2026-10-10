@@ -60,6 +60,28 @@ const Timeline = {
       this.currentYear = d.getFullYear();
       this.currentMonth = d.getMonth() + 1;
       this.currentDay = d.getDate();
+
+      const targetStr = `${this.currentYear}-${String(this.currentMonth).padStart(2, "0")}-${String(this.currentDay).padStart(2, "0")}`;
+      const scrollContainer = document.getElementById("unifiedTimelineScrollContainer");
+      if (this.viewMode !== "list" && scrollContainer && this.loadedDays && this.loadedDays.length > 0) {
+        const foundIdx = this.loadedDays.findIndex(x => x.date === targetStr);
+        if (foundIdx >= 0) {
+          const SLOT_WIDTH = 110;
+          const DAY_WIDTH = 24 * SLOT_WIDTH;
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+          const isToday = (targetStr === todayStr);
+          const hour = isToday ? now.getHours() : 9;
+          const targetScroll = (foundIdx * DAY_WIDTH) + (hour * SLOT_WIDTH) - (scrollContainer.clientWidth / 2);
+          scrollContainer.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
+          const titleEl = document.getElementById("timelineDisplayTitle");
+          if (titleEl && this.loadedDays[foundIdx]) {
+            titleEl.textContent = this.loadedDays[foundIdx].display_date;
+          }
+          this.targetDateStr = targetStr;
+          return;
+        }
+      }
     } else if (this.currentScale === "month") {
       this.currentMonth += direction;
       if (this.currentMonth > 12) {
@@ -80,6 +102,25 @@ const Timeline = {
     this.currentYear = now.getFullYear();
     this.currentMonth = now.getMonth() + 1;
     this.currentDay = now.getDate();
+
+    const todayStr = `${this.currentYear}-${String(this.currentMonth).padStart(2, "0")}-${String(this.currentDay).padStart(2, "0")}`;
+    const scrollContainer = document.getElementById("unifiedTimelineScrollContainer");
+    if (this.currentScale === "day" && this.viewMode !== "list" && scrollContainer && this.loadedDays && this.loadedDays.length > 0) {
+      const foundIdx = this.loadedDays.findIndex(x => x.date === todayStr);
+      if (foundIdx >= 0) {
+        const SLOT_WIDTH = 110;
+        const DAY_WIDTH = 24 * SLOT_WIDTH;
+        const hour = now.getHours();
+        const targetScroll = (foundIdx * DAY_WIDTH) + (hour * SLOT_WIDTH) - (scrollContainer.clientWidth / 2);
+        scrollContainer.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
+        const titleEl = document.getElementById("timelineDisplayTitle");
+        if (titleEl && this.loadedDays[foundIdx]) {
+          titleEl.textContent = this.loadedDays[foundIdx].display_date;
+        }
+        this.targetDateStr = todayStr;
+        return;
+      }
+    }
     this.refresh();
   },
 
@@ -431,16 +472,22 @@ const Timeline = {
       }
     }, { passive: true });
 
-    // Auto-scroll: center on current time (if today) or 08:00
-    setTimeout(() => {
-      if (isToday) {
-        const curMins = now.getHours() * 60 + now.getMinutes();
-        const targetScroll = Math.max(0, (curMins / 60) * SLOT_WIDTH - scrollContainer.clientWidth / 2);
-        scrollContainer.scrollLeft = targetScroll;
-      } else {
-        scrollContainer.scrollLeft = Math.max(0, 8 * SLOT_WIDTH - 60);
-      }
-    }, 50);
+    // Auto-scroll: center on current time (if today) or 08:00 without smooth animation jump
+    scrollContainer.style.scrollBehavior = "auto";
+    let targetScroll = 0;
+    if (isToday) {
+      const curMins = now.getHours() * 60 + now.getMinutes();
+      targetScroll = Math.max(0, (curMins / 60) * SLOT_WIDTH - scrollContainer.clientWidth / 2);
+    } else {
+      targetScroll = Math.max(0, 8 * SLOT_WIDTH - 60);
+    }
+    scrollContainer.scrollLeft = targetScroll;
+    requestAnimationFrame(() => {
+      scrollContainer.scrollLeft = targetScroll;
+      setTimeout(() => {
+        scrollContainer.style.scrollBehavior = "";
+      }, 50);
+    });
   },
 
   shiftDateStr(dateStr, offsetDays) {
@@ -732,10 +779,16 @@ const Timeline = {
     const initialDayIdx = targetIdx >= 0 ? targetIdx : Math.floor(this.loadedDays.length / 2);
     const initialDay = this.loadedDays[initialDayIdx];
     const initialHour = (initialDay && initialDay.date === todayStr) ? now.getHours() : 9;
-    const initialScroll = (initialDayIdx * DAY_WIDTH) + (initialHour * SLOT_WIDTH) - (scrollContainer.clientWidth / 2);
-    setTimeout(() => {
-      scrollContainer.scrollLeft = Math.max(0, initialScroll);
-    }, 50);
+    // Initial center positioning without restarting from 3 days ago
+    scrollContainer.style.scrollBehavior = "auto";
+    const initialCenter = Math.max(0, initialScroll);
+    scrollContainer.scrollLeft = initialCenter;
+    requestAnimationFrame(() => {
+      scrollContainer.scrollLeft = initialCenter;
+      setTimeout(() => {
+        scrollContainer.style.scrollBehavior = "";
+      }, 50);
+    });
 
     // Scroll listener for dynamic title
     let scrollRaf = null;

@@ -9,7 +9,7 @@ const History = {
     await this.refresh();
   },
 
-  async refresh() {
+  async refresh(showFeedback = false) {
     try {
       const res = await fetch("/api/history");
       if (!res.ok) return;
@@ -23,6 +23,10 @@ const History = {
       this.renderTasks(archive.completed_tasks || []);
       this.renderReminders(archive.inactive_reminders || []);
       this.renderAuditLog(archive.audit_log || []);
+
+      if (showFeedback && typeof App !== "undefined" && App.showToast) {
+        App.showToast("History repository refreshed", "success");
+      }
     } catch (err) {
       console.error("Error loading history archive:", err);
     }

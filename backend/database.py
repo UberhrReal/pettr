@@ -2268,7 +2268,7 @@ def get_timeline_data(scale: str = "day",
                 WHERE date(e.start_time) = date(?) AND e.status != 'cancelled'
             """, (curr_str,)).fetchall()
 
-            urgencies = [compute_urgency(t["due_date"], is_completed=bool(t.get("completed") or t.get("status") == "completed"))["level"] for t in task_rows if t["due_date"]]
+            urgencies = [compute_urgency(t["due_date"], is_completed=bool(dict(t).get("completed") or dict(t).get("status") == "completed"))["level"] for t in task_rows if t["due_date"]]
             has_urgent = "urgent" in urgencies
             has_normal = "normal" in urgencies
 
@@ -2288,6 +2288,7 @@ def get_timeline_data(scale: str = "day",
             "month": month,
             "month_name": target_date.strftime("%B"),
             "first_weekday": first_day_weekday,
+            "start_weekday": first_day_weekday,
             "days_in_month": num_days,
             "days": days_data
         }
@@ -2475,8 +2476,8 @@ def seed_sample_data(db_path: Optional[Path] = None) -> Dict[str, Any]:
 
     # ==================== SUNDAY ====================
     add_s_task("Weekly executive planning & goal mapping for next cycle", f"{sun.strftime('%Y-%m-%d')} 15:00:00", "Sun 15:00", tier="focus", proj="Home Server Node", desc="Review milestone burndown charts and allocate sprint priorities", priority="top")
-    add_s_task("Finalize reading synthesis for Social Science 1D lecture 5", f"{sun.strftime('%Y-%m-%d')} 18:00:00", "Sun 18:00", tier="focus", proj="Social Science 1D", desc="Summarize social learning theory and observational reinforcement", priority="high")
-    add_s_task("Deep clean workstation and organize electronics lab bench", f"{sun.strftime('%Y-%m-%d')} 12:00:00", "Sun 12:00", tier="trivial", desc="Organize test leads, wipe down cutting mat, organize SMD bins")
+    add_s_task("Finalise reading synthesis for Social Science 1D lecture 5", f"{sun.strftime('%Y-%m-%d')} 18:00:00", "Sun 18:00", tier="focus", proj="Social Science 1D", desc="Summarise social learning theory and observational reinforcement", priority="high")
+    add_s_task("Deep clean workstation and organise electronics lab bench", f"{sun.strftime('%Y-%m-%d')} 12:00:00", "Sun 12:00", tier="trivial", desc="Organise test leads, wipe down cutting mat, organise SMD bins")
     add_s_event("Family Video Call", f"{sun.strftime('%Y-%m-%d')} 11:00:00", f"{sun.strftime('%Y-%m-%d')} 12:00:00", desc="Weekly catch-up call over video link")
     add_s_event("Sunday Evening Meditation & Digital Sunset", f"{sun.strftime('%Y-%m-%d')} 20:30:00", f"{sun.strftime('%Y-%m-%d')} 21:30:00", proj="Personal Health & Fitness", desc="Wind down screen time, read physical book, prep for Monday")
     add_s_reminder("Charge drone battery packs and inspect propellers", sun.strftime('%Y-%m-%d'), "Balance charge 4S LiPo packs to storage voltage")

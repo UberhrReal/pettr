@@ -2175,7 +2175,7 @@ const Dashboard = {
           permanentList.innerHTML = `
             <div style="padding: 12px 16px; background: var(--normal-green-bg); border: 1px solid #bbf7d0; border-radius: 8px; font-size: 13px; color: var(--normal-green); display: flex; align-items: center; gap: 8px;">
               <span>✓</span>
-              <span><strong>Queue is clear.</strong> All logged inputs are organized into projects, tasks, or events.</span>
+              <span><strong>Queue is clear.</strong> All logged inputs are organised into projects, tasks, or events.</span>
             </div>
           `;
         } else {

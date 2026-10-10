@@ -527,7 +527,7 @@
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Exploded View: Global Project Pool & Backlog</h2>
+            <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Exploded View: Global Project Pool</h2>
             <span class="panel-count-badge" id="explodedProjectCountBadge" style="font-size: 11px; padding: 3px 8px; font-weight: 600;">0 Projects</span>
           </div>
           <span style="font-size: 13px; font-weight: 300; color: var(--text-muted);">Interactive mindmap tree or structured project cards</span>
@@ -551,7 +551,7 @@
             <button class="exploded-view-toggle-btn" data-view="cards"><i data-lucide="layout-grid" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project Cards</button>
           </div>
           <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('project')">+ New Project</button>
-          <button class="action-icon-btn" onclick="Exploded.refresh()"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
+          <button class="action-icon-btn" onclick="Exploded.refresh(true)"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
         </div>
       </div>
       
@@ -805,7 +805,7 @@
           <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Archive & Completed History</h2>
           <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Repository of wrapped-up projects, finished tasks, dismissed reminders, and raw ingestion logs.</p>
         </div>
-        <button class="action-icon-btn" onclick="History.refresh()"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
+        <button class="action-icon-btn" onclick="History.refresh(true)"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
       </div>
 
       <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
@@ -874,127 +874,119 @@
           </p>
         </div>
 
-        <!-- 2-Column Responsive Row for Settings Cards -->
+        <!-- Vertical Single-Column Layout for Settings Cards (Centered) -->
         <div class="settings-columns-row">
-          <!-- Left Column: Identity, PIN & Access -->
-          <div class="settings-col">
-            <!-- Personal Profile Card -->
-            <div class="column-card">
-              <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Personal Profile & Display Name</h3>
-              <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-                Customize the name PETTR uses to greet and address you on the dashboard.
-              </p>
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Alex, Me)" class="modal-input" style="max-width: 260px;">
-                <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
-              </div>
-              <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
+          <!-- 1. Display Name Card -->
+          <div class="column-card">
+            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Display Name</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+              Customise the name PETTR uses to greet and address you on the dashboard.
+            </p>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Alex, Me)" class="modal-input" style="max-width: 260px;">
+              <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
             </div>
-
-            <!-- PIN Change & Inspection Card -->
-            <div class="column-card">
-              <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Security PIN Management</h3>
-              <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-                To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
-              </p>
-
-              <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Current Active PIN</div>
-                  <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 3px; color: var(--text-main);">••••</div>
-                </div>
-                <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
-              </div>
-
-              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Change 4-Digit PIN</div>
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="password" id="newPinInput" maxlength="4" placeholder="New 4-Digit PIN" 
-                       style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; width: 180px; font-size: 16px; letter-spacing: 4px; text-align: center;">
-                <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
-              </div>
-              <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
-            </div>
-
-            <!-- Tailscale & Node Information -->
-            <div class="column-card">
-              <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Tailscale 24/7 Access Information</h3>
-              <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-                PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
-                <br>
-                <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; color: var(--text-main); display: inline-block; margin-top: 6px;">http://&lt;your-tailscale-pc-name&gt;:8000</code>
-                <br>
-                No router ports are opened, ensuring 100% private data isolation.
-              </p>
-            </div>
+            <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
           </div>
 
-          <!-- Right Column: AI Engine & Backups -->
-          <div class="settings-col">
-            <!-- Ollama Local LLM Integration & Diagnostics Card -->
-            <div class="column-card">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                <div>
-                  <h3 style="font-size: 15px; font-weight: 700;"><i data-lucide="cpu" style="width:16px;height:16px;color:var(--focus-indigo);display:inline-block;vertical-align:-2px;"></i> Local LLM Engine (Ollama Integration)</h3>
-                  <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
-                    Connect to local Ollama on this mini PC for 100% offline, zero-cloud intent understanding.
-                  </p>
-                </div>
-                <div id="llmStatusPill" class="network-badge offline">
-                  <span class="network-dot"></span>
-                  <span id="llmStatusText">Checking...</span>
-                </div>
-              </div>
+          <!-- 2. PIN Change & Inspection Card -->
+          <div class="column-card">
+            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Security PIN Management</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+              To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
+            </p>
 
-              <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                  <div>
-                    <span style="font-size: 12px; color: var(--text-muted);">Active Classifier Model:</span>
-                    <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
-                  </div>
-                  <div style="display: flex; gap: 8px;">
-                    <select id="llmModelSelect" class="modal-input" style="padding: 4px 8px; font-size: 12px; max-width: 180px;" onchange="App.selectLlmModel(this.value)">
-                      <option value="llama3.2:3b">llama3.2:3b</option>
-                    </select>
-                    <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;">⚡ Test Latency</button>
-                  </div>
-                </div>
-                <div id="llmTestResult" style="font-size: 12px; color: var(--text-muted);"></div>
+            <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Current Active PIN</div>
+                <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 3px; color: var(--text-main);">••••</div>
               </div>
-
-              <!-- Quick Beginner Walkthrough Accordion -->
-              <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
-                <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
-                <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
-                  <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
-                    <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
-                    <li><strong>Pull your first fast model</strong>: Run in terminal:<br>
-                      <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
-                      <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
-                    </li>
-                    <li><strong>Running outside Docker?</strong>: If PETTR runs in Docker and Ollama runs natively on the host server, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> in Ollama's systemd environment so Docker can reach it across the bridge.</li>
-                    <li><strong>Zero Configuration</strong>: PETTR automatically probes candidate endpoints (<code>host.docker.internal</code>, Docker gateway <code>172.17.0.1</code>, and <code>localhost</code>). When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
-                  </ol>
-                </div>
-              </details>
+              <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
             </div>
 
-            <!-- Backup & Cloud Autosave Card -->
-            <div class="column-card">
-              <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Local Backups &amp; Google Drive Sync</h3>
-              <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-                Creates a local archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your SQLite database, Markdown summary, and JSON data. If <code>rclone</code> is configured with Google Drive, snapshots are also synced offsite automatically.
-              </p>
-              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Run Backup &amp; Sync Now</button>
-                <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
-              </div>
-              <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Change 4-Digit PIN</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <input type="password" id="newPinInput" maxlength="4" placeholder="New 4-Digit PIN" 
+                     style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; width: 180px; font-size: 16px; letter-spacing: 4px; text-align: center;">
+              <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
             </div>
+            <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
           </div>
-        </div>
 
-        <!-- Full-Width Bottom Row: Server Storage & Resource Footprint Card -->
-        <div class="settings-full-width">
+          <!-- 3. Tailscale & Node Information -->
+          <div class="column-card">
+            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Tailscale Access Information</h3>
+            <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
+              PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
+              <br>
+              <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; color: var(--text-main); display: inline-block; margin-top: 6px;">http://&lt;your-tailscale-pc-name&gt;:8000</code>
+              <br>
+              No router ports are opened, ensuring 100% private data isolation.
+            </p>
+          </div>
+
+          <!-- 4. Ollama Local LLM Integration & Diagnostics Card -->
+          <div class="column-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+              <div>
+                <h3 style="font-size: 15px; font-weight: 700;"><i data-lucide="cpu" style="width:16px;height:16px;color:var(--focus-indigo);display:inline-block;vertical-align:-2px;"></i> Local LLM Engine (Ollama Integration)</h3>
+                <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
+                  Connect to local Ollama on this mini PC for 100% offline, zero-cloud intent understanding.
+                </p>
+              </div>
+              <div id="llmStatusPill" class="network-badge offline">
+                <span class="network-dot"></span>
+                <span id="llmStatusText">Checking...</span>
+              </div>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <span style="font-size: 12px; color: var(--text-muted);">Active Classifier Model:</span>
+                  <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <select id="llmModelSelect" class="modal-input" style="padding: 4px 8px; font-size: 12px; max-width: 180px;" onchange="App.selectLlmModel(this.value)">
+                    <option value="llama3.2:3b">llama3.2:3b</option>
+                  </select>
+                  <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;">⚡ Test Latency</button>
+                </div>
+              </div>
+              <div id="llmTestResult" style="font-size: 12px; color: var(--text-muted);"></div>
+            </div>
+
+            <!-- Quick Beginner Walkthrough Accordion -->
+            <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
+              <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
+              <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
+                <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                  <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
+                  <li><strong>Pull your first fast model</strong>: Run in terminal:<br>
+                    <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
+                    <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
+                  </li>
+                  <li><strong>Running outside Docker?</strong>: If PETTR runs in Docker and Ollama runs natively on the host server, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> in Ollama's systemd environment so Docker can reach it across the bridge.</li>
+                  <li><strong>Zero Configuration</strong>: PETTR automatically probes candidate endpoints (<code>host.docker.internal</code>, Docker gateway <code>172.17.0.1</code>, and <code>localhost</code>). When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
+                </ol>
+              </div>
+            </details>
+          </div>
+
+          <!-- 5. Backup & Cloud Autosave Card -->
+          <div class="column-card">
+            <h3 style="margin-bottom: 8px; font-size: 15px; font-weight: 700;">Local Backups &amp; Google Drive Sync</h3>
+            <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+              Creates a local archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your SQLite database, Markdown summary, and JSON data. If <code>rclone</code> is configured with Google Drive, snapshots are also synced offsite automatically.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Run Backup &amp; Sync Now</button>
+              <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
+            </div>
+            <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
+          </div>
+
+          <!-- 6. Server Storage & Resource Footprint Card -->
           <div class="column-card" id="settingsStorageCard">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
               <div>
@@ -1005,7 +997,7 @@
                   Real-time breakdown of host drive storage, PETTR process memory, local LLM RAM allocation, and server hardware capacity.
                 </p>
               </div>
-              <button class="action-icon-btn" onclick="App.loadStorageMetrics()" style="font-size: 12px; font-weight: 600;">
+              <button class="action-icon-btn" onclick="App.loadStorageMetrics(true)" style="font-size: 12px; font-weight: 600;">
                 <i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh
               </button>
             </div>
@@ -1104,7 +1096,7 @@ Order 3D printer filament whenever
                 <span class="guide-step-num">4</span> 3D Point-Cloud Exploded View
               </h4>
               <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-                The <strong>Exploded View</strong> renders your entire personal repository inside a slow-rotating 3D celestial sphere. Task and project clusters illuminate with electric tag colors, with particle scale and brightness reflecting project activity. Drag to orbit, wheel to zoom, and click any star node to inspect or re-sort.
+                The <strong>Exploded View</strong> renders your entire personal repository inside a slow-rotating 3D celestial sphere. Task and project clusters illuminate with electric tag colours, with particle scale and brightness reflecting project activity. Drag to orbit, wheel to zoom, and click any star node to inspect or re-sort.
               </p>
             </div>
           </div>
@@ -1429,7 +1421,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
                 SQLite WAL (Write-Ahead Logging) Durability
               </h4>
               <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-                PETTR initializes SQLite with <code>PRAGMA journal_mode=WAL;</code> and <code>PRAGMA synchronous=NORMAL;</code>. Every write is verified before response. In the event of a sudden power outage or kernel panic, SQLite automatically replays the uncommitted WAL logs upon reboot with zero table corruption.
+                PETTR initialises SQLite with <code>PRAGMA journal_mode=WAL;</code> and <code>PRAGMA synchronous=NORMAL;</code>. Every write is verified before response. In the event of a sudden power outage or kernel panic, SQLite automatically replays the uncommitted WAL logs upon reboot with zero table corruption.
               </p>
             </div>
             <div class="guide-step-card">
@@ -1438,6 +1430,14 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
               </h4>
               <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
                 Your database (<code>./data/pettr.sqlite</code>), configuration (<code>./config/pettr_config.json</code>), and backups (<code>./backups/PETTR_*.zip</code>) reside directly on your host NVMe SSD. Rebuilding or pruning Docker containers will never touch or erase your stored data.
+              </p>
+            </div>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                Restoring From a Backup Archive
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                Each archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> contains a full snapshot of your database (<code>pettr.sqlite</code>), Markdown digest, and configuration. To restore, stop PETTR, extract <code>pettr.sqlite</code> into the <code>data/</code> directory (replacing the current file), and restart PETTR.
               </p>
             </div>
           </div>
