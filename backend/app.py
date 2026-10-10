@@ -856,10 +856,10 @@ async def get_horace_chat_history():
     return {"status": "success", "messages": history}
 
 @app.post("/api/llm/chat", dependencies=[Depends(auth.require_auth)])
-async def post_horace_chat(req: HoraceChatRequest):
+async def post_horace_chat(req: HoraceChatRequest, request: Request):
     """Chats with Horace the home server via local Ollama and persists the turns."""
     from backend.horace import chat_with_horace
-    result = await chat_with_horace(user_message=req.message, model_override=req.model)
+    result = await chat_with_horace(user_message=req.message, model_override=req.model, request=request)
     return {
         "status": "success",
         "reply": result["reply"],

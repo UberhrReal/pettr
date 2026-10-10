@@ -3,6 +3,7 @@ import subprocess
 import json
 import socket
 import ipaddress
+import time
 from typing import Dict, Any, Optional
 
 try:
@@ -11,6 +12,22 @@ except ImportError:
     httpx = None
 
 TAILSCALE_SOCKET_PATH = os.environ.get("TAILSCALE_SOCKET_PATH", "/var/run/tailscale/tailscaled.sock")
+
+_LAST_TAILSCALE_CACHE: Optional[Dict[str, Any]] = None
+_LAST_TAILSCALE_CACHE_TIME: float = 0.0
+_TAILSCALE_CACHE_TTL: float = 900.0  # 15 minutes
+
+def _update_tailscale_cache(data: Dict[str, Any]) -> None:
+    global _LAST_TAILSCALE_CACHE, _LAST_TAILSCALE_CACHE_TIME
+    if data and data.get("connected"):
+        _LAST_TAILSCALE_CACHE = dict(data)
+        _LAST_TAILSCALE_CACHE_TIME = time.time()
+
+def _get_tailscale_cache() -> Optional[Dict[str, Any]]:
+    global _LAST_TAILSCALE_CACHE, _LAST_TAILSCALE_CACHE_TIME
+    if _LAST_TAILSCALE_CACHE and (time.time() - _LAST_TAILSCALE_CACHE_TIME) < _TAILSCALE_CACHE_TTL:
+        return _LAST_TAILSCALE_CACHE
+    return None
 
 def is_in_container() -> bool:
     """Detects if running inside Docker or another container runtime."""
@@ -128,7 +145,7 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
         is_connected = (backend_state == "Running") and len(tailscale_ips) > 0
         ts_ip = tailscale_ips[0] if tailscale_ips else None
 
-        return {
+        res = {
             "tailscale_installed": True,
             "connected": is_connected,
             "state": backend_state,  # "Running", "NeedsLogin", "Stopped"
@@ -141,11 +158,14 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
             "local_url": f"http://{lan_ip}:8000",
             "tailscale_url": f"http://{ts_ip}:8000" if ts_ip else (f"http://{dns_name}:8000" if dns_name else None)
         }
+        if is_connected:
+            _update_tailscale_cache(res)
+        return res
 
     # Priority 3: Check Linux tailscale0 interface (e.g. Docker host network mode)
     iface_ip = _detect_linux_tailscale_interface()
     if iface_ip:
-        return {
+        res = {
             "tailscale_installed": True,
             "connected": True,
             "state": "Running",
@@ -158,12 +178,14 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
             "local_url": f"http://{lan_ip}:8000",
             "tailscale_url": f"http://{iface_ip}:8000"
         }
+        _update_tailscale_cache(res)
+        return res
 
     # Priority 4: Environment variable override (e.g. TAILSCALE_IP=100.x.y.z)
     env_ts_ip = os.environ.get("TAILSCALE_IP")
     if env_ts_ip and is_tailscale_ip(env_ts_ip):
         env_dns = os.environ.get("TAILSCALE_DNS_NAME")
-        return {
+        res = {
             "tailscale_installed": True,
             "connected": True,
             "state": "Running",
@@ -176,14 +198,19 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
             "local_url": f"http://{lan_ip}:8000",
             "tailscale_url": f"http://{env_ts_ip}:8000"
         }
+        _update_tailscale_cache(res)
+        return res
 
     # Priority 5: Request header heuristics (if accessed via Tailscale IP or MagicDNS)
     if request:
         try:
-            raw_host = request.headers.get("host", "")
+            raw_host = getattr(request, "headers", {}).get("host", "") if hasattr(request, "headers") else ""
             host_header = raw_host.split(":")[0].strip()
+            client_ip = getattr(getattr(request, "client", None), "host", "")
+            forwarded = getattr(request, "headers", {}).get("x-forwarded-for", "").split(",")[0].strip() if hasattr(request, "headers") else ""
+
             if is_tailscale_ip(host_header):
-                return {
+                res = {
                     "tailscale_installed": True,
                     "connected": True,
                     "state": "Running",
@@ -196,8 +223,10 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
                     "local_url": f"http://{lan_ip}:8000",
                     "tailscale_url": f"http://{host_header}:8000"
                 }
+                _update_tailscale_cache(res)
+                return res
             elif host_header.endswith(".ts.net"):
-                return {
+                res = {
                     "tailscale_installed": True,
                     "connected": True,
                     "state": "Running",
@@ -210,8 +239,36 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
                     "local_url": f"http://{lan_ip}:8000",
                     "tailscale_url": f"http://{host_header}:8000"
                 }
+                _update_tailscale_cache(res)
+                return res
+            elif is_tailscale_ip(client_ip) or is_tailscale_ip(forwarded):
+                detected_peer = client_ip if is_tailscale_ip(client_ip) else forwarded
+                res = {
+                    "tailscale_installed": True,
+                    "connected": True,
+                    "state": "Running",
+                    "tailscale_ip": detected_peer,
+                    "dns_name": None,
+                    "auth_url": None,
+                    "hostname": hostname,
+                    "lan_ip": lan_ip,
+                    "is_container": in_container,
+                    "local_url": f"http://{lan_ip}:8000",
+                    "tailscale_url": f"http://{detected_peer}:8000"
+                }
+                _update_tailscale_cache(res)
+                return res
         except Exception:
             pass
+
+    # Priority 6: Fallback to recent cached Tailscale connectivity (15-min TTL)
+    cached = _get_tailscale_cache()
+    if cached:
+        cached_copy = dict(cached)
+        cached_copy["hostname"] = hostname
+        cached_copy["lan_ip"] = lan_ip
+        cached_copy["is_container"] = in_container
+        return cached_copy
 
     # No Tailscale detected
     return {

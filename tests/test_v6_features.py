@@ -1435,3 +1435,61 @@ def test_pettr_and_llm_ram_footprint_integration():
     html_content = Path("frontend/index.html").read_text(encoding="utf-8")
     assert "PETTR process memory, local LLM RAM allocation" in html_content
 
+
+def test_horace_tailscale_telemetry_accuracy(monkeypatch):
+    """Verify that Horace host server metrics correctly parse network.get_network_status() without false Disconnected reports."""
+    from backend import horace, network
+
+    # 1. Mock network status as connected with Tailscale IP
+    mock_status = {
+        "tailscale_installed": True,
+        "connected": True,
+        "state": "Running",
+        "tailscale_ip": "100.109.253.121",
+        "dns_name": "hrsoverpoweredpc.taild56457.ts.net",
+        "auth_url": None,
+        "hostname": "horace-server",
+        "lan_ip": "192.168.1.100",
+        "is_container": False,
+        "local_url": "http://192.168.1.100:8000",
+        "tailscale_url": "http://100.109.253.121:8000"
+    }
+    monkeypatch.setattr(network, "get_network_status", lambda request=None: mock_status)
+
+    metrics = horace.get_host_server_metrics()
+    assert "Connected" in metrics["tailscale"]
+    assert "100.109.253.121" in metrics["tailscale"]
+    assert "hrsoverpoweredpc" in metrics["tailscale"]
+    assert metrics["tailscale"] != "Disconnected"
+
+    telemetry = horace.build_live_telemetry_context()
+    assert "Tailscale: Connected (IP: 100.109.253.121" in telemetry
+    assert "Tailscale: Disconnected" not in telemetry
+
+    # 2. Test network cache behavior for request heuristics
+    network._LAST_TAILSCALE_CACHE = None
+    network._LAST_TAILSCALE_CACHE_TIME = 0.0
+
+    class DummyClient:
+        host = "100.109.253.50"
+
+    class DummyRequest:
+        headers = {"host": "100.109.253.121:8000"}
+        client = DummyClient()
+
+    monkeypatch.undo()
+    monkeypatch.setattr(network, "_query_tailscale_socket", lambda: None)
+    monkeypatch.setattr(network, "_query_tailscale_cli", lambda: None)
+    monkeypatch.setattr(network, "_detect_linux_tailscale_interface", lambda: None)
+    monkeypatch.delenv("TAILSCALE_IP", raising=False)
+
+    # Calling with dummy request should detect Tailscale and set cache
+    req_status = network.get_network_status(request=DummyRequest())
+    assert req_status["connected"] is True
+    assert req_status["tailscale_ip"] == "100.109.253.121"
+
+    # Subsequent call without request should use cache
+    cached_status = network.get_network_status(request=None)
+    assert cached_status["connected"] is True
+    assert cached_status["tailscale_ip"] == "100.109.253.121"
+

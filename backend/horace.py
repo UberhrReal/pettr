@@ -52,7 +52,7 @@ Personality & Voice:
 
 HORACE_BASE_SYSTEM_PROMPT = get_horace_system_prompt("Hong Rong")
 
-def get_host_server_metrics(db_path: Optional[Path] = None) -> Dict[str, Any]:
+def get_host_server_metrics(db_path: Optional[Path] = None, request: Optional[Any] = None) -> Dict[str, Any]:
     """Collects real-time hardware, storage, and network health metrics from the host server."""
     metrics = {
         "hostname": socket.gethostname(),
@@ -69,12 +69,17 @@ def get_host_server_metrics(db_path: Optional[Path] = None) -> Dict[str, Any]:
 
     # Tailscale status
     try:
-        ts_stat = network.get_network_status()
-        ts_data = ts_stat.get("tailscale", {})
-        if ts_data.get("connected"):
-            metrics["tailscale"] = f"Connected (IP: {ts_data.get('ip', 'active')}, Node: {ts_data.get('node_name', 'node')})"
+        ts_stat = network.get_network_status(request=request)
+        if ts_stat.get("connected"):
+            ts_ip = ts_stat.get("tailscale_ip") or ts_stat.get("dns_name") or "active"
+            node_name = ts_stat.get("dns_name") or ts_stat.get("hostname") or "node"
+            metrics["tailscale"] = f"Connected (IP: {ts_ip}, Node: {node_name})"
         elif network.is_tailscale_ip(metrics["lan_ip"]):
             metrics["tailscale"] = f"Mesh Active ({metrics['lan_ip']})"
+        elif ts_stat.get("state") == "NeedsLogin":
+            metrics["tailscale"] = "Needs Login"
+        else:
+            metrics["tailscale"] = "Disconnected"
     except Exception:
         pass
 
@@ -145,7 +150,7 @@ def get_host_server_metrics(db_path: Optional[Path] = None) -> Dict[str, Any]:
 
     return metrics
 
-def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Optional[str] = None) -> str:
+def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Optional[str] = None, request: Optional[Any] = None) -> str:
     """Builds a concise real-time state snippet of PETTR and host server health to inject into Horace's system instructions."""
     try:
         now = datetime.datetime.now()
@@ -153,7 +158,7 @@ def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Opti
         today_str = today.isoformat()
 
         # Host server metrics
-        srv = get_host_server_metrics(db_path=db_path)
+        srv = get_host_server_metrics(db_path=db_path, request=request)
 
         # Active projects
         projects = database.get_all_projects(db_path=db_path)
@@ -206,7 +211,8 @@ async def chat_with_horace(
     user_message: str,
     db_path: Optional[Path] = None,
     model_override: Optional[str] = None,
-    timeout_seconds: float = 60.0
+    timeout_seconds: float = 60.0,
+    request: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
     Sends a message to Horace the home server via local Ollama.
@@ -238,7 +244,7 @@ async def chat_with_horace(
 
     # 3. Build system prompt with live telemetry
     system_persona = get_horace_system_prompt(user_name)
-    telemetry = build_live_telemetry_context(db_path=db_path, user_name=user_name)
+    telemetry = build_live_telemetry_context(db_path=db_path, user_name=user_name, request=request)
     full_system_prompt = f"{system_persona}\n\n{telemetry}"
 
     # 4. Construct Ollama messages payload
