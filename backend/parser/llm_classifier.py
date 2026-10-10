@@ -404,7 +404,7 @@ async def classify_with_llm(cleaned_text: str,
                            has_date: bool,
                            extracted_date_str: Optional[str],
                            active_projects: List[str],
-                           timeout_seconds: float = 12.0,
+                           timeout_seconds: float = 30.0,
                            explicit_entity_type: Optional[str] = None,
                            explicit_tier: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -434,6 +434,7 @@ async def classify_with_llm(cleaned_text: str,
         "system": SYSTEM_PROMPT,
         "format": "json",
         "stream": False,
+        "keep_alive": "30m",
         "options": {
             "temperature": 0.1,
             "num_predict": 180
@@ -470,6 +471,13 @@ async def classify_with_llm(cleaned_text: str,
                         pass
 
                 if resp.status_code == 200:
+                    try:
+                        cfg = get_or_create_config()
+                        if cfg.get("ollama_url") != ollama_url:
+                            cfg["ollama_url"] = ollama_url
+                            save_config(cfg)
+                    except Exception:
+                        pass
                     data = resp.json()
                     raw_response = data.get("response", "{}")
                     parsed = json.loads(raw_response)

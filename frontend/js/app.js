@@ -1419,6 +1419,8 @@ const App = {
           let hintMsg = "💡 <em>Running in Docker? Ensure Ollama is listening on <code>0.0.0.0</code> (not 127.0.0.1) on the host server and rebuild PETTR with <code>git pull && docker compose up -d --build</code>. If local, start via <code>ollama serve</code>.</em>";
           if (attemptsJoined.includes("404") || attemptsJoined.includes("not found")) {
             hintMsg = `💡 <em>Ollama is reachable, but model <code>${this.escapeHtml(modelReq)}</code> has not been pulled! Run <code>ollama pull ${this.escapeHtml(modelReq)}</code> on your server.</em>`;
+          } else if (attemptsJoined.includes("ReadTimeout") || attemptsJoined.includes("timeout")) {
+            hintMsg = `💡 <em>Ollama is connected and running on your host, but timed out generating (ReadTimeout). The model is likely cold-loading into RAM or running CPU inference. Test again or warm it up with <code>ollama run llama3.2 "hi"</code>.</em>`;
           }
 
           resultEl.innerHTML = `

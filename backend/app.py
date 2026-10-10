@@ -830,7 +830,8 @@ async def test_llm_ping():
         cleaned_text="Schedule engineering sprint review tomorrow at 14:00",
         has_date=True,
         extracted_date_str="tomorrow 14:00",
-        active_projects=["IDEA-1 Concept"]
+        active_projects=["IDEA-1 Concept"],
+        timeout_seconds=45.0
     )
     elapsed_ms = round((time.time() - t0) * 1000)
     engine_name = res.get("engine", "unknown")
