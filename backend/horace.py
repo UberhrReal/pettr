@@ -376,10 +376,15 @@ def build_live_telemetry_context(db_path: Optional[Path] = None, user_name: Opti
         # Active Projects Section
         context_lines.append(f"\n[ACTIVE PROJECT INITIATIVES (Parent Containers, NOT individual daily tasks)]:")
         if active_proj_rows:
-            for pr in active_proj_rows[:8]:
-                context_lines.append(f"  - \"{pr['name']}\" (Category: {pr['category'] or 'General'}, {pr['pending_count']} pending tasks)")
-            if len(active_proj_rows) > 8:
-                context_lines.append(f"  ... and {len(active_proj_rows) - 8} more active projects.")
+            # Prioritise active projects with pending tasks to save context tokens, or show top active
+            active_with_tasks = [pr for pr in active_proj_rows if pr["pending_count"] > 0]
+            display_projs = active_with_tasks[:6] if active_with_tasks else active_proj_rows[:6]
+            for pr in display_projs:
+                cat = pr["category"] if pr["category"] else "General"
+                context_lines.append(f"  - \"{pr['name']}\" ({cat}, {pr['pending_count']} pending tasks)")
+            remaining = len(active_proj_rows) - len(display_projs)
+            if remaining > 0:
+                context_lines.append(f"  ... and {remaining} more active project containers.")
         else:
             context_lines.append("  - None active.")
 

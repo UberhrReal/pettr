@@ -1711,3 +1711,40 @@ async def test_horace_telemetry_grounding_and_reliability(temp_db, monkeypatch):
     assert "Strict Single-Focus Principle" in prompt
     assert "Absolute Prohibition on Action Hallucination" in prompt
     assert "Ground Truth on Dates and Projects" in prompt
+
+
+@pytest.mark.anyio
+async def test_display_name_editing_tool_and_modal(temp_db, monkeypatch):
+    """Verify display name editing tool works on the frontend and persists via /api/profile."""
+    from backend import app
+    from fastapi.testclient import TestClient
+
+    # 1. Test backend /api/profile endpoint
+    with TestClient(app.app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.post("/api/profile", json={"user_name": "Hong Rong Commander"})
+        assert res.status_code == 200
+        assert res.json()["status"] == "success"
+
+        get_res = client.get("/api/profile")
+        assert get_res.status_code == 200
+        assert get_res.json()["user_name"] == "Hong Rong Commander"
+
+        # Restore default name
+        client.post("/api/profile", json={"user_name": "Hong Rong"})
+
+    # 2. Test frontend markup contains display name editing tool components
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "nameDisplayChip" in index_html
+    assert "name-editor-chip" in index_html
+    assert "editDisplayNameModal" in index_html
+    assert "editDisplayNameModalInput" in index_html
+
+    dashboard_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "openEditNameModal" in dashboard_js
+    assert "saveDisplayNameFromModal" in dashboard_js
+    assert "promptEditUserName" in dashboard_js
+
+    cmd_js = Path("frontend/js/command_palette.js").read_text(encoding="utf-8")
+    assert "act-name" in cmd_js
+

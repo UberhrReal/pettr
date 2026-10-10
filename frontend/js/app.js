@@ -37,6 +37,7 @@ const App = {
     if (typeof EveningDebrief !== "undefined") EveningDebrief.init();
     if (typeof HoraceChat !== "undefined") HoraceChat.init();
     PinLock.init();
+    this.loadProfileSettings();
   },
 
   updateHeaderClockVisibility() {
@@ -1286,6 +1287,8 @@ const App = {
         if (typeof Dashboard !== "undefined") {
           Dashboard.userName = name;
           localStorage.setItem("pettr_user_name", name);
+          const chipEl = document.getElementById("nameDisplayChip");
+          if (chipEl) chipEl.textContent = `👤 ${name}`;
           Dashboard.renderGreeting();
         }
         if (resultEl) {

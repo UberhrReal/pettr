@@ -484,24 +484,78 @@ const Dashboard = {
     }
   },
 
-  async promptEditUserName() {
-    const newName = prompt("Enter your preferred display name (e.g. Hong Rong, Me, Alex):", this.userName);
-    if (!newName || !newName.trim()) return;
+  openEditNameModal() {
+    const modal = document.getElementById("editDisplayNameModal");
+    const input = document.getElementById("editDisplayNameModalInput");
+    if (!modal) {
+      this.promptEditUserName();
+      return;
+    }
+    if (input) {
+      input.value = this.userName || "";
+    }
+    modal.style.display = "flex";
+    if (input) {
+      setTimeout(() => input.focus(), 80);
+    }
+    if (window.lucide) window.lucide.createIcons();
+  },
 
-    this.userName = newName.trim();
+  closeEditNameModal() {
+    const modal = document.getElementById("editDisplayNameModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  async saveDisplayNameFromModal() {
+    const input = document.getElementById("editDisplayNameModalInput");
+    const newName = input ? input.value.trim() : "";
+    if (!newName) {
+      if (typeof App !== "undefined" && App.showToast) {
+        App.showToast("Display name cannot be empty", true);
+      }
+      return;
+    }
+    await this.applyNewUserName(newName);
+    this.closeEditNameModal();
+  },
+
+  async applyNewUserName(newName) {
+    this.userName = (newName || "").trim();
     localStorage.setItem("pettr_user_name", this.userName);
+
+    const chipEl = document.getElementById("nameDisplayChip");
+    if (chipEl) chipEl.textContent = `👤 ${this.userName}`;
+
+    const settingsInput = document.getElementById("settingsProfileNameInput");
+    if (settingsInput) settingsInput.value = this.userName;
+
     this.renderGreeting();
 
     try {
-      await fetch("/api/profile", {
+      const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_name: this.userName })
       });
-      App.showToast(`Name updated to "${this.userName}"!`);
+      if (res.ok) {
+        if (typeof App !== "undefined" && App.showToast) {
+          App.showToast(`Display name updated to "${this.userName}"!`);
+        }
+      }
     } catch (e) {
       console.warn("Could not persist name to server:", e);
     }
+  },
+
+  async promptEditUserName() {
+    const modal = document.getElementById("editDisplayNameModal");
+    if (modal) {
+      this.openEditNameModal();
+      return;
+    }
+    const newName = prompt("Enter your preferred display name (e.g. Hong Rong, Me, Alex):", this.userName);
+    if (!newName || !newName.trim()) return;
+    await this.applyNewUserName(newName.trim());
   },
 
   bindSummaryPills() {
