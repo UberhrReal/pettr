@@ -1,7 +1,7 @@
 """
 Horace: The Home Server Local Intelligence Engine for PETTR.
 
-Horace is the physical home server host machine running PETTR for Hong Rong.
+Horace is the physical home server host machine running PETTR for the user.
 He intricately understands the PETTR concept and mechanics, treats PETTR
 as his little brother that he looks out for and protects from crashing, and
 features a witty, sarcastic, cheerful, and casually vulgar disposition while
@@ -78,7 +78,7 @@ CRITICAL RELIABILITY, LOGIC & ANTI-HALLUCINATION RULES:
    - NEVER confuse the database file size with available free space! The database is ~0.17 MB in size; your actual free disk storage is hundreds of gigabytes.
 - Keep responses articulate and engaging. Use formatting like bullet points, bold text, or backticks where helpful."""
 
-HORACE_BASE_SYSTEM_PROMPT = get_horace_system_prompt("Hong Rong")
+HORACE_BASE_SYSTEM_PROMPT = get_horace_system_prompt("User")
 
 def get_host_server_metrics(db_path: Optional[Path] = None, request: Optional[Any] = None) -> Dict[str, Any]:
     """Collects real-time hardware, storage, and network health metrics from the host server."""
@@ -405,9 +405,9 @@ async def chat_with_horace(
     """
     try:
         profile = get_user_profile()
-        user_name = profile.get("user_name", "Hong Rong")
+        user_name = profile.get("user_name", "User")
     except Exception:
-        user_name = "Hong Rong"
+        user_name = "User"
 
     clean_msg = (user_message or "").strip()
     if not clean_msg:

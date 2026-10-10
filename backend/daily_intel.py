@@ -151,7 +151,7 @@ def filter_phrases_for_diurnal_window(
     phrases: List[str],
     client_hour: Optional[int],
     target_date: Optional[datetime.date] = None,
-    user_name: str = "Hong Rong"
+    user_name: str = "User"
 ) -> List[str]:
     """
     Filters out typewriter phrases that contradict the client's current time of day.
@@ -406,7 +406,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     return None
 
 async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = None,
-                                      user_name: str = "Hong Rong",
+                                      user_name: str = "User",
                                       force_refresh: bool = False,
                                       client_hour: Optional[int] = None,
                                       db_path: Optional[Path] = None) -> Dict[str, Any]:
@@ -520,7 +520,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
     }
 
 def get_daily_intel(target_date: Optional[datetime.date] = None,
-                    user_name: str = "Hong Rong") -> Dict[str, Any]:
+                    user_name: str = "User") -> Dict[str, Any]:
     """
     Synchronous accessor for backward compatibility and fast synchronous lookups.
     Returns cached phrases if available, otherwise returns curated phrases immediately.
@@ -572,7 +572,7 @@ async def midnight_typewriter_scheduler_loop():
 
             today = datetime.date.today()
             profile = get_user_profile()
-            user_name = profile.get("user_name", "Hong Rong")
+            user_name = profile.get("user_name", "User")
 
             logger.info(f"Midnight reached! Proactively generating LLM typewriter lines for {today}...")
             await get_or_generate_daily_intel(target_date=today, user_name=user_name, force_refresh=True)

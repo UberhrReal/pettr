@@ -181,7 +181,7 @@
                   <div class="greeting-subtext" id="greetingSubtext">Ready to log and track your day.</div>
                 </div>
                 <button type="button" class="name-editor-chip" id="nameDisplayChip" onclick="Dashboard.openEditNameModal()" title="Click to edit your display name">
-                  👤 Hong Rong
+                  👤 User
                 </button>
               </div>
             </div>
@@ -890,7 +890,7 @@
                 Customize the name PETTR uses to greet and address you on the dashboard.
               </p>
               <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Hong Rong)" class="modal-input" style="max-width: 260px;">
+                <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Alex, Me)" class="modal-input" style="max-width: 260px;">
                 <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
               </div>
               <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
@@ -1748,7 +1748,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       <form onsubmit="event.preventDefault(); Dashboard.saveDisplayNameFromModal();">
         <div style="margin-bottom: 16px;">
           <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Preferred Name</label>
-          <input type="text" id="editDisplayNameModalInput" class="modal-input" placeholder="e.g. Hong Rong, Alex, Me" style="font-size: 14px; font-weight: 600;" maxlength="50" required>
+          <input type="text" id="editDisplayNameModalInput" class="modal-input" placeholder="e.g. Alex, Me, Commander" style="font-size: 14px; font-weight: 600;" maxlength="50" required>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 8px;">
           <button type="button" class="action-icon-btn" onclick="Dashboard.closeEditNameModal()" style="padding: 6px 14px;">Cancel</button>

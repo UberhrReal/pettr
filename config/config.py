@@ -52,7 +52,7 @@ DEFAULT_CONFIG = {
     "ollama_model": "llama3.2:3b",
     "backup_dir": DEFAULT_BACKUP_DIR,
     "backup_interval_days": 7,
-    "user_name": "Hong Rong",
+    "user_name": "User",
     "current_pin": "1234"
 }
 
@@ -137,7 +137,7 @@ def get_user_profile(config_path: Optional[Path] = None) -> Dict[str, Any]:
         config_path = DEFAULT_CONFIG_PATH
     config = get_or_create_config(config_path)
     return {
-        "user_name": config.get("user_name", "Hong Rong"),
+        "user_name": config.get("user_name", "User"),
         "host": config.get("host", "0.0.0.0"),
         "port": config.get("port", 8000)
     }

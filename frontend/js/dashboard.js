@@ -8,7 +8,7 @@ const Dashboard = {
   tasks: { focus: [], trivial: [], standalone_focus: [], standalone_trivial: [], projects: [] },
   events: [],
   reminders: [],
-  userName: "Hong Rong",
+  userName: "User",
   activeFilter: null,
   isUnorgCollapsed: false,
   dailyOrder: [],
@@ -553,7 +553,7 @@ const Dashboard = {
       this.openEditNameModal();
       return;
     }
-    const newName = prompt("Enter your preferred display name (e.g. Hong Rong, Me, Alex):", this.userName);
+    const newName = prompt("Enter your preferred display name (e.g. Alex, Me):", this.userName);
     if (!newName || !newName.trim()) return;
     await this.applyNewUserName(newName.trim());
   },

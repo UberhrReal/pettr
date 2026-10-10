@@ -1259,7 +1259,7 @@ const App = {
   loadProfileSettings() {
     const input = document.getElementById("settingsProfileNameInput");
     if (input && typeof Dashboard !== "undefined") {
-      input.value = Dashboard.userName || "Hong Rong";
+      input.value = Dashboard.userName || "User";
     }
   },
 

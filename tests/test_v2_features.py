@@ -140,7 +140,7 @@ def test_user_profile_management(tmp_path):
     
     # Check default profile
     profile = config.get_user_profile(test_cfg)
-    assert profile["user_name"] == "Hong Rong"
+    assert profile["user_name"] == "User"
 
     # Update name
     ok, msg = config.update_user_name("Alex Mercer", test_cfg)

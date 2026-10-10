@@ -1239,7 +1239,7 @@ async def test_horace_persona_instructions_and_context(temp_db, monkeypatch):
     assert "Horace" in prompt
     assert "little brother" in prompt
     assert "PETTR" in prompt
-    assert "Hong Rong" in prompt
+    assert "User" in prompt
     assert "witty" in prompt.lower()
     assert "sarcastic" in prompt.lower()
     assert "vulgar" in prompt.lower() or "profanity" in prompt.lower()
@@ -1731,7 +1731,7 @@ async def test_display_name_editing_tool_and_modal(temp_db, monkeypatch):
         assert get_res.json()["user_name"] == "Hong Rong Commander"
 
         # Restore default name
-        client.post("/api/profile", json={"user_name": "Hong Rong"})
+        client.post("/api/profile", json={"user_name": "User"})
 
     # 2. Test frontend markup contains display name editing tool components
     index_html = Path("frontend/index.html").read_text(encoding="utf-8")
