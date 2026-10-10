@@ -1097,6 +1097,60 @@ def test_overdue_tasks_persist_in_daily_order_and_tagged_overdue(temp_db, monkey
     assert "OVERDUE" in simplified_code
     assert "is_overdue" in simplified_code
 
+def test_resolve_best_model_aliases():
+    """Verify smart model tag matching and fallback logic."""
+    from backend.parser.llm_classifier import resolve_best_model
+
+    # 1. Exact match
+    assert resolve_best_model("llama3.2:3b", ["llama3.2:3b", "llama3.2:latest"]) == "llama3.2:3b"
+
+    # 2. Server has llama3.2:latest, PETTR default is llama3.2:3b -> resolves to llama3.2:latest
+    assert resolve_best_model("llama3.2:3b", ["llama3.2:latest"]) == "llama3.2:latest"
+
+    # 3. Server has llama3.2:3b, user requests llama3.2:latest -> resolves to llama3.2:3b
+    assert resolve_best_model("llama3.2:latest", ["llama3.2:3b"]) == "llama3.2:3b"
+
+    # 4. Untagged requested name matches installed :latest or :tag
+    assert resolve_best_model("llama3.2", ["llama3.2:latest"]) == "llama3.2:latest"
+    assert resolve_best_model("qwen2.5", ["qwen2.5:3b"]) == "qwen2.5:3b"
+
+    # 5. Fuzzy match on model family
+    assert resolve_best_model("llama3.2:3b", ["llama3.1:8b"]) == "llama3.1:8b"
+
+    # 6. Fallback to first available model if family is different
+    assert resolve_best_model("llama3.2:3b", ["mistral:7b"]) == "mistral:7b"
+
+    # 7. Empty available list preserves requested model
+    assert resolve_best_model("llama3.2:3b", []) == "llama3.2:3b"
+
+def test_llm_select_accessible_from_non_host_client(tmp_path, monkeypatch):
+    """Verify authenticated non-host clients (e.g. mobile/Tailscale) can switch models without 403."""
+    import config.config as cfg_mod
+    test_cfg = tmp_path / "test_cfg.json"
+    cfg = cfg_mod.get_or_create_config(test_cfg)
+    monkeypatch.setattr(cfg_mod, "DEFAULT_CONFIG_PATH", test_cfg)
+
+    with TestClient(app) as client:
+        # 1. Login to get session cookie
+        login_res = client.post("/api/auth/login", json={"pin": "1234"})
+        assert login_res.status_code == 200
+
+        # 2. Call /api/llm/select from non-host client IP (Tailscale / LAN IP)
+        res = client.post(
+            "/api/llm/select",
+            json={"model": "llama3.2:latest"},
+            headers={"x-forwarded-for": "100.64.0.5"} # Remote client IP
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["status"] == "success"
+        assert data["active_model"] == "llama3.2:latest"
+
+        # Verify persisted in config
+        saved = cfg_mod.get_or_create_config(test_cfg)
+        assert saved["ollama_model"] == "llama3.2:latest"
+
+
 
 
 

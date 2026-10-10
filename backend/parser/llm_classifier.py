@@ -3,7 +3,7 @@ import json
 import re
 from typing import Dict, Any, List, Optional
 import httpx
-from config.config import get_or_create_config, get_ollama_candidate_urls
+from config.config import get_or_create_config, get_ollama_candidate_urls, save_config
 
 SYSTEM_PROMPT = """You are PETTR's intelligent task and project intent classification engine.
 Your job is to understand natural language logs and transform them into structured JSON with contextual reasoning.
@@ -355,6 +355,51 @@ def heuristic_classify(cleaned_text: str,
         "reasoning": f"Heuristic classified as {tier} task"
     }
 
+def resolve_best_model(requested_model: str, available_models: List[str]) -> str:
+    """
+    Intelligently resolves requested model against installed Ollama models.
+    Handles tag differences (e.g., 'llama3.2:3b' vs 'llama3.2:latest' vs 'llama3.2'),
+    model aliases, and falls back to best available installed model.
+    """
+    if not available_models:
+        return requested_model
+
+    # 1. Exact match
+    if requested_model in available_models:
+        return requested_model
+
+    req_clean = requested_model.strip()
+    req_lower = req_clean.lower()
+    for m in available_models:
+        if m.lower() == req_lower:
+            return m
+
+    req_parts = req_clean.split(":")
+    req_base = req_parts[0].lower()
+    req_tag = req_parts[1].lower() if len(req_parts) > 1 else ""
+
+    # 2. Direct tag variations:
+    # If req is 'llama3.2:3b' or 'llama3.2:latest', check other tag variations of the same base
+    same_family = [m for m in available_models if m.split(":")[0].lower() == req_base]
+    if same_family:
+        # If user asked for :3b and :latest is installed (or vice versa)
+        if req_tag in ("3b", "latest", ""):
+            for cand in ("latest", "3b", "1b", "8b"):
+                for m in same_family:
+                    m_tag = m.split(":")[1].lower() if ":" in m else "latest"
+                    if m_tag == cand:
+                        return m
+        return same_family[0]
+
+    # 3. Fuzzy base match: e.g. 'llama3.2' vs 'llama3' or 'llama'
+    for m in available_models:
+        m_base = m.split(":")[0].lower()
+        if req_base in m_base or m_base in req_base:
+            return m
+
+    # 4. Fallback to first available installed model
+    return available_models[0]
+
 async def classify_with_llm(cleaned_text: str,
                            has_date: bool,
                            extracted_date_str: Optional[str],
@@ -396,10 +441,34 @@ async def classify_with_llm(cleaned_text: str,
     }
 
     attempts = []
+    # Fast connect timeout so unreachable candidate bridge IPs fail quickly instead of hanging
+    http_timeout = httpx.Timeout(timeout_seconds, connect=1.2)
     for ollama_url in candidate_urls:
         try:
-            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=http_timeout) as client:
                 resp = await client.post(f"{ollama_url}/api/generate", json=payload)
+
+                # If model not found (404), probe /api/tags to resolve installed model tag alias
+                if resp.status_code == 404:
+                    try:
+                        tags_resp = await client.get(f"{ollama_url}/api/tags")
+                        if tags_resp.status_code == 200:
+                            installed_models = [m.get("name") for m in tags_resp.json().get("models", []) if m.get("name")]
+                            resolved = resolve_best_model(model_name, installed_models)
+                            if resolved and resolved != model_name:
+                                payload["model"] = resolved
+                                resp = await client.post(f"{ollama_url}/api/generate", json=payload)
+                                if resp.status_code == 200:
+                                    model_name = resolved
+                                    try:
+                                        cfg = get_or_create_config()
+                                        cfg["ollama_model"] = resolved
+                                        save_config(cfg)
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+
                 if resp.status_code == 200:
                     data = resp.json()
                     raw_response = data.get("response", "{}")

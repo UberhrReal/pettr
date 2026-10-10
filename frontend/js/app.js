@@ -1367,7 +1367,7 @@ const App = {
         await this.loadLlmStatus();
       } else {
         const err = await res.json();
-        this.showToast(err.detail || "Failed to switch model (Host only)", true);
+        this.showToast(err.detail || "Failed to switch model", true);
       }
     } catch (err) {
       console.error(err);

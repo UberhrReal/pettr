@@ -773,6 +773,7 @@ async def clear_samples():
 @app.get("/api/llm/status", dependencies=[Depends(auth.require_auth)])
 async def get_llm_status():
     """Checks local Ollama server connectivity and installed models across candidate URLs."""
+    from backend.parser.llm_classifier import resolve_best_model
     config = get_or_create_config()
     active_model = config.get("ollama_model", "llama3.2:3b")
     candidate_urls = get_ollama_candidate_urls()
@@ -782,16 +783,26 @@ async def get_llm_status():
 
     for url in candidate_urls:
         try:
-            async with httpx.AsyncClient(timeout=1.5) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0)) as client:
                 resp = await client.get(f"{url}/api/tags")
                 if resp.status_code == 200:
                     online = True
                     connected_url = url
                     data = resp.json()
-                    models = [m.get("name") for m in data.get("models", [])]
+                    models = [m.get("name") for m in data.get("models", []) if m.get("name")]
                     break
         except Exception:
             continue
+
+    if online and models and active_model not in models:
+        resolved = resolve_best_model(active_model, models)
+        if resolved and resolved in models:
+            active_model = resolved
+            try:
+                config["ollama_model"] = resolved
+                save_config(config)
+            except Exception:
+                pass
 
     return {
         "online": online,
@@ -801,9 +812,9 @@ async def get_llm_status():
         "candidate_urls": candidate_urls
     }
 
-@app.post("/api/llm/select", dependencies=[Depends(auth.require_auth), Depends(auth.require_host_only)])
+@app.post("/api/llm/select", dependencies=[Depends(auth.require_auth)])
 async def select_llm_model(req: SelectLlmModelRequest):
-    """Sets active Ollama model in config (host only)."""
+    """Sets active Ollama model in config."""
     config = get_or_create_config()
     config["ollama_model"] = req.model
     save_config(config)
