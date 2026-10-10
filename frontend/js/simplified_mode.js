@@ -270,9 +270,23 @@ const SimplifiedMode = {
       if (item.type === "task") {
         const isFocus = item.tier === "focus";
         typeBadge = `<span class="simplified-badge ${isFocus ? 'badge-focus' : 'badge-trivial'}">${isFocus ? '🎯 Focus' : '⚡ Trivial'}</span>`;
-        const timeDisplay = item.due_date_military || (item.due_date ? (item.due_date.includes(" ") ? item.due_date.split(" ")[1].slice(0, 5) : item.due_date.slice(11, 16)) : '');
+        let timeDisplay = item.due_date_military || (item.due_date ? (item.due_date.includes(" ") ? item.due_date.split(" ")[1].slice(0, 5) : item.due_date.slice(11, 16)) : '');
+        if (isItemOverdue && item.due_date) {
+          const taskDateStr = item.due_date.split("T")[0].split(" ")[0];
+          const activeDate = this.activeTargetDate || new Date().toISOString().split("T")[0];
+          if (taskDateStr < activeDate) {
+            try {
+              const [tY, tM, tD] = taskDateStr.split("-").map(Number);
+              const [sY, sM, sD] = activeDate.split("-").map(Number);
+              const diffDays = Math.round((new Date(sY, sM - 1, sD) - new Date(tY, tM - 1, tD)) / (1000 * 60 * 60 * 24));
+              const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+              const relDay = diffDays === 1 ? "Yesterday" : `${monthNames[tM - 1]} ${String(tD).padStart(2, "0")}`;
+              timeDisplay = timeDisplay ? `${relDay} @ ${timeDisplay}` : `Due ${relDay}`;
+            } catch (e) {}
+          }
+        }
         if (timeDisplay) {
-          timeMeta = `<span class="simplified-meta-time font-mono">⏱ ${timeDisplay}</span>`;
+          timeMeta = `<span class="simplified-meta-time font-mono" style="${isItemOverdue ? 'color:var(--urgent-orange); font-weight:600;' : ''}">⏱ ${this.escapeHtml(timeDisplay)}</span>`;
         }
       } else if (item.type === "event") {
         typeBadge = `<span class="simplified-badge badge-event">📅 Event</span>`;

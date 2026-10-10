@@ -2357,10 +2357,35 @@ def get_rich_text_briefing(target_date: Optional[datetime.date] = None, db_path:
     lines.append("\n🎯 *FOCUS TASKS (Deep Work — Ranked by Priority)*")
     if tasks["focus"]:
         for idx, t in enumerate(tasks["focus"], 1):
-            urg = "[URGENT] " if t.get("urgency", {}).get("level") == "urgent" else ""
+            task_date_str = str(t.get("due_date", "")).split("T")[0].split(" ")[0]
+            is_overdue = bool(task_date_str and target_date and task_date_str < target_date.isoformat())
+            urg = "[OVERDUE] " if is_overdue else ("[URGENT] " if t.get("urgency", {}).get("level") == "urgent" else "")
             proj = f" ({t['project_name']})" if t.get("project_name") else ""
             time_mil = format_military_time(t.get("due_date") or t.get("due_date_raw"))
-            due = f" — Due {time_mil}" if time_mil else ""
+
+            if is_overdue:
+                date_diff_text = ""
+                if task_date_str and target_date:
+                    try:
+                        task_d = datetime.date.fromisoformat(task_date_str)
+                        diff = (target_date - task_d).days
+                        if diff == 1:
+                            date_diff_text = "Yesterday"
+                        elif diff > 1:
+                            date_diff_text = task_d.strftime("%b %d")
+                    except Exception:
+                        date_diff_text = task_date_str
+
+                if date_diff_text and time_mil:
+                    due = f" — Due {date_diff_text} @ {time_mil}"
+                elif date_diff_text:
+                    due = f" — Due {date_diff_text}"
+                elif time_mil:
+                    due = f" — Due earlier @ {time_mil}"
+                else:
+                    due = " — Overdue"
+            else:
+                due = f" — Due {time_mil}" if time_mil else ""
             lines.append(f"  {idx:02d}. {urg}{t['title']}{due}{proj}")
     else:
         lines.append("  • _(No pending focus tasks for today)_")
@@ -2369,10 +2394,37 @@ def get_rich_text_briefing(target_date: Optional[datetime.date] = None, db_path:
     lines.append("\n⚡ *TRIVIAL ERRANDS (Ranked by Priority)*")
     if tasks["trivial"]:
         for idx, t in enumerate(tasks["trivial"], 1):
+            task_date_str = str(t.get("due_date", "")).split("T")[0].split(" ")[0]
+            is_overdue = bool(task_date_str and target_date and task_date_str < target_date.isoformat())
+            urg = "[OVERDUE] " if is_overdue else ""
             time_mil = format_military_time(t.get("due_date") or t.get("due_date_raw"))
-            due = f" — Due {time_mil}" if time_mil else ""
+
+            if is_overdue:
+                date_diff_text = ""
+                if task_date_str and target_date:
+                    try:
+                        task_d = datetime.date.fromisoformat(task_date_str)
+                        diff = (target_date - task_d).days
+                        if diff == 1:
+                            date_diff_text = "Yesterday"
+                        elif diff > 1:
+                            date_diff_text = task_d.strftime("%b %d")
+                    except Exception:
+                        date_diff_text = task_date_str
+
+                if date_diff_text and time_mil:
+                    due = f" — Due {date_diff_text} @ {time_mil}"
+                elif date_diff_text:
+                    due = f" — Due {date_diff_text}"
+                elif time_mil:
+                    due = f" — Due earlier @ {time_mil}"
+                else:
+                    due = " — Overdue"
+            else:
+                due = f" — Due {time_mil}" if time_mil else ""
+
             rec = f" [↻ {t['recurrence'].replace('FREQ=WEEKLY;BYDAY=', 'Weekly ')}]" if t.get("recurrence") else ""
-            lines.append(f"  {idx:02d}. {t['title']}{due}{rec}")
+            lines.append(f"  {idx:02d}. {urg}{t['title']}{due}{rec}")
     else:
         lines.append("  • _(No quick errands pending)_")
 

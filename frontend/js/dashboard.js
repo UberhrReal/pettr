@@ -901,6 +901,58 @@ const Dashboard = {
     }
   },
 
+  formatSnapshotTimeMarker(task, selectedDate) {
+    const isDone = task.status === "completed";
+    const targetDate = selectedDate || this.selectedDate || new Date().toISOString().split("T")[0];
+    const taskDateStr = task.due_date ? String(task.due_date).split("T")[0].split(" ")[0] : "";
+    const milTime = task.due_date_military || (task.due_date ? App.formatMilitaryTime(task.due_date) : "");
+    const isOverdue = Boolean(!isDone && (task.is_overdue || task.is_rolled_over || (task.urgency && task.urgency.label === "Overdue") || (taskDateStr && taskDateStr < targetDate)));
+
+    if (!isOverdue) {
+      return {
+        isOverdue: false,
+        timeBadge: milTime ? `@ ${milTime}` : "",
+        displayText: milTime ? `@ ${milTime}` : ""
+      };
+    }
+
+    let relativeDay = "";
+    if (taskDateStr && targetDate) {
+      try {
+        const [tY, tM, tD] = taskDateStr.split("-").map(Number);
+        const [sY, sM, sD] = targetDate.split("-").map(Number);
+        const dTask = new Date(tY, tM - 1, tD);
+        const dSel = new Date(sY, sM - 1, sD);
+        const diffDays = Math.round((dSel - dTask) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          relativeDay = "Yesterday";
+        } else if (diffDays > 1) {
+          const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+          relativeDay = `${monthNames[tM - 1]} ${String(tD).padStart(2, "0")}`;
+        }
+      } catch (e) {
+        relativeDay = taskDateStr;
+      }
+    }
+
+    let overdueTimeText = "";
+    if (relativeDay && milTime) {
+      overdueTimeText = `${relativeDay} @ ${milTime}`;
+    } else if (relativeDay) {
+      overdueTimeText = `Due ${relativeDay}`;
+    } else if (milTime) {
+      overdueTimeText = `Earlier @ ${milTime}`;
+    } else {
+      overdueTimeText = "Overdue";
+    }
+
+    return {
+      isOverdue: true,
+      timeBadge: overdueTimeText,
+      displayText: overdueTimeText
+    };
+  },
+
   renderVisualBriefing(briefingData, rawMarkdown) {
     const container = document.getElementById("briefingVisualContainer");
     if (!container) return;
@@ -928,16 +980,21 @@ const Dashboard = {
       focusTasks.forEach((t, i) => {
         const isDone = t.status === "completed";
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
-        const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
+        const timeMarker = this.formatSnapshotTimeMarker(t, this.selectedDate);
+        const timeMil = timeMarker.timeBadge;
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
         const isTimeSensitive = Boolean(t.is_time_sensitive);
-        const badgeHtml = isTimeSensitive
-          ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
-          : '';
+        const badgeHtml = isDone
+          ? ''
+          : (timeMarker.isOverdue
+            ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>`
+            : (isTimeSensitive
+              ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
+              : ''));
 
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true" 
-               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${timeMil}')">
+               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${this.escapeHtml(timeMil)}')">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -945,7 +1002,7 @@ const Dashboard = {
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
-              ${timeMil ? `<span style="font-size:11px; font-family:var(--font-mono); color:var(--text-muted);">${timeMil}</span>` : ''}
+              ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
               <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
             </div>
@@ -973,16 +1030,21 @@ const Dashboard = {
       trivialTasks.forEach((t, i) => {
         const isDone = t.status === "completed";
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
-        const timeMil = t.due_date_military ? `@ ${t.due_date_military}` : '';
+        const timeMarker = this.formatSnapshotTimeMarker(t, this.selectedDate);
+        const timeMil = timeMarker.timeBadge;
         const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
         const isTimeSensitive = Boolean(t.is_time_sensitive);
-        const badgeHtml = isTimeSensitive
-          ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
-          : '';
+        const badgeHtml = isDone
+          ? ''
+          : (timeMarker.isOverdue
+            ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>`
+            : (isTimeSensitive
+              ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
+              : ''));
 
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true"
-               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${timeMil}')">
+               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${this.escapeHtml(timeMil)}')">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -991,7 +1053,7 @@ const Dashboard = {
               ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
-              ${timeMil ? `<span style="font-size:11px; font-family:var(--font-mono); color:var(--text-muted);">${timeMil}</span>` : ''}
+              ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
               <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
             </div>
@@ -1265,12 +1327,14 @@ const Dashboard = {
       const rank = String(idx + 1).padStart(2, "0");
       let isDone = item.completed || false;
       let isOverdue = Boolean(item.is_overdue || item.is_rolled_over);
+      let matchedTask = null;
       // Reconcile with live tasks and events
       if ((item.type === "task" || !item.type) && this.tasks) {
         const projectTasks = (this.tasks.projects || []).flatMap(p => p.tasks || []);
         const allTasks = [...(this.tasks.focus || []), ...(this.tasks.trivial || []), ...projectTasks];
         const match = allTasks.find(t => String(t.id) === String(item.id));
         if (match) {
+          matchedTask = match;
           isDone = match.status === "completed";
           item.completed = isDone;
           if (match.is_overdue || match.is_rolled_over || (match.urgency && match.urgency.label === "Overdue")) {
@@ -1285,6 +1349,15 @@ const Dashboard = {
           item.completed = isDone;
         }
       }
+
+      let displayTime = item.time || "";
+      if (isOverdue && !isDone && matchedTask) {
+        const tm = this.formatSnapshotTimeMarker(matchedTask, this.selectedDate);
+        if (tm.isOverdue && tm.displayText) {
+          displayTime = tm.displayText;
+        }
+      }
+
       return `
         <div class="daily-order-slot ${isDone ? 'completed' : ''}" draggable="true"
              data-index="${idx}"
@@ -1298,7 +1371,7 @@ const Dashboard = {
                  onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="Check off item">
           <span class="slot-title">${this.escapeHtml(item.title)}</span>
           ${isOverdue && !isDone ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>` : ''}
-          ${item.time ? `<span style="font-size:11px; font-family:var(--font-mono); color:var(--text-muted);">${item.time}</span>` : ''}
+          ${displayTime ? `<span style="font-size:11px; font-family:var(--font-mono); color:${isOverdue && !isDone ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${isOverdue && !isDone ? '600' : '400'};">${this.escapeHtml(displayTime)}</span>` : ''}
           <span class="urgency-badge ${item.tier || 'normal'}" style="font-size:10px; padding:1px 6px;">${(item.tier || item.type).toUpperCase()}</span>
           <span style="cursor:grab; color:var(--text-dim); font-size:12px;" title="Drag to re-order">⋮⋮</span>
           <button class="action-icon-btn" onclick="Dashboard.removeDailyOrderItem(${idx})" title="Remove from daily sequence" style="padding:2px 5px; font-size:11px; color:var(--text-muted);"><i data-lucide="x" style="width:11px;height:11px;"></i></button>

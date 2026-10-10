@@ -1150,6 +1150,56 @@ def test_llm_select_accessible_from_non_host_client(tmp_path, monkeypatch):
         saved = cfg_mod.get_or_create_config(test_cfg)
         assert saved["ollama_model"] == "llama3.2:latest"
 
+def test_overdue_snapshot_time_marker_distinction(temp_db, monkeypatch):
+    """Verify overdue tasks in snapshot briefing receive distinct relative time markers from today's items."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    two_days_ago = today - datetime.timedelta(days=2)
+
+    # 1. Create a task due today at 09:00
+    t_today = database.create_task(
+        "Current sprint standup",
+        tier="focus",
+        due_date=f"{today.isoformat()} 09:00:00",
+        db_path=temp_db
+    )
+
+    # 2. Create an overdue task due yesterday at 09:00
+    t_yest = database.create_task(
+        "Unfinished yesterday analysis",
+        tier="focus",
+        due_date=f"{yesterday.isoformat()} 09:00:00",
+        db_path=temp_db
+    )
+
+    # 3. Create an overdue task due two days ago without specific time
+    t_older = database.create_task(
+        "Older overdue report",
+        tier="trivial",
+        due_date=f"{two_days_ago.isoformat()} 00:00:00",
+        db_path=temp_db
+    )
+
+    # 4. Fetch rich text briefing for today
+    briefing_md = database.get_rich_text_briefing(today, db_path=temp_db)
+    
+    # Normal today task should just say Due 09:00
+    assert "Current sprint standup — Due 09:00" in briefing_md
+
+    # Overdue task from yesterday must NOT be misleadingly labeled as Due 09:00; it must say Due Yesterday @ 09:00
+    assert "[OVERDUE] Unfinished yesterday analysis — Due Yesterday @ 09:00" in briefing_md
+
+    # Older overdue item must have [OVERDUE] and indicate the previous date
+    assert "[OVERDUE] Older overdue report" in briefing_md
+    assert two_days_ago.strftime("%b %d") in briefing_md
+
+    # 5. Check frontend code for formatSnapshotTimeMarker and distinct overdue time markers
+    dash_code = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "formatSnapshotTimeMarker" in dash_code
+    assert "${relativeDay} @ ${milTime}" in dash_code
+    assert "Due ${relativeDay}" in dash_code
+
 
 
 
