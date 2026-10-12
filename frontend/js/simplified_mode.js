@@ -159,7 +159,10 @@ const SimplifiedMode = {
           project_name: t.project_name,
           color: t.project_color || "#6366f1",
           is_time_sensitive: Boolean(t.is_time_sensitive),
-          recurrence: t.recurrence
+          recurrence: t.recurrence,
+          is_overdue: Boolean(t.is_overdue),
+          is_rolled_over: Boolean(t.is_rolled_over),
+          urgency: t.urgency
         });
       });
 
@@ -176,7 +179,10 @@ const SimplifiedMode = {
           project_name: t.project_name,
           color: t.project_color || "#10b981",
           is_time_sensitive: Boolean(t.is_time_sensitive),
-          recurrence: t.recurrence
+          recurrence: t.recurrence,
+          is_overdue: Boolean(t.is_overdue),
+          is_rolled_over: Boolean(t.is_rolled_over),
+          urgency: t.urgency
         });
       });
 
@@ -264,6 +270,11 @@ const SimplifiedMode = {
       card.draggable = true;
 
       // Type Badge & Metadata
+      const isItemOverdue = Boolean(!isDone && (item.is_overdue || item.is_rolled_over || (item.urgency && item.urgency.label === "Overdue")));
+      const overdueTag = isItemOverdue ? `
+        <span class="urgency-badge overdue" style="font-size: 10px; padding: 2px 7px;">OVERDUE</span>
+      ` : "";
+
       let typeBadge = "";
       let timeMeta = "";
 
@@ -273,7 +284,7 @@ const SimplifiedMode = {
         let timeDisplay = item.due_date_military || (item.due_date ? (item.due_date.includes(" ") ? item.due_date.split(" ")[1].slice(0, 5) : item.due_date.slice(11, 16)) : '');
         if (isItemOverdue && item.due_date) {
           const taskDateStr = item.due_date.split("T")[0].split(" ")[0];
-          const activeDate = this.activeTargetDate || new Date().toISOString().split("T")[0];
+          const activeDate = this.getTargetDate();
           if (taskDateStr < activeDate) {
             try {
               const [tY, tM, tD] = taskDateStr.split("-").map(Number);
@@ -297,7 +308,8 @@ const SimplifiedMode = {
       } else if (item.type === "reminder") {
         typeBadge = `<span class="simplified-badge badge-reminder">🔔 Reminder</span>`;
         if (item.reminder_date) {
-          timeMeta = `<span class="simplified-meta-time font-mono">⏰ ${item.reminder_date.slice(11, 16) || ''}</span>`;
+          const time = item.reminder_date.includes(" ") ? item.reminder_date.split(" ")[1].slice(0, 5) : item.reminder_date.slice(11, 16);
+          timeMeta = `<span class="simplified-meta-time font-mono">⏰ ${time || ''}</span>`;
         }
       }
 
@@ -309,11 +321,6 @@ const SimplifiedMode = {
 
       const timeSensitiveTag = item.is_time_sensitive ? `
         <span class="time-sensitive-badge" style="font-size: 10px; padding: 2px 7px;">⚡ TIME SENSITIVE</span>
-      ` : "";
-
-      const isItemOverdue = Boolean(!isDone && (item.is_overdue || item.is_rolled_over || (item.urgency && item.urgency.label === "Overdue")));
-      const overdueTag = isItemOverdue ? `
-        <span class="urgency-badge overdue" style="font-size: 10px; padding: 2px 7px;">OVERDUE</span>
       ` : "";
 
       let checkbox = "";

@@ -279,19 +279,17 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     target_model = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model") or config.get("active_llm") or "llama3.2:3b"
 
     date_str = target_date.strftime("%A, %B %d, %Y")
-    diurnal_period = "afternoon"
-    if client_hour is not None:
-        h = client_hour % 24
-        if 0 <= h < 6:
-            diurnal_period = "the wee hours (midnight to 6am — nocturnal hyperfocus while the world sleeps)"
-        elif 6 <= h < 12:
-            diurnal_period = "morning (6am to noon)"
-        elif 12 <= h < 18:
-            diurnal_period = "afternoon"
-        elif 18 <= h < 23:
-            diurnal_period = "evening"
-        else:
-            diurnal_period = "late night (approaching midnight)"
+    h = (client_hour % 24) if client_hour is not None else datetime.datetime.now().hour
+    if 0 <= h < 6:
+        diurnal_period = "the wee hours (midnight to 6am — nocturnal hyperfocus while the world sleeps)"
+    elif 6 <= h < 12:
+        diurnal_period = "morning (6am to noon)"
+    elif 12 <= h < 18:
+        diurnal_period = "afternoon (noon to 6pm)"
+    elif 18 <= h < 23:
+        diurnal_period = "evening (6pm to 11pm)"
+    else:
+        diurnal_period = "late night (approaching midnight)"
 
     system_prompt = (
         "You are the sharp, witty, cultured personal AI companion for PETTR "
@@ -432,6 +430,19 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
 
     return None
 
+def get_diurnal_period(client_hour: Optional[int]) -> str:
+    h = (client_hour % 24) if client_hour is not None else datetime.datetime.now().hour
+    if 0 <= h < 6:
+        return "wee_hours"
+    elif 6 <= h < 12:
+        return "morning"
+    elif 12 <= h < 18:
+        return "afternoon"
+    elif 18 <= h < 23:
+        return "evening"
+    else:
+        return "night"
+
 async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = None,
                                       user_name: str = "User",
                                       force_refresh: bool = False,
@@ -439,19 +450,41 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                                       db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Fetches daily intelligence and typewriter lines.
-    Checks the daily SQLite cache first; generates fresh lines via LLM if missing or forced,
+    Checks the diurnal SQLite cache first; generates fresh lines via LLM if missing or forced,
     and seamlessly falls back to the curated milestone engine if LLM is offline.
     """
     today = target_date or datetime.date.today()
     date_key = today.strftime("%Y-%m-%d")
     date_label = today.strftime("%A, %B %d")
+    effective_hour = client_hour if client_hour is not None else datetime.datetime.now().hour
+    period = get_diurnal_period(effective_hour)
+    period_key = f"{date_key}_{period}"
 
     fact = get_historical_milestone_or_fact(today)
     default_subtext = f"{date_label} · 💡 {fact}"
 
     # 1. Check SQLite Cache
     if not force_refresh:
-        cached = database.get_daily_typewriter_cache(date_key, db_path)
+        # Check period-specific cache first
+        cached = database.get_daily_typewriter_cache(period_key, db_path)
+        if not cached or not cached.get("phrases"):
+            # Check base date cache
+            base_cached = database.get_daily_typewriter_cache(date_key, db_path)
+            if base_cached and base_cached.get("phrases"):
+                has_long = any(len(p) > 46 for p in base_cached["phrases"])
+                has_legacy = any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,", "Hong Rong"])
+                if has_long or has_legacy:
+                    cached = base_cached
+                else:
+                    filtered_base = filter_phrases_for_diurnal_window(
+                        base_cached["phrases"],
+                        client_hour=effective_hour,
+                        target_date=today,
+                        user_name=user_name
+                    )
+                    if client_hour is None or len(filtered_base) >= 3:
+                        cached = base_cached
+
         if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
             cached_subtext = cached.get("subtext") or default_subtext
             if "·" not in cached_subtext and "💡" not in cached_subtext:
@@ -463,8 +496,15 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             phrases_to_return = cached["phrases"]
             # Upgrade stale legacy phrases or phrases containing Hong Rong
             if any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,", "Hong Rong"]):
-                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
                 try:
+                    database.save_daily_typewriter_cache(
+                        date_str=period_key,
+                        phrases=phrases_to_return,
+                        subtext=cached_subtext,
+                        source="single_line_upgrade",
+                        db_path=db_path
+                    )
                     database.save_daily_typewriter_cache(
                         date_str=date_key,
                         phrases=phrases_to_return,
@@ -477,8 +517,15 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
 
             # Upgrade stale multi-clause long phrases that stretch onto 2 lines or clip off (> 46 chars)
             if any(len(p) > 46 for p in phrases_to_return):
-                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
                 try:
+                    database.save_daily_typewriter_cache(
+                        date_str=period_key,
+                        phrases=phrases_to_return,
+                        subtext=cached_subtext,
+                        source="single_line_upgrade",
+                        db_path=db_path
+                    )
                     database.save_daily_typewriter_cache(
                         date_str=date_key,
                         phrases=phrases_to_return,
@@ -507,11 +554,11 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 "cached": True
             }
 
-    # 2. Generate via LLM
+    # 2. Generate via LLM for this diurnal window
     import inspect
     sig = inspect.signature(generate_llm_typewriter_lines)
     if "client_hour" in sig.parameters:
-        llm_res = await generate_llm_typewriter_lines(today, user_name, fact, client_hour=client_hour)
+        llm_res = await generate_llm_typewriter_lines(today, user_name, fact, client_hour=effective_hour)
     else:
         llm_res = await generate_llm_typewriter_lines(today, user_name, fact)
 
@@ -534,8 +581,15 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
 
     subtext = f"{date_label} · 💡 {chosen_fact}"
 
-    # 3. Cache into SQLite
+    # 3. Cache into SQLite under period-specific key and base date key
     try:
+        database.save_daily_typewriter_cache(
+            date_str=period_key,
+            phrases=final_phrases,
+            subtext=subtext,
+            source=source,
+            db_path=db_path
+        )
         database.save_daily_typewriter_cache(
             date_str=date_key,
             phrases=final_phrases,
@@ -611,8 +665,8 @@ async def midnight_typewriter_scheduler_loop():
             profile = get_user_profile()
             user_name = profile.get("user_name", "User")
 
-            logger.info(f"Midnight reached! Proactively generating LLM typewriter lines for {today}...")
-            await get_or_generate_daily_intel(target_date=today, user_name=user_name, force_refresh=True)
+            logger.info(f"Midnight reached! Proactively generating LLM typewriter lines for {today} (wee hours)...")
+            await get_or_generate_daily_intel(target_date=today, user_name=user_name, force_refresh=True, client_hour=0)
             logger.info(f"Midnight LLM typewriter generation for {today} concluded.")
         except asyncio.CancelledError:
             logger.info("Midnight typewriter scheduler stopped.")
