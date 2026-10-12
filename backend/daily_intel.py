@@ -151,11 +151,12 @@ def filter_phrases_for_diurnal_window(
     phrases: List[str],
     client_hour: Optional[int],
     target_date: Optional[datetime.date] = None,
-    user_name: str = "User"
+    user_name: str = "User",
+    supplement_curated: bool = True
 ) -> List[str]:
     """
     Filters out typewriter phrases that contradict the client's current time of day.
-    Supplements with appropriate curated phrases if filtering leaves fewer than 3 lines.
+    Supplements with appropriate curated phrases if filtering leaves fewer than 3 lines (unless supplement_curated is False).
     """
     if client_hour is None or not phrases:
         return list(phrases)
@@ -184,7 +185,7 @@ def filter_phrases_for_diurnal_window(
             continue
         filtered.append(p)
 
-    if len(filtered) < 3:
+    if supplement_curated and len(filtered) < 3:
         curated = get_curated_phrases(target_date or datetime.date.today(), user_name, client_hour=hour)
         for c in curated:
             if c not in filtered:
@@ -472,18 +473,12 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             base_cached = database.get_daily_typewriter_cache(date_key, db_path)
             if base_cached and base_cached.get("phrases"):
                 has_long = any(len(p) > 46 for p in base_cached["phrases"])
-                has_legacy = any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,", "Hong Rong"])
+                has_stale_name = (user_name != "Hong Rong") and any("Hong Rong" in p for p in base_cached["phrases"])
+                has_legacy = has_stale_name or any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"])
                 if has_long or has_legacy:
                     cached = base_cached
-                else:
-                    filtered_base = filter_phrases_for_diurnal_window(
-                        base_cached["phrases"],
-                        client_hour=effective_hour,
-                        target_date=today,
-                        user_name=user_name
-                    )
-                    if client_hour is None or len(filtered_base) >= 3:
-                        cached = base_cached
+                elif client_hour is None:
+                    cached = base_cached
 
         if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
             cached_subtext = cached.get("subtext") or default_subtext
@@ -494,8 +489,9 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 cached_subtext = default_subtext
 
             phrases_to_return = cached["phrases"]
-            # Upgrade stale legacy phrases or phrases containing Hong Rong
-            if any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,", "Hong Rong"]):
+            # Upgrade stale legacy phrases or phrases containing outdated display name
+            stale_name_in_phrases = (user_name != "Hong Rong") and any("Hong Rong" in p for p in phrases_to_return)
+            if stale_name_in_phrases or any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"]):
                 phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
                 try:
                     database.save_daily_typewriter_cache(
@@ -575,9 +571,25 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
         final_phrases = filter_phrases_for_diurnal_window(llm_phrases, client_hour, today, user_name) if client_hour is not None else llm_phrases
         chosen_fact = llm_fact or fact
     else:
-        source = "curated_fallback"
-        final_phrases = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
-        chosen_fact = fact
+        # LLM offline: check if base_cached has >= 3 non-contradictory phrases for this window
+        base_cached = database.get_daily_typewriter_cache(date_key, db_path) if not force_refresh else None
+        surviving = []
+        if base_cached and base_cached.get("phrases"):
+            surviving = filter_phrases_for_diurnal_window(
+                base_cached["phrases"],
+                client_hour=effective_hour,
+                target_date=today,
+                user_name=user_name,
+                supplement_curated=False
+            )
+        if len(surviving) >= 3 and base_cached.get("source") == "llm":
+            source = "llm"
+            final_phrases = surviving
+            chosen_fact = fact
+        else:
+            source = "curated_fallback"
+            final_phrases = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
+            chosen_fact = fact
 
     subtext = f"{date_label} · 💡 {chosen_fact}"
 

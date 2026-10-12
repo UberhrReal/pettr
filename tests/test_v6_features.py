@@ -309,6 +309,74 @@ def test_cached_mixed_phrases_filtered_by_client_hour(temp_db, monkeypatch):
         assert any("midday boost" in p.lower() or "cruising" in p.lower() or "focus" in p.lower() for p in phrases)
 
 
+@pytest.mark.anyio
+async def test_evening_transition_triggers_fresh_llm_generation(temp_db, monkeypatch):
+    """Ensure entering evening window with only morning cache triggers fresh diurnal generation rather than repeating morning lines."""
+    from backend import daily_intel
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    morning_lines = [
+        "Good morning, Hong Rong. Workspace primed.",
+        "First coffee poured. Ready for deep work.",
+        "Clear head, clear queue, Hong Rong.",
+        "Telemetry nominal. Building momentum.",
+        "Prioritise the essentials, Hong Rong."
+    ]
+
+    # Populate cache as if generated at 8:00 AM
+    database.save_daily_typewriter_cache(
+        date_str="2026-10-12_morning",
+        phrases=morning_lines,
+        subtext="Monday, October 12 · 💡 Fact",
+        source="llm",
+        db_path=temp_db
+    )
+    database.save_daily_typewriter_cache(
+        date_str="2026-10-12",
+        phrases=morning_lines,
+        subtext="Monday, October 12 · 💡 Fact",
+        source="llm",
+        db_path=temp_db
+    )
+
+    evening_llm_lines = [
+        "Evening debrief active, Hong Rong.",
+        "Consolidate today's wins with care.",
+        "Close open loops before signing off.",
+        "Reflect on craft and daily momentum.",
+        "Smooth landing into the quiet evening."
+    ]
+
+    llm_call_count = 0
+    async def mock_llm_call(target_date, user_name, milestone_info=None, timeout_seconds=30.0, client_hour=None):
+        nonlocal llm_call_count
+        llm_call_count += 1
+        return {"phrases": evening_llm_lines, "fact": "Evening Fact"}
+
+    monkeypatch.setattr(daily_intel, "generate_llm_typewriter_lines", mock_llm_call)
+
+    # Client visits in the evening (hour=18)
+    d_obj = datetime.date(2026, 10, 12)
+    intel = await daily_intel.get_or_generate_daily_intel(d_obj, "Hong Rong", force_refresh=False, client_hour=18, db_path=temp_db)
+    
+    # Must trigger LLM call because morning cache has 0 valid evening phrases
+    assert llm_call_count == 1
+    assert intel["phrases"] == evening_llm_lines
+    assert intel["source"] == "llm"
+
+    # SQLite must now store 2026-10-12_evening
+    cached_evening = database.get_daily_typewriter_cache("2026-10-12_evening", db_path=temp_db)
+    assert cached_evening is not None
+    assert cached_evening["phrases"] == evening_llm_lines
+
+    # Second visit at hour=18 should read from cache without calling LLM again
+    intel2 = await daily_intel.get_or_generate_daily_intel(d_obj, "Hong Rong", force_refresh=False, client_hour=18, db_path=temp_db)
+    assert llm_call_count == 1
+    assert intel2["phrases"] == evening_llm_lines
+    assert intel2["source"] == "cache"
+
+
+
 def test_day_sealing_and_immutable_completion_rate(temp_db, monkeypatch):
     """Test evening debrief seal locks the day's completion rate and blocks further edits."""
     monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
