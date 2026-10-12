@@ -1814,3 +1814,57 @@ async def test_display_name_editing_tool_and_modal(temp_db, monkeypatch):
     cmd_js = Path("frontend/js/command_palette.js").read_text(encoding="utf-8")
     assert "act-name" in cmd_js
 
+
+@pytest.mark.anyio
+async def test_horace_adopts_display_name_without_wiping_chat_history(temp_db, monkeypatch):
+    """Ensure Horace immediately uses updated display name in dialogue context without needing to clear chat history."""
+    from backend import horace, app
+    import httpx
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # Seed past chat turns containing placeholder 'User'
+    database.save_chat_message("user", "Hello Horace", db_path=temp_db)
+    database.save_chat_message("assistant", "Hey User, what's on your plate today?", db_path=temp_db)
+
+    # Update profile name to 'Hong Rong'
+    with TestClient(app.app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.post("/api/profile", json={"user_name": "Hong Rong"})
+        assert res.status_code == 200
+
+    # Mock Ollama call to verify messages sent to the LLM
+    captured_messages = []
+    async def mock_post(self, url, *args, **kwargs):
+        class MockResponse:
+            status_code = 200
+            def json(self):
+                return {
+                    "message": {"role": "assistant", "content": "Sure thing Hong Rong!"},
+                    "response": "Sure thing Hong Rong!"
+                }
+        json_body = kwargs.get("json", {})
+        if "messages" in json_body:
+            nonlocal captured_messages
+            captured_messages = json_body["messages"]
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    # Chat with Horace with existing history
+    reply = await horace.chat_with_horace("Give me a quick status check", db_path=temp_db)
+    assert reply is not None
+
+    # Verify that in captured messages, 'User' was replaced with 'Hong Rong'
+    history_texts = [m["content"] for m in captured_messages if m["role"] == "assistant"]
+    assert any("Hong Rong" in t for t in history_texts)
+    assert not any("Hey User" in t for t in history_texts)
+
+    # Verify Guide tab title block and date navigator in index.html
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "guide-header-block" in index_html
+    assert "In-App Architecture &amp; User Guide" in index_html
+    assert "dashboardJumpTodayBtn" in index_html
+
+

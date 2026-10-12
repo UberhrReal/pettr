@@ -2605,6 +2605,11 @@ body {
   text-align: center;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  margin: 0 auto;
 }
 
 .pin-logo {
@@ -2618,6 +2623,8 @@ body {
   text-transform: uppercase;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  width: 100%;
+  text-align: center;
 }
 
 .pin-subtitle {
@@ -2625,6 +2632,8 @@ body {
   font-weight: 300;
   color: var(--text-muted);
   margin-bottom: 24px;
+  width: 100%;
+  text-align: center;
 }
 
 .pin-lockout-banner {
@@ -2637,6 +2646,8 @@ body {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 18px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .pin-dots {
@@ -2644,6 +2655,7 @@ body {
   justify-content: center;
   gap: 16px;
   margin-bottom: 28px;
+  width: 100%;
 }
 
 .pin-dot {
@@ -2665,7 +2677,11 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-bottom: 16px;
+  margin: 0 auto 16px auto;
+  width: 100%;
+  max-width: 270px;
+  justify-items: center;
+  align-items: center;
 }
 
 .key-btn {
@@ -2674,11 +2690,19 @@ body {
   color: var(--text-main);
   font-size: 20px;
   font-weight: 600;
-  padding: 16px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 72px;
+  height: 56px;
+  padding: 0;
+  margin: 0 auto;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .key-btn:hover {
@@ -2950,38 +2974,40 @@ body {
 /* --- Dashboard Date Navigator & Banners --- */
 .dashboard-date-navigator {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
+  align-items: stretch;
+  width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-squircle);
-  padding: 12px 18px;
+  padding: 10px 14px;
   margin-bottom: 18px;
   box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
 }
 
 .date-nav-controls {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  align-items: stretch;
+  width: 100%;
+  gap: 10px;
 }
 
 .date-step-btn {
   background: var(--bg-secondary);
   border: 1px solid var(--card-border);
   color: var(--text-main);
-  padding: 7px 16px;
+  padding: 9px 18px;
   border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex: 0 0 auto;
+  min-width: 115px;
 }
 
 .date-step-btn:hover {
@@ -2991,16 +3017,23 @@ body {
 }
 
 .date-current-badge {
+  flex: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   background: var(--bg-tertiary);
   border: 1px solid var(--card-border);
-  padding: 6px 16px;
-  border-radius: 9999px;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
+  text-align: center;
+}
+
+.jump-today-btn {
+  flex: 0 0 auto;
 }
 
 .date-status-tag {
@@ -4585,13 +4618,15 @@ body {
   }
 
   .greeting-text {
-    font-size: 22px;
-    letter-spacing: -0.02em;
+    font-size: clamp(12.5px, 3.8vw, 17px);
+    letter-spacing: -0.025em;
     height: 1.25em;
     max-height: 1.25em;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
+    display: inline-block;
+    max-width: 100%;
   }
 
   .greeting-subtext {
@@ -4804,7 +4839,7 @@ body {
     margin: 8px 0 !important;
   }
 
-  /* Day Navigator Symmetrical Mobile Layout */
+  /* Day Navigator Mobile Layout */
   .dashboard-date-navigator {
     padding: 8px 8px !important;
     border-radius: 12px !important;
@@ -4815,25 +4850,32 @@ body {
   }
 
   .date-nav-controls {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 6px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
     width: 100% !important;
+    gap: 6px !important;
   }
 
   .date-current-badge {
-    grid-column: 1 / -1 !important;
+    flex: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
     justify-content: center !important;
-    width: 100% !important;
-    font-size: 12px !important;
-    padding: 6px 10px !important;
+    font-size: 11.5px !important;
+    padding: 7px 6px !important;
+    border-radius: 8px !important;
+    gap: 5px !important;
   }
 
   .date-step-btn {
-    width: 100% !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 72px !important;
     justify-content: center !important;
-    padding: 6px 8px !important;
-    font-size: 12px !important;
+    padding: 7px 8px !important;
+    font-size: 11.5px !important;
+    border-radius: 8px !important;
   }
 
   /* Unorganised Queue Panel */
@@ -4898,34 +4940,40 @@ body {
 
   .timeline-controls-row {
     display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
     width: 100% !important;
-    gap: 6px !important;
+    gap: 8px !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
   .timeline-controls-row .scale-switch-group {
-    flex: 1 !important;
-    min-width: 0 !important;
-    justify-content: center !important;
+    width: 100% !important;
+    display: flex !important;
+    box-sizing: border-box !important;
   }
 
   .timeline-view-switcher .timeline-view-btn {
-    padding: 6px 8px !important;
-    font-size: 11px !important;
-    white-space: nowrap !important;
-  }
-
-  .timeline-scale-switcher .timeline-scale-btn {
-    padding: 6px 8px !important;
-    font-size: 11px !important;
+    padding: 7px 8px !important;
+    font-size: 11.5px !important;
     white-space: nowrap !important;
     flex: 1 !important;
     text-align: center !important;
     justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .timeline-scale-switcher .timeline-scale-btn {
+    padding: 7px 8px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+    flex: 1 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
   }
 
   .unified-timeline-container {
@@ -5035,14 +5083,22 @@ body {
   }
 
   .quick-submit-btn {
-    padding: 7px 11px !important;
-    font-size: 12px !important;
+    padding: 7px 13px !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
     gap: 4px !important;
-    border-radius: 6px !important;
+    border-radius: 7px !important;
+    min-height: 34px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
-  .quick-submit-btn span {
-    display: none; /* Icon-first clean submit on narrow viewports */
+  .quick-submit-btn span,
+  #quickSubmitBtnText {
+    display: inline-block !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
   }
 
   .log-key-hint {
@@ -5090,25 +5146,59 @@ body {
 
   /* PIN Lock Card */
   .pin-card {
-    padding: 24px 16px;
-    max-width: 325px;
+    padding: 28px 16px;
+    max-width: 310px;
     border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
 
   .pin-logo {
     font-size: 26px;
     letter-spacing: 0.22em;
     text-indent: 0.22em;
+    text-align: center;
+    width: 100%;
+  }
+
+  .pin-subtitle {
+    font-size: 12px;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .pin-dots {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 22px;
   }
 
   .pin-keypad {
-    gap: 9px;
+    width: 100%;
+    max-width: 240px;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px;
+    margin: 0 auto 14px auto !important;
+    justify-items: center;
+    align-items: center;
   }
 
   .key-btn {
-    width: 56px;
-    height: 56px;
-    font-size: 20px;
+    width: 100% !important;
+    max-width: 66px !important;
+    height: 54px !important;
+    font-size: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
   }
 
   /* Focus Cockpit Card */

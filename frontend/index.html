@@ -271,8 +271,6 @@
           <button class="date-step-btn" onclick="Dashboard.navigateDay(1)" title="Next Day">
             Next Day <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
           </button>
-        </div>
-        <div class="date-nav-actions">
           <button class="action-icon-btn jump-today-btn" id="dashboardJumpTodayBtn" onclick="Dashboard.jumpToToday()" style="display:none;" title="Return to Current Day">
             <i data-lucide="rotate-ccw" style="width:12px;height:12px;"></i> Jump to Today
           </button>
@@ -1015,6 +1013,12 @@
 
     <!-- Tab 7: In-App User & Deployment Guide -->
     <section id="tabGuide" class="tab-pane">
+      <div class="guide-header-block" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">In-App Architecture &amp; User Guide</h2>
+          <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Complete architectural reference, keyboard shortcuts, deployment guide, and operational runbook.</p>
+        </div>
+      </div>
       <div class="guide-container">
         <!-- Sticky Sidebar Navigation -->
         <aside class="guide-sidebar">

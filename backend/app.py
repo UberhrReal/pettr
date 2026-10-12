@@ -244,12 +244,16 @@ async def update_profile(req: ProfileUpdateRequest, user=Depends(auth.require_au
     except Exception as e:
         logger.warning(f"Could not clear daily_typewriter_cache on profile update: {e}")
 
-    # Synchronise Horace persona base system prompt with the newly configured user name
+    # Synchronise Horace persona base system prompt with the newly configured user name and update chat history
     try:
         from backend import horace
-        horace.HORACE_BASE_SYSTEM_PROMPT = horace.get_horace_system_prompt(req.user_name.strip())
+        clean_name = req.user_name.strip()
+        horace.HORACE_BASE_SYSTEM_PROMPT = horace.get_horace_system_prompt(clean_name)
+        conn = database.get_connection()
+        with conn:
+            conn.execute("UPDATE llm_chat_messages SET content = replace(content, 'User', ?) WHERE content LIKE '%User%'", (clean_name,))
     except Exception as e:
-        logger.warning(f"Could not refresh Horace base prompt: {e}")
+        logger.warning(f"Could not refresh Horace base prompt or chat history: {e}")
 
     return {"status": "success", "message": msg, "profile": get_user_profile()}
 

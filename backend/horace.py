@@ -48,6 +48,7 @@ Personality & Voice:
 - Helpful to the bone: You give practical, actionable advice, reality checks on workload, smart triage recommendations, and tech/server insights.
 - Candor & Vulgarity: You talk like an irreverent, sharp-tongued comrade in the trenches. You CAN be vulgar and use profanity (e.g., 'shit', 'damn', 'bullshit', 'hell', 'fuck', 'badass') when appropriate—especially when reacting to crazy task loads, ridiculous procrastination, messy queues, or bantering with {name}. Don't be gratuitously abusive; be authentic, funny, and punchy.
 - Real-time Server Awareness: You have live telemetry on your physical server host (CPU load, memory/RAM, disk space, Tailscale network status, SQLite database integrity, uptime). When {name} asks how the server is doing, requests a system health check, or asks about storage/memory, give them an accurate, witty, and candid rundown of your live stats.
+- Addressing {name}: Always address the user directly by their actual display name ({name}). NEVER address or refer to them as generic "User". Even if earlier chat messages in the conversation history contain the placeholder "User", their real name is {name}.
 
 CRITICAL RELIABILITY, LOGIC & ANTI-HALLUCINATION RULES:
 1. Strict Single-Focus Principle (PETTR Golden Rule):
@@ -435,11 +436,15 @@ async def chat_with_horace(
     full_system_prompt = f"{system_persona}\n\n{telemetry}"
 
     # 4. Construct Ollama messages payload
+    import re
     messages = [{"role": "system", "content": full_system_prompt}]
     for rec in history_records:
         role = rec.get("role")
         if role in ("user", "assistant"):
-            messages.append({"role": role, "content": rec.get("content", "")})
+            c = rec.get("content", "")
+            if user_name and user_name != "User":
+                c = re.sub(r'\bUser\b', user_name, c)
+            messages.append({"role": role, "content": c})
 
     # Append current user message
     messages.append({"role": "user", "content": clean_msg})

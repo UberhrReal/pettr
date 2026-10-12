@@ -443,6 +443,17 @@ const Dashboard = {
     this.typewriterCharIndex = 0;
     this.isTypewriterDeleting = false;
 
+    const adjustGreetingScale = () => {
+      if (!greetingEl) return;
+      greetingEl.style.transform = '';
+      const pWidth = greetingEl.parentElement ? greetingEl.parentElement.clientWidth : 0;
+      if (pWidth > 0 && greetingEl.scrollWidth > pWidth) {
+        const ratio = Math.max(0.65, (pWidth - 4) / greetingEl.scrollWidth);
+        greetingEl.style.transform = `scale(${ratio})`;
+        greetingEl.style.transformOrigin = 'left center';
+      }
+    };
+
     const tick = () => {
       const currentPhrase = phrases[this.typewriterPhraseIndex];
       if (!currentPhrase) return;
@@ -450,6 +461,7 @@ const Dashboard = {
       if (!this.isTypewriterDeleting) {
         this.typewriterCharIndex++;
         greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
+        adjustGreetingScale();
         if (this.typewriterCharIndex >= currentPhrase.length) {
           this.isTypewriterDeleting = true;
           this.typewriterGreetingTimer = setTimeout(tick, 4800);
@@ -459,6 +471,7 @@ const Dashboard = {
       } else {
         this.typewriterCharIndex--;
         greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
+        adjustGreetingScale();
         if (this.typewriterCharIndex <= 0) {
           this.isTypewriterDeleting = false;
           this.typewriterPhraseIndex = (this.typewriterPhraseIndex + 1) % phrases.length;
