@@ -361,52 +361,53 @@ const Dashboard = {
       if (isWeeHours) {
         defaults = [
           `Stillness of the wee hours across the workspace, ${this.userName}.`,
-          `Zero distractions in the quiet hours while the world sleeps, ${this.userName}.`,
-          `The terminal glows quietly through the dead of night.`,
-          `Deep nocturnal velocity and deliberate engineering craft, ${this.userName}.`,
+          `Zero distractions in the quiet hours while the world sleeps.`,
+          `The quiet hours offer a rare window for undisturbed focus.`,
+          `Deep nocturnal velocity and deliberate thinking tonight, ${this.userName}.`,
           `Breakthroughs often happen during undisturbed quiet hours.`,
-          `Quiet hours focus window for uninterrupted deep execution, ${this.userName}.`
+          `A quiet focus window for thoughtful creative work and reflection.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Wee hours hyperfocus active. Undisturbed quiet.";
       } else if (isMorning) {
         defaults = [
-          `Good morning, ${this.userName}. The workspace is primed for deep execution.`,
+          `Good morning, ${this.userName}. The desk is clear and ready for the day.`,
           `First coffee poured and ready for high-leverage focus work.`,
-          `Clear head and a clear queue to kick off the day, ${this.userName}.`,
-          `Telemetry nominal and ready to build steady momentum, ${this.userName}.`,
-          `Prioritise the essential objectives before tackling the small errands, ${this.userName}.`,
+          `Clear head and an organised queue to kick off the day, ${this.userName}.`,
+          `Steady momentum starts with tackling the single biggest priority.`,
+          `Prioritise the essential objectives before attending to small errands.`,
           `Morning diagnostics green with deep focus locked in today.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
       } else if (isAfternoon) {
         defaults = [
-          `Cruising altitude reached with steady cadence through the afternoon sprint, ${this.userName}.`,
-          `Midday checkpoint: stay locked in flow and maintain deliberate momentum, ${this.userName}.`,
-          `Steady execution across your primary priorities this afternoon, ${this.userName}.`,
-          `Remember to reset posture, hydrate, and maintain your execution rhythm.`,
-          `Quality craft takes patience, precision, and uninterrupted focus, ${this.userName}.`,
-          `Protect your cognitive bandwidth and see this work block through, ${this.userName}.`
+          `Cruising altitude reached with steady cadence through the afternoon, ${this.userName}.`,
+          `Midday checkpoint: stay locked in flow and maintain deliberate rhythm.`,
+          `Steady execution across your core coursework and projects, ${this.userName}.`,
+          `Remember to reset posture, hydrate, and maintain your thinking rhythm.`,
+          `Quality craft takes patience, precision, and uninterrupted focus.`,
+          `Protect your cognitive bandwidth and see this work block through.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Deep work window active.";
       } else if (isEvening) {
         defaults = [
           `Good evening, ${this.userName}. Time to tie off your remaining open loops.`,
           `Smooth landing underway: review and seal your completed work today.`,
-          `Key mission objectives checked off with deliberate craft, ${this.userName}.`,
-          `Great execution across the queue today: prepare to wind down, ${this.userName}.`,
-          `Evening debrief window open to capture key takeaways and reflections, ${this.userName}.`,
-          `Another productive day ready to be reviewed and sealed, ${this.userName}.`
+          `Key objectives checked off with steady persistence today, ${this.userName}.`,
+          `Great execution across the queue today: prepare to wind down.`,
+          `Evening debrief window open to capture key takeaways and reflections.`,
+          `Another productive day ready to be reviewed and sealed tonight.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
         defaults = [
           `Burning the midnight oil to close out the final details, ${this.userName}?`,
-          `Late-night telemetry nominal: commit your progress and rest soon, ${this.userName}.`,
+          `Late-night checklist complete: record your progress and rest soon.`,
           `Quiet hours active: wrap up your thoughts and recharge tonight, ${this.userName}.`,
-          `Commit your work cleanly to the repository and rest up tonight.`,
-          `Rest is part of the engineering process: sign off soon, ${this.userName}.`
+          `Set aside tomorrow's priorities cleanly and rest up tonight.`,
+          `Rest is a vital part of personal craft and well-being.`,
+          `Sign off with satisfaction and let your mind recharge fully.`
         ];
-        if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";
+        if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours active. Rest soon.";
       }
       for (const d of defaults) {
         if (!phrases.includes(d)) phrases.push(d);

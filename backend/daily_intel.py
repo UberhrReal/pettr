@@ -9,8 +9,9 @@ import json
 import logging
 import asyncio
 import datetime
+import random
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, Tuple
 import httpx
 from config.config import get_or_create_config, get_user_profile
 from backend import database
@@ -18,7 +19,7 @@ from backend import database
 logger = logging.getLogger("pettr.daily_intel")
 
 # Curated World, Science, Computing, Engineering & Space Milestones by (Month, Day)
-HISTORICAL_MILESTONES = {
+HISTORICAL_MILESTONES: Dict[Tuple[int, int], Union[str, List[str]]] = {
     (1, 1): "New Year's Day · System epoch reset and trajectory baseline initialized.",
     (1, 15): "1889: The Coca-Cola Company was incorporated in Atlanta, Georgia.",
     (1, 28): "1986: Challenger STS-51-L remembrance · Honoring space pioneers.",
@@ -53,9 +54,21 @@ HISTORICAL_MILESTONES = {
     (10, 10): "1967: The Outer Space Treaty entered into force, declaring space the province of all humankind.",
     (10, 11): "1968: Apollo 7 launched on the first crewed Apollo mission with Wally Schirra.",
     (10, 12): "1964: Voskhod 1 launched, carrying the first multi-person crew into orbit.",
-    (10, 13): "1884: Greenwich was officially adopted as the universal Prime Meridian for world timezones.",
-    (10, 14): "1947: Chuck Yeager broke the sound barrier aboard the Bell X-1 rocket plane.",
-    (10, 15): "1997: Cassini-Huygens launched on its epic mission to explore Saturn and Titan.",
+    (10, 13): [
+        "1884: Greenwich was officially adopted as the universal Prime Meridian for world timezones.",
+        "1773: Charles Messier discovered the Whirlpool Galaxy (M51) while cataloguing deep-sky objects.",
+        "1983: Ameritech launched the first commercial cellular mobile telephone service in Chicago."
+    ],
+    (10, 14): [
+        "1947: Chuck Yeager broke the sound barrier aboard the Bell X-1 rocket plane.",
+        "1964: Martin Luther King Jr. was announced as recipient of the Nobel Peace Prize.",
+        "1969: The UK 50p seven-sided equilateral curve coin entered circulation."
+    ],
+    (10, 15): [
+        "1997: Cassini-Huygens launched on its epic mission to explore Saturn and Titan.",
+        "1956: The FORTRAN compiler manual was published, introducing the first high-level programming language.",
+        "2003: China launched Shenzhou 5, sending Yang Liwei into orbit as its first astronaut."
+    ],
     (10, 18): "1989: Galileo spacecraft launched toward Jupiter aboard Atlantis STS-34.",
     (10, 29): "1969: The first message was transmitted across ARPANET between UCLA and Stanford.",
     (11, 3): "1957: Sputnik 2 launched into orbit.",
@@ -92,20 +105,36 @@ CALENDAR_FUN_FACTS = [
     "1954: Roger Bannister ran the first sub-four-minute mile (3:59.4) at Iffley Road Track.",
     "1976: The Cray-1 supercomputer was installed at Los Alamos, setting a new benchmark for scientific computing.",
     "1990: Voyager 1 captured the Pale Blue Dot photograph from 3.7 billion miles away.",
-    "The human brain generates roughly 20 watts of electrical power while awake and processing thoughts.",
-    "Octopuses possess three hearts, nine brains, and blue copper-based blood called hemocyanin.",
-    "Honey never spoils: archaeologists have found 3,000-year-old still-edible honey in Egyptian tombs.",
-    "The Eiffel Tower grows up to 15 cm taller in the summer heat due to the thermal expansion of iron.",
+    "1960: Theodore Maiman operated the world's first working optical laser using a synthetic ruby crystal.",
+    "1975: The Apollo-Soyuz Test Project completed the first joint international crewed space docking.",
+    "1939: The first operational jet aircraft, the Heinkel He 178, completed its maiden flight.",
+    "1945: The ENIAC electronic general-purpose computer was fully assembled at the University of Pennsylvania.",
     "2021: Ingenuity achieved the first powered, controlled flight on another world aboard Mars.",
     "2022: James Webb Space Telescope deployed its 21-foot gold-coated beryllium mirror at Lagrange Point 2."
 ]
 
-def get_historical_milestone_or_fact(target_date: datetime.date) -> str:
+def get_historical_milestones_for_date(target_date: datetime.date) -> List[str]:
+    """Returns a list of curated historical milestones for the target calendar date."""
     month, day = target_date.month, target_date.day
-    if (month, day) in HISTORICAL_MILESTONES:
-        return HISTORICAL_MILESTONES[(month, day)]
+    val = HISTORICAL_MILESTONES.get((month, day))
+    if val:
+        if isinstance(val, list):
+            return list(val)
+        return [val]
     day_of_year = target_date.timetuple().tm_yday
-    return CALENDAR_FUN_FACTS[day_of_year % len(CALENDAR_FUN_FACTS)]
+    return [CALENDAR_FUN_FACTS[day_of_year % len(CALENDAR_FUN_FACTS)]]
+
+def get_historical_milestone_or_fact(target_date: datetime.date, avoid_fact: Optional[str] = None) -> str:
+    """Returns a historical milestone for target_date. If avoid_fact is given, tries to pick an alternate."""
+    candidates = get_historical_milestones_for_date(target_date)
+    if avoid_fact:
+        different = [c for c in candidates if c.strip().lower() != avoid_fact.strip().lower()]
+        if different:
+            return random.choice(different)
+        alt = [f for f in CALENDAR_FUN_FACTS if f.strip().lower() != avoid_fact.strip().lower()]
+        if alt:
+            return random.choice(alt)
+    return candidates[0]
 
 # Day of week momentum taglines
 DAY_OF_WEEK_INTEL = {
@@ -411,15 +440,15 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     date_str = target_date.strftime("%A, %B %d, %Y")
     h = (client_hour % 24) if client_hour is not None else datetime.datetime.now().hour
     if 0 <= h < 6:
-        diurnal_period = "the wee hours (midnight to 6am — nocturnal hyperfocus while the world sleeps)"
+        diurnal_period = "the wee hours (midnight to 6am — nocturnal hyperfocus, absolute stillness, the world asleep, solitary momentum)"
     elif 6 <= h < 12:
-        diurnal_period = "morning (6am to noon)"
+        diurnal_period = "morning (6am to noon — fresh start, morning coffee or tea, early clarity, planning the queue, deliberate momentum for the day ahead)"
     elif 12 <= h < 18:
-        diurnal_period = "afternoon (noon to 6pm)"
+        diurnal_period = "afternoon (noon to 6pm — midday stride, tackling core focus blocks, steady execution across coursework and errands, sustained cadence)"
     elif 18 <= h < 23:
-        diurnal_period = "evening (6pm to 11pm)"
+        diurnal_period = "evening (6pm to 11pm — winding down open loops, golden hour and twilight reflection, evening review, sealing daily progress)"
     else:
-        diurnal_period = "late night (approaching midnight)"
+        diurnal_period = "late night (11pm to midnight — wrapping up final details, signing off, resting cognitive bandwidth, recharging for tomorrow)"
 
     holiday_info = get_holiday_info(target_date)
     holiday_clause = ""
@@ -440,33 +469,31 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Tone and Broad Balance: Grounded, cultured, and articulate. DO NOT focus exclusively on programming, coding, "
         "software engineering, terminal, or git metaphors. Reflect a well-rounded life: university coursework and study blocks, "
         "clear thinking, clearing out errands, personal creative projects, reading, fitness, and thoughtful daily momentum.\n"
+        "Time-of-Day Relevance: Every greeting line MUST specifically evoke and resonate with the user's active time-of-day window "
+        "(wee hours, morning, afternoon, evening, or late night). Avoid generic lines that lack any diurnal connection.\n"
         f"User Name Mix: Mention the user's name naturally in 1 to 2 lines only (using their EXACT full display name '{user_name}' verbatim — never abbreviate or drop parts). "
         "The remaining lines should be universally phrased without their name for a natural, varied mix.\n"
         "Your task is to generate:\n"
         "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
         "(strictly 6 to 12 words, at least 6 words excluding the user's name, max 85 characters so they balance verbosity with meaning).\n"
-        "2. Exactly 1 fascinating, genuine fun fact or historical event "
-        "(spanning science, computing, space, engineering, biology, history, or everyday human invention).\n"
-        "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
+        "2. Exactly 1 fascinating, genuine historical milestone that occurred on this specific calendar date in history in a past year "
+        "(formatted as 'YEAR: Description of milestone on this date'). Never provide random date-less trivia.\n"
+        "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"YEAR: ...\"}."
     )
 
-    if milestone_info == "refresh" or avoid_fact:
-        avoid_clause = f" (avoid repeating: '{avoid_fact}')" if avoid_fact else ""
-        fact_task = (
-            "Task 2 — Historical Fun Fact ('fact'):\n"
-            f"1. Provide exactly 1 FRESH, DIFFERENT genuinely fascinating, true historical event, scientific breakthrough, or curious invention from history or science{avoid_clause}.\n"
-            "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
-            "3. Strictly use British English spelling conventions.\n"
-        )
-    else:
-        milestone_hint = f"Context / anniversary hint: {milestone_info}\n" if milestone_info else ""
-        fact_task = (
-            "Task 2 — Historical Fun Fact ('fact'):\n"
-            f"1. Provide exactly 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history ({target_date.strftime('%B %d')}).\n"
-            f"{milestone_hint}"
-            "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
-            "3. Strictly use British English spelling conventions.\n"
-        )
+    month_day_str = target_date.strftime("%B %d")
+    avoid_clause = f" (must be distinct from: '{avoid_fact}')" if avoid_fact else ""
+    milestone_hint = f"Anniversary reference / candidate: {milestone_info}\n" if (milestone_info and milestone_info != "refresh") else ""
+
+    fact_task = (
+        f"Task 2 — 'On This Day in History' Fun Fact ('fact'):\n"
+        f"1. Strict Calendar Date Match: The fact MUST describe a genuine, verified historical event, scientific discovery, or landmark achievement that occurred ON THIS EXACT CALENDAR DATE IN HISTORY ({month_day_str}) in a past year{avoid_clause}.\n"
+        f"2. Format Requirement: Always begin with the year followed by a colon (e.g. 'YEAR: Description of milestone on {month_day_str}').\n"
+        f"3. NO Random Trivia: Do NOT provide general or timeless trivia (no random biology facts, no animal trivia, no generic science factoids). It MUST be tied to this specific date ({month_day_str}) in history.\n"
+        f"{milestone_hint}"
+        "4. Concise: Exactly 1 to 2 sentences (15 to 35 words).\n"
+        "5. Strictly use British English spelling conventions.\n"
+    )
 
     user_prompt = (
         f"Today's date: {date_str}.\n"
@@ -478,8 +505,8 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
         "3. Meaningful Line Depth: Every line MUST contain at least 6 words excluding the user's name (strictly 6 to 12 words, roughly 40 to 80 characters, maximum 85 characters). Avoid overly brief 3-4 word fragments, and avoid rambling compound run-on sentences.\n"
         "4. Tone and Holistic Balance: DO NOT focus on programming, software engineering, git, or coding jargon. Frame lines for a balanced, cultured life: university coursework and study blocks, clear thinking, tackling personal projects, clearing daily errands, reading, and steady daily momentum.\n"
-        f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
-        "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
+        f"5. Time-of-Day Relevance (Mandatory): Every greeting line MUST specifically evoke and fit the current {diurnal_period} time window. Weave in natural, evocative references to this specific time of day (e.g., morning coffee/clarity/dawn energy, midday execution and sustained cadence, evening winding down/debriefing/twilight reflection, or wee hours solitary quiet/hyperfocus). DO NOT generate generic or universally time-neutral lines that could apply to any hour of the day.\n"
+        "6. Strict Diurnal Consistency: Never mix contradictory times of day (no morning wake-up or dawn references in afternoon, evening, or wee hours; no evening wrap-up or bedtime references in morning or afternoon).\n"
         "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone. Keep the greetings independently focused on personal momentum and craft.\n"
         f"8. Name Mix: Mention {user_name} naturally in 1 or 2 lines only (using the EXACT full name '{user_name}' verbatim — NEVER abbreviate or drop any part of their name). The remaining lines should be universally addressed without their name, providing a balanced, natural mix.\n"
         "9. Strictly use British English spelling conventions throughout (e.g. prioritise, organise, customise, colour, behaviour).\n\n"
@@ -631,47 +658,11 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
         # Check period-specific cache first
         cached = database.get_daily_typewriter_cache(period_key, db_path)
         if not cached or not cached.get("phrases"):
-            # Check base date cache
-            base_cached = database.get_daily_typewriter_cache(date_key, db_path)
-            if base_cached and base_cached.get("phrases"):
-                if client_hour is None:
+            # Check base date cache only if client_hour is not specified (e.g. date-only lookup)
+            if client_hour is None:
+                base_cached = database.get_daily_typewriter_cache(date_key, db_path)
+                if base_cached and base_cached.get("phrases"):
                     cached = base_cached
-                else:
-                    # Check if base_cached contains keywords contradicting this diurnal window
-                    hour = effective_hour % 24
-                    is_wee = 0 <= hour < 6
-                    is_morn = 6 <= hour < 12
-                    is_aft = 12 <= hour < 18
-                    is_eve = 18 <= hour < 23
-                    is_nit = 23 <= hour < 24
-
-                    has_contradictory = False
-                    for p in base_cached["phrases"]:
-                        if not isinstance(p, str):
-                            continue
-                        low = p.lower()
-                        if not is_wee and any(k in low for k in WEE_HOURS_KEYWORDS):
-                            has_contradictory = True
-                            break
-                        if not is_morn and any(k in low for k in MORNING_KEYWORDS):
-                            has_contradictory = True
-                            break
-                        if not is_aft and any(k in low for k in AFTERNOON_KEYWORDS):
-                            has_contradictory = True
-                            break
-                        if not is_eve and any(k in low for k in EVENING_KEYWORDS):
-                            has_contradictory = True
-                            break
-                        if not is_nit and not is_wee and any(k in low for k in NIGHT_KEYWORDS):
-                            has_contradictory = True
-                            break
-
-                    if not has_contradictory:
-                        has_invalid = any(count_words_excluding_name(p, user_name) < 6 or len(p) > 95 for p in base_cached["phrases"])
-                        has_stale_name = (user_name != "Hong Rong") and any("Hong Rong" in p for p in base_cached["phrases"])
-                        has_legacy = has_stale_name or any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"])
-                        if has_invalid or has_legacy or base_cached.get("source") == "llm":
-                            cached = base_cached
 
         if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
             cached_subtext = cached.get("subtext") or default_subtext
@@ -681,11 +672,15 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             if any(slogan in cached_subtext for slogan in ["Thursday thrust", "Wednesday wave", "Tuesday tempo", "Monday momentum", "Friday finale", "Saturday scan", "Sunday synch", "Deep work sprint"]):
                 cached_subtext = default_subtext
 
+            cached_fact = fact
+            if cached_subtext and "💡" in cached_subtext:
+                cached_fact = cached_subtext.split("💡")[-1].strip()
+
             phrases_to_return = cached["phrases"]
             # Upgrade stale legacy phrases or phrases containing outdated display name
             stale_name_in_phrases = (user_name != "Hong Rong") and any("Hong Rong" in p for p in phrases_to_return)
             if stale_name_in_phrases or any(legacy in p for p in phrases_to_return for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"]):
-                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
+                phrases_to_return = get_curated_phrases(today, user_name, cached_fact, client_hour=effective_hour)
                 try:
                     database.save_daily_typewriter_cache(
                         date_str=period_key,
@@ -709,7 +704,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 cached.get("source") != "llm" and any(count_words_excluding_name(p, user_name) < 6 for p in phrases_to_return)
             )
             if needs_upgrade:
-                phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
+                phrases_to_return = get_curated_phrases(today, user_name, cached_fact, client_hour=effective_hour)
                 try:
                     database.save_daily_typewriter_cache(
                         date_str=period_key,
@@ -741,7 +736,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 "date_label": date_label,
                 "phrases": phrases_to_return,
                 "subtext": cached_subtext,
-                "milestone": fact,
+                "milestone": cached_fact,
                 "holiday": get_holiday_info(today),
                 "source": "cache",
                 "cached": True
@@ -779,8 +774,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
         source = "llm"
         final_phrases = filter_phrases_for_diurnal_window(llm_phrases, client_hour, today, user_name) if client_hour is not None else llm_phrases
         if force_refresh and (not llm_fact or (prev_fact and llm_fact.strip().lower() == prev_fact.strip().lower())):
-            alt_facts = [f for f in CALENDAR_FUN_FACTS if f != prev_fact and f != fact]
-            chosen_fact = random.choice(alt_facts) if alt_facts else CALENDAR_FUN_FACTS[0]
+            chosen_fact = get_historical_milestone_or_fact(today, avoid_fact=prev_fact or fact)
         else:
             chosen_fact = llm_fact or fact
     else:
@@ -800,11 +794,14 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             final_phrases = surviving
             chosen_fact = fact
         else:
-            source = "curated_fallback"
+            is_upgrade = bool(base_cached and (
+                any(len(p) > 95 for p in base_cached.get("phrases", [])) or
+                any(legacy in p for p in base_cached.get("phrases", []) for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"])
+            ))
+            source = "single_line_upgrade" if is_upgrade else "curated_fallback"
             final_phrases = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
             if force_refresh:
-                alt_facts = [f for f in CALENDAR_FUN_FACTS if f != prev_fact and f != fact]
-                chosen_fact = random.choice(alt_facts) if alt_facts else CALENDAR_FUN_FACTS[0]
+                chosen_fact = get_historical_milestone_or_fact(today, avoid_fact=prev_fact or fact)
             else:
                 chosen_fact = fact
 

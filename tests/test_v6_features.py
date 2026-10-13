@@ -1927,7 +1927,8 @@ def test_typewriter_and_mobile_layout_enhancements():
 def test_timeline_scroll_snapping_and_wheel_setup():
     """Verify timeline defines initialScroll correctly and binds mousewheel listener without ReferenceError."""
     timeline_js = Path("frontend/js/timeline.js").read_text(encoding="utf-8")
-    assert "const initialScroll = targetPosition - (scrollContainer.clientWidth / 2);" in timeline_js
+    assert "initialScroll = targetPosition - (scrollContainer.clientWidth / 2);" in timeline_js
+    assert "initialScroll = initialDayIdx * DAY_WIDTH;" in timeline_js
     assert "const initialCenter = Math.max(0, initialScroll);" in timeline_js
     assert "scrollContainer.addEventListener(\"wheel\"" in timeline_js
     assert "Math.abs(e.deltaX) > Math.abs(e.deltaY)" in timeline_js
@@ -2100,4 +2101,135 @@ def test_evening_theme_log_button_palette():
     assert 'linear-gradient(135deg, #D97706 0%, #B45309 100%) !important' in css
     assert '[data-theme="evening"] .quick-submit-btn:hover {' in css
     assert 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important' in css
+
+
+@pytest.mark.anyio
+async def test_llm_prompt_enforces_diurnal_window_and_date_specific_facts(monkeypatch):
+    """Verify LLM prompt construction strictly requires time-of-day relevance and date-specific fun facts."""
+    from backend import daily_intel
+    import datetime
+
+    captured_prompts = []
+
+    class MockResponse:
+        status_code = 200
+        def json(self):
+            return {"response": '{"phrases": ["Good morning test line one two three four.", "Desk clear and ready for the day ahead.", "Morning clarity across the workspace queue.", "Prioritise key focus blocks before small errands.", "Steady deliberate momentum today, Hong Rong."], "fact": "1884: Greenwich was adopted as Prime Meridian."}'}
+
+    class MockAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+        async def get(self, url):
+            return MockResponse()
+        async def post(self, url, json=None):
+            captured_prompts.append(json)
+            return MockResponse()
+
+    monkeypatch.setattr(daily_intel.httpx, "AsyncClient", MockAsyncClient)
+
+    test_date = datetime.date(2026, 10, 13)
+    await daily_intel.generate_llm_typewriter_lines(
+        target_date=test_date,
+        user_name="Hong Rong",
+        milestone_info="1884: Greenwich was officially adopted as the universal Prime Meridian for world timezones.",
+        client_hour=8
+    )
+
+    assert len(captured_prompts) > 0
+    payload = captured_prompts[0]
+    prompt = payload["prompt"]
+    system = payload["system"]
+
+    # Verify diurnal guidance in prompt
+    assert "Current time window: Morning" in prompt
+    assert "Time-of-Day Relevance (Mandatory): Every greeting line MUST specifically evoke and fit the current" in prompt
+    assert "DO NOT generate generic or universally time-neutral lines that could apply to any hour of the day" in prompt
+    assert "Strict Diurnal Consistency: Never mix contradictory times of day" in prompt
+
+    # Verify Task 2 strictly enforces date match and forbids timeless trivia
+    assert "Task 2 — 'On This Day in History' Fun Fact" in prompt
+    assert "Strict Calendar Date Match: The fact MUST describe a genuine, verified historical event" in prompt
+    assert "October 13" in prompt
+    assert "NO Random Trivia: Do NOT provide general or timeless trivia (no random biology facts, no animal trivia" in prompt
+
+    # Verify system prompt diurnal awareness
+    assert "Time-of-Day Relevance: Every greeting line MUST specifically evoke and resonate with the user's active time-of-day window" in system
+    assert "Never provide random date-less trivia" in system
+
+
+def test_calendar_fun_facts_and_milestones_date_relevance():
+    """Verify that all fun facts have year prefixes and date milestones support multi-event date refreshes."""
+    from backend import daily_intel
+    import datetime
+    import re
+
+    # 1. Verify CALENDAR_FUN_FACTS contain zero timeless general trivia (no honey, no octopuses, etc.)
+    for fact in daily_intel.CALENDAR_FUN_FACTS:
+        assert re.match(r"^\d{4}:", fact), f"Fact lacks year prefix: {fact}"
+        lower = fact.lower()
+        assert "honey never spoils" not in lower
+        assert "octopuses possess" not in lower
+        assert "human brain generates" not in lower
+        assert "eiffel tower grows" not in lower
+
+    # 2. Verify October 13 has multiple milestones for same-day refresh
+    oct13 = datetime.date(2026, 10, 13)
+    milestones_oct13 = daily_intel.get_historical_milestones_for_date(oct13)
+    assert len(milestones_oct13) >= 3
+    for m in milestones_oct13:
+        assert re.match(r"^\d{4}:", m)
+
+    # 3. Test that avoid_fact picks a different fact for October 13
+    first_fact = milestones_oct13[0]
+    alt_fact = daily_intel.get_historical_milestone_or_fact(oct13, avoid_fact=first_fact)
+    assert alt_fact != first_fact
+    assert alt_fact in milestones_oct13
+
+
+@pytest.mark.anyio
+async def test_diurnal_window_cache_isolation(temp_db, monkeypatch):
+    """Verify morning cache is not returned when client requests intel for evening."""
+    from backend import daily_intel
+    import datetime
+
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    test_date = datetime.date(2026, 10, 13)
+
+    # Seed morning cache
+    morning_lines = [
+        "Good morning, Hong Rong. The desk is clear and ready for the day.",
+        "First coffee poured and ready for high-leverage focus work.",
+        "Clear head and an organised queue to kick off the day, Hong Rong.",
+        "Steady momentum starts with tackling the single biggest priority.",
+        "Morning diagnostics green with deep focus locked in today."
+    ]
+    database.save_daily_typewriter_cache(
+        date_str="2026-10-13_morning",
+        phrases=morning_lines,
+        subtext="Tuesday, October 13 · 💡 1884: Greenwich Meridian",
+        source="llm",
+        db_path=temp_db
+    )
+
+    # Request with client_hour=19 (evening) - should not return morning cache
+    intel_evening = await daily_intel.get_or_generate_daily_intel(
+        target_date=test_date,
+        user_name="Hong Rong",
+        force_refresh=False,
+        client_hour=19,
+        db_path=temp_db
+    )
+
+    # Phrases must NOT be the morning phrases
+    for p in intel_evening["phrases"]:
+        assert "good morning" not in p.lower()
+        assert "morning diagnostics" not in p.lower()
+
+    # Cached under 2026-10-13_evening
+    cached_evening = database.get_daily_typewriter_cache("2026-10-13_evening", db_path=temp_db)
+    assert cached_evening is not None
 
