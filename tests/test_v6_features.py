@@ -2084,5 +2084,20 @@ def test_mobile_typewriter_css_constraints():
     assert 'id="greetingOrnamentsContainer"' in html_content
 
 
+def test_timeline_navigate_beginning_of_day():
+    """Verify Timeline.navigate brings view to the beginning of the requested day (00:00) unless it is today."""
+    timeline_js = Path("frontend/js/timeline.js").read_text(encoding="utf-8")
+    assert "targetScroll = foundIdx * DAY_WIDTH;" in timeline_js
+    assert "targetPosition = (initialDayIdx * DAY_WIDTH) + (initialHourFraction * SLOT_WIDTH);" in timeline_js
+    assert "initialScroll = initialDayIdx * DAY_WIDTH;" in timeline_js
+    assert "let targetLeft = dayStartX;" in timeline_js
 
+
+def test_evening_theme_log_button_palette():
+    """Verify .quick-submit-btn Log button adopts golden hour amber/warm tones under data-theme=evening."""
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert '[data-theme="evening"] .quick-submit-btn {' in css
+    assert 'linear-gradient(135deg, #D97706 0%, #B45309 100%) !important' in css
+    assert '[data-theme="evening"] .quick-submit-btn:hover {' in css
+    assert 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important' in css
 

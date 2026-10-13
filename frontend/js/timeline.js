@@ -71,8 +71,14 @@ const Timeline = {
           const now = new Date();
           const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
           const isToday = (targetStr === todayStr);
-          const hour = isToday ? now.getHours() : 9;
-          const targetScroll = (foundIdx * DAY_WIDTH) + (hour * SLOT_WIDTH) - (scrollContainer.clientWidth / 2);
+          let targetScroll = 0;
+          if (isToday) {
+            const currentHourFraction = now.getHours() + (now.getMinutes() / 60);
+            targetScroll = (foundIdx * DAY_WIDTH) + (currentHourFraction * SLOT_WIDTH) - (scrollContainer.clientWidth / 2);
+          } else {
+            // Scroll to the beginning of the requested day (00:00)
+            targetScroll = foundIdx * DAY_WIDTH;
+          }
           scrollContainer.scrollTo({ left: Math.max(0, targetScroll), behavior: "smooth" });
           const titleEl = document.getElementById("timelineDisplayTitle");
           if (titleEl && this.loadedDays[foundIdx]) {
@@ -472,14 +478,14 @@ const Timeline = {
       }
     }, { passive: true });
 
-    // Auto-scroll: center on current time (if today) or 08:00 without smooth animation jump
+    // Auto-scroll: center on current time (if today) or 00:00 (beginning of day)
     scrollContainer.style.scrollBehavior = "auto";
     let targetScroll = 0;
     if (isToday) {
       const curMins = now.getHours() * 60 + now.getMinutes();
       targetScroll = Math.max(0, (curMins / 60) * SLOT_WIDTH - scrollContainer.clientWidth / 2);
     } else {
-      targetScroll = Math.max(0, 8 * SLOT_WIDTH - 60);
+      targetScroll = 0;
     }
     scrollContainer.scrollLeft = targetScroll;
     requestAnimationFrame(() => {
@@ -563,7 +569,12 @@ const Timeline = {
       badge.textContent = `✦ ${dayData.display_date} ✦`;
       badge.title = "Click to jump view to this day";
       badge.addEventListener("click", () => {
-        scrollContainer.scrollTo({ left: dayStartX + (9 * SLOT_WIDTH) - scrollContainer.clientWidth / 2, behavior: "smooth" });
+        let targetLeft = dayStartX;
+        if (isToday) {
+          const curHourFraction = now.getHours() + (now.getMinutes() / 60);
+          targetLeft = dayStartX + (curHourFraction * SLOT_WIDTH) - (scrollContainer.clientWidth / 2);
+        }
+        scrollContainer.scrollTo({ left: Math.max(0, targetLeft), behavior: "smooth" });
       });
       track.appendChild(badge);
 
@@ -779,9 +790,15 @@ const Timeline = {
     const initialDayIdx = targetIdx >= 0 ? targetIdx : Math.floor(this.loadedDays.length / 2);
     const initialDay = this.loadedDays[initialDayIdx];
     const isTargetToday = (initialDay && initialDay.date === todayStr);
-    const initialHourFraction = isTargetToday ? (now.getHours() + (now.getMinutes() / 60)) : 9;
-    const targetPosition = (initialDayIdx * DAY_WIDTH) + (initialHourFraction * SLOT_WIDTH);
-    const initialScroll = targetPosition - (scrollContainer.clientWidth / 2);
+    let initialScroll = 0;
+    if (isTargetToday) {
+      const initialHourFraction = now.getHours() + (now.getMinutes() / 60);
+      const targetPosition = (initialDayIdx * DAY_WIDTH) + (initialHourFraction * SLOT_WIDTH);
+      initialScroll = targetPosition - (scrollContainer.clientWidth / 2);
+    } else {
+      // Bring view directly to the beginning of the requested day (00:00)
+      initialScroll = initialDayIdx * DAY_WIDTH;
+    }
 
     scrollContainer.style.scrollBehavior = "auto";
     const initialCenter = Math.max(0, initialScroll);
