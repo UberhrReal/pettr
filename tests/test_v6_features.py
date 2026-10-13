@@ -1944,9 +1944,10 @@ def test_constellation_cloud_dark_theme_adaptation():
 
 
 @pytest.mark.anyio
-async def test_typewriter_user_name_integrity_repair(monkeypatch):
+async def test_typewriter_user_name_integrity_repair(temp_db, monkeypatch):
     """Verify typewriter parser repairs partial name truncations (e.g. 'Rong' -> 'Hong Rong')."""
     from backend import daily_intel
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
 
     # Test phrase with truncated name 'Rong'
     truncated_phrase = "Good morning, Rong. Workspace is primed for deliberate focus today."
@@ -1969,7 +1970,8 @@ async def test_typewriter_user_name_integrity_repair(monkeypatch):
         today,
         user_name="Hong Rong",
         force_refresh=True,
-        client_hour=9
+        client_hour=9,
+        db_path=temp_db
     )
 
     for p in intel["phrases"]:
@@ -2258,4 +2260,65 @@ def test_daily_intel_regeneration_live_dom_update():
     assert ".greeting-subtext-row" in pettr_css
     assert "flex-wrap: nowrap !important;" in pettr_css
     assert "display: inline-flex;" in pettr_css
+
+
+@pytest.mark.anyio
+async def test_fun_facts_calendar_date_accuracy_and_anti_hallucination(temp_db, monkeypatch):
+    """Verify fun facts strictly match the target calendar date and guard against LLM date hallucinations."""
+    from backend import daily_intel
+    import datetime
+    import re
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Verify that random sample dates throughout the year have accurate milestones
+    sample_dates = [
+        datetime.date(2026, 1, 1),
+        datetime.date(2026, 4, 12),
+        datetime.date(2026, 7, 20),
+        datetime.date(2026, 10, 13),
+        datetime.date(2026, 10, 14),
+        datetime.date(2026, 12, 25),
+    ]
+    for d in sample_dates:
+        milestones = daily_intel.get_historical_milestones_for_date(d)
+        assert len(milestones) >= 2, f"Expected at least 2 milestones for {d}"
+        for m in milestones:
+            assert re.match(r"^\d{4}:", m), f"Milestone for {d} lacks 4-digit year: {m}"
+
+    # 2. Test that same-day refresh provides alternate milestones strictly from the same date
+    oct14 = datetime.date(2026, 10, 14)
+    intel_first = await daily_intel.get_or_generate_daily_intel(oct14, "Hong Rong", force_refresh=False, client_hour=10, db_path=temp_db)
+    intel_refreshed = await daily_intel.get_or_generate_daily_intel(oct14, "Hong Rong", force_refresh=True, client_hour=10, db_path=temp_db)
+    
+    assert intel_first["milestone"] is not None
+    assert intel_refreshed["milestone"] is not None
+    assert intel_refreshed["milestone"] != intel_first["milestone"]
+    # Both must belong to October 14's verified milestone set
+    oct14_verified = daily_intel.get_historical_milestones_for_date(oct14)
+    assert intel_first["milestone"] in oct14_verified
+    assert intel_refreshed["milestone"] in oct14_verified
+
+    # 3. Test anti-hallucination guard when LLM returns a milestone with an incorrect year/date
+    hallucinated_llm_fact = "1969: Apollo 11 landed on the moon." # July 20, NOT October 13!
+    async def mock_hallucinating_llm(*args, **kwargs):
+        return {
+            "phrases": [
+                "Morning workspace calibrated for deliberate coursework.",
+                "Executing today's core deliverables with steady focus, Hong Rong.",
+                "Reviewing technical documentation with clarity and discipline."
+            ],
+            "fact": hallucinated_llm_fact
+        }
+
+    monkeypatch.setattr(daily_intel, "generate_llm_typewriter_lines", mock_hallucinating_llm)
+    oct13 = datetime.date(2026, 10, 13)
+    intel_guarded = await daily_intel.get_or_generate_daily_intel(oct13, "Hong Rong", force_refresh=True, client_hour=9, db_path=temp_db)
+    
+    # Must NOT accept the hallucinated 1969 Apollo 11 fact for October 13!
+    assert intel_guarded["milestone"] != hallucinated_llm_fact
+    # Must substitute a verified milestone for October 13
+    oct13_verified = daily_intel.get_historical_milestones_for_date(oct13)
+    assert intel_guarded["milestone"] in oct13_verified
+    assert "1884:" in intel_guarded["milestone"] or "1773:" in intel_guarded["milestone"] or "1983:" in intel_guarded["milestone"]
+
 
