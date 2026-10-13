@@ -181,7 +181,12 @@
                   <div class="greeting-text" id="greetingText">Welcome!</div>
                   <div id="dashboardHolidayBadge" class="holiday-decoration-badge" style="display: none;"></div>
                 </div>
-                <div class="greeting-subtext" id="greetingSubtext">Ready to log and track your day.</div>
+                <div class="greeting-subtext-row">
+                  <div class="greeting-subtext" id="greetingSubtext">Ready to log and track your day.</div>
+                  <button type="button" class="intel-refresh-btn" id="refreshDailyIntelBtn" onclick="Dashboard.refreshDailyIntel()" title="Regenerate greetings and fun fact" aria-label="Regenerate greetings and fun fact">
+                    <i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i>
+                  </button>
+                </div>
               </div>
             </div>
 

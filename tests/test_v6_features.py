@@ -2233,3 +2233,24 @@ async def test_diurnal_window_cache_isolation(temp_db, monkeypatch):
     cached_evening = database.get_daily_typewriter_cache("2026-10-13_evening", db_path=temp_db)
     assert cached_evening is not None
 
+
+def test_daily_intel_regeneration_live_dom_update():
+    """Verify refreshDailyIntel automatically reinitializes typewriter with fresh intel in real-time."""
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    pettr_css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+
+    # 1. Verify startTypewriterGreeting accepts intelOverride parameter
+    assert "async startTypewriterGreeting(intelOverride = null)" in dash_js
+    assert "if (intelOverride && intelOverride.phrases && intelOverride.phrases.length > 0)" in dash_js
+
+    # 2. Verify refreshDailyIntel immediately reinitializes typewriter using returned intel
+    assert "await this.startTypewriterGreeting(intel);" in dash_js
+    assert "initTypewriter(phrases, subtext)" in dash_js
+
+    # 3. Verify HTML and CSS contain the refresh button with spinning state
+    assert 'id="refreshDailyIntelBtn"' in index_html
+    assert 'onclick="Dashboard.refreshDailyIntel()"' in index_html
+    assert ".intel-refresh-btn" in pettr_css
+    assert "animation: spinIntel" in pettr_css
+

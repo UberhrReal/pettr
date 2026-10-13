@@ -287,7 +287,7 @@ const Dashboard = {
     this.startTypewriterGreeting();
   },
 
-  async startTypewriterGreeting() {
+  async startTypewriterGreeting(intelOverride = null) {
     if (this.typewriterGreetingTimer) {
       clearTimeout(this.typewriterGreetingTimer);
       this.typewriterGreetingTimer = null;
@@ -307,16 +307,22 @@ const Dashboard = {
     let sub = "Ready to log and track your day.";
     let holidayInfo = null;
 
-    try {
-      const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}`);
-      if (res.ok) {
-        const intel = await res.json();
-        if (intel.phrases && intel.phrases.length > 0) phrases = intel.phrases;
-        if (intel.subtext) sub = intel.subtext;
-        if (intel.holiday) holidayInfo = intel.holiday;
+    if (intelOverride && intelOverride.phrases && intelOverride.phrases.length > 0) {
+      phrases = [...intelOverride.phrases];
+      if (intelOverride.subtext) sub = intelOverride.subtext;
+      if (intelOverride.holiday) holidayInfo = intelOverride.holiday;
+    } else {
+      try {
+        const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}`);
+        if (res.ok) {
+          const intel = await res.json();
+          if (intel.phrases && intel.phrases.length > 0) phrases = intel.phrases;
+          if (intel.subtext) sub = intel.subtext;
+          if (intel.holiday) holidayInfo = intel.holiday;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch daily-intel:", e);
       }
-    } catch (e) {
-      console.warn("Failed to fetch daily-intel:", e);
     }
 
     this.renderHolidayDecorations(holidayInfo);
@@ -501,7 +507,11 @@ const Dashboard = {
   },
 
   async refreshDailyIntel() {
+    const subtextEl = document.getElementById("greetingSubtext");
+    const refreshBtn = document.getElementById("refreshDailyIntelBtn");
     try {
+      if (subtextEl) subtextEl.style.opacity = "0.5";
+      if (refreshBtn) refreshBtn.classList.add("spinning");
       const clientHour = new Date().getHours();
       const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}&refresh=true`);
       if (res.ok) {
@@ -509,16 +519,18 @@ const Dashboard = {
         if (typeof App !== 'undefined' && App.showToast) {
           App.showToast("Regenerated daily intel with fresh fun fact", "success");
         }
-        this.renderHolidayDecorations(intel.holiday);
-        if (intel && intel.phrases && intel.phrases.length > 0) {
-          this.initTypewriter(intel.phrases, intel.subtext || "Ready to log and track your day.");
-        } else {
-          await this.startTypewriterGreeting();
-        }
+        await this.startTypewriterGreeting(intel);
       }
     } catch (e) {
       console.error("Failed to refresh daily intel:", e);
+    } finally {
+      if (subtextEl) subtextEl.style.opacity = "";
+      if (refreshBtn) refreshBtn.classList.remove("spinning");
     }
+  },
+
+  initTypewriter(phrases, subtext) {
+    return this.startTypewriterGreeting({ phrases, subtext });
   },
 
   renderHolidayDecorations(holiday) {

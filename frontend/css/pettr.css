@@ -588,11 +588,47 @@ body {
   display: none;
 }
 
+.greeting-subtext-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
 .greeting-subtext {
   font-size: 14px;
   font-weight: 300;
   color: var(--text-muted);
-  margin-top: 4px;
+}
+
+.intel-refresh-btn {
+  background: none;
+  border: none;
+  padding: 3px 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.intel-refresh-btn:hover {
+  opacity: 1;
+  color: var(--text-main);
+  background: var(--bg-tertiary);
+}
+
+.intel-refresh-btn.spinning svg,
+.intel-refresh-btn.spinning i {
+  animation: spinIntel 0.8s linear infinite;
+}
+
+@keyframes spinIntel {
+  100% { transform: rotate(360deg); }
 }
 
 /* --- Holiday Festive Decorations & Badges --- */
