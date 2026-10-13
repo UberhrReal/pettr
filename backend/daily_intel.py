@@ -204,50 +204,169 @@ def count_words_excluding_name(text: str, user_name: str) -> int:
     words = [w for w in re.split(r'\s+', cleaned.strip()) if w]
     return len(words)
 
+MAJOR_HOLIDAYS = {
+    # Fixed annual holidays (month, day)
+    (1, 1): {"id": "new_year", "name": "New Year's Day", "icon": "✨", "theme": "new year renewal, ambitious horizons, and a fresh clean slate"},
+    (2, 14): {"id": "valentines", "name": "Valentine's Day", "icon": "💖", "theme": "warmth, appreciation, connection, and mindful care"},
+    (3, 17): {"id": "st_patricks", "name": "St. Patrick's Day", "icon": "☘️", "theme": "good fortune, emerald luck, and vibrant spirits"},
+    (8, 9): {"id": "sg_national_day", "name": "Singapore National Day", "icon": "🇸🇬", "theme": "Majulah Singapura, national unity, resilience, and community pride"},
+    (10, 31): {"id": "halloween", "name": "Halloween", "icon": "🎃", "theme": "jack-o'-lanterns, autumn mysteries, creative focus, and festive cheer"},
+    (12, 24): {"id": "christmas_eve", "name": "Christmas Eve", "icon": "🎄", "theme": "warm hearths, holiday anticipation, festive joy, and quiet rest"},
+    (12, 25): {"id": "christmas", "name": "Christmas Day", "icon": "🎄", "theme": "Merry Christmas, holiday joy, festive cheer, and restful celebration"},
+    (12, 26): {"id": "boxing_day", "name": "Boxing Day", "icon": "🎁", "theme": "holiday unwinding, relaxation, and peaceful downtime"},
+    (12, 31): {"id": "new_years_eve", "name": "New Year's Eve", "icon": "🥂", "theme": "ringing out the year, celebrating milestones, and bold new horizons"}
+}
+
+# Movable holiday windows (year, start_month, start_day, end_month, end_day, info)
+MOVABLE_HOLIDAYS = [
+    # Lunar New Year
+    (2025, 1, 28, 1, 30, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "spring renewal, prosperous momentum, red lanterns, and good fortune"}),
+    (2026, 2, 16, 2, 18, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "spring renewal, prosperous momentum, red lanterns, and good fortune"}),
+    (2027, 2, 5, 2, 7, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "spring renewal, prosperous momentum, red lanterns, and good fortune"}),
+    # Easter Weekend
+    (2025, 4, 18, 4, 21, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "spring renewal, peaceful reflections, and blossoming energy"}),
+    (2026, 4, 3, 4, 6, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "spring renewal, peaceful reflections, and blossoming energy"}),
+    (2027, 3, 26, 3, 29, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "spring renewal, peaceful reflections, and blossoming energy"}),
+    # Mid-Autumn Festival
+    (2025, 10, 6, 10, 6, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "golden full moon, paper lanterns, harmony, and celebration"}),
+    (2026, 9, 25, 9, 25, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "golden full moon, paper lanterns, harmony, and celebration"}),
+    (2027, 9, 15, 9, 15, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "golden full moon, paper lanterns, harmony, and celebration"}),
+    # Thanksgiving
+    (2025, 11, 27, 11, 27, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "harvest gratitude, autumn warmth, and generous appreciation"}),
+    (2026, 11, 26, 11, 26, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "harvest gratitude, autumn warmth, and generous appreciation"}),
+    (2027, 11, 25, 11, 25, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "harvest gratitude, autumn warmth, and generous appreciation"})
+]
+
+def get_holiday_info(target_date: datetime.date) -> Optional[Dict[str, Any]]:
+    """Identifies if a given date falls on or within a major festive holiday."""
+    m, d = target_date.month, target_date.day
+    if (m, d) in MAJOR_HOLIDAYS:
+        data = dict(MAJOR_HOLIDAYS[(m, d)])
+        data["badge"] = f"{data['icon']} {data['name']}"
+        return data
+
+    y = target_date.year
+    for (hy, sm, sd, em, ed, info) in MOVABLE_HOLIDAYS:
+        if hy == y:
+            start_dt = datetime.date(y, sm, sd)
+            end_dt = datetime.date(y, em, ed)
+            if start_dt <= target_date <= end_dt:
+                data = dict(info)
+                data["badge"] = f"{data['icon']} {data['name']}"
+                return data
+
+    return None
+
+def get_holiday_curated_phrases(holiday: Dict[str, Any], user_name: str) -> List[str]:
+    """Generates thematic festive phrases for major holidays with a natural mix of user name."""
+    hid = holiday.get("id", "")
+    hname = holiday.get("name", "Holiday")
+
+    if hid == "halloween":
+        return [
+            f"Happy Halloween, {user_name}! A night of curious mysteries and creative focus.",
+            "The autumn breeze is brisk and the jack-o'-lanterns are glowing warmly.",
+            "No tricks in the queue tonight—just deliberate focus and steady momentum.",
+            f"Midnight hyperfocus while the autumn shadows dance outside, {user_name}.",
+            "Brew a warm drink and enjoy a tranquil, festive evening.",
+            "Crisp autumn air and festive spirits across the workspace tonight."
+        ]
+    elif hid in ("christmas", "christmas_eve", "boxing_day"):
+        return [
+            f"Merry Christmas, {user_name}! Warmest wishes for peace, joy, and rest.",
+            "May your day be filled with warm hearths, good food, and great cheer.",
+            "A quiet, joyful pause in the year to celebrate with those who matter most.",
+            f"Wishing you a bright, restful, and fulfilling holiday season, {user_name}.",
+            "Take time to unwind, reflect, and savour the holiday spirit today.",
+            "Festive lights, peaceful winter stillness, and holiday warmth all around."
+        ]
+    elif hid in ("new_year", "new_years_eve"):
+        return [
+            f"Happy New Year, {user_name}! Here's to clear horizons and bold ambitions.",
+            "A pristine blank canvas awaits across the next three hundred and sixty-five days.",
+            "Set your trajectory with purpose and build steady momentum from day one.",
+            f"May this year bring craft, clarity, and fulfilling breakthroughs, {user_name}.",
+            "Every grand journey begins with a single deliberate step forward.",
+            "Raise a toast to lessons learned and exciting fresh beginnings."
+        ]
+    elif hid == "cny":
+        return [
+            f"Happy Lunar New Year, {user_name}! Wishing you vibrant health and prosperity.",
+            "May the festive spring season bring auspicious beginnings and joy.",
+            f"Good fortune, clear focus, and abundant success ahead, {user_name}.",
+            "Celebrate reunion, cherish traditions, and embrace the fresh spring cycle.",
+            "Lanterns glowing bright and warm wishes for an inspiring season.",
+            "Spring festival warmth and auspicious momentum for your endeavors."
+        ]
+    elif hid == "sg_national_day":
+        return [
+            f"Happy National Day, {user_name}! Celebrating the Lion City with pride.",
+            "Reflecting on unity, resilience, and the vibrant red-and-white spirit.",
+            f"Majulah Singapura: onward together towards shared dreams and craft, {user_name}.",
+            "Fireworks illuminating the bay in celebration of community and nationhood.",
+            "Honouring community heritage, shared dreams, and forward momentum.",
+            "A vibrant salute to unity and the spirit of the Lion City."
+        ]
+    else:
+        return [
+            f"Happy {hname}, {user_name}! Wishing you a joyful and inspired day.",
+            f"Celebrating {hname} with warmth, good cheer, and steady momentum.",
+            "Take time to enjoy the occasion, recharge, and celebrate with good cheer.",
+            f"A festive milestone in the calendar: make today count, {user_name}.",
+            "Warm festive wishes and steady clarity across your objectives today.",
+            "Embrace the festive rhythm and celebrate what truly matters."
+        ]
+
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
-    """Generates curated time-of-day phrases as resilient fallback, ensuring >= 6 words excluding user name."""
+    """Generates curated time-of-day phrases as resilient fallback, ensuring >= 6 words excluding user name and healthy mix of name occurrences."""
+    # Check if a major holiday is active for today
+    holiday = get_holiday_info(today)
+    if holiday:
+        return get_holiday_curated_phrases(holiday, user_name)
+
     wee_hours_phrases = [
         f"Stillness of the wee hours across the workspace, {user_name}.",
-        f"Zero distractions in the quiet hours while the world sleeps, {user_name}.",
-        f"The terminal glows quietly through the dead of night.",
-        f"Deep nocturnal velocity and deliberate engineering craft, {user_name}.",
-        f"Breakthroughs often happen during undisturbed quiet hours.",
-        f"Quiet hours focus window for uninterrupted deep execution, {user_name}."
+        "Zero distractions in the quiet hours while the world sleeps.",
+        "The quiet hours offer a rare window for undisturbed focus.",
+        f"Deep nocturnal velocity and deliberate thinking tonight, {user_name}.",
+        "Breakthroughs often happen during undisturbed quiet hours.",
+        "A quiet focus window for thoughtful creative work and reflection."
     ]
 
     morning_phrases = [
-        f"Good morning, {user_name}. The workspace is primed for deep execution.",
-        f"First coffee poured and ready for high-leverage focus work.",
-        f"Clear head and a clear queue to kick off the day, {user_name}.",
-        f"Telemetry nominal and ready to build steady momentum, {user_name}.",
-        f"Prioritise the essential objectives before tackling the small errands, {user_name}.",
-        f"Morning diagnostics green with deep focus locked in today."
+        f"Good morning, {user_name}. The desk is clear and ready for the day.",
+        "First coffee poured and ready for high-leverage focus work.",
+        f"Clear head and an organised queue to kick off the day, {user_name}.",
+        "Steady momentum starts with tackling the single biggest priority.",
+        "Prioritise the essential objectives before attending to small errands.",
+        "Morning diagnostics green with deep focus locked in today."
     ]
 
     afternoon_phrases = [
-        f"Cruising altitude reached with steady cadence through the afternoon sprint, {user_name}.",
-        f"Midday checkpoint: stay locked in flow and maintain deliberate momentum, {user_name}.",
-        f"Steady execution across your primary priorities this afternoon, {user_name}.",
-        f"Remember to reset posture, hydrate, and maintain your execution rhythm.",
-        f"Quality craft takes patience, precision, and uninterrupted focus, {user_name}.",
-        f"Protect your cognitive bandwidth and see this work block through, {user_name}."
+        f"Cruising altitude reached with steady cadence through the afternoon, {user_name}.",
+        "Midday checkpoint: stay locked in flow and maintain deliberate rhythm.",
+        f"Steady execution across your core coursework and projects, {user_name}.",
+        "Remember to reset posture, hydrate, and maintain your thinking rhythm.",
+        "Quality craft takes patience, precision, and uninterrupted focus.",
+        "Protect your cognitive bandwidth and see this work block through."
     ]
 
     evening_phrases = [
         f"Good evening, {user_name}. Time to tie off your remaining open loops.",
-        f"Smooth landing underway: review and seal your completed work today.",
-        f"Key mission objectives checked off with deliberate craft, {user_name}.",
-        f"Great execution across the queue today: prepare to wind down, {user_name}.",
-        f"Evening debrief window open to capture key takeaways and reflections, {user_name}.",
-        f"Another productive day ready to be reviewed and sealed, {user_name}."
+        "Smooth landing underway: review and seal your completed work today.",
+        f"Key objectives checked off with steady persistence today, {user_name}.",
+        "Great execution across the queue today: prepare to wind down.",
+        "Evening debrief window open to capture key takeaways and reflections.",
+        "Another productive day ready to be reviewed and sealed tonight."
     ]
 
     night_phrases = [
         f"Burning the midnight oil to close out the final details, {user_name}?",
-        f"Late-night telemetry nominal: commit your progress and rest soon, {user_name}.",
+        "Late-night checklist complete: record your progress and rest soon.",
         f"Quiet hours active: wrap up your thoughts and recharge tonight, {user_name}.",
-        f"Commit your work cleanly to the repository and rest up tonight.",
-        f"Rest is part of the engineering process: sign off soon, {user_name}."
+        "Set aside tomorrow's priorities cleanly and rest up tonight.",
+        "Rest is a vital part of personal craft and well-being.",
+        "Sign off with satisfaction and let your mind recharge fully."
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
@@ -302,15 +421,27 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     else:
         diurnal_period = "late night (approaching midnight)"
 
+    holiday_info = get_holiday_info(target_date)
+    holiday_clause = ""
+    if holiday_info:
+        holiday_clause = (
+            f"SPECIAL FESTIVE OCCASION: Today is {holiday_info['name']} ({holiday_info['icon']})! "
+            f"Weave warm holiday cheer, celebration, and themes of {holiday_info['theme']} "
+            f"tastefully into at least 2 to 3 greeting lines while keeping a natural, grounded tone.\n"
+        )
+
     system_prompt = (
         "You are the sharp, witty, cultured personal AI companion for PETTR "
-        "(Personal Errands, Task Tracker & Repository), an executive dashboard for coursework, "
-        "engineering craft, personal life, and high-focus productivity.\n"
+        "(Personal Errands, Task Tracker & Repository), an executive daily dashboard for university coursework, "
+        "daily errands, reading, personal projects, life admin, fitness, and high-focus productivity.\n"
         "British English: You MUST strictly use British English spelling conventions throughout "
         "(e.g., prioritise, organise, recognise, summarise, categorise, customise, colour, behaviour). "
         "Never use American English spellings like 'prioritize' or 'customized'.\n"
-        f"User Name Integrity: You must strictly address the user by their full exact display name '{user_name}'. "
-        f"Never shorten, truncate, or drop any word of their name (e.g. if the name is '{user_name}', never refer to them as just a single part; write '{user_name}' verbatim).\n"
+        "Tone and Broad Balance: Grounded, cultured, and articulate. DO NOT focus exclusively on programming, coding, "
+        "software engineering, terminal, or git metaphors. Reflect a well-rounded life: university coursework and study blocks, "
+        "clear thinking, clearing out errands, personal creative projects, reading, fitness, and thoughtful daily momentum.\n"
+        f"User Name Mix: Mention the user's name naturally in 1 to 2 lines only (using their EXACT full display name '{user_name}' verbatim — never abbreviate or drop parts). "
+        "The remaining lines should be universally phrased without their name for a natural, varied mix.\n"
         "Your task is to generate:\n"
         "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
         "(strictly 6 to 12 words, at least 6 words excluding the user's name, max 85 characters so they balance verbosity with meaning).\n"
@@ -341,15 +472,16 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         f"Today's date: {date_str}.\n"
         f"Current time window: {diurnal_period.capitalize()}.\n"
         f"User's name: {user_name}.\n\n"
+        f"{holiday_clause}"
         "Task 1 — Dashboard Typewriter Greetings ('phrases'):\n"
-        f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines for {user_name}.\n"
+        f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines.\n"
         "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
         "3. Meaningful Line Depth: Every line MUST contain at least 6 words excluding the user's name (strictly 6 to 12 words, roughly 40 to 80 characters, maximum 85 characters). Avoid overly brief 3-4 word fragments, and avoid rambling compound run-on sentences.\n"
-        f"4. Frame them as a sharp, cultured, slightly witty personal companion: focus on engineering craft, deep problem-solving, coursework, deliberate focus, or wry observations about daily momentum.\n"
+        "4. Tone and Holistic Balance: DO NOT focus on programming, software engineering, git, or coding jargon. Frame lines for a balanced, cultured life: university coursework and study blocks, clear thinking, tackling personal projects, clearing daily errands, reading, and steady daily momentum.\n"
         f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
         "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
         "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone. Keep the greetings independently focused on personal momentum and craft.\n"
-        f"8. Address or mention {user_name} naturally in at least two lines. When addressing them, ALWAYS use the EXACT full display name '{user_name}' verbatim — NEVER abbreviate or drop any part of their name.\n"
+        f"8. Name Mix: Mention {user_name} naturally in 1 or 2 lines only (using the EXACT full name '{user_name}' verbatim — NEVER abbreviate or drop any part of their name). The remaining lines should be universally addressed without their name, providing a balanced, natural mix.\n"
         "9. Strictly use British English spelling conventions throughout (e.g. prioritise, organise, customise, colour, behaviour).\n\n"
         f"{fact_task}\n"
         "Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
@@ -610,6 +742,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 "phrases": phrases_to_return,
                 "subtext": cached_subtext,
                 "milestone": fact,
+                "holiday": get_holiday_info(today),
                 "source": "cache",
                 "cached": True
             }
@@ -702,6 +835,7 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
         "phrases": final_phrases,
         "subtext": subtext,
         "milestone": chosen_fact,
+        "holiday": get_holiday_info(today),
         "source": source,
         "cached": False
     }
@@ -722,6 +856,7 @@ def get_daily_intel(target_date: Optional[datetime.date] = None,
             "phrases": cached["phrases"],
             "subtext": cached.get("subtext") or "",
             "milestone": HISTORICAL_MILESTONES.get((today.month, today.day)) or DAY_OF_WEEK_INTEL.get(today.weekday()),
+            "holiday": get_holiday_info(today),
             "source": cached.get("source", "cache")
         }
 
@@ -737,6 +872,7 @@ def get_daily_intel(target_date: Optional[datetime.date] = None,
         "phrases": get_curated_phrases(today, user_name, chosen_fact),
         "subtext": subtext,
         "milestone": chosen_fact,
+        "holiday": get_holiday_info(today),
         "source": "curated"
     }
 

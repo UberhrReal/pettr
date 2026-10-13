@@ -2009,4 +2009,80 @@ async def test_refresh_daily_intel_provides_fresh_fun_fact(temp_db, monkeypatch)
     assert fact2 != fact1 or len(daily_intel.CALENDAR_FUN_FACTS) <= 1
 
 
+def test_greeting_lines_name_occurrence_mix():
+    """Verify curated phrases have a balanced mix of phrases with and without user's name."""
+    from backend import daily_intel
+    user_name = "Hong Rong"
+    sample_date = datetime.date(2026, 10, 13)
+
+    for hour in [2, 8, 14, 20, 23]:
+        phrases = daily_intel.get_curated_phrases(today=sample_date, user_name=user_name, client_hour=hour)
+        assert len(phrases) == 6
+        with_name = [p for p in phrases if user_name in p]
+        without_name = [p for p in phrases if user_name not in p]
+        # Not all greeting lines should have the user's name (1-2 with name, remaining without)
+        assert 1 <= len(with_name) <= 3
+        assert len(without_name) >= 3
+
+        # Verify tone avoids programming jargon like "git", "syntax error", "refactoring", "compiling"
+        programming_terms = ["git", "syntax error", "refactor", "compile", "pull request", "stack trace"]
+        for p in phrases:
+            p_lower = p.lower()
+            for term in programming_terms:
+                assert term not in p_lower, f"Found programming term '{term}' in '{p}'"
+
+
+def test_holiday_detection_and_curated_phrases():
+    """Verify detection of major holidays and holiday-tailored greeting phrases."""
+    from backend import daily_intel
+
+    # Halloween (Oct 31)
+    halloween = datetime.date(2026, 10, 31)
+    h_info = daily_intel.get_holiday_info(halloween)
+    assert h_info is not None
+    assert h_info["name"] == "Halloween"
+    assert "🎃" in h_info["icon"]
+
+    # Christmas (Dec 25)
+    christmas = datetime.date(2026, 12, 25)
+    c_info = daily_intel.get_holiday_info(christmas)
+    assert c_info is not None
+    assert "Christmas" in c_info["name"]
+    assert "🎄" in c_info["icon"]
+
+    # Non-holiday (e.g. Oct 13)
+    normal_day = datetime.date(2026, 10, 13)
+    assert daily_intel.get_holiday_info(normal_day) is None
+
+    # Test holiday phrases return festive phrasing with name mix
+    holiday_phrases = daily_intel.get_holiday_curated_phrases(h_info, "Hong Rong")
+    assert len(holiday_phrases) == 6
+    assert any("Halloween" in p or "spooky" in p.lower() or "costume" in p.lower() for p in holiday_phrases)
+    with_name = [p for p in holiday_phrases if "Hong Rong" in p]
+    without_name = [p for p in holiday_phrases if "Hong Rong" not in p]
+    assert 1 <= len(with_name) <= 2
+    assert len(without_name) >= 4
+
+
+def test_mobile_typewriter_css_constraints():
+    """Verify pettr.css and index.html include proper overflow constraints and holiday elements."""
+    css_path = Path("frontend/css/pettr.css")
+    html_path = Path("frontend/index.html")
+    assert css_path.exists()
+    assert html_path.exists()
+
+    css_content = css_path.read_text(encoding="utf-8")
+    html_content = html_path.read_text(encoding="utf-8")
+
+    # Verify greeting-user-block has min-width: 0 and overflow: hidden
+    assert ".greeting-user-block" in css_content
+    assert "holiday-decoration-badge" in css_content
+    assert "holiday-ornaments-container" in css_content
+
+    # Verify index.html includes holiday containers
+    assert 'id="dashboardHolidayBadge"' in html_content
+    assert 'id="greetingOrnamentsContainer"' in html_content
+
+
+
 

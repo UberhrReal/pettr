@@ -174,9 +174,13 @@
         <!-- Quick Natural Language Command Bar with Dynamic Greeting -->
         <section class="quick-input-section" id="quickInputSection">
           <div class="greeting-container">
+            <div id="greetingOrnamentsContainer" class="holiday-ornaments-container" aria-hidden="true"></div>
             <div class="greeting-user-block">
-              <div>
-                <div class="greeting-text" id="greetingText">Welcome!</div>
+              <div class="greeting-text-wrapper">
+                <div class="greeting-header-row">
+                  <div class="greeting-text" id="greetingText">Welcome!</div>
+                  <div id="dashboardHolidayBadge" class="holiday-decoration-badge" style="display: none;"></div>
+                </div>
                 <div class="greeting-subtext" id="greetingSubtext">Ready to log and track your day.</div>
               </div>
             </div>

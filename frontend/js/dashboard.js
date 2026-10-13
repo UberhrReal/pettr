@@ -305,6 +305,7 @@ const Dashboard = {
 
     let phrases = [];
     let sub = "Ready to log and track your day.";
+    let holidayInfo = null;
 
     try {
       const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}`);
@@ -312,10 +313,13 @@ const Dashboard = {
         const intel = await res.json();
         if (intel.phrases && intel.phrases.length > 0) phrases = intel.phrases;
         if (intel.subtext) sub = intel.subtext;
+        if (intel.holiday) holidayInfo = intel.holiday;
       }
     } catch (e) {
       console.warn("Failed to fetch daily-intel:", e);
     }
+
+    this.renderHolidayDecorations(holidayInfo);
 
     // Filter out phrases that contradict current diurnal time-of-day
     const morningKws = [
@@ -504,6 +508,7 @@ const Dashboard = {
         if (typeof App !== 'undefined' && App.showToast) {
           App.showToast("Regenerated daily intel with fresh fun fact", "success");
         }
+        this.renderHolidayDecorations(intel.holiday);
         if (intel && intel.phrases && intel.phrases.length > 0) {
           this.initTypewriter(intel.phrases, intel.subtext || "Ready to log and track your day.");
         } else {
@@ -512,6 +517,28 @@ const Dashboard = {
       }
     } catch (e) {
       console.error("Failed to refresh daily intel:", e);
+    }
+  },
+
+  renderHolidayDecorations(holiday) {
+    const badgeEl = document.getElementById("dashboardHolidayBadge");
+    const ornamentsEl = document.getElementById("greetingOrnamentsContainer");
+
+    if (!holiday || !holiday.name) {
+      if (badgeEl) badgeEl.style.display = "none";
+      if (ornamentsEl) ornamentsEl.innerHTML = "";
+      return;
+    }
+
+    if (badgeEl) {
+      badgeEl.innerHTML = `<span>${this.escapeHtml(holiday.icon || "🎉")}</span> <span>${this.escapeHtml(holiday.name)}</span>`;
+      badgeEl.style.display = "inline-flex";
+      badgeEl.title = `${holiday.name} Celebrations Active`;
+    }
+
+    if (ornamentsEl) {
+      const icons = holiday.decorations || [holiday.icon || "✨", "🎉", "🌟", "🎈"];
+      ornamentsEl.innerHTML = icons.map(icon => `<span class="holiday-ornament">${this.escapeHtml(icon)}</span>`).join("");
     }
   },
 
