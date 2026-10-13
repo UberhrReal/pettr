@@ -409,6 +409,20 @@ const Dashboard = {
       }
     }
 
+    // Repair partial name truncations if user has a multi-word display name (e.g. "Hong Rong" -> "Rong")
+    if (this.userName && this.userName.includes(" ")) {
+      const parts = this.userName.split(/\s+/).filter(p => p.length >= 2);
+      phrases = phrases.map(p => {
+        let fixed = p;
+        for (const part of parts) {
+          if (fixed.includes(part) && !fixed.includes(this.userName)) {
+            fixed = fixed.replace(new RegExp(`\\b${part}\\b`, 'g'), this.userName);
+          }
+        }
+        return fixed;
+      });
+    }
+
     // Minimum word count filter (at least 6 words excluding user name) and sanitize length
     const cleanUserName = (this.userName || "").toLowerCase();
     phrases = phrases.map(p => String(p || "").trim()).filter(p => {
@@ -486,10 +500,15 @@ const Dashboard = {
       const clientHour = new Date().getHours();
       const res = await fetch(`/api/daily-intel?date=${encodeURIComponent(this.selectedDate || "")}&hour=${clientHour}&refresh=true`);
       if (res.ok) {
+        const intel = await res.json();
         if (typeof App !== 'undefined' && App.showToast) {
-          App.showToast("Regenerated daily intel", "success");
+          App.showToast("Regenerated daily intel with fresh fun fact", "success");
         }
-        await this.startTypewriterGreeting();
+        if (intel && intel.phrases && intel.phrases.length > 0) {
+          this.initTypewriter(intel.phrases, intel.subtext || "Ready to log and track your day.");
+        } else {
+          await this.startTypewriterGreeting();
+        }
       }
     } catch (e) {
       console.error("Failed to refresh daily intel:", e);

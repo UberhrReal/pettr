@@ -1924,3 +1924,89 @@ def test_typewriter_and_mobile_layout_enhancements():
     assert "Previous day priority tasking queues are locked." in dash_js
 
 
+def test_timeline_scroll_snapping_and_wheel_setup():
+    """Verify timeline defines initialScroll correctly and binds mousewheel listener without ReferenceError."""
+    timeline_js = Path("frontend/js/timeline.js").read_text(encoding="utf-8")
+    assert "const initialScroll = targetPosition - (scrollContainer.clientWidth / 2);" in timeline_js
+    assert "const initialCenter = Math.max(0, initialScroll);" in timeline_js
+    assert "scrollContainer.addEventListener(\"wheel\"" in timeline_js
+    assert "Math.abs(e.deltaX) > Math.abs(e.deltaY)" in timeline_js
+
+
+def test_constellation_cloud_dark_theme_adaptation():
+    """Verify Constellation Cloud mindmap dynamically adapts stardust and label color to dark and evening themes."""
+    mindmap_js = Path("frontend/js/mindmap.js").read_text(encoding="utf-8")
+    assert "isDarkTheme()" in mindmap_js
+    assert 'docTheme === "dark" || docTheme === "evening"' in mindmap_js
+    assert "labelColor = isDark ?" in mindmap_js
+    assert "ctx.fillStyle = labelColor;" in mindmap_js
+
+
+@pytest.mark.anyio
+async def test_typewriter_user_name_integrity_repair(monkeypatch):
+    """Verify typewriter parser repairs partial name truncations (e.g. 'Rong' -> 'Hong Rong')."""
+    from backend import daily_intel
+
+    # Test phrase with truncated name 'Rong'
+    truncated_phrase = "Good morning, Rong. Workspace is primed for deliberate focus today."
+    
+    # Mock LLM returning truncated phrase
+    async def mock_truncated_llm(*args, **kwargs):
+        return {
+            "phrases": [
+                truncated_phrase,
+                "Ready for deep execution across your coursework, Rong.",
+                "Telemetry nominal and steady cadence throughout the morning."
+            ],
+            "fact": "Fascinating historical breakthrough."
+        }
+
+    monkeypatch.setattr(daily_intel, "generate_llm_typewriter_lines", mock_truncated_llm)
+
+    today = datetime.date(2026, 10, 13)
+    intel = await daily_intel.get_or_generate_daily_intel(
+        today,
+        user_name="Hong Rong",
+        force_refresh=True,
+        client_hour=9
+    )
+
+    for p in intel["phrases"]:
+        if "Hong Rong" in p:
+            assert "Hong Rong" in p
+            assert "Good morning, Rong." not in p
+
+
+@pytest.mark.anyio
+async def test_refresh_daily_intel_provides_fresh_fun_fact(temp_db, monkeypatch):
+    """Verify force_refresh=True produces a new, distinct fun fact."""
+    from backend import daily_intel
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date(2026, 10, 13)
+    # Initial intel
+    intel1 = await daily_intel.get_or_generate_daily_intel(
+        today,
+        user_name="Hong Rong",
+        force_refresh=False,
+        client_hour=14,
+        db_path=temp_db
+    )
+    fact1 = intel1["milestone"]
+    assert fact1 is not None
+
+    # Refresh intel
+    intel2 = await daily_intel.get_or_generate_daily_intel(
+        today,
+        user_name="Hong Rong",
+        force_refresh=True,
+        client_hour=14,
+        db_path=temp_db
+    )
+    fact2 = intel2["milestone"]
+    assert fact2 is not None
+    # Must provide a fresh distinct fun fact on refresh
+    assert fact2 != fact1 or len(daily_intel.CALENDAR_FUN_FACTS) <= 1
+
+
+

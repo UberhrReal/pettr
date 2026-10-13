@@ -623,6 +623,24 @@ const Mindmap = {
     }
   },
 
+  isDarkTheme() {
+    const docTheme = document.documentElement.getAttribute("data-theme") || 
+                     (document.body ? document.body.getAttribute("data-theme") : "");
+    if (docTheme === "dark" || docTheme === "evening") return true;
+    if (docTheme === "light" || docTheme === "morning") return false;
+    const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg-primary").trim();
+    if (bg.startsWith("#")) {
+      const hex = bg.replace("#", "");
+      if (hex.length === 6) {
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        return (0.299 * r + 0.587 * g + 0.114 * b) < 128;
+      }
+    }
+    return false;
+  },
+
   draw() {
     if (!this.canvas || !this.ctx) return;
     const ctx = this.ctx;
@@ -635,7 +653,9 @@ const Mindmap = {
     ctx.clearRect(0, 0, width, height);
 
     // 1. Draw 3D Torus Stardust Cloud
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const isDark = this.isDarkTheme();
+    const computedText = getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim();
+    const labelColor = isDark ? (computedText || "#f4f4f5") : (computedText || "#18181b");
     this.dustParticles.forEach(d => {
       const p = this.project3D(d.x, d.y, d.z, centerX, centerY);
       const finalAlpha = d.alpha * p.alpha;
@@ -756,7 +776,7 @@ const Mindmap = {
         const maxLen = isHovered ? 32 : 18;
         let titleText = node.title || "";
         if (titleText.length > maxLen) titleText = titleText.substring(0, maxLen) + "…";
-        ctx.fillStyle = isDark ? "#f4f4f5" : "#18181b";
+        ctx.fillStyle = labelColor;
         ctx.fillText(titleText, p.screenX, p.screenY + r + fontSize + 2);
       }
 

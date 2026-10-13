@@ -268,7 +268,8 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                                        user_name: str,
                                        milestone_info: Optional[str] = None,
                                        timeout_seconds: float = 30.0,
-                                       client_hour: Optional[int] = None) -> Optional[Any]:
+                                       client_hour: Optional[int] = None,
+                                       avoid_fact: Optional[str] = None) -> Optional[Any]:
     """
     Prompts the configured local/remote LLM to generate fresh, date-aware typewriter greeting lines
     and a fascinating fun fact relevant to today's date in history.
@@ -308,15 +309,34 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "British English: You MUST strictly use British English spelling conventions throughout "
         "(e.g., prioritise, organise, recognise, summarise, categorise, customise, colour, behaviour). "
         "Never use American English spellings like 'prioritize' or 'customized'.\n"
+        f"User Name Integrity: You must strictly address the user by their full exact display name '{user_name}'. "
+        f"Never shorten, truncate, or drop any word of their name (e.g. if the name is '{user_name}', never refer to them as just a single part; write '{user_name}' verbatim).\n"
         "Your task is to generate:\n"
         "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
         "(strictly 6 to 12 words, at least 6 words excluding the user's name, max 85 characters so they balance verbosity with meaning).\n"
-        "2. Exactly 1 fascinating, genuine fun fact or historical event relevant to today's date "
+        "2. Exactly 1 fascinating, genuine fun fact or historical event "
         "(spanning science, computing, space, engineering, biology, history, or everyday human invention).\n"
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
     )
 
-    milestone_hint = f"Context / anniversary hint: {milestone_info}\n" if milestone_info else ""
+    if milestone_info == "refresh" or avoid_fact:
+        avoid_clause = f" (avoid repeating: '{avoid_fact}')" if avoid_fact else ""
+        fact_task = (
+            "Task 2 — Historical Fun Fact ('fact'):\n"
+            f"1. Provide exactly 1 FRESH, DIFFERENT genuinely fascinating, true historical event, scientific breakthrough, or curious invention from history or science{avoid_clause}.\n"
+            "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
+            "3. Strictly use British English spelling conventions.\n"
+        )
+    else:
+        milestone_hint = f"Context / anniversary hint: {milestone_info}\n" if milestone_info else ""
+        fact_task = (
+            "Task 2 — Historical Fun Fact ('fact'):\n"
+            f"1. Provide exactly 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history ({target_date.strftime('%B %d')}).\n"
+            f"{milestone_hint}"
+            "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
+            "3. Strictly use British English spelling conventions.\n"
+        )
+
     user_prompt = (
         f"Today's date: {date_str}.\n"
         f"Current time window: {diurnal_period.capitalize()}.\n"
@@ -329,13 +349,9 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
         "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
         "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone. Keep the greetings independently focused on personal momentum and craft.\n"
-        f"8. Address or mention {user_name} naturally in at least two lines.\n"
+        f"8. Address or mention {user_name} naturally in at least two lines. When addressing them, ALWAYS use the EXACT full display name '{user_name}' verbatim — NEVER abbreviate or drop any part of their name.\n"
         "9. Strictly use British English spelling conventions throughout (e.g. prioritise, organise, customise, colour, behaviour).\n\n"
-        "Task 2 — Historical Fun Fact ('fact'):\n"
-        f"1. Provide exactly 1 genuinely fascinating, true historical event, scientific breakthrough, or curious invention from this calendar date in history ({target_date.strftime('%B %d')}).\n"
-        f"{milestone_hint}"
-        "2. Keep it concise (1 to 2 sentences, 15 to 30 words).\n"
-        "3. Strictly use British English spelling conventions.\n\n"
+        f"{fact_task}\n"
         "Return ONLY a valid JSON object matching: {\"phrases\": [...], \"fact\": \"...\"}, no explanation or markdown fences."
     )
 
@@ -410,6 +426,12 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                         if isinstance(p, str):
                             s = p.strip().strip('"').strip("'")
                             s = to_british_spelling(s)
+                            # Repair partial name truncation from LLM if user_name has multiple words (e.g. Hong Rong -> Rong)
+                            if user_name and " " in user_name:
+                                name_parts = [part for part in user_name.split() if len(part) >= 2]
+                                for part in name_parts:
+                                    if part in s and user_name not in s:
+                                        s = re.sub(rf'\b{re.escape(part)}\b', user_name, s)
                             if len(s) > 85:
                                 parts = re.split(r'[\.\:\;\—\-]\s+', s)
                                 if parts and len(parts[0]) >= 25 and len(parts[0]) <= 85:
@@ -422,7 +444,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                     if isinstance(fact_str, str):
                         fact_str = fact_str.strip().strip('"').strip("'")
                         fact_str = to_british_spelling(fact_str)
-                        if len(fact_str) < 5 or len(fact_str) > 250:
+                        if len(fact_str) < 5 or len(fact_str) > 250 or (avoid_fact and fact_str.strip().lower() == avoid_fact.strip().lower()):
                             fact_str = None
 
                     if len(cleaned) >= 3:
@@ -594,11 +616,23 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
 
     # 2. Generate via LLM for this diurnal window
     import inspect
+    import random
+
+    cached_existing = database.get_daily_typewriter_cache(period_key, db_path) or database.get_daily_typewriter_cache(date_key, db_path)
+    prev_fact = None
+    if cached_existing:
+        prev_sub = cached_existing.get("subtext") or ""
+        prev_fact = cached_existing.get("milestone") or (prev_sub.split("💡")[-1].strip() if "💡" in prev_sub else None)
+
     sig = inspect.signature(generate_llm_typewriter_lines)
+    call_kwargs = {}
     if "client_hour" in sig.parameters:
-        llm_res = await generate_llm_typewriter_lines(today, user_name, fact, client_hour=effective_hour)
-    else:
-        llm_res = await generate_llm_typewriter_lines(today, user_name, fact)
+        call_kwargs["client_hour"] = effective_hour
+    if "avoid_fact" in sig.parameters and force_refresh:
+        call_kwargs["avoid_fact"] = prev_fact
+
+    milestone_arg = "refresh" if force_refresh else fact
+    llm_res = await generate_llm_typewriter_lines(today, user_name, milestone_arg, **call_kwargs)
 
     llm_phrases = None
     llm_fact = None
@@ -611,7 +645,11 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
     if llm_phrases and len(llm_phrases) >= 3:
         source = "llm"
         final_phrases = filter_phrases_for_diurnal_window(llm_phrases, client_hour, today, user_name) if client_hour is not None else llm_phrases
-        chosen_fact = llm_fact or fact
+        if force_refresh and (not llm_fact or (prev_fact and llm_fact.strip().lower() == prev_fact.strip().lower())):
+            alt_facts = [f for f in CALENDAR_FUN_FACTS if f != prev_fact and f != fact]
+            chosen_fact = random.choice(alt_facts) if alt_facts else CALENDAR_FUN_FACTS[0]
+        else:
+            chosen_fact = llm_fact or fact
     else:
         # LLM offline: check if base_cached has >= 3 non-contradictory phrases for this window
         base_cached = database.get_daily_typewriter_cache(date_key, db_path) if not force_refresh else None
@@ -631,7 +669,11 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
         else:
             source = "curated_fallback"
             final_phrases = get_curated_phrases(today, user_name, fact, client_hour=client_hour)
-            chosen_fact = fact
+            if force_refresh:
+                alt_facts = [f for f in CALENDAR_FUN_FACTS if f != prev_fact and f != fact]
+                chosen_fact = random.choice(alt_facts) if alt_facts else CALENDAR_FUN_FACTS[0]
+            else:
+                chosen_fact = fact
 
     subtext = f"{date_label} · 💡 {chosen_fact}"
 

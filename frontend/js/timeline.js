@@ -778,8 +778,11 @@ const Timeline = {
     const targetIdx = this.loadedDays.findIndex(d => d.date === targetDateStr);
     const initialDayIdx = targetIdx >= 0 ? targetIdx : Math.floor(this.loadedDays.length / 2);
     const initialDay = this.loadedDays[initialDayIdx];
-    const initialHour = (initialDay && initialDay.date === todayStr) ? now.getHours() : 9;
-    // Initial center positioning without restarting from 3 days ago
+    const isTargetToday = (initialDay && initialDay.date === todayStr);
+    const initialHourFraction = isTargetToday ? (now.getHours() + (now.getMinutes() / 60)) : 9;
+    const targetPosition = (initialDayIdx * DAY_WIDTH) + (initialHourFraction * SLOT_WIDTH);
+    const initialScroll = targetPosition - (scrollContainer.clientWidth / 2);
+
     scrollContainer.style.scrollBehavior = "auto";
     const initialCenter = Math.max(0, initialScroll);
     scrollContainer.scrollLeft = initialCenter;
@@ -830,11 +833,12 @@ const Timeline = {
       scrollContainer.scrollLeft = scrollStart - walk;
     });
 
-    // Mouse wheel horizontal scrolling (amplified sensitivity)
+    // Mouse wheel horizontal scrolling (amplified sensitivity, supporting vertical wheel and horizontal trackpad)
     scrollContainer.addEventListener("wheel", (e) => {
-      if (e.deltaY !== 0) {
+      if (e.deltaY !== 0 || e.deltaX !== 0) {
         e.preventDefault();
-        scrollContainer.scrollLeft += e.deltaY * 2.5;
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        scrollContainer.scrollLeft += delta * 2.5;
       }
     }, { passive: false });
   },
