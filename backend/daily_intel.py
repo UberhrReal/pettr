@@ -480,13 +480,44 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             # Check base date cache
             base_cached = database.get_daily_typewriter_cache(date_key, db_path)
             if base_cached and base_cached.get("phrases"):
-                has_invalid = any(count_words_excluding_name(p, user_name) < 6 or len(p) > 95 for p in base_cached["phrases"])
-                has_stale_name = (user_name != "Hong Rong") and any("Hong Rong" in p for p in base_cached["phrases"])
-                has_legacy = has_stale_name or any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"])
-                if has_invalid or has_legacy:
+                if client_hour is None:
                     cached = base_cached
-                elif client_hour is None:
-                    cached = base_cached
+                else:
+                    # Check if base_cached contains keywords contradicting this diurnal window
+                    hour = effective_hour % 24
+                    is_wee = 0 <= hour < 6
+                    is_morn = 6 <= hour < 12
+                    is_aft = 12 <= hour < 18
+                    is_eve = 18 <= hour < 23
+                    is_nit = 23 <= hour < 24
+
+                    has_contradictory = False
+                    for p in base_cached["phrases"]:
+                        if not isinstance(p, str):
+                            continue
+                        low = p.lower()
+                        if not is_wee and any(k in low for k in WEE_HOURS_KEYWORDS):
+                            has_contradictory = True
+                            break
+                        if not is_morn and any(k in low for k in MORNING_KEYWORDS):
+                            has_contradictory = True
+                            break
+                        if not is_aft and any(k in low for k in AFTERNOON_KEYWORDS):
+                            has_contradictory = True
+                            break
+                        if not is_eve and any(k in low for k in EVENING_KEYWORDS):
+                            has_contradictory = True
+                            break
+                        if not is_nit and not is_wee and any(k in low for k in NIGHT_KEYWORDS):
+                            has_contradictory = True
+                            break
+
+                    if not has_contradictory:
+                        has_invalid = any(count_words_excluding_name(p, user_name) < 6 or len(p) > 95 for p in base_cached["phrases"])
+                        has_stale_name = (user_name != "Hong Rong") and any("Hong Rong" in p for p in base_cached["phrases"])
+                        has_legacy = has_stale_name or any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"])
+                        if has_invalid or has_legacy or base_cached.get("source") == "llm":
+                            cached = base_cached
 
         if cached and cached.get("phrases") and len(cached["phrases"]) > 0:
             cached_subtext = cached.get("subtext") or default_subtext
@@ -519,8 +550,11 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 except Exception:
                     pass
 
-            # Upgrade phrases that are too short (< 6 words excluding user name) or excessively long (> 95 chars)
-            if any(count_words_excluding_name(p, user_name) < 6 or len(p) > 95 for p in phrases_to_return):
+            # Upgrade stale multi-clause phrases (> 95 chars) or short non-LLM fallbacks (< 6 words)
+            needs_upgrade = any(len(p) > 95 for p in phrases_to_return) or (
+                cached.get("source") != "llm" and any(count_words_excluding_name(p, user_name) < 6 for p in phrases_to_return)
+            )
+            if needs_upgrade:
                 phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
                 try:
                     database.save_daily_typewriter_cache(

@@ -835,13 +835,14 @@ def test_articulate_typewriter_phrases_length_and_substance():
     for hour in [8, 14, 20, 23, 1, 3]:
         phrases = daily_intel.get_curated_phrases(today, "Hong Rong", client_hour=hour)
         assert len(phrases) >= 5
-        # Check that phrases are single-line complete thoughts (between 30 and 46 characters)
+        # Check that phrases are substantive complete thoughts (>= 6 words excluding name, <= 95 chars)
         for p in phrases:
             assert len(p) >= 30, f"Phrase too short: {p}"
-            assert len(p) <= 46, f"Phrase too long (must fit on single line <= 46 chars): {p}"
-        # Average length should be comfortably in the articulate 36-43 character range
+            assert len(p) <= 95, f"Phrase too long (must fit on single line <= 95 chars): {p}"
+            assert daily_intel.count_words_excluding_name(p, "Hong Rong") >= 6, f"Phrase lacks word depth: {p}"
+        # Average length should be comfortably articulate
         avg_len = sum(len(p) for p in phrases) / len(phrases)
-        assert avg_len >= 36, f"Average phrase length too low: {avg_len}"
+        assert avg_len >= 40, f"Average phrase length too low: {avg_len}"
 
 
 def test_daily_order_pruned_when_due_date_moves_to_another_day(temp_db, monkeypatch):
@@ -1021,7 +1022,7 @@ def test_manual_creation_locked_on_sealed_and_past_days(temp_db, monkeypatch):
 
     dash_content = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
     assert "updateManualCreationButtonsState" in dash_content
-    assert "openManualCreateModal(defaultType = \"focus\")" in dash_content
+    assert 'openManualCreateModal(defaultType = "focus"' in dash_content
     assert "if (this.isPastDay())" in dash_content
 
 
