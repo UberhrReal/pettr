@@ -288,14 +288,14 @@ rclone copy ~/pettr/backups gdrive:PETTR-Backups -v
 ```
 Verify that the `PETTR-Backups` directory appears in your Google Drive with the latest `.zip` archive.
 
-#### Step 4: Automate Nightly Sync via Crontab
+#### Step 4: Automate Weekly Sync via Crontab
 Open your crontab:
 ```bash
 crontab -e
 ```
-Add a nightly job (e.g. 3:30 AM) with a 15-minute file age buffer to avoid uploading during an active write:
+Add a weekly sync job (e.g. every Sunday at 3:30 AM) with a 15-minute file age buffer to avoid uploading during an active write:
 ```cron
-30 3 * * * /usr/bin/rclone copy /home/YOUR_USERNAME/pettr/backups gdrive:PETTR-Backups --min-age 15m >> /home/YOUR_USERNAME/rclone_backup.log 2>&1
+30 3 * * 0 /usr/bin/rclone copy /home/YOUR_USERNAME/pettr/backups gdrive:PETTR-Backups --min-age 15m >> /home/YOUR_USERNAME/rclone_backup.log 2>&1
 ```
 *(Replace `YOUR_USERNAME` with your actual Linux user, e.g. from `whoami`).*
 

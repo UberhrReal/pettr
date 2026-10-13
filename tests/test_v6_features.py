@@ -1605,20 +1605,22 @@ async def test_horace_quick_menu_and_typewriter_single_line_regeneration(temp_db
         db_path=temp_db
     )
 
-    # Fetch daily intel without force_refresh - should detect length > 46 and upgrade to single-line phrases
+    # Fetch daily intel without force_refresh - should detect stale long multi-clause phrases (> 95 chars) and upgrade
     d_obj = datetime.date(2026, 10, 10)
     intel = await daily_intel.get_or_generate_daily_intel(d_obj, "Hong Rong", force_refresh=False, client_hour=14, db_path=temp_db)
     assert intel["phrases"] is not None
     assert len(intel["phrases"]) >= 3
     for phrase in intel["phrases"]:
-        assert len(phrase) <= 46, f"Upgraded phrase still exceeds 46 characters: {phrase}"
-        assert "keep the momentum steady through the afternoon sprint" not in phrase
+        assert len(phrase) <= 95
+        assert daily_intel.count_words_excluding_name(phrase, "Hong Rong") >= 6
+        assert "resist the urge to context-switch" not in phrase
 
     # Verify SQLite cache was updated with the clean single-line phrases
     cached_after = database.get_daily_typewriter_cache(test_date, db_path=temp_db)
     assert cached_after["source"] == "single_line_upgrade"
     for phrase in cached_after["phrases"]:
-        assert len(phrase) <= 46
+        assert len(phrase) <= 95
+        assert daily_intel.count_words_excluding_name(phrase, "Hong Rong") >= 6
 
 
 def test_scratchpad_media_folder_api_and_ui(temp_db, monkeypatch, tmp_path):
@@ -1866,5 +1868,58 @@ async def test_horace_adopts_display_name_without_wiping_chat_history(temp_db, m
     assert "guide-header-block" in index_html
     assert "In-App Architecture &amp; User Guide" in index_html
     assert "dashboardJumpTodayBtn" in index_html
+
+
+def test_weekly_backup_scheduler_and_timestamp_persistence(tmp_path, monkeypatch):
+    """Verify run_backup records last_backup_timestamp and backup_scheduler_loop skips immediate run if recent."""
+    from backend import backup
+    import config.config as cfg_mod
+
+    test_cfg_path = tmp_path / "test_cfg.json"
+    monkeypatch.setattr(cfg_mod, "DEFAULT_CONFIG_PATH", test_cfg_path)
+
+    test_db = tmp_path / "test.sqlite"
+    database.init_db(test_db)
+    target_backup_dir = tmp_path / "backups"
+
+    # 1. Run backup and verify last_backup_timestamp is saved in config
+    res = backup.run_backup(target_dir=target_backup_dir, db_path=test_db)
+    assert res["status"] == "success"
+    cfg = cfg_mod.get_or_create_config(test_cfg_path)
+    assert "last_backup_timestamp" in cfg
+    assert cfg["last_backup_timestamp"] is not None
+
+    # 2. Check DEPLOYMENT.md has weekly cron schedule
+    deploy_md = Path("DEPLOYMENT.md").read_text(encoding="utf-8")
+    assert "30 3 * * 0" in deploy_md
+    assert "Automate Weekly Sync via Crontab" in deploy_md
+
+
+def test_typewriter_and_mobile_layout_enhancements():
+    """Verify typewriter phrases length >= 6 words and mobile layout rules in CSS and JS."""
+    from backend import daily_intel
+
+    # 1. Check curated phrases word counts (>= 6 words excluding user name)
+    today = datetime.date(2026, 10, 13)
+    phrases = daily_intel.get_curated_phrases(today, "Hong Rong", client_hour=14)
+    assert len(phrases) >= 5
+    for p in phrases:
+        word_count = daily_intel.count_words_excluding_name(p, "Hong Rong")
+        assert word_count >= 6, f"Phrase has fewer than 6 words: '{p}' (count: {word_count})"
+
+    # 2. Check pettr.css for mobile greeting size, scroll properties, and date navigator order
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert "clamp(17px, 4.5vw, 22px)" in css
+    assert "order: 1 !important" in css
+    assert "flex: 1 1 100% !important" in css
+    assert "mission-beacon-dot" in css
+    assert "margin-right: 4px" in css
+
+    # 3. Check dashboard.js for horizontal scrolling and Add Task full modal integration
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "scrollGreetingToEnd" in dash_js
+    assert "scrollLeft = maxScroll" in dash_js
+    assert "openManualCreateModal('focus', '${this.escapeHtml(p.name)}')" in dash_js
+    assert "Previous day priority tasking queues are locked." in dash_js
 
 

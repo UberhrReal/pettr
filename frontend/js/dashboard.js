@@ -356,51 +356,51 @@ const Dashboard = {
       let defaults = [];
       if (isWeeHours) {
         defaults = [
-          `Stillness of the wee hours, ${this.userName}.`,
-          `Zero distractions in the quiet hours, ${this.userName}.`,
-          `The terminal glows in the dead of night.`,
-          `Deep nocturnal velocity and craft, ${this.userName}.`,
-          `Breakthroughs happen in the small hours.`,
-          `Quiet hours focus window, ${this.userName}.`
+          `Stillness of the wee hours across the workspace, ${this.userName}.`,
+          `Zero distractions in the quiet hours while the world sleeps, ${this.userName}.`,
+          `The terminal glows quietly through the dead of night.`,
+          `Deep nocturnal velocity and deliberate engineering craft, ${this.userName}.`,
+          `Breakthroughs often happen during undisturbed quiet hours.`,
+          `Quiet hours focus window for uninterrupted deep execution, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Wee hours hyperfocus active. Undisturbed quiet.";
       } else if (isMorning) {
         defaults = [
-          `Good morning, ${this.userName}. Workspace primed.`,
-          `First coffee poured. Time for deep work.`,
-          `Clear head, clear queue, ${this.userName}.`,
-          `Telemetry nominal. Building steady momentum.`,
-          `Prioritise the essential objectives today, ${this.userName}.`,
-          `Morning diagnostics green: locked in focus.`
+          `Good morning, ${this.userName}. The workspace is primed for deep execution.`,
+          `First coffee poured and ready for high-leverage focus work.`,
+          `Clear head and a clear queue to kick off the day, ${this.userName}.`,
+          `Telemetry nominal and ready to build steady momentum, ${this.userName}.`,
+          `Prioritise the essential objectives before tackling the small errands, ${this.userName}.`,
+          `Morning diagnostics green with deep focus locked in today.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Morning momentum begins now.";
       } else if (isAfternoon) {
         defaults = [
-          `Cruising altitude reached, ${this.userName}.`,
-          `Steady cadence through the afternoon sprint.`,
-          `Midday checkpoint: stay locked in flow, ${this.userName}.`,
-          `Solid execution today, ${this.userName}.`,
-          `Hydrate, reset posture, and maintain momentum.`,
-          `Quality craft takes patience, ${this.userName}.`
+          `Cruising altitude reached with steady cadence through the afternoon sprint, ${this.userName}.`,
+          `Midday checkpoint: stay locked in flow and maintain deliberate momentum, ${this.userName}.`,
+          `Steady execution across your primary priorities this afternoon, ${this.userName}.`,
+          `Remember to reset posture, hydrate, and maintain your execution rhythm.`,
+          `Quality craft takes patience, precision, and uninterrupted focus, ${this.userName}.`,
+          `Protect your cognitive bandwidth and see this work block through, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Deep work window active.";
       } else if (isEvening) {
         defaults = [
-          `Good evening, ${this.userName}. Tie off open loops.`,
-          `Smooth landing: review your completed work.`,
-          `Mission objectives checked off, ${this.userName}.`,
-          `Great execution today. Time to wind down.`,
-          `Evening debrief window open, ${this.userName}.`,
-          `Another productive day sealed, ${this.userName}.`
+          `Good evening, ${this.userName}. Time to tie off your remaining open loops.`,
+          `Smooth landing underway: review and seal your completed work today.`,
+          `Key mission objectives checked off with deliberate craft, ${this.userName}.`,
+          `Great execution across the queue today: prepare to wind down, ${this.userName}.`,
+          `Evening debrief window open to capture key takeaways and reflections, ${this.userName}.`,
+          `Another productive day ready to be reviewed and sealed, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Review your progress and close out open loops.";
       } else {
         defaults = [
-          `Burning the midnight oil, ${this.userName}?`,
-          `Night owl session active: wrap up and rest.`,
-          `Late-night telemetry nominal, ${this.userName}.`,
-          `Quiet hours focus window. Rest soon, ${this.userName}.`,
-          `Commit your progress and recharge tonight.`
+          `Burning the midnight oil to close out the final details, ${this.userName}?`,
+          `Late-night telemetry nominal: commit your progress and rest soon, ${this.userName}.`,
+          `Quiet hours active: wrap up your thoughts and recharge tonight, ${this.userName}.`,
+          `Commit your work cleanly to the repository and rest up tonight.`,
+          `Rest is part of the engineering process: sign off soon, ${this.userName}.`
         ];
         if (!sub || sub === "Ready to log and track your day.") sub = "Quiet hours telemetry online. Rest soon.";
       }
@@ -409,24 +409,19 @@ const Dashboard = {
       }
     }
 
-    // Strict single-line length enforcement: clamp phrases to 46 chars max so they never stretch or wrap
-    phrases = phrases.map(p => {
-      let s = String(p || "").trim();
-      if (s.length > 46) {
-        const parts = s.split(/[\.\:\;\—\-]\s+/);
-        if (parts && parts[0].length >= 15 && parts[0].length <= 46) {
-          s = parts[0].trim() + ".";
-        } else {
-          s = s.slice(0, 44).trim() + "…";
-        }
-      }
-      return s;
-    }).filter(p => p.length > 0);
+    // Minimum word count filter (at least 6 words excluding user name) and sanitize length
+    const cleanUserName = (this.userName || "").toLowerCase();
+    phrases = phrases.map(p => String(p || "").trim()).filter(p => {
+      if (!p) return false;
+      const stripped = p.toLowerCase().replaceAll(cleanUserName, "").trim();
+      const words = stripped.split(/\s+/).filter(Boolean);
+      return words.length >= 6;
+    });
 
     // Guarantee top typewriter phrases NEVER duplicate the bottom subtext
     phrases = phrases.filter(p => p.trim().toLowerCase() !== sub.trim().toLowerCase());
     if (phrases.length === 0) {
-      phrases = [`Hello, ${this.userName}.`];
+      phrases = [`Good day, ${this.userName}. The workspace is primed for deliberate focus and execution.`];
     }
 
     if (subtextEl) {
@@ -443,14 +438,14 @@ const Dashboard = {
     this.typewriterCharIndex = 0;
     this.isTypewriterDeleting = false;
 
-    const adjustGreetingScale = () => {
+    const scrollGreetingToEnd = () => {
       if (!greetingEl) return;
       greetingEl.style.transform = '';
-      const pWidth = greetingEl.parentElement ? greetingEl.parentElement.clientWidth : 0;
-      if (pWidth > 0 && greetingEl.scrollWidth > pWidth) {
-        const ratio = Math.max(0.65, (pWidth - 4) / greetingEl.scrollWidth);
-        greetingEl.style.transform = `scale(${ratio})`;
-        greetingEl.style.transformOrigin = 'left center';
+      const maxScroll = greetingEl.scrollWidth - greetingEl.clientWidth;
+      if (maxScroll > 0) {
+        greetingEl.scrollLeft = maxScroll;
+      } else {
+        greetingEl.scrollLeft = 0;
       }
     };
 
@@ -461,7 +456,7 @@ const Dashboard = {
       if (!this.isTypewriterDeleting) {
         this.typewriterCharIndex++;
         greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
-        adjustGreetingScale();
+        scrollGreetingToEnd();
         if (this.typewriterCharIndex >= currentPhrase.length) {
           this.isTypewriterDeleting = true;
           this.typewriterGreetingTimer = setTimeout(tick, 4800);
@@ -471,9 +466,10 @@ const Dashboard = {
       } else {
         this.typewriterCharIndex--;
         greetingEl.innerHTML = `${this.escapeHtml(currentPhrase.slice(0, this.typewriterCharIndex))}<span class="typewriter-cursor">|</span>`;
-        adjustGreetingScale();
+        scrollGreetingToEnd();
         if (this.typewriterCharIndex <= 0) {
           this.isTypewriterDeleting = false;
+          greetingEl.scrollLeft = 0;
           this.typewriterPhraseIndex = (this.typewriterPhraseIndex + 1) % phrases.length;
           this.typewriterGreetingTimer = setTimeout(tick, 600);
           return;
@@ -1014,6 +1010,8 @@ const Dashboard = {
         <div class="briefing-items-pills">
     `;
 
+    const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
+
     const focusTasks = data.focus_tasks || (this.tasks && this.tasks.focus) || [];
     if (focusTasks.length === 0) {
       html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No focus items pending today.</div>`;
@@ -1034,8 +1032,8 @@ const Dashboard = {
               : ''));
 
         html += `
-          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true" 
-               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${this.escapeHtml(timeMil)}')">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}" 
+               ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${this.escapeHtml(timeMil)}')`}">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -1045,7 +1043,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:6px;">
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
-              <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
+              ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
         `;
@@ -1084,8 +1082,8 @@ const Dashboard = {
               : ''));
 
         html += `
-          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true"
-               ondragstart="Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${this.escapeHtml(timeMil)}')">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
+               ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${this.escapeHtml(timeMil)}')`}">
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -1096,7 +1094,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:6px;">
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
-              <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
+              ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
         `;
@@ -1125,15 +1123,15 @@ const Dashboard = {
         const timeMil = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : 'Today';
         const inSeq = (this.dailyOrder || []).some(d => d.id === e.id && d.type === 'event');
         html += `
-          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="true"
-               ondragstart="Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
+               ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')`}">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
               ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
               ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
-            <span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>
+            ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
           </div>
         `;
       });
@@ -1399,23 +1397,25 @@ const Dashboard = {
         }
       }
 
+      const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
+
       return `
-        <div class="daily-order-slot ${isDone ? 'completed' : ''}" draggable="true"
+        <div class="daily-order-slot ${isDone ? 'completed' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
              data-index="${idx}"
-             ondragstart="Dashboard.onDailyOrderDragStart(event, ${idx})"
-             ondragend="Dashboard.onDailyOrderDragEnd(event)"
-             ondragover="Dashboard.onDailyOrderDragOver(event, ${idx})"
-             ondragleave="Dashboard.onDailyOrderDragLeave(event, ${idx})"
-             ondrop="Dashboard.onDailyOrderDrop(event, ${idx})">
+             ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDragStart(event, ${idx})`}"
+             ondragend="${isLockedDay ? 'return false;' : 'Dashboard.onDailyOrderDragEnd(event)'}"
+             ondragover="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDragOver(event, ${idx})`}"
+             ondragleave="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDragLeave(event, ${idx})`}"
+             ondrop="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDrop(event, ${idx})`}">
           <span class="slot-rank">#${rank}</span>
-          <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''}
-                 onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="Check off item">
+          <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
+                 onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
           <span class="slot-title">${this.escapeHtml(item.title)}</span>
           ${isOverdue && !isDone ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>` : ''}
           ${displayTime ? `<span style="font-size:11px; font-family:var(--font-mono); color:${isOverdue && !isDone ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${isOverdue && !isDone ? '600' : '400'};">${this.escapeHtml(displayTime)}</span>` : ''}
           <span class="urgency-badge ${item.tier || 'normal'}" style="font-size:10px; padding:1px 6px;">${(item.tier || item.type).toUpperCase()}</span>
-          <span style="cursor:grab; color:var(--text-dim); font-size:12px;" title="Drag to re-order">⋮⋮</span>
-          <button class="action-icon-btn" onclick="Dashboard.removeDailyOrderItem(${idx})" title="Remove from daily sequence" style="padding:2px 5px; font-size:11px; color:var(--text-muted);"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
+          ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="cursor:grab; color:var(--text-dim); font-size:12px;" title="Drag to re-order">⋮⋮</span>'}
+          ${isLockedDay ? '' : `<button class="action-icon-btn" onclick="Dashboard.removeDailyOrderItem(${idx})" title="Remove from daily sequence" style="padding:2px 5px; font-size:11px; color:var(--text-muted);"><i data-lucide="x" style="width:11px;height:11px;"></i></button>`}
         </div>
       `;
     }).join("");
@@ -1427,6 +1427,9 @@ const Dashboard = {
     if (!listEl) return;
 
     listEl.ondragover = (e) => {
+      if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+        return;
+      }
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
       listEl.style.background = "var(--bg-tertiary)";
@@ -1437,6 +1440,11 @@ const Dashboard = {
     };
 
     listEl.ondrop = (e) => {
+      if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+        e.preventDefault();
+        App.showToast("Previous day priority tasking queues are locked.", true);
+        return;
+      }
       e.preventDefault();
       listEl.style.background = "";
 
@@ -1467,6 +1475,10 @@ const Dashboard = {
   },
 
   onDailyOrderDragStart(e, idx) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      e.preventDefault();
+      return;
+    }
     this.draggedSlotIdx = idx;
     e.dataTransfer.setData("text/plain", "daily-order:" + idx);
     e.dataTransfer.effectAllowed = "move";
@@ -1510,6 +1522,12 @@ const Dashboard = {
   },
 
   onDailyOrderDrop(e, targetIdx) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      e.preventDefault();
+      e.stopPropagation();
+      App.showToast("Previous day priority tasking queues are locked.", true);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
 
@@ -1561,6 +1579,11 @@ const Dashboard = {
   },
 
   toggleDailyOrderItem(idx, isCompleted) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      App.showToast("Cannot modify locked historical records.", true);
+      this.renderDailyOrder();
+      return;
+    }
     if (this.dailyOrder[idx]) {
       this.dailyOrder[idx].completed = isCompleted;
       this.saveDailyOrder();
@@ -1575,6 +1598,10 @@ const Dashboard = {
   },
 
   removeDailyOrderItem(idx) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      App.showToast("Cannot modify locked historical records.", true);
+      return;
+    }
     this.dailyOrder.splice(idx, 1);
     this.saveDailyOrder();
   },
@@ -1772,7 +1799,7 @@ const Dashboard = {
 
         <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <div style="display: flex; gap: 6px;">
-            ${isPast ? '' : `<button class="action-icon-btn" onclick="Dashboard.promptAddTaskToProject('${this.escapeHtml(p.name)}')">+ Add Task</button>`}
+            ${isPast ? '' : `<button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', '${this.escapeHtml(p.name)}')">+ Add Task</button>`}
             ${isPast ? '<span style="font-size:12px; color:var(--text-dim); font-weight:600;">🔒 Project Log Locked</span>' : `<button class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, '${this.escapeHtml(p.name)}')" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete Project</button>`}
           </div>
           <button class="action-icon-btn" onclick="EntityModal.open('project', ${p.id})">Project Settings →</button>
@@ -1783,42 +1810,8 @@ const Dashboard = {
     });
   },
 
-  async promptAddTaskToProject(projectName) {
-    if (this.isPastDay()) {
-      App.showToast("Cannot add tasks to locked past days.", true);
-      return;
-    }
-    const title = prompt(`Enter new task for project "${projectName}":`);
-    if (!title || !title.trim()) return;
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          project_name: projectName,
-          tier: "focus"
-        })
-      });
-      if (res.ok) {
-        App.showToast(`Task added to ${projectName}!`);
-        await this.refresh();
-        if (typeof Exploded !== "undefined" && typeof Exploded.refresh === "function") {
-          await Exploded.refresh();
-        }
-        if (typeof Timeline !== "undefined" && typeof Timeline.refresh === "function") {
-          Timeline.refresh();
-        }
-        if (typeof Mindmap !== "undefined" && typeof Mindmap.refresh === "function") {
-          Mindmap.refresh();
-        }
-      } else {
-        App.showToast("Failed to create task", true);
-      }
-    } catch (e) {
-      console.error(e);
-      App.showToast("Network error creating task", true);
-    }
+  promptAddTaskToProject(projectName) {
+    this.openManualCreateModal("focus", projectName);
   },
 
   renderTaskList(containerId, list) {
@@ -2358,7 +2351,7 @@ const Dashboard = {
 
   currentManualType: "focus",
 
-  openManualCreateModal(defaultType = "focus") {
+  async openManualCreateModal(defaultType = "focus", prefillProject = null) {
     if (this.isPastDay()) {
       App.showToast("Cannot add new items to a past or sealed day. Return to Today or select a future day.", true);
       return;
@@ -2375,7 +2368,27 @@ const Dashboard = {
     if (evStart) evStart.value = "";
     if (evEnd) evEnd.value = "";
     
-    this.populateManualProjectDropdown();
+    await this.populateManualProjectDropdown();
+
+    if (prefillProject) {
+      const projSelect = document.getElementById("manualInputProject");
+      if (projSelect) {
+        let found = false;
+        for (let opt of projSelect.options) {
+          if (opt.value === prefillProject) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          const opt = document.createElement("option");
+          opt.value = prefillProject;
+          opt.textContent = prefillProject;
+          projSelect.appendChild(opt);
+        }
+        projSelect.value = prefillProject;
+      }
+    }
 
     const overlay = document.getElementById("manualCreateModalOverlay");
     if (overlay) overlay.style.display = "flex";

@@ -540,12 +540,18 @@ body {
   letter-spacing: -0.03em;
   color: var(--text-main);
   line-height: 1.25;
-  height: 1.25em;
+  height: auto;
   min-height: 1.25em;
-  max-height: 1.25em;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.greeting-text::-webkit-scrollbar {
+  display: none;
 }
 
 .greeting-subtext {
@@ -603,7 +609,7 @@ body {
 .mission-clock-status {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .mission-beacon-dot {
@@ -614,6 +620,9 @@ body {
   box-shadow: 0 0 8px #10B981;
   position: relative;
   display: inline-block;
+  flex-shrink: 0;
+  margin-left: 2px;
+  margin-right: 4px;
 }
 
 .mission-beacon-dot::after {
@@ -626,6 +635,7 @@ body {
   border-radius: 50%;
   border: 1.5px solid #10B981;
   animation: beaconPulse 2s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  pointer-events: none;
 }
 
 @keyframes beaconPulse {
@@ -4618,15 +4628,24 @@ body {
   }
 
   .greeting-text {
-    font-size: clamp(12.5px, 3.8vw, 17px);
+    font-size: clamp(17px, 4.5vw, 22px);
     letter-spacing: -0.025em;
-    height: 1.25em;
-    max-height: 1.25em;
+    height: auto;
+    min-height: 1.25em;
+    line-height: 1.35;
     white-space: nowrap;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     text-overflow: clip;
-    display: inline-block;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    display: block;
+    width: 100%;
     max-width: 100%;
+  }
+
+  .greeting-text::-webkit-scrollbar {
+    display: none;
   }
 
   .greeting-subtext {
@@ -4680,6 +4699,18 @@ body {
 
   .column-header-row {
     margin-bottom: 10px;
+  }
+
+  .column-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .column-header > div {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
   }
 
   .column-title {
@@ -4851,31 +4882,47 @@ body {
 
   .date-nav-controls {
     display: flex !important;
-    flex-direction: row !important;
+    flex-wrap: wrap !important;
     align-items: stretch !important;
     width: 100% !important;
     gap: 6px !important;
   }
 
   .date-current-badge {
-    flex: 1 !important;
-    width: auto !important;
+    order: 1 !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
     min-width: 0 !important;
     justify-content: center !important;
-    font-size: 11.5px !important;
-    padding: 7px 6px !important;
+    font-size: 12px !important;
+    padding: 8px 10px !important;
     border-radius: 8px !important;
-    gap: 5px !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
   }
 
   .date-step-btn {
-    flex: 0 0 auto !important;
+    order: 2 !important;
+    flex: 1 1 0 !important;
     width: auto !important;
-    min-width: 72px !important;
+    min-width: 0 !important;
     justify-content: center !important;
-    padding: 7px 8px !important;
-    font-size: 11.5px !important;
+    padding: 8px 8px !important;
+    font-size: 12px !important;
     border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  .jump-today-btn {
+    order: 2 !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    padding: 8px 8px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
   }
 
   /* Unorganised Queue Panel */

@@ -195,50 +195,59 @@ def filter_phrases_for_diurnal_window(
 
     return filtered
 
+def count_words_excluding_name(text: str, user_name: str) -> int:
+    """Helper counting words in greeting line excluding user display name."""
+    if not text:
+        return 0
+    import re
+    cleaned = re.sub(re.escape(user_name), "", text, flags=re.IGNORECASE) if user_name else text
+    words = [w for w in re.split(r'\s+', cleaned.strip()) if w]
+    return len(words)
+
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
-    """Generates curated time-of-day phrases as resilient fallback."""
+    """Generates curated time-of-day phrases as resilient fallback, ensuring >= 6 words excluding user name."""
     wee_hours_phrases = [
-        f"Stillness of the wee hours, {user_name}.",
-        f"Zero distractions tonight, {user_name}.",
-        f"The terminal glows in the quiet hours.",
-        f"Deep nocturnal velocity, {user_name}.",
-        f"Breakthroughs happen in the small hours.",
-        f"Quiet hours focus window, {user_name}."
+        f"Stillness of the wee hours across the workspace, {user_name}.",
+        f"Zero distractions in the quiet hours while the world sleeps, {user_name}.",
+        f"The terminal glows quietly through the dead of night.",
+        f"Deep nocturnal velocity and deliberate engineering craft, {user_name}.",
+        f"Breakthroughs often happen during undisturbed quiet hours.",
+        f"Quiet hours focus window for uninterrupted deep execution, {user_name}."
     ]
 
     morning_phrases = [
-        f"Good morning, {user_name}. Workspace primed.",
-        f"First coffee poured. Ready for deep work.",
-        f"Clear head, clear queue, {user_name}.",
-        f"Telemetry nominal. Building momentum.",
-        f"Prioritise the essentials, {user_name}.",
-        f"Morning diagnostics green: locked in."
+        f"Good morning, {user_name}. The workspace is primed for deep execution.",
+        f"First coffee poured and ready for high-leverage focus work.",
+        f"Clear head and a clear queue to kick off the day, {user_name}.",
+        f"Telemetry nominal and ready to build steady momentum, {user_name}.",
+        f"Prioritise the essential objectives before tackling the small errands, {user_name}.",
+        f"Morning diagnostics green with deep focus locked in today."
     ]
 
     afternoon_phrases = [
-        f"Cruising altitude reached, {user_name}.",
-        f"Steady cadence through the sprint.",
-        f"Midday checkpoint: locked in flow, {user_name}.",
-        f"Solid execution today, {user_name}.",
-        f"Reset posture, maintain momentum.",
-        f"Quality craft takes patience, {user_name}."
+        f"Cruising altitude reached with steady cadence through the afternoon sprint, {user_name}.",
+        f"Midday checkpoint: stay locked in flow and maintain deliberate momentum, {user_name}.",
+        f"Steady execution across your primary priorities this afternoon, {user_name}.",
+        f"Remember to reset posture, hydrate, and maintain your execution rhythm.",
+        f"Quality craft takes patience, precision, and uninterrupted focus, {user_name}.",
+        f"Protect your cognitive bandwidth and see this work block through, {user_name}."
     ]
 
     evening_phrases = [
-        f"Good evening, {user_name}. Close open loops.",
-        f"Smooth landing: review completed work.",
-        f"Mission objectives checked, {user_name}.",
-        f"Great execution today. Time to wind down.",
-        f"Evening debrief window open, {user_name}.",
-        f"Productive day sealed, {user_name}."
+        f"Good evening, {user_name}. Time to tie off your remaining open loops.",
+        f"Smooth landing underway: review and seal your completed work today.",
+        f"Key mission objectives checked off with deliberate craft, {user_name}.",
+        f"Great execution across the queue today: prepare to wind down, {user_name}.",
+        f"Evening debrief window open to capture key takeaways and reflections, {user_name}.",
+        f"Another productive day ready to be reviewed and sealed, {user_name}."
     ]
 
     night_phrases = [
-        f"Burning the midnight oil, {user_name}?",
-        f"Night owl session active: rest soon.",
-        f"Late-night telemetry nominal, {user_name}.",
-        f"Quiet hours active. Rest soon, {user_name}.",
-        f"Commit your progress and recharge tonight."
+        f"Burning the midnight oil to close out the final details, {user_name}?",
+        f"Late-night telemetry nominal: commit your progress and rest soon, {user_name}.",
+        f"Quiet hours active: wrap up your thoughts and recharge tonight, {user_name}.",
+        f"Commit your work cleanly to the repository and rest up tonight.",
+        f"Rest is part of the engineering process: sign off soon, {user_name}."
     ]
 
     hour = client_hour if client_hour is not None else datetime.datetime.now().hour
@@ -301,7 +310,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Never use American English spellings like 'prioritize' or 'customized'.\n"
         "Your task is to generate:\n"
         "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
-        "(strictly 6 to 9 words, max 48 characters so they fit cleanly on a single line without wrapping).\n"
+        "(strictly 6 to 12 words, at least 6 words excluding the user's name, max 85 characters so they balance verbosity with meaning).\n"
         "2. Exactly 1 fascinating, genuine fun fact or historical event relevant to today's date "
         "(spanning science, computing, space, engineering, biology, history, or everyday human invention).\n"
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"Fun fact string...\"}."
@@ -315,7 +324,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Task 1 — Dashboard Typewriter Greetings ('phrases'):\n"
         f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines for {user_name}.\n"
         "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
-        "3. Strict Single-Line Constraint: Every line MUST fit on a single line (strictly 6 to 9 words, roughly 32 to 48 characters, absolute maximum 52 characters). Do NOT generate multi-clause compound sentences.\n"
+        "3. Meaningful Line Depth: Every line MUST contain at least 6 words excluding the user's name (strictly 6 to 12 words, roughly 40 to 80 characters, maximum 85 characters). Avoid overly brief 3-4 word fragments, and avoid rambling compound run-on sentences.\n"
         f"4. Frame them as a sharp, cultured, slightly witty personal companion: focus on engineering craft, deep problem-solving, coursework, deliberate focus, or wry observations about daily momentum.\n"
         f"5. Keep lines strictly appropriate for the current {diurnal_period} time window or universally time-neutral (high-leverage focus, flow state, steady cadence).\n"
         "6. DO NOT mix contradictory times of day (no morning wake-up phrases in afternoon/evening, no evening wrap-up phrases in morning/afternoon).\n"
@@ -401,14 +410,13 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                         if isinstance(p, str):
                             s = p.strip().strip('"').strip("'")
                             s = to_british_spelling(s)
-                            # Clamp to strict single-line max (52 chars)
-                            if len(s) > 52:
+                            if len(s) > 85:
                                 parts = re.split(r'[\.\:\;\—\-]\s+', s)
-                                if parts and len(parts[0]) >= 20 and len(parts[0]) <= 52:
+                                if parts and len(parts[0]) >= 25 and len(parts[0]) <= 85:
                                     s = parts[0].strip() + "."
                                 else:
-                                    s = s[:50].rsplit(' ', 1)[0].rstrip(' ,;:-') + "."
-                            if s and len(s) >= 15 and len(s) <= 55:
+                                    s = s[:83].rsplit(' ', 1)[0].rstrip(' ,;:-') + "."
+                            if s and len(s) >= 15 and len(s) <= 88 and count_words_excluding_name(s, user_name) >= 6:
                                 cleaned.append(s)
 
                     if isinstance(fact_str, str):
@@ -472,10 +480,10 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
             # Check base date cache
             base_cached = database.get_daily_typewriter_cache(date_key, db_path)
             if base_cached and base_cached.get("phrases"):
-                has_long = any(len(p) > 46 for p in base_cached["phrases"])
+                has_invalid = any(count_words_excluding_name(p, user_name) < 6 or len(p) > 95 for p in base_cached["phrases"])
                 has_stale_name = (user_name != "Hong Rong") and any("Hong Rong" in p for p in base_cached["phrases"])
                 has_legacy = has_stale_name or any(legacy in p for p in base_cached["phrases"] for legacy in ["Orbital telemetry nominal", "First coffee, then tasks", "Systems primed for takeoff", "First coffee, then the deep work,"])
-                if has_long or has_legacy:
+                if has_invalid or has_legacy:
                     cached = base_cached
                 elif client_hour is None:
                     cached = base_cached
@@ -511,8 +519,8 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 except Exception:
                     pass
 
-            # Upgrade stale multi-clause long phrases that stretch onto 2 lines or clip off (> 46 chars)
-            if any(len(p) > 46 for p in phrases_to_return):
+            # Upgrade phrases that are too short (< 6 words excluding user name) or excessively long (> 95 chars)
+            if any(count_words_excluding_name(p, user_name) < 6 or len(p) > 95 for p in phrases_to_return):
                 phrases_to_return = get_curated_phrases(today, user_name, fact, client_hour=effective_hour)
                 try:
                     database.save_daily_typewriter_cache(

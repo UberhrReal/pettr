@@ -8,6 +8,9 @@ const DragDrop = {
     if (!containerEl) return;
 
     containerEl.addEventListener("dragover", (e) => {
+      if (typeof Dashboard !== "undefined" && (Dashboard.isPastDay() || Dashboard.isDaySealed(Dashboard.selectedDate))) {
+        return;
+      }
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       const afterElement = this.getDragAfterElement(containerEl, e.clientY);
@@ -21,6 +24,10 @@ const DragDrop = {
     });
 
     containerEl.addEventListener("drop", (e) => {
+      if (typeof Dashboard !== "undefined" && (Dashboard.isPastDay() || Dashboard.isDaySealed(Dashboard.selectedDate))) {
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       this.syncOrder(containerEl);
     });

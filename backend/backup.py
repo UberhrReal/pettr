@@ -8,7 +8,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
-from config.config import get_or_create_config
+from config.config import get_or_create_config, save_config
 from backend import database
 
 def create_markdown_summary(db_path: Path) -> str:
@@ -115,6 +115,14 @@ def run_backup(target_dir: Optional[Path] = None, db_path: Path = database.DEFAU
 
     gdrive_status = sync_to_gdrive(zip_path)
 
+    # Persist last backup timestamp in configuration
+    try:
+        cfg = get_or_create_config()
+        cfg["last_backup_timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        save_config(cfg)
+    except Exception:
+        pass
+
     return {
         "status": "success",
         "filename": filename,
@@ -143,15 +151,59 @@ def sync_to_gdrive(file_path: Path) -> Dict[str, Any]:
         return {"synced": False, "error": str(e)}
 
 async def backup_scheduler_loop(db_path: Path = database.DEFAULT_DB_PATH):
-    """Background loop that runs weekly backups automatically."""
+    """
+    Background loop that runs backups automatically once every week (every 7 days).
+    Checks previous backup timestamp and disk archives to prevent redundant daily/restart backups.
+    """
+    import time
     while True:
         try:
             config = get_or_create_config()
-            interval_days = config.get("backup_interval_days", 7)
-            run_backup(db_path=db_path)
-            # Sleep interval in seconds
-            await asyncio.sleep(interval_days * 86400)
+            interval_days = int(config.get("backup_interval_days", 7))
+            interval_seconds = interval_days * 86400
+
+            last_backup_str = config.get("last_backup_timestamp")
+            should_run = False
+            sleep_time = interval_seconds
+
+            if last_backup_str:
+                try:
+                    last_backup_dt = datetime.datetime.fromisoformat(last_backup_str)
+                    if last_backup_dt.tzinfo is None:
+                        last_backup_dt = last_backup_dt.replace(tzinfo=datetime.timezone.utc)
+                    now_dt = datetime.datetime.now(datetime.timezone.utc)
+                    elapsed_seconds = (now_dt - last_backup_dt).total_seconds()
+                    if elapsed_seconds >= interval_seconds:
+                        should_run = True
+                    else:
+                        should_run = False
+                        sleep_time = max(3600, int(interval_seconds - elapsed_seconds))
+                except Exception:
+                    should_run = True
+            else:
+                # If no config timestamp, check existing zip files in backup directory
+                backup_dir = Path(config.get("backup_dir", "./backups"))
+                if backup_dir.exists():
+                    existing_zips = sorted(backup_dir.glob("PETTR_*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
+                    if existing_zips:
+                        mtime = existing_zips[0].stat().st_mtime
+                        elapsed = time.time() - mtime
+                        if elapsed < interval_seconds:
+                            should_run = False
+                            sleep_time = max(3600, int(interval_seconds - elapsed))
+                        else:
+                            should_run = True
+                    else:
+                        should_run = True
+                else:
+                    should_run = True
+
+            if should_run:
+                run_backup(db_path=db_path)
+                sleep_time = interval_seconds
+
+            await asyncio.sleep(sleep_time)
         except asyncio.CancelledError:
             break
         except Exception:
-            await asyncio.sleep(3600) # Retry in 1 hour on error
+            await asyncio.sleep(3600)  # Retry in 1 hour on error
