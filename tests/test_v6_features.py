@@ -2254,3 +2254,8 @@ def test_daily_intel_regeneration_live_dom_update():
     assert ".intel-refresh-btn" in pettr_css
     assert "animation: spinIntel" in pettr_css
 
+    # 4. Verify refresh button stays inline to the side of the subtext (nowrap and inline-flex)
+    assert ".greeting-subtext-row" in pettr_css
+    assert "flex-wrap: nowrap !important;" in pettr_css
+    assert "display: inline-flex;" in pettr_css
+
