@@ -2322,3 +2322,97 @@ async def test_fun_facts_calendar_date_accuracy_and_anti_hallucination(temp_db, 
     assert "1884:" in intel_guarded["milestone"] or "1773:" in intel_guarded["milestone"] or "1983:" in intel_guarded["milestone"]
 
 
+@pytest.mark.anyio
+async def test_organising_logic_no_date_never_inherits_logging_timestamp(temp_db, monkeypatch):
+    """Verify inputs with no date/time never inherit the client/logging timestamp as their scheduled time."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    ref_dt = datetime.datetime(2026, 10, 15, 12, 58, 0)
+
+    # 1. Standalone task with no date/time and no existing project -> routed to unorganised queue
+    res1 = await process_user_input("FCP Presentation on e-waste", ref_datetime=ref_dt, db_path=temp_db)
+    assert res1["status"] == "unorganized"
+    assert "no specified day or deadline" in res1["reasoning"]
+
+    # 2. When project 'FCP' exists: task is created under FCP with due_date = None (NO 12:58pm timestamp!)
+    database.create_project("FCP", db_path=temp_db)
+    res2 = await process_user_input("FCP Presentation on e-waste", ref_datetime=ref_dt, db_path=temp_db)
+    assert res2["status"] == "success"
+    assert res2["entity_type"] == "task"
+    task = res2["entity"]
+    assert task["project_name"] == "FCP"
+    assert task["due_date"] is None
+    assert task["due_date_raw"] is None
+
+    # 3. Explicit event without date/time -> must NOT default start_time to 12:58pm, must route to unorganised
+    res3 = await process_user_input("Event: Department Symposium", ref_datetime=ref_dt, db_path=temp_db)
+    assert res3["status"] == "unorganized"
+    assert "date or time" in res3["reasoning"].lower()
+
+
+def test_priority_tasking_time_marker_sync(temp_db, monkeypatch):
+    """Verify priority tasking items in daily_orders update their time marker and title when entity is edited."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    today = datetime.date.today().isoformat()
+
+    # 1. Create task with initial 14:00 time
+    t = database.create_task("Review Avionics Spec", due_date=f"{today} 14:00:00", db_path=temp_db)
+    task_id = t["id"]
+
+    # 2. Add to daily order
+    order_items = [
+        {"id": task_id, "type": "task", "title": "Review Avionics Spec", "tier": "focus", "time": "@ 14:00"}
+    ]
+    database.save_daily_order(today, order_items, db_path=temp_db)
+
+    # Verify initial daily order has @ 14:00
+    initial_order = database.get_daily_order(today, db_path=temp_db)
+    assert len(initial_order) == 1
+    assert initial_order[0]["time"] == "@ 14:00"
+
+    # 3. Update task timing to 18:30 in database
+    database.reclassify_entity(
+        from_type="task",
+        from_id=task_id,
+        to_type="task",
+        title="Review Avionics Spec (Final)",
+        due_date=f"{today} 18:30:00",
+        db_path=temp_db
+    )
+
+    # 4. Fetch daily order again - it must dynamically sync to @ 18:30 and updated title
+    updated_order = database.get_daily_order(today, db_path=temp_db)
+    assert len(updated_order) == 1
+    assert updated_order[0]["title"] == "Review Avionics Spec (Final)"
+    assert updated_order[0]["time"] == "@ 18:30"
+
+
+def test_modal_structure_and_tailscale_unfolded_styles():
+    """Verify responsive modal bounds and unfolded Tailscale pill CSS definitions."""
+    base_dir = Path(__file__).resolve().parent.parent
+    pettr_css = (base_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    index_html = (base_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    entity_js = (base_dir / "frontend" / "js" / "entity_modal.js").read_text(encoding="utf-8")
+    dash_js = (base_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
+
+    # 1. Modal bounds & structured header/body/footer
+    assert "max-height: min(90vh, 760px);" in pettr_css
+    assert ".modal-card:has(.modal-body)" in pettr_css
+    assert ".modal-header" in pettr_css
+    assert ".modal-body" in pettr_css
+    assert ".modal-footer" in pettr_css
+
+    # 2. Backdrop click & Escape listener
+    assert 'id="entityModalOverlay"' in index_html
+    assert 'onclick="if(event.target===this) EntityModal.close()"' in index_html
+    assert 'e.key === "Escape"' in entity_js
+
+    # 3. Tailscale information visible on mobile when space permits (unfolded mode >= 480px)
+    assert "@media (min-width: 480px) and (max-width: 768px)" in pettr_css
+    assert "#systemStatusPill #statusText" in pettr_css
+    assert "display: inline !important;" in pettr_css
+
+    # 4. Dashboard daily order time marker dynamically synced on render
+    assert "tm.displayText" in dash_js
+    assert "item.time = tm.timeBadge" in dash_js
+
+

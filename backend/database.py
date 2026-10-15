@@ -2068,10 +2068,11 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
             continue
 
         if itype == "task":
-            t_row = conn.execute("SELECT id, title, due_date, status FROM tasks WHERE id = ?", (iid,)).fetchone()
+            t_row = conn.execute("SELECT id, title, due_date, status, tier FROM tasks WHERE id = ?", (iid,)).fetchone()
             if t_row:
                 due_d = t_row["due_date"]
                 t_status = t_row["status"]
+                t_tier = t_row["tier"]
                 if due_d:
                     task_day = str(due_d).split("T")[0].split(" ")[0]
                     # If the task has an explicit due date moved into the future beyond date_str, prune it
@@ -2088,19 +2089,43 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
                             continue
                         it["is_overdue"] = True
                         it["is_rolled_over"] = True
+                    # Dynamically sync updated military time
+                    new_mil = format_military_time(due_d)
+                    new_time_val = f"@ {new_mil}" if new_mil else ""
+                    if it.get("time") != new_time_val:
+                        it["time"] = new_time_val
+                        has_changes = True
+                else:
+                    if it.get("time"):
+                        it["time"] = ""
+                        has_changes = True
+
                 if t_row["title"] and it.get("title") != t_row["title"]:
                     it["title"] = t_row["title"]
                     has_changes = True
+                if t_tier and it.get("tier") != t_tier:
+                    it["tier"] = t_tier
+                    has_changes = True
             valid_items.append(it)
         elif itype == "event":
-            e_row = conn.execute("SELECT id, title, start_time FROM events WHERE id = ?", (iid,)).fetchone()
+            e_row = conn.execute("SELECT id, title, start_time, end_time FROM events WHERE id = ?", (iid,)).fetchone()
             if e_row:
                 ev_start = e_row["start_time"]
+                ev_end = e_row["end_time"]
                 if ev_start:
                     ev_day = str(ev_start).split("T")[0].split(" ")[0]
                     if ev_day != date_str:
                         has_changes = True
                         continue
+                    new_mil = format_military_time(ev_start)
+                    if ev_end:
+                        new_end_mil = format_military_time(ev_end)
+                        ev_time_str = f"{new_mil} - {new_end_mil}"
+                    else:
+                        ev_time_str = new_mil
+                    if it.get("time") != ev_time_str:
+                        it["time"] = ev_time_str
+                        has_changes = True
                 if e_row["title"] and it.get("title") != e_row["title"]:
                     it["title"] = e_row["title"]
                     has_changes = True

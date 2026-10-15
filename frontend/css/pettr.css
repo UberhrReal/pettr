@@ -2665,14 +2665,58 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-  padding: 28px;
+  padding: 24px;
   width: 100%;
   max-width: 580px;
+  max-height: min(90vh, 760px);
   box-shadow: var(--shadow-floating);
   display: flex;
   flex-direction: column;
   gap: 16px;
   animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-card:has(.modal-body),
+.modal-card.modal-structured {
+  padding: 0 !important;
+  overflow: hidden !important;
+  gap: 0 !important;
+}
+
+.modal-header {
+  padding: 16px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--card-border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.modal-body {
+  padding: 18px 22px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-footer {
+  padding: 14px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--card-border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+  z-index: 5;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 @keyframes modalScale {
@@ -4639,7 +4683,24 @@ body {
   }
 
   #systemStatusPill #statusText {
-    display: none !important; /* Keep just the live indicator dot on mobile to save space */
+    display: none !important; /* Default: dot-only on narrow mobile screens (<480px) */
+  }
+
+  @media (min-width: 480px) and (max-width: 768px) {
+    #systemStatusPill {
+      font-size: 11px !important;
+      padding: 3px 8px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 5px !important;
+    }
+    #systemStatusPill #statusText {
+      display: inline !important; /* Show Tailscale status on unfolded / wide mobile displays */
+      max-width: 175px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 
   .cmd-palette-trigger-btn {
@@ -5348,6 +5409,37 @@ body {
     border-radius: 18px 18px 8px 8px;
     border-bottom: none;
     animation: modalSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-card:has(.modal-body),
+  .modal-card.modal-structured {
+    padding: 0 !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+    max-height: min(92vh, calc(100dvh - 16px)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .modal-card:has(.modal-body) .modal-header,
+  .modal-card.modal-structured .modal-header {
+    padding: 14px 16px;
+    flex-shrink: 0;
+  }
+
+  .modal-card:has(.modal-body) .modal-body,
+  .modal-card.modal-structured .modal-body {
+    padding: 14px 16px;
+    gap: 12px;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-card:has(.modal-body) .modal-footer,
+  .modal-card.modal-structured .modal-footer {
+    padding: 12px 16px;
+    flex-shrink: 0;
   }
 
   @keyframes modalSlideUp {

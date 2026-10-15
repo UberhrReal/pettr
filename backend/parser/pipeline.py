@@ -207,7 +207,37 @@ async def process_user_input(raw_input: str,
         target_id = created_entity["id"]
 
     elif entity_type == "event":
-        start_time = due_date_str if due_date_str else ref_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        if not due_date_str:
+            # Events require an explicit date/time; do not stamp with current logging time
+            unorg_item = database.add_to_unorganized_queue(
+                raw_input=clean_raw,
+                parsed_date=None,
+                suggested_type="event",
+                suggested_tier="focus",
+                suggested_project=project_name,
+                reasoning="Event requires an explicit date and time; sent to unorganised queue for review.",
+                confidence=0.4,
+                db_path=db_path
+            )
+            database.log_history(
+                raw_input=clean_raw,
+                extracted_date=None,
+                llm_classification=classification,
+                target_entity_type="unorganized",
+                target_entity_id=unorg_item["id"],
+                status="unorganized",
+                db_path=db_path
+            )
+            return {
+                "status": "unorganized",
+                "message": "Scheduled event requires a date or time — placed in Unorganised Queue for review.",
+                "reasoning": "Event requires an explicit date and time.",
+                "item": unorg_item,
+                "temporal": temporal_data,
+                "classification": classification
+            }
+
+        start_time = due_date_str
         created_entity = database.create_event(
             title=title,
             start_time=start_time,
@@ -220,7 +250,7 @@ async def process_user_input(raw_input: str,
         target_id = created_entity["id"]
 
     elif entity_type == "reminder":
-        rem_date = due_date_str.split(" ")[0] if due_date_str else ref_datetime.strftime("%Y-%m-%d")
+        rem_date = due_date_str.split(" ")[0] if due_date_str else None
         created_entity = database.create_reminder(
             title=title,
             details=classification.get("description", ""),

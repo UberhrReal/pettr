@@ -500,10 +500,27 @@ const EntityModal = {
         const hasMovedDay = Boolean(newDay && typeof Dashboard !== "undefined" && Dashboard.selectedDate && newDay !== Dashboard.selectedDate);
         if (typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
           if (toType !== this.fromType || hasMovedDay) {
-            Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
+            Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(String(item.id) === String(this.fromId) && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
             localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
             Dashboard.renderDailyOrder();
             Dashboard.saveDailyOrder();
+          } else {
+            const existing = Dashboard.dailyOrder.find(item => String(item.id) === String(this.fromId) && (item.type === this.fromType || (!item.type && this.fromType === 'task')));
+            if (existing) {
+              existing.title = title;
+              if (toTier) existing.tier = toTier;
+              if (toType === "task") {
+                const milTime = dueDate ? App.formatMilitaryTime(dueDate) : "";
+                existing.time = milTime ? `@ ${milTime}` : "";
+              } else if (toType === "event") {
+                const evStart = document.getElementById("entityModalEventStart")?.value?.trim() || dueDate;
+                const evEnd = document.getElementById("entityModalEventEnd")?.value?.trim();
+                existing.time = evStart ? (App.formatEventPeriod ? App.formatEventPeriod(evStart, evEnd) : App.formatMilitaryTime(evStart)) : "";
+              }
+              localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
+              Dashboard.renderDailyOrder();
+              Dashboard.saveDailyOrder();
+            }
           }
         }
         App.showToast("Changes saved successfully!");
@@ -560,7 +577,16 @@ const EntityModal = {
       console.error(err);
       App.showToast("Network error deleting item.", true);
     }
-  }
 };
+
+// Global escape key handler to safely close entity modal
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const overlay = document.getElementById("entityModalOverlay");
+    if (overlay && overlay.style.display !== "none") {
+      EntityModal.close();
+    }
+  }
+});
 
 window.EntityModal = EntityModal;

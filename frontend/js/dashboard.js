@@ -1435,6 +1435,8 @@ const Dashboard = {
           matchedTask = match;
           isDone = match.status === "completed";
           item.completed = isDone;
+          item.title = match.title || item.title;
+          if (match.tier) item.tier = match.tier;
           if (match.is_overdue || match.is_rolled_over || (match.urgency && match.urgency.label === "Overdue")) {
             isOverdue = true;
             item.is_overdue = true;
@@ -1445,14 +1447,26 @@ const Dashboard = {
         if (match) {
           isDone = match.status === "completed";
           item.completed = isDone;
+          item.title = match.title || item.title;
+          const timePart = match.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(match.start_time, match.end_time) : App.formatMilitaryTime(match.start_time)) : "";
+          if (timePart) {
+            item.time = timePart;
+          }
         }
       }
 
       let displayTime = item.time || "";
-      if (isOverdue && !isDone && matchedTask) {
+      if (matchedTask) {
         const tm = this.formatSnapshotTimeMarker(matchedTask, this.selectedDate);
-        if (tm.isOverdue && tm.displayText) {
+        if (isOverdue && !isDone && tm.isOverdue && tm.displayText) {
           displayTime = tm.displayText;
+          item.time = tm.timeBadge || tm.displayText;
+        } else if (tm.displayText) {
+          displayTime = tm.displayText;
+          item.time = tm.timeBadge || tm.displayText;
+        } else {
+          displayTime = "";
+          item.time = "";
         }
       }
 
