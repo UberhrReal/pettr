@@ -1679,10 +1679,12 @@ const Dashboard = {
     this.saveDailyOrder();
   },
 
-  clearDailyOrder() {
+  async clearDailyOrder() {
     if (!confirm("Clear your Daily Order execution list for today?")) return;
     this.dailyOrder = [];
-    this.saveDailyOrder();
+    localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify([]));
+    this.renderDailyOrder();
+    await this.saveDailyOrder();
     App.showToast("Daily sequence reset.");
   },
 

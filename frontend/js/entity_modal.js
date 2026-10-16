@@ -577,6 +577,7 @@ const EntityModal = {
       console.error(err);
       App.showToast("Network error deleting item.", true);
     }
+  }
 };
 
 // Global escape key handler to safely close entity modal

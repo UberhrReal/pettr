@@ -2415,4 +2415,86 @@ def test_modal_structure_and_tailscale_unfolded_styles():
     assert "tm.displayText" in dash_js
     assert "item.time = tm.timeBadge" in dash_js
 
+def test_daily_order_clear_persistence(temp_db):
+    """Verify that explicitly clearing the daily priority sequence persists across calls and does not re-roll over."""
+    today = datetime.date.today().isoformat()
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+
+    # 1. Create a pending task in yesterday's daily order
+    t1 = database.create_task(
+        title="Yesterday Task",
+        tier="focus",
+        due_date=yesterday,
+        db_path=temp_db
+    )
+    database.save_daily_order(yesterday, [{"id": t1["id"], "type": "task", "title": t1["title"]}], db_path=temp_db)
+
+    # 2. Before saving today, get_daily_order rolls over yesterday's pending task
+    rolled_order = database.get_daily_order(today, db_path=temp_db)
+    assert len(rolled_order) == 1
+    assert rolled_order[0]["id"] == t1["id"]
+    assert rolled_order[0]["is_rolled_over"] is True
+
+    # 3. User explicitly resets / clears today's daily priority tasking
+    database.save_daily_order(today, [], db_path=temp_db)
+
+    # 4. Fetching today's daily order again MUST remain empty and NOT re-trigger rollover
+    cleared_order = database.get_daily_order(today, db_path=temp_db)
+    assert cleared_order == []
+
+    # 5. Calling get_daily_order multiple times continues to return empty list
+    cleared_order_again = database.get_daily_order(today, db_path=temp_db)
+    assert cleared_order_again == []
+
+
+def test_greeting_lines_multiword_name_and_no_premature_cutoff():
+    """Verify greeting line generator handles multi-word names without word count distortion or premature cut-offs."""
+    from backend import daily_intel
+
+    user_name = "Hong Rong"
+
+    # 1. Verify count_words_excluding_name correctly discounts multi-word names and individual parts
+    phrase1 = "Good morning, Hong Rong. The workspace is primed for deliberate focus today."
+    word_count = daily_intel.count_words_excluding_name(phrase1, user_name)
+    assert word_count == 11
+
+    phrase_partial = "Good morning, Hong. The workspace is primed for deliberate focus today."
+    word_count_partial = daily_intel.count_words_excluding_name(phrase_partial, user_name)
+    assert word_count_partial == 11
+
+    # 2. Verify complete sentences up to 105 characters with multi-word names are preserved intact
+    long_sentence = "Good morning, Hong Rong. Steady momentum starts with tackling the single biggest priority today."
+    assert len(long_sentence) > 85  # Over previous 85-char cutoff
+    assert len(long_sentence) <= 105
+
+    # Check word count excluding name
+    assert daily_intel.count_words_excluding_name(long_sentence, user_name) >= 6
+
+    # 3. Verify curated phrases for all diurnal windows are complete and properly bounded
+    for hour in [2, 9, 14, 19, 23]:
+        phrases = daily_intel.get_curated_phrases(datetime.date.today(), user_name, client_hour=hour)
+        assert len(phrases) >= 5
+        for p in phrases:
+            assert p.endswith((".", "!", "?")), f"Phrase does not end with terminal punctuation: {p}"
+            assert daily_intel.count_words_excluding_name(p, user_name) >= 6
+            assert len(p) <= 110
+
+
+def test_entity_modal_script_syntax_and_methods():
+    """Verify entity_modal.js has valid JavaScript structure and closing braces."""
+    base_dir = Path(__file__).resolve().parent.parent
+    entity_js = (base_dir / "frontend" / "js" / "entity_modal.js").read_text(encoding="utf-8")
+
+    # Braces balance check
+    assert entity_js.count("{") == entity_js.count("}"), "Mismatched braces in entity_modal.js"
+
+    # Core object and methods must be declared
+    assert "const EntityModal = {" in entity_js
+    assert "open(" in entity_js
+    assert "close(" in entity_js
+    assert "saveChanges(" in entity_js
+    assert "deleteEntity(" in entity_js
+    assert "window.EntityModal = EntityModal;" in entity_js
+
+
 

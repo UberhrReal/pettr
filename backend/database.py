@@ -2031,9 +2031,9 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
         except Exception:
             raw_items = []
 
-    # Rollover logic: If viewing today and today has no daily order saved yet,
+    # Rollover logic: If viewing today and today has no daily order saved yet in the database,
     # roll over unfinished pending tasks from yesterday's daily order!
-    if not raw_items and date_str == today_iso:
+    if row is None and date_str == today_iso:
         yesterday_str = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
         prev_row = conn.execute("SELECT order_data FROM daily_orders WHERE date = ?", (yesterday_str,)).fetchone()
         if prev_row and prev_row["order_data"]:

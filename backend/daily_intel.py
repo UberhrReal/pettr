@@ -161,11 +161,16 @@ def filter_phrases_for_diurnal_window(
     return filtered
 
 def count_words_excluding_name(text: str, user_name: str) -> int:
-    """Helper counting words in greeting line excluding user display name."""
+    """Helper counting words in greeting line excluding user display name (including multi-word name parts)."""
     if not text:
         return 0
     import re
-    cleaned = re.sub(re.escape(user_name), "", text, flags=re.IGNORECASE) if user_name else text
+    cleaned = text
+    if user_name:
+        cleaned = re.sub(re.escape(user_name), "", cleaned, flags=re.IGNORECASE)
+        for part in user_name.split():
+            if len(part) >= 2:
+                cleaned = re.sub(rf'\b{re.escape(part)}\b', "", cleaned, flags=re.IGNORECASE)
     words = [w for w in re.split(r'\s+', cleaned.strip()) if w]
     return len(words)
 
@@ -395,6 +400,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
             f"tastefully into at least 2 to 3 greeting lines while keeping a natural, grounded tone.\n"
         )
 
+    name_words = len(user_name.split()) if user_name else 1
     system_prompt = (
         "You are the sharp, witty, cultured personal AI companion for PETTR "
         "(Personal Errands, Task Tracker & Repository), an executive daily dashboard for university coursework, "
@@ -411,7 +417,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "The remaining lines should be universally phrased without their name for a natural, varied mix.\n"
         "Your task is to generate:\n"
         "1. Exactly 5 intelligent, articulate, single-line typewriter greeting lines for the user's dashboard banner "
-        "(strictly 6 to 12 words, at least 6 words excluding the user's name, max 85 characters so they balance verbosity with meaning).\n"
+        f"(strictly 6 to 12 words EXCLUDING the user's display name '{user_name}'; total length roughly 45 to 100 characters; each line must be a complete single sentence ending with a full stop or exclamation mark).\n"
         "2. Exactly 1 fascinating, genuine historical milestone that occurred on this specific calendar date in history in a past year "
         "(formatted as 'YEAR: Description of milestone on this date'). Never provide random date-less trivia.\n"
         "Return ONLY a valid JSON object: {\"phrases\": [\"line 1\", \"line 2\", \"line 3\", \"line 4\", \"line 5\"], \"fact\": \"YEAR: ...\"}."
@@ -445,7 +451,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "Task 1 — Dashboard Typewriter Greetings ('phrases'):\n"
         f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines.\n"
         "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
-        "3. Meaningful Line Depth: Every line MUST contain at least 6 words excluding the user's name (strictly 6 to 12 words, roughly 40 to 80 characters, maximum 85 characters). Avoid overly brief 3-4 word fragments, and avoid rambling compound run-on sentences.\n"
+        f"3. Meaningful Line Depth & Complete Sentences: Every line MUST contain 6 to 12 words EXCLUDING the user's name '{user_name}'. Note that '{user_name}' contains {name_words} words ({len(user_name)} characters) which do NOT count towards the 6-to-12 word limit. Keep the total length around 45 to 100 characters (max 110 characters). Each line MUST be a single, complete, grammatically whole sentence ending with a full stop or exclamation mark (NEVER cut off mid-thought or mid-sentence).\n"
         "4. Tone and Holistic Balance: DO NOT focus on programming, software engineering, git, or coding jargon. Frame lines for a balanced, cultured life: university coursework and study blocks, clear thinking, tackling personal projects, clearing daily errands, reading, and steady daily momentum.\n"
         f"5. Time-of-Day Relevance (Mandatory): Every greeting line MUST specifically evoke and fit the current {diurnal_period} time window. Weave in natural, evocative references to this specific time of day (e.g., morning coffee/clarity/dawn energy, midday execution and sustained cadence, evening winding down/debriefing/twilight reflection, or wee hours solitary quiet/hyperfocus). DO NOT generate generic or universally time-neutral lines that could apply to any hour of the day.\n"
         "6. Strict Diurnal Consistency: Never mix contradictory times of day (no morning wake-up or dawn references in afternoon, evening, or wee hours; no evening wrap-up or bedtime references in morning or afternoon).\n"
@@ -478,7 +484,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                 "stream": False,
                 "options": {
                     "temperature": 0.75,
-                    "num_predict": 450
+                    "num_predict": 650
                 }
             }
 
@@ -523,6 +529,7 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                         return text
 
                     cleaned = []
+                    max_char_len = 110 if not user_name else max(110, 95 + len(user_name))
                     for p in raw_phrases:
                         if isinstance(p, str):
                             s = p.strip().strip('"').strip("'")
@@ -533,13 +540,20 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
                                 for part in name_parts:
                                     if part in s and user_name not in s:
                                         s = re.sub(rf'\b{re.escape(part)}\b', user_name, s)
-                            if len(s) > 85:
-                                parts = re.split(r'[\.\:\;\—\-]\s+', s)
-                                if parts and len(parts[0]) >= 25 and len(parts[0]) <= 85:
-                                    s = parts[0].strip() + "."
-                                else:
-                                    s = s[:83].rsplit(' ', 1)[0].rstrip(' ,;:-') + "."
-                            if s and len(s) >= 15 and len(s) <= 88 and count_words_excluding_name(s, user_name) >= 6:
+                            
+                            # If sentence contains multi-clauses or run-ons exceeding max length, try splitting at clean sentence boundaries
+                            if len(s) > max_char_len:
+                                parts = re.split(r'[\.\!\?\;]\s+', s)
+                                if parts and count_words_excluding_name(parts[0], user_name) >= 6 and len(parts[0]) <= max_char_len:
+                                    s = parts[0].strip().rstrip('.') + "."
+
+                            # Ensure proper terminal punctuation
+                            if s and not s.endswith(('.', '!', '?')):
+                                if s.rstrip()[-1].isalnum() or s.rstrip()[-1] in ('"', "'"):
+                                    s = s.rstrip() + "."
+
+                            # Validate final length and word count (never slice/truncate with rsplit into incomplete sentences)
+                            if s and len(s) >= 15 and len(s) <= (max_char_len + 15) and count_words_excluding_name(s, user_name) >= 6:
                                 cleaned.append(s)
 
                     if isinstance(fact_str, str):
@@ -641,9 +655,11 @@ async def get_or_generate_daily_intel(target_date: Optional[datetime.date] = Non
                 except Exception:
                     pass
 
-            # Upgrade stale multi-clause phrases (> 95 chars) or short non-LLM fallbacks (< 6 words)
-            needs_upgrade = any(len(p) > 95 for p in phrases_to_return) or (
-                cached.get("source") != "llm" and any(count_words_excluding_name(p, user_name) < 6 for p in phrases_to_return)
+            # Upgrade stale multi-clause phrases (> 95 chars for non-llm, > 120 chars for any) or short fallbacks (< 6 words)
+            needs_upgrade = (
+                any(len(p) > 120 for p in phrases_to_return) or
+                (cached.get("source") != "llm" and any(len(p) > 95 for p in phrases_to_return)) or
+                (cached.get("source") != "llm" and any(count_words_excluding_name(p, user_name) < 6 for p in phrases_to_return))
             )
             if needs_upgrade:
                 phrases_to_return = get_curated_phrases(today, user_name, cached_fact, client_hour=effective_hour)
