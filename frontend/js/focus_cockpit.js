@@ -10,6 +10,8 @@ const FocusCockpit = {
   isRunning: false,
   isStopwatch: false,
   elapsedSeconds: 0,
+  hasStarted: false,
+  isMinimized: false,
 
   // Audio Context & Sound Engine
   audioCtx: null,
@@ -26,9 +28,21 @@ const FocusCockpit = {
     const modal = document.getElementById("focusCockpitModal");
     if (!modal) return;
 
+    if (this.isMinimized) {
+      this.isMinimized = false;
+      modal.style.display = "flex";
+      document.body.classList.add("cockpit-active");
+      const floating = document.getElementById("cockpitFloatingPill");
+      if (floating) floating.style.display = "none";
+      this.updateTimerDisplay();
+      App.renderIcons();
+      App.haptic("light");
+      return;
+    }
+
     if (task) {
       this.activeTask = task;
-    } else {
+    } else if (!this.activeTask) {
       this.activeTask = this.resolveActiveTask();
     }
 
@@ -43,16 +57,44 @@ const FocusCockpit = {
     App.haptic("medium");
   },
 
-  close() {
+  minimize() {
     const modal = document.getElementById("focusCockpitModal");
-    if (!modal) return;
+    if (modal) modal.style.display = "none";
+    document.body.classList.remove("cockpit-active");
+    this.isMinimized = true;
 
-    modal.style.display = "none";
+    // Do NOT pause the timer, and do NOT stop ambient sound!
+    this.updateMiniDisplays();
+    App.haptic("light");
+  },
+
+  close() {
+    if (this.hasStarted || this.isRunning) {
+      // Keep active sprint alive in the mini display when closing / pressing escape
+      this.minimize();
+      return;
+    }
+    this.stopSession();
+  },
+
+  stopSession() {
+    const modal = document.getElementById("focusCockpitModal");
+    if (modal) modal.style.display = "none";
     document.body.classList.remove("cockpit-active");
 
     this.pauseTimer();
     this.stopAmbientSound();
+    this.hasStarted = false;
+    this.isMinimized = false;
+
+    const headerPill = document.getElementById("headerCockpitMiniPill");
+    const floatingPill = document.getElementById("cockpitFloatingPill");
+    if (headerPill) headerPill.style.display = "none";
+    if (floatingPill) floatingPill.style.display = "none";
+
     document.title = "PETTR - Personal Errands, Task Tracker & Repository";
+    App.showToast("Focus sprint ended.");
+    App.haptic("light");
   },
 
   resolveActiveTask() {
@@ -135,6 +177,7 @@ const FocusCockpit = {
   startTimer() {
     if (this.isRunning) return;
     this.isRunning = true;
+    this.hasStarted = true;
 
     const playBtn = document.getElementById("cockpitPlayBtn");
     if (playBtn) {
@@ -146,6 +189,8 @@ const FocusCockpit = {
     if (this.currentSoundType !== "none") {
       this.playAmbientSound(this.currentSoundType);
     }
+
+    this.updateMiniDisplays();
 
     this.timerInterval = setInterval(() => {
       if (this.isStopwatch) {
@@ -176,16 +221,19 @@ const FocusCockpit = {
       playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Resume`;
       App.renderIcons();
     }
+    this.updateMiniDisplays();
   },
 
   resetTimer() {
     this.pauseTimer();
+    this.hasStarted = false;
     if (this.isStopwatch) {
       this.elapsedSeconds = 0;
     } else {
       this.remainingSeconds = this.durationSeconds;
     }
     this.updateTimerDisplay();
+    this.updateMiniDisplays();
     App.haptic("light");
   },
 
@@ -199,7 +247,7 @@ const FocusCockpit = {
     if (digitsEl) digitsEl.textContent = timeStr;
 
     // Browser tab title indicator
-    if (this.isRunning) {
+    if (this.isRunning || this.hasStarted) {
       document.title = `[${timeStr}] ${this.activeTask ? this.activeTask.title : 'Focus'}`;
     }
 
@@ -214,6 +262,35 @@ const FocusCockpit = {
       }
       progressEl.style.width = `${pct}%`;
     }
+
+    this.updateMiniDisplays();
+  },
+
+  updateMiniDisplays() {
+    const totalSec = this.isStopwatch ? this.elapsedSeconds : this.remainingSeconds;
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+
+    const headerPill = document.getElementById("headerCockpitMiniPill");
+    const headerDigits = document.getElementById("headerCockpitMiniDigits");
+    const floatingPill = document.getElementById("cockpitFloatingPill");
+    const floatingDigits = document.getElementById("cockpitFloatingDigits");
+    const floatingTitle = document.getElementById("cockpitFloatingTitle");
+
+    if (headerDigits) headerDigits.textContent = timeStr;
+    if (floatingDigits) floatingDigits.textContent = timeStr;
+    if (floatingTitle) {
+      floatingTitle.textContent = (this.activeTask && this.activeTask.title) ? this.activeTask.title : "Focus";
+    }
+
+    if (this.hasStarted) {
+      if (headerPill) headerPill.style.display = "inline-flex";
+      if (floatingPill) floatingPill.style.display = this.isMinimized ? "flex" : "none";
+    } else {
+      if (headerPill) headerPill.style.display = "none";
+      if (floatingPill) floatingPill.style.display = "none";
+    }
   },
 
   onTimerComplete() {
@@ -227,6 +304,7 @@ const FocusCockpit = {
       pulseEl.classList.add("timer-complete-pulse");
       setTimeout(() => pulseEl.classList.remove("timer-complete-pulse"), 2500);
     }
+    this.updateMiniDisplays();
   },
 
   /* --- Procedural Native Web Audio Ambient Sound Generator --- */
@@ -445,7 +523,7 @@ const FocusCockpit = {
         this.resetTimer();
       } else {
         App.showToast("All daily focus targets conquered! Well done.");
-        this.close();
+        this.stopSession();
       }
     } catch (e) {
       console.error("Could not complete task:", e);

@@ -1739,7 +1739,8 @@ def get_daily_briefing(target_date: Optional[datetime.date] = None, db_path: Opt
         "focus_tasks": today_tasks["focus"],
         "trivial_tasks": today_tasks["trivial"],
         "projects": today_tasks.get("projects", []),
-        "is_sealed": is_day_sealed(target_date.strftime("%Y-%m-%d"), db_path)
+        "is_sealed": is_day_sealed(target_date.strftime("%Y-%m-%d"), db_path),
+        "date_iso": target_date.strftime("%Y-%m-%d")
     }
 
 def get_exploded_view(db_path: Optional[Path] = None) -> Dict[str, Any]:

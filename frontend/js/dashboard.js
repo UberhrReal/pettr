@@ -50,14 +50,17 @@ const Dashboard = {
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     if (this.selectedDate < todayStr) return true;
-    if (this.isDaySealed(this.selectedDate)) return true;
+    if (this.selectedDate === todayStr && this.isDaySealed(this.selectedDate)) return true;
     return false;
   },
 
   isDaySealed(dateStr) {
     if (!dateStr) return false;
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (dateStr > todayStr) return false;
     if (localStorage.getItem(`pettr_debrief_sealed_${dateStr}`) === "true") return true;
-    if (this.briefingData && this.briefingData.is_sealed && this.selectedDate === dateStr) return true;
+    if (this.briefingData && this.briefingData.is_sealed && (this.briefingData.date_iso ? this.briefingData.date_iso === dateStr : this.selectedDate === dateStr)) return true;
     return false;
   },
 
@@ -65,6 +68,7 @@ const Dashboard = {
     if (!newDate) return;
     this.selectedDate = newDate;
     this.dailyOrderDate = newDate;
+    this.briefingData = null;
     // Swap dailyOrder array immediately to this specific date's cache to avoid stale cross-contamination
     try {
       const saved = localStorage.getItem("pettr_daily_order_" + newDate);
@@ -212,6 +216,7 @@ const Dashboard = {
     this.bindSummaryPills();
     this.initTaglineRotation();
     this.initUnorgPanelState();
+    this.startDiurnalWatcher();
     await this.loadUserProfile();
     await this.refresh();
   },
@@ -282,6 +287,51 @@ const Dashboard = {
   typewriterCharIndex: 0,
   typewriterPhraseIndex: 0,
   isTypewriterDeleting: false,
+  activeDiurnalPeriod: null,
+  _diurnalWatcherTimer: null,
+  _diurnalVisibilityBound: false,
+
+  getDiurnalPeriod(hour = null) {
+    const h = hour !== null ? hour : new Date().getHours();
+    if (h >= 0 && h < 6) return "wee_hours";
+    if (h >= 6 && h < 12) return "morning";
+    if (h >= 12 && h < 18) return "afternoon";
+    if (h >= 18 && h < 23) return "evening";
+    return "night";
+  },
+
+  checkDiurnalTransition() {
+    const currentPeriod = this.getDiurnalPeriod();
+    if (this.activeDiurnalPeriod && currentPeriod !== this.activeDiurnalPeriod) {
+      console.log(`[PETTR] Diurnal transition detected: ${this.activeDiurnalPeriod} -> ${currentPeriod}. Auto-updating greeting lines.`);
+      this.activeDiurnalPeriod = currentPeriod;
+      this.startTypewriterGreeting();
+    }
+  },
+
+  startDiurnalWatcher() {
+    if (this._diurnalWatcherTimer) {
+      clearInterval(this._diurnalWatcherTimer);
+      this._diurnalWatcherTimer = null;
+    }
+    // Background polling every 30s to detect diurnal shift
+    this._diurnalWatcherTimer = setInterval(() => {
+      this.checkDiurnalTransition();
+    }, 30000);
+
+    // Also check on tab focus or visibility change (e.g. computer woke up from sleep or user switched back to tab)
+    if (typeof document !== "undefined" && !this._diurnalVisibilityBound) {
+      this._diurnalVisibilityBound = true;
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          this.checkDiurnalTransition();
+        }
+      });
+      window.addEventListener("focus", () => {
+        this.checkDiurnalTransition();
+      });
+    }
+  },
 
   renderGreeting() {
     this.startTypewriterGreeting();
@@ -297,6 +347,7 @@ const Dashboard = {
     if (!greetingEl) return;
 
     const clientHour = new Date().getHours();
+    this.activeDiurnalPeriod = this.getDiurnalPeriod(clientHour);
     const isWeeHours = clientHour >= 0 && clientHour < 6;
     const isMorning = clientHour >= 6 && clientHour < 12;
     const isAfternoon = clientHour >= 12 && clientHour < 18;
@@ -948,8 +999,11 @@ const Dashboard = {
       this.briefingData = data;
       if (data.is_sealed) {
         localStorage.setItem(`pettr_debrief_sealed_${this.selectedDate}`, "true");
-        this.updateDateNavigatorUI();
+      } else {
+        localStorage.removeItem(`pettr_debrief_sealed_${this.selectedDate}`);
       }
+      this.updateDateNavigatorUI();
+      this.updateManualCreationButtonsState(this.isPastDay());
       const dateEl = document.getElementById("briefingDate");
       const showcaseDate = document.getElementById("briefingShowcaseDate");
       if (dateEl) dateEl.textContent = data.date;
@@ -2596,10 +2650,19 @@ const Dashboard = {
     App.haptic("light");
   },
 
+  getBaseDate() {
+    if (this.selectedDate && /^\d{4}-\d{2}-\d{2}$/.test(this.selectedDate)) {
+      const [y, m, d] = this.selectedDate.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date();
+  },
+
   setManualEventStartPreset(preset) {
     const startInput = document.getElementById("manualEventStart");
     const endInput = document.getElementById("manualEventEnd");
     if (!startInput) return;
+    const base = this.getBaseDate();
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
 
@@ -2608,7 +2671,7 @@ const Dashboard = {
       target.setHours(hours, minutes, 0, 0);
       const yyyy = target.getFullYear();
       const mm = pad(target.getMonth() + 1);
-      const dd = target.getDate();
+      const dd = pad(target.getDate());
       const hh = pad(target.getHours());
       const min = pad(target.getMinutes());
       return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
@@ -2616,17 +2679,26 @@ const Dashboard = {
 
     let newStart = "";
     if (preset === "today_now") {
-      newStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const isRealToday = base.getFullYear() === now.getFullYear() &&
+                          base.getMonth() === now.getMonth() &&
+                          base.getDate() === now.getDate();
+      if (isRealToday) {
+        newStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      } else {
+        const target = new Date(base);
+        target.setHours(now.getHours(), now.getMinutes(), 0, 0);
+        newStart = formatDate(target, target.getHours(), target.getMinutes());
+      }
     } else if (preset === "today_12") {
-      newStart = formatDate(now, 12, 0);
+      newStart = formatDate(base, 12, 0);
     } else if (preset === "today_14") {
-      newStart = formatDate(now, 14, 0);
+      newStart = formatDate(base, 14, 0);
     } else if (preset === "today_16") {
-      newStart = formatDate(now, 16, 0);
+      newStart = formatDate(base, 16, 0);
     } else if (preset === "today_18") {
-      newStart = formatDate(now, 18, 0);
+      newStart = formatDate(base, 18, 0);
     } else if (preset === "tomorrow_09") {
-      const tom = new Date(now);
+      const tom = new Date(base);
       tom.setDate(tom.getDate() + 1);
       newStart = formatDate(tom, 9, 0);
     }
@@ -2643,7 +2715,7 @@ const Dashboard = {
   setManualDatePreset(preset) {
     const input = document.getElementById("manualInputDate");
     if (!input) return;
-    const now = new Date();
+    const base = this.getBaseDate();
     const pad = (n) => String(n).padStart(2, "0");
 
     function formatDate(d, hours, minutes) {
@@ -2651,7 +2723,7 @@ const Dashboard = {
       target.setHours(hours, minutes, 0, 0);
       const yyyy = target.getFullYear();
       const mm = pad(target.getMonth() + 1);
-      const dd = target.getDate();
+      const dd = pad(target.getDate());
       const hh = pad(target.getHours());
       const min = pad(target.getMinutes());
       return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
@@ -2660,22 +2732,26 @@ const Dashboard = {
     if (preset === "clear") {
       input.value = "";
     } else if (preset === "today_12") {
-      input.value = formatDate(now, 12, 0);
+      input.value = formatDate(base, 12, 0);
     } else if (preset === "today_18") {
-      input.value = formatDate(now, 18, 0);
+      input.value = formatDate(base, 18, 0);
     } else if (preset === "tonight_2359") {
-      input.value = formatDate(now, 23, 59);
+      input.value = formatDate(base, 23, 59);
     } else if (preset === "tomorrow_09") {
-      const tom = new Date(now);
+      const tom = new Date(base);
       tom.setDate(tom.getDate() + 1);
       input.value = formatDate(tom, 9, 0);
     } else if (preset === "tomorrow_18") {
-      const tom = new Date(now);
+      const tom = new Date(base);
       tom.setDate(tom.getDate() + 1);
       input.value = formatDate(tom, 18, 0);
     } else if (preset === "in_2_days") {
-      const future = new Date(now);
+      const future = new Date(base);
       future.setDate(future.getDate() + 2);
+      input.value = formatDate(future, 18, 0);
+    } else if (preset === "in_3_days") {
+      const future = new Date(base);
+      future.setDate(future.getDate() + 3);
       input.value = formatDate(future, 18, 0);
     }
     App.haptic("light");

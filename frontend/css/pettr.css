@@ -4385,6 +4385,68 @@ body {
   gap: 6px;
 }
 
+.cockpit-mini-pill {
+  cursor: pointer;
+  background: rgba(99, 102, 241, 0.12) !important;
+  border: 1px solid rgba(99, 102, 241, 0.4) !important;
+  color: var(--focus-indigo) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.cockpit-mini-pill:hover {
+  background: rgba(99, 102, 241, 0.22) !important;
+  border-color: var(--focus-indigo) !important;
+  transform: translateY(-1px);
+}
+
+.cockpit-live-dot.mini {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 6px var(--focus-indigo);
+}
+
+.cockpit-floating-pill {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--focus-indigo);
+  border-radius: 9999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideInUp 0.25s ease;
+}
+
+.cockpit-floating-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  border-color: var(--focus-indigo);
+}
+
+.cockpit-floating-title {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 12px;
+}
+
 /* ==========================================================================
    Evening Debrief
    ========================================================================== */

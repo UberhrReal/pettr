@@ -204,10 +204,28 @@ const EntityModal = {
     App.haptic("light");
   },
 
+  getBaseDate() {
+    let dateStr = "";
+    if (typeof Dashboard !== "undefined" && Dashboard.selectedDate) {
+      dateStr = Dashboard.selectedDate;
+    } else if (typeof Timeline !== "undefined" && Timeline.currentYear) {
+      dateStr = `${Timeline.currentYear}-${String(Timeline.currentMonth).padStart(2, "0")}-${String(Timeline.currentDay).padStart(2, "0")}`;
+    } else if (this.currentEntity) {
+      const raw = this.currentEntity.due_date || this.currentEntity.start_time || this.currentEntity.reminder_date;
+      if (raw) dateStr = String(raw).split("T")[0].split(" ")[0];
+    }
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date();
+  },
+
   setEventStartPreset(preset) {
     const startInput = document.getElementById("entityModalEventStart");
     const endInput = document.getElementById("entityModalEventEnd");
     if (!startInput) return;
+    const base = this.getBaseDate();
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
 
@@ -216,7 +234,7 @@ const EntityModal = {
       target.setHours(hours, minutes, 0, 0);
       const yyyy = target.getFullYear();
       const mm = pad(target.getMonth() + 1);
-      const dd = target.getDate();
+      const dd = pad(target.getDate());
       const hh = pad(target.getHours());
       const min = pad(target.getMinutes());
       return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
@@ -224,17 +242,26 @@ const EntityModal = {
 
     let newStart = "";
     if (preset === "today_now") {
-      newStart = this.formatForInput(now);
+      const isRealToday = base.getFullYear() === now.getFullYear() &&
+                          base.getMonth() === now.getMonth() &&
+                          base.getDate() === now.getDate();
+      if (isRealToday) {
+        newStart = this.formatForInput(now);
+      } else {
+        const target = new Date(base);
+        target.setHours(now.getHours(), now.getMinutes(), 0, 0);
+        newStart = formatDate(target, target.getHours(), target.getMinutes());
+      }
     } else if (preset === "today_12") {
-      newStart = formatDate(now, 12, 0);
+      newStart = formatDate(base, 12, 0);
     } else if (preset === "today_14") {
-      newStart = formatDate(now, 14, 0);
+      newStart = formatDate(base, 14, 0);
     } else if (preset === "today_16") {
-      newStart = formatDate(now, 16, 0);
+      newStart = formatDate(base, 16, 0);
     } else if (preset === "today_18") {
-      newStart = formatDate(now, 18, 0);
+      newStart = formatDate(base, 18, 0);
     } else if (preset === "tomorrow_09") {
-      const tom = new Date(now);
+      const tom = new Date(base);
       tom.setDate(tom.getDate() + 1);
       newStart = formatDate(tom, 9, 0);
     }
@@ -253,7 +280,7 @@ const EntityModal = {
   setPreset(preset) {
     const input = document.getElementById("entityModalDueDate");
     if (!input) return;
-    const now = new Date();
+    const base = this.getBaseDate();
     const pad = (n) => String(n).padStart(2, "0");
 
     function formatDate(d, hours, minutes) {
@@ -270,22 +297,26 @@ const EntityModal = {
     if (preset === "clear") {
       input.value = "";
     } else if (preset === "today_12") {
-      input.value = formatDate(now, 12, 0);
+      input.value = formatDate(base, 12, 0);
     } else if (preset === "today_18") {
-      input.value = formatDate(now, 18, 0);
+      input.value = formatDate(base, 18, 0);
     } else if (preset === "tonight_2359") {
-      input.value = formatDate(now, 23, 59);
+      input.value = formatDate(base, 23, 59);
     } else if (preset === "tomorrow_09") {
-      const tom = new Date(now);
+      const tom = new Date(base);
       tom.setDate(tom.getDate() + 1);
       input.value = formatDate(tom, 9, 0);
     } else if (preset === "tomorrow_18") {
-      const tom = new Date(now);
+      const tom = new Date(base);
       tom.setDate(tom.getDate() + 1);
       input.value = formatDate(tom, 18, 0);
     } else if (preset === "in_2_days") {
-      const future = new Date(now);
+      const future = new Date(base);
       future.setDate(future.getDate() + 2);
+      input.value = formatDate(future, 18, 0);
+    } else if (preset === "in_3_days") {
+      const future = new Date(base);
+      future.setDate(future.getDate() + 3);
       input.value = formatDate(future, 18, 0);
     }
     App.haptic("light");

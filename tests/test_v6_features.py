@@ -2497,4 +2497,86 @@ def test_entity_modal_script_syntax_and_methods():
     assert "window.EntityModal = EntityModal;" in entity_js
 
 
+def test_future_day_briefing_and_seal_isolation(temp_db, monkeypatch):
+    """Verify daily briefing returns date_iso and future days remain unsealed even if today is sealed."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
+
+    # 1. Seal today in day_seals
+    conn = database.get_connection(temp_db)
+    conn.execute("INSERT OR REPLACE INTO day_seals (date, is_sealed) VALUES (?, 1)", (today.strftime("%Y-%m-%d"),))
+    conn.commit()
+
+    # Verify today is sealed
+    today_briefing = database.get_daily_briefing(today, db_path=temp_db)
+    assert today_briefing["is_sealed"] is True
+    assert today_briefing["date_iso"] == today.strftime("%Y-%m-%d")
+
+    # Verify tomorrow is NOT sealed
+    tomorrow_briefing = database.get_daily_briefing(tomorrow, db_path=temp_db)
+    assert tomorrow_briefing["is_sealed"] is False
+    assert tomorrow_briefing["date_iso"] == tomorrow.strftime("%Y-%m-%d")
+
+
+def test_relative_date_presets_and_in_3_days_markup():
+    """Verify getBaseDate and in_3_days chip exist in entity_modal, dashboard, and index.html."""
+    base_dir = Path(__file__).resolve().parent.parent
+    index_html = (base_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    entity_js = (base_dir / "frontend" / "js" / "entity_modal.js").read_text(encoding="utf-8")
+    dash_js = (base_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
+
+    # 1. Check in_3_days preset button in index.html
+    assert "EntityModal.setPreset('in_3_days')" in index_html
+    assert "Dashboard.setManualDatePreset('in_3_days')" in index_html
+
+    # 2. Check getBaseDate in entity_modal.js and dashboard.js
+    assert "getBaseDate()" in entity_js
+    assert "in_3_days" in entity_js
+    assert "getBaseDate()" in dash_js
+    assert "in_3_days" in dash_js
+
+
+def test_focus_cockpit_minimization_and_mini_displays():
+    """Verify Focus Cockpit supports minimization without pausing, plus header and floating mini displays."""
+    base_dir = Path(__file__).resolve().parent.parent
+    index_html = (base_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (base_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    cockpit_js = (base_dir / "frontend" / "js" / "focus_cockpit.js").read_text(encoding="utf-8")
+
+    # Check HTML markup for header mini pill and floating pill
+    assert 'id="headerCockpitMiniPill"' in index_html
+    assert 'id="headerCockpitMiniDigits"' in index_html
+    assert 'id="cockpitFloatingPill"' in index_html
+    assert 'id="cockpitFloatingDigits"' in index_html
+
+    # Check CSS classes
+    assert ".cockpit-mini-pill" in css
+    assert ".cockpit-floating-pill" in css
+
+    # Check JS methods
+    assert "minimize()" in cockpit_js
+    assert "stopSession()" in cockpit_js
+    assert "updateMiniDisplays()" in cockpit_js
+    assert "hasStarted" in cockpit_js
+    assert "isMinimized" in cockpit_js
+
+
+def test_diurnal_transition_auto_detection():
+    """Verify diurnal period helpers, transition checker, and minute watcher in dashboard and app.js."""
+    base_dir = Path(__file__).resolve().parent.parent
+    dash_js = (base_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    app_js = (base_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+
+    # Check Dashboard diurnal methods
+    assert "getDiurnalPeriod" in dash_js
+    assert "activeDiurnalPeriod" in dash_js
+    assert "checkDiurnalTransition" in dash_js
+    assert "startDiurnalWatcher" in dash_js
+
+    # Check app.js clock hook
+    assert "Dashboard.checkDiurnalTransition" in app_js
+
+
+
 
