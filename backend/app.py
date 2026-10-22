@@ -286,30 +286,50 @@ async def reorder_tasks(req: ReorderRequest):
     return {"status": "success"}
 
 @app.patch("/api/tasks/{task_id}", dependencies=[Depends(auth.require_auth)])
-async def update_task(task_id: int, req: UpdateTaskRequest):
+async def update_task(task_id: int, req: UpdateTaskRequest, request: Request):
     existing_task = database.get_task_by_id(task_id)
     if not existing_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Protection: Sealed days are completely locked from any edits; past unsealed days lock status toggles
+    client_now = get_client_now(request)
+    today_str = client_now.strftime("%Y-%m-%d")
     task_date_str = existing_task.get("due_date")
-    is_historical_completed = (existing_task.get("status") == "completed")
+    completed_at_raw = existing_task.get("completed_at")
+    completed_day = str(completed_at_raw).split("T")[0].split(" ")[0] if completed_at_raw else None
+    is_completed_today = bool(existing_task.get("status") == "completed" and completed_day == today_str)
+
+    # Protection: Sealed days are completely locked from any edits; past unsealed days lock status toggles
     if task_date_str:
         try:
             task_date = datetime.date.fromisoformat(task_date_str.split("T")[0].split(" ")[0])
-            is_sealed = database.is_day_sealed(task_date.strftime("%Y-%m-%d"))
-            is_past = (task_date < datetime.date.today())
+            task_day_str = task_date.strftime("%Y-%m-%d")
+            is_sealed = database.is_day_sealed(task_day_str)
+            is_past = (task_date < client_now.date())
+
+            # Check if this is an overdue rollover task completed today, being reopened on an active unsealed day
+            is_overdue_rollover_reopen = bool(
+                req.status == "pending"
+                and is_completed_today
+                and is_past
+                and not database.is_day_sealed(today_str)
+            )
 
             # Sealed day protection:
-            # If day is sealed, completed tasks on that day cannot be edited or reopened.
-            # Active pending tasks rolling over can still be completed today!
+            # - If this task was completed on that sealed day, it cannot be edited or reopened.
+            # - If this task was completed TODAY (overdue rollover completed today), it CAN be toggled/reopened!
+            # - All other edits on sealed days (title, due_date, or pending status on sealed tasks) are locked.
+            # - Pending tasks rolling over can be completed today (req.status == 'completed').
             if is_sealed:
-                if is_historical_completed or req.title is not None or req.due_date is not None or req.status == "pending":
-                    raise HTTPException(status_code=403, detail="The day has been sealed by Evening Debrief and is locked from further edits.")
+                if is_overdue_rollover_reopen:
+                    pass
+                else:
+                    if existing_task.get("status") == "completed" or req.title is not None or req.due_date is not None or req.status == "pending":
+                        raise HTTPException(status_code=403, detail="The day has been sealed by Evening Debrief and is locked from further edits.")
             # Past day protection:
             # Historical completed records from past days cannot have their status toggled (reopened)
-            if is_past and is_historical_completed and req.status == "pending":
-                raise HTTPException(status_code=403, detail="Historical records from past days are locked and uneditable to preserve productivity score integrity.")
+            elif is_past and existing_task.get("status") == "completed" and req.status == "pending":
+                if not is_completed_today:
+                    raise HTTPException(status_code=403, detail="Historical records from past days are locked and uneditable to preserve productivity score integrity.")
         except HTTPException:
             raise
         except (ValueError, TypeError):
@@ -342,7 +362,7 @@ async def update_task(task_id: int, req: UpdateTaskRequest):
         values.append(req.status)
         if req.status == "completed":
             updates.append("completed_at = ?")
-            values.append(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            values.append(client_now.strftime("%Y-%m-%d %H:%M:%S"))
         else:
             updates.append("completed_at = NULL")
     if req.project_name is not None:
@@ -376,14 +396,31 @@ async def create_task_endpoint(req: CreateTaskRequest):
     return {"status": "success", "task": created}
 
 @app.post("/api/tasks/{task_id}/reopen", dependencies=[Depends(auth.require_auth)])
-async def reopen_task_endpoint(task_id: int):
+async def reopen_task_endpoint(task_id: int, request: Request):
     """Restores a completed task back to pending."""
     existing_task = database.get_task_by_id(task_id)
     if existing_task and existing_task.get("due_date"):
+        client_now = get_client_now(request)
+        today_str = client_now.strftime("%Y-%m-%d")
+        completed_at_raw = existing_task.get("completed_at")
+        completed_day = str(completed_at_raw).split("T")[0].split(" ")[0] if completed_at_raw else None
+        
         try:
             task_date = datetime.date.fromisoformat(existing_task["due_date"].split("T")[0].split(" ")[0])
-            if database.is_day_sealed(task_date.strftime("%Y-%m-%d")):
+            task_day_str = task_date.strftime("%Y-%m-%d")
+            is_sealed = database.is_day_sealed(task_day_str)
+            is_past = (task_date < client_now.date())
+
+            is_overdue_rollover_reopen = bool(
+                completed_day == today_str
+                and is_past
+                and not database.is_day_sealed(today_str)
+            )
+
+            if is_sealed and not is_overdue_rollover_reopen:
                 raise HTTPException(status_code=403, detail="Cannot reopen tasks on a day that has already been sealed.")
+            elif is_past and not is_overdue_rollover_reopen:
+                raise HTTPException(status_code=403, detail="Historical records from past days are locked and uneditable to preserve productivity score integrity.")
         except HTTPException:
             raise
         except (ValueError, TypeError):
@@ -477,6 +514,7 @@ async def get_reminders(date: Optional[str] = None):
 @app.post("/api/reminders", dependencies=[Depends(auth.require_auth)])
 async def create_reminder_endpoint(req: CreateReminderRequest):
     """Direct manual creation of a reminder."""
+    rem_d = None
     if req.reminder_date:
         rem_d = req.reminder_date.split("T")[0].split(" ")[0]
         if database.is_day_sealed(rem_d):
@@ -484,7 +522,7 @@ async def create_reminder_endpoint(req: CreateReminderRequest):
     created = database.create_reminder(
         title=req.title,
         details=req.details or "",
-        reminder_date=req.reminder_date,
+        reminder_date=rem_d or req.reminder_date,
         task_id=req.task_id
     )
     return {"status": "success", "reminder": created}

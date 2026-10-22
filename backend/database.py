@@ -793,7 +793,9 @@ def create_reminder(title: str,
                     recurrence: Optional[str] = None,
                     db_path: Optional[Path] = None) -> Dict[str, Any]:
     conn = get_connection(db_path)
-    if reminder_date is None:
+    if reminder_date:
+        reminder_date = str(reminder_date).split("T")[0].split(" ")[0]
+    else:
         reminder_date = datetime.date.today().strftime("%Y-%m-%d")
     with conn:
         cursor = conn.execute("""
@@ -807,14 +809,15 @@ def get_reminders_for_day(target_date: Optional[datetime.date] = None, db_path: 
     if target_date is None:
         target_date = datetime.date.today()
     date_str = target_date.strftime("%Y-%m-%d")
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
     conn = get_connection(db_path)
     rows = conn.execute("""
         SELECT r.*, t.title as task_title
         FROM reminders r
         LEFT JOIN tasks t ON r.task_id = t.id
-        WHERE (r.reminder_date = ? OR r.reminder_date IS NULL) AND r.is_done = 0
+        WHERE (r.reminder_date = ? OR r.reminder_date LIKE ? || '%' OR (r.reminder_date IS NULL AND ? = ?)) AND r.is_done = 0
         ORDER BY r.created_at ASC
-    """, (date_str,)).fetchall()
+    """, (date_str, date_str, date_str, today_str)).fetchall()
     return [dict(r) for r in rows]
 
 def append_reminder_to_task(reminder_id: int, task_id: int, db_path: Optional[Path] = None) -> bool:
@@ -1631,8 +1634,8 @@ def generate_tomorrow_outlook(target_date: datetime.date,
 
     tomorrow_reminders = conn.execute("""
         SELECT * FROM reminders
-        WHERE (reminder_date = ? OR reminder_date IS NULL) AND is_done = 0
-    """, (tomorrow_str,)).fetchall()
+        WHERE (reminder_date = ? OR reminder_date LIKE ? || '%') AND is_done = 0
+    """, (tomorrow_str, tomorrow_str)).fetchall()
 
     # Compare workloads
     today_active_tasks = conn.execute("""
@@ -2069,11 +2072,12 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
             continue
 
         if itype == "task":
-            t_row = conn.execute("SELECT id, title, due_date, status, tier FROM tasks WHERE id = ?", (iid,)).fetchone()
+            t_row = conn.execute("SELECT id, title, due_date, status, tier, completed_at FROM tasks WHERE id = ?", (iid,)).fetchone()
             if t_row:
                 due_d = t_row["due_date"]
                 t_status = t_row["status"]
                 t_tier = t_row["tier"]
+                comp_at = t_row["completed_at"]
                 if due_d:
                     task_day = str(due_d).split("T")[0].split(" ")[0]
                     # If the task has an explicit due date moved into the future beyond date_str, prune it
@@ -2083,8 +2087,14 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
                     # If task due date is on a past day:
                     if task_day < date_str:
                         # On today, an uncompleted task is an overdue rollover task and MUST be preserved!
-                        # Only prune if task is completed or viewing a different future day
-                        is_overdue_rollover = (date_str == today_iso and t_status == "pending")
+                        # Also preserve if it was completed today (on date_str) so it stays with strikethrough!
+                        is_completed_today = False
+                        if t_status == "completed" and comp_at:
+                            comp_day = str(comp_at).split("T")[0].split(" ")[0]
+                            if comp_day == date_str:
+                                is_completed_today = True
+
+                        is_overdue_rollover = (date_str == today_iso and (t_status == "pending" or is_completed_today))
                         if not is_overdue_rollover:
                             has_changes = True
                             continue
@@ -2100,6 +2110,11 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None) -> List[Dict[
                     if it.get("time"):
                         it["time"] = ""
                         has_changes = True
+
+                it_completed = (t_status == "completed")
+                if it.get("completed") != it_completed:
+                    it["completed"] = it_completed
+                    has_changes = True
 
                 if t_row["title"] and it.get("title") != t_row["title"]:
                     it["title"] = t_row["title"]
@@ -2894,6 +2909,12 @@ def get_day_seal(date_str: str, db_path: Optional[Path] = None) -> Optional[Dict
 
 def is_day_sealed(date_str: str, db_path: Optional[Path] = None) -> bool:
     """Checks whether a given date has been sealed and locked."""
+    if not date_str:
+        return False
+    date_str = str(date_str).split("T")[0].split(" ")[0]
+    today_iso = datetime.date.today().strftime("%Y-%m-%d")
+    if date_str > today_iso:
+        return False
     conn = get_connection(db_path)
     row = conn.execute("SELECT is_sealed FROM day_seals WHERE date = ?", (date_str,)).fetchone()
     if not row:

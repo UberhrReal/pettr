@@ -1398,6 +1398,11 @@ const Dashboard = {
             modified = true;
           }
         }
+        const isComp = (found.status === "completed" || Boolean(found.completed));
+        if (Boolean(item.completed) !== isComp) {
+          item.completed = isComp;
+          modified = true;
+        }
         if (found.is_overdue && !item.is_overdue) {
           item.is_overdue = true;
           item.is_rolled_over = true;
@@ -2841,13 +2846,14 @@ const Dashboard = {
           return;
         }
       } else if (this.currentManualType === "reminder") {
+        let remDate = dueDate ? dueDate.split(" ")[0].split("T")[0] : (this.selectedDate || null);
         const res = await fetch("/api/reminders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
             details: description,
-            reminder_date: dueDate
+            reminder_date: remDate
           })
         });
         if (res.ok) {

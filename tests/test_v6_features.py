@@ -2578,5 +2578,165 @@ def test_diurnal_transition_auto_detection():
     assert "Dashboard.checkDiurnalTransition" in app_js
 
 
+def test_future_reminder_creation_and_querying(temp_db, monkeypatch):
+    """Verify reminders can be created for future dates with/without time and appear on that date."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
+    future = today + datetime.timedelta(days=5)
+
+    today_str = today.strftime("%Y-%m-%d")
+    tomorrow_str = tomorrow.strftime("%Y-%m-%d")
+    future_str = future.strftime("%Y-%m-%d")
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 1. Create reminder for future date with time string
+        res = client.post("/api/reminders", json={
+            "title": "Renew satellite transponder license",
+            "details": "FCC submission required",
+            "reminder_date": f"{future_str} 14:00"
+        })
+        assert res.status_code == 200
+        rem_future = res.json()["reminder"]
+        assert rem_future["reminder_date"] == future_str
+
+        # 2. Create reminder for tomorrow via ISO format
+        res_tom = client.post("/api/reminders", json={
+            "title": "Pick up 3D printer filament",
+            "details": "Matte black PLA",
+            "reminder_date": f"{tomorrow_str}T09:30:00"
+        })
+        assert res_tom.status_code == 200
+        rem_tom = res_tom.json()["reminder"]
+        assert rem_tom["reminder_date"] == tomorrow_str
+
+        # 3. Create reminder for today with no date specified (defaults to today)
+        res_today = client.post("/api/reminders", json={
+            "title": "Check hydroponics pH balance"
+        })
+        assert res_today.status_code == 200
+        rem_today = res_today.json()["reminder"]
+        assert rem_today["reminder_date"] == today_str
+
+        # 4. Query reminders for today
+        today_reminders = database.get_reminders_for_day(today, db_path=temp_db)
+        today_titles = [r["title"] for r in today_reminders]
+        assert "Check hydroponics pH balance" in today_titles
+        assert "Renew satellite transponder license" not in today_titles
+        assert "Pick up 3D printer filament" not in today_titles
+
+        # 5. Query reminders for tomorrow
+        tomorrow_reminders = database.get_reminders_for_day(tomorrow, db_path=temp_db)
+        tomorrow_titles = [r["title"] for r in tomorrow_reminders]
+        assert "Pick up 3D printer filament" in tomorrow_titles
+        assert "Renew satellite transponder license" not in tomorrow_titles
+        assert "Check hydroponics pH balance" not in tomorrow_titles
+
+        # 6. Query reminders for future day
+        future_reminders = database.get_reminders_for_day(future, db_path=temp_db)
+        future_titles = [r["title"] for r in future_reminders]
+        assert "Renew satellite transponder license" in future_titles
+        assert "Pick up 3D printer filament" not in future_titles
+
+
+def test_overdue_rollover_task_completion_reversibility_and_priority_preservation(temp_db, monkeypatch):
+    """
+    Verify that when an overdue task from a sealed past day is completed today:
+    1. It remains on the daily priority tasking list with completed=True and strikethrough.
+    2. Accidentally checking it off is fully reversible today (PATCH status pending / reopen succeeds, no 403).
+    3. Genuinely historical completed tasks from past sealed days remain locked.
+    """
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    today_str = today.strftime("%Y-%m-%d")
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+
+    # Create task due yesterday
+    task = database.create_task(
+        title="Calibrate IMU magnetometer",
+        description="Verify offset matrix",
+        due_date=f"{yesterday_str} 10:00:00",
+        tier="focus",
+        db_path=temp_db
+    )
+    task_id = task["id"]
+
+    # Also create a task completed yesterday
+    hist_task = database.create_task(
+        title="Old completed lab task",
+        due_date=f"{yesterday_str} 09:00:00",
+        tier="focus",
+        db_path=temp_db
+    )
+    database.update_task_status(hist_task["id"], "completed", db_path=temp_db)
+    conn = database.get_connection(temp_db)
+    with conn:
+        conn.execute("UPDATE tasks SET completed_at = ? WHERE id = ?", (f"{yesterday_str} 09:30:00", hist_task["id"]))
+
+    # Seal yesterday
+    database.seal_day(yesterday_str, 50, 2, 1, retro_notes="Sealed yesterday", db_path=temp_db)
+    assert database.is_day_sealed(yesterday_str, db_path=temp_db) is True
+
+    # Setup daily order for today containing the overdue task
+    initial_order = [
+        {"id": task_id, "type": "task", "title": "Calibrate IMU magnetometer", "completed": False}
+    ]
+    database.save_daily_order(today_str, initial_order, db_path=temp_db)
+
+    # Verify task is initially in today's daily order as overdue rollover
+    order = database.get_daily_order(today_str, db_path=temp_db)
+    assert len(order) == 1
+    assert order[0]["id"] == task_id
+    assert order[0]["is_overdue"] is True
+    assert order[0]["completed"] is False
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Step 1: Complete overdue task today via PATCH /api/tasks/{task_id}
+        res_comp = client.patch(f"/api/tasks/{task_id}", json={"status": "completed"})
+        assert res_comp.status_code == 200
+        updated = res_comp.json()["task"]
+        assert updated["status"] == "completed"
+        assert updated["completed_at"].startswith(today_str)
+
+        # Step 2: Check priority tasking order - MUST NOT disappear! Must remain with completed=True!
+        order_after_comp = database.get_daily_order(today_str, db_path=temp_db)
+        assert len(order_after_comp) == 1
+        assert order_after_comp[0]["id"] == task_id
+        assert order_after_comp[0]["completed"] is True
+        assert order_after_comp[0]["is_overdue"] is True
+
+        # Step 3: Accidentally checked off! Reopen task today via PATCH /api/tasks/{task_id} status: pending
+        res_reopen = client.patch(f"/api/tasks/{task_id}", json={"status": "pending"})
+        assert res_reopen.status_code == 200, f"Expected 200 but got {res_reopen.status_code}: {res_reopen.text}"
+        reopened = res_reopen.json()["task"]
+        assert reopened["status"] == "pending"
+        assert reopened["completed_at"] is None
+
+        # Daily order after reopening: still present, completed=False
+        order_after_reopen = database.get_daily_order(today_str, db_path=temp_db)
+        assert len(order_after_reopen) == 1
+        assert order_after_reopen[0]["id"] == task_id
+        assert order_after_reopen[0]["completed"] is False
+
+        # Step 4: Re-complete and test reopen via POST /api/tasks/{task_id}/reopen
+        client.patch(f"/api/tasks/{task_id}", json={"status": "completed"})
+        res_reopen_ep = client.post(f"/api/tasks/{task_id}/reopen")
+        assert res_reopen_ep.status_code == 200
+
+        # Step 5: Test that genuinely historical completed task from yesterday CANNOT be reopened (must return 403)
+        res_hist_patch = client.patch(f"/api/tasks/{hist_task['id']}", json={"status": "pending"})
+        assert res_hist_patch.status_code == 403
+
+        res_hist_reopen = client.post(f"/api/tasks/{hist_task['id']}/reopen")
+        assert res_hist_reopen.status_code == 403
+
+
 
 
