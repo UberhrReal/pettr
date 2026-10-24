@@ -268,28 +268,38 @@ const History = {
       if (entityType === "focus" || entityType === "trivial") entityType = "task";
       const hasEntity = Boolean(item.target_entity_id);
 
+      // Format for British English display
+      const formatBritish = (str) => {
+        if (!str) return "";
+        return String(str).replace(/unorganized/gi, (match) => {
+          if (match === "UNORGANIZED") return "UNORGANISED";
+          if (match === "Unorganized") return "Unorganised";
+          return "unorganised";
+        });
+      };
+
       html += `
         <tr style="border-bottom: 1px solid var(--card-border);">
           <td style="padding: 10px 8px; color: var(--text-muted); white-space: nowrap;">${timeStr}</td>
           <td style="padding: 10px 8px; font-weight: 600; max-width: 250px;">"${this.escapeHtml(item.raw_input)}"</td>
           <td style="padding: 10px 8px; color: #38bdf8;">${item.extracted_date ? `📅 ${item.extracted_date}` : '<span style="color:var(--text-muted)">None</span>'}</td>
           <td style="padding: 10px 8px; max-width: 300px;">
-            <div><strong>${classification.entity_type || item.target_entity_type}</strong> ${classification.task_tier ? `(${classification.task_tier})` : ''}</div>
+            <div><strong>${formatBritish(classification.entity_type || item.target_entity_type)}</strong> ${classification.task_tier ? `(${classification.task_tier})` : ''}</div>
             <div style="font-size: 11px; color: var(--text-muted);">${classification.reasoning || ''}</div>
           </td>
           <td style="padding: 10px 8px;">
             ${hasEntity ? `
               <span class="project-tag" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="EntityModal.open('${entityType}', ${item.target_entity_id})" title="Click to open manual edit panel">
-                ${item.target_entity_type} #${item.target_entity_id}
+                ${formatBritish(item.target_entity_type)} #${item.target_entity_id}
                 <i data-lucide="external-link" style="width:10px;height:10px;"></i>
               </span>
             ` : `
-              <span class="project-tag">${item.target_entity_type || 'unorganized'}</span>
+              <span class="project-tag">${formatBritish(item.target_entity_type || 'unorganised')}</span>
             `}
           </td>
           <td style="padding: 10px 8px;">
             <span style="color: ${statusColor}; font-weight: 700; text-transform: uppercase; font-size: 11px;">
-              ${item.status}
+              ${formatBritish(item.status)}
             </span>
           </td>
           <td style="padding: 10px 8px; text-align: right; white-space: nowrap;">

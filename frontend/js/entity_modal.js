@@ -1,7 +1,7 @@
 /**
  * PETTR Universal Entity Detail & Re-sorting Modal
  * Allows inspecting, adding extra details to, and reclassifying any tracked item.
- * Supports Project color tags, School/External categories, and Unorganized Queue manual triage.
+ * Supports Project colour tags, School/External categories, and Unorganised Queue manual triage.
  */
 const EntityModal = {
   currentEntity: null,
@@ -44,7 +44,7 @@ const EntityModal = {
 
     // Title & description (supporting unorganised raw input)
     const titleVal = e.title || e.name || e.raw_input || "";
-    const descVal = e.description || e.details || (type === "unorganized" && e.reasoning ? `[Unorganised Routing Note: ${e.reasoning}]` : "");
+    const descVal = e.description || e.details || ((type === "unorganized" || type === "unorganised") && e.reasoning ? `[Unorganised Routing Note: ${e.reasoning}]` : "");
     document.getElementById("entityModalTitle").value = titleVal;
     document.getElementById("entityModalDesc").value = descVal;
     
@@ -52,7 +52,7 @@ const EntityModal = {
     let activeType = type;
     let activeTier = e.tier || (type === "task" ? "focus" : null);
 
-    if (type === "unorganized") {
+    if (type === "unorganized" || type === "unorganised") {
       activeType = "unorganized";
       activeTier = e.suggested_tier || e.tier || "focus";
     }
@@ -409,7 +409,7 @@ const EntityModal = {
         })
       });
       if (res.ok) {
-        App.showToast(this.fromType === "unorganized" ? "Changes saved successfully!" : "Item returned to Unorganised Queue!");
+        App.showToast((this.fromType === "unorganized" || this.fromType === "unorganised") ? "Changes saved successfully!" : "Item returned to Unorganised Queue!");
         this.close();
         if (typeof Dashboard !== "undefined") {
           Dashboard.refresh();
@@ -476,7 +476,7 @@ const EntityModal = {
 
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (this.fromType === "unorganized") {
+    if (this.fromType === "unorganized" || this.fromType === "unorganised") {
       if (!dueDate && toType === "task" && !projectName) {
         dueDate = `${todayStr} 23:59:00`;
       } else if (dueDate && dueDate.split(" ")[0] < todayStr) {
@@ -565,7 +565,7 @@ const EntityModal = {
           if (unorgModal && unorgModal.dataset.wasOpen === "true") {
             unorgModal.dataset.wasOpen = "false";
             Dashboard.openUnorganizedModal();
-          } else if (this.fromType === "unorganized") {
+          } else if (this.fromType === "unorganized" || this.fromType === "unorganised") {
             Dashboard.closeUnorganizedModal();
           }
         }
@@ -591,7 +591,7 @@ const EntityModal = {
       if (this.fromType === "event") endpoint = `/api/events/${this.fromId}`;
       else if (this.fromType === "reminder") endpoint = `/api/reminders/${this.fromId}`;
       else if (this.fromType === "project") endpoint = `/api/projects/${this.fromId}`;
-      else if (this.fromType === "unorganized") endpoint = `/api/unorganized/${this.fromId}`;
+      else if (this.fromType === "unorganized" || this.fromType === "unorganised") endpoint = `/api/unorganized/${this.fromId}`;
 
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {

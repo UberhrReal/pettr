@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=8.5">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=8.6">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1394,7 +1394,7 @@ docker compose up -d --build
                 Local Ollama 3B Intent &amp; Project Classification
               </h4>
               <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
-                When Ollama is running on the host, PETTR feeds the cleaned context to <code>llama3.2:3b</code> (or <code>qwen2.5:3b</code>) to detect multi-step projects, categorize focus vs trivial tiers, and route uncertain entries into the Unorganised Safety Queue.
+                When Ollama is running on the host, PETTR feeds the cleaned context to <code>llama3.2:3b</code> (or <code>qwen2.5:3b</code>) to detect multi-step projects, categorise focus vs trivial tiers, and route uncertain entries into the Unorganised Safety Queue.
               </p>
             </div>
             <div class="guide-step-card">
@@ -1735,7 +1735,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     </div>
   </div>
 
-  <!-- Unorganized Queue Modal -->
+  <!-- Unorganised Queue Modal -->
   <div id="unorganizedModal" class="modal-overlay" style="display: none;">
     <div class="modal-card" style="max-width: 550px;">
       <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganised Queue Triaging</h3>
@@ -2164,21 +2164,21 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=8.5"></script>
-  <script src="/static/js/app.js?v=8.5"></script>
-  <script src="/static/js/drag_drop.js?v=8.5"></script>
-  <script src="/static/js/wave_canvas.js?v=8.5"></script>
-  <script src="/static/js/entity_modal.js?v=8.5"></script>
-  <script src="/static/js/timeline.js?v=8.5"></script>
-  <script src="/static/js/mindmap.js?v=8.5"></script>
-  <script src="/static/js/dashboard.js?v=8.5"></script>
-  <script src="/static/js/simplified_mode.js?v=8.5"></script>
-  <script src="/static/js/exploded.js?v=8.5"></script>
-  <script src="/static/js/notes.js?v=8.5"></script>
-  <script src="/static/js/history.js?v=8.5"></script>
-  <script src="/static/js/command_palette.js?v=8.5"></script>
-  <script src="/static/js/focus_cockpit.js?v=8.5"></script>
-  <script src="/static/js/evening_debrief.js?v=8.5"></script>
-  <script src="/static/js/horace_chat.js?v=8.5"></script>
+  <script src="/static/js/pin_lock.js?v=8.6"></script>
+  <script src="/static/js/app.js?v=8.6"></script>
+  <script src="/static/js/drag_drop.js?v=8.6"></script>
+  <script src="/static/js/wave_canvas.js?v=8.6"></script>
+  <script src="/static/js/entity_modal.js?v=8.6"></script>
+  <script src="/static/js/timeline.js?v=8.6"></script>
+  <script src="/static/js/mindmap.js?v=8.6"></script>
+  <script src="/static/js/dashboard.js?v=8.6"></script>
+  <script src="/static/js/simplified_mode.js?v=8.6"></script>
+  <script src="/static/js/exploded.js?v=8.6"></script>
+  <script src="/static/js/notes.js?v=8.6"></script>
+  <script src="/static/js/history.js?v=8.6"></script>
+  <script src="/static/js/command_palette.js?v=8.6"></script>
+  <script src="/static/js/focus_cockpit.js?v=8.6"></script>
+  <script src="/static/js/evening_debrief.js?v=8.6"></script>
+  <script src="/static/js/horace_chat.js?v=8.6"></script>
 </body>
 </html>

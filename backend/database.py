@@ -1827,7 +1827,7 @@ def get_entity_detail(entity_type: str, entity_id: int, db_path: Optional[Path] 
     elif clean_type == "project":
         row = conn.execute("SELECT * FROM projects WHERE id = ?", (entity_id,)).fetchone()
         return dict(row) if row else None
-    elif clean_type == "unorganized":
+    elif clean_type in ("unorganized", "unorganised"):
         row = conn.execute("SELECT * FROM unorganized_queue WHERE id = ?", (entity_id,)).fetchone()
         return dict(row) if row else None
     return None
@@ -1848,13 +1848,13 @@ def reclassify_entity(from_type: str,
                       is_time_sensitive: Optional[bool] = None,
                       db_path: Optional[Path] = None) -> Dict[str, Any]:
     """
-    Edits an entity or converts it between Task, Event, Reminder, Project, and Unorganized Queue.
+    Edits an entity or converts it between Task, Event, Reminder, Project, and Unorganised Queue.
     Allows complete manual re-sorting if the automatic engine got it wrong.
-    Supports setting and changing recurrence rules, project color tags, and School/External categories.
+    Supports setting and changing recurrence rules, project colour tags, and School/External categories.
     """
     conn = get_connection(db_path)
-    clean_from = from_type.lower()
-    clean_to = to_type.lower()
+    clean_from = "unorganized" if from_type.strip().lower() in ("unorganized", "unorganised") else from_type.strip().lower()
+    clean_to = "unorganized" if to_type.strip().lower() in ("unorganized", "unorganised") else to_type.strip().lower()
 
     project_id = None
     if project_name:
@@ -1991,7 +1991,7 @@ def reclassify_entity(from_type: str,
             suggested_type=clean_from if clean_from in ("task", "event", "reminder", "project") else "task",
             suggested_tier=tier or "focus",
             suggested_project=project_name,
-            reasoning="Returned to unorganized queue from edit modal",
+            reasoning="Returned to unorganised queue from edit modal",
             confidence=1.0,
             db_path=db_path
         )

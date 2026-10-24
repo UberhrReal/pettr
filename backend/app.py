@@ -619,10 +619,12 @@ async def view_history():
     return database.get_history_archive()
 
 @app.get("/api/unorganized", dependencies=[Depends(auth.require_auth)])
+@app.get("/api/unorganised", dependencies=[Depends(auth.require_auth)])
 async def list_unorganized():
     return database.get_unorganized_items()
 
 @app.post("/api/unorganized/{item_id}/resolve", dependencies=[Depends(auth.require_auth)])
+@app.post("/api/unorganised/{item_id}/resolve", dependencies=[Depends(auth.require_auth)])
 async def resolve_unorganized(item_id: int, req: ResolveUnorganizedRequest):
     conn = database.get_connection()
     row = conn.execute("SELECT * FROM unorganized_queue WHERE id = ?", (item_id,)).fetchone()
@@ -672,12 +674,13 @@ async def resolve_unorganized(item_id: int, req: ResolveUnorganizedRequest):
     return {"status": "success", "entity": created}
 
 @app.patch("/api/unorganized/{item_id}", dependencies=[Depends(auth.require_auth)])
+@app.patch("/api/unorganised/{item_id}", dependencies=[Depends(auth.require_auth)])
 async def update_unorganized_item_endpoint(item_id: int, req: UpdateUnorganizedRequest):
     """Directly updates title, notes, date, project, or tier of an item in the unorganised queue."""
     conn = database.get_connection()
     row = conn.execute("SELECT * FROM unorganized_queue WHERE id = ?", (item_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="Unorganized item not found")
+        raise HTTPException(status_code=404, detail="Unorganised item not found")
 
     raw_text = req.title.strip() if (req.title is not None and req.title.strip()) else row["raw_input"]
     if req.description and not req.description.startswith("[Unorganised Routing Note:"):
@@ -698,11 +701,12 @@ async def update_unorganized_item_endpoint(item_id: int, req: UpdateUnorganizedR
     return {"status": "success", "item": dict(updated)}
 
 @app.delete("/api/unorganized/{item_id}", dependencies=[Depends(auth.require_auth)])
+@app.delete("/api/unorganised/{item_id}", dependencies=[Depends(auth.require_auth)])
 async def delete_unorganized_item_endpoint(item_id: int):
     success = database.delete_unorganized_item(item_id)
     if not success:
-        raise HTTPException(status_code=404, detail="Unorganized item not found")
-    return {"status": "success", "message": "Item deleted from unorganized queue"}
+        raise HTTPException(status_code=404, detail="Unorganised item not found")
+    return {"status": "success", "message": "Item deleted from unorganised queue"}
 
 def _classify_media_type(suffix: str) -> str:
     s = suffix.lower()
@@ -864,7 +868,7 @@ async def get_entity(entity_type: str, entity_id: int):
 
 @app.post("/api/entities/reclassify", dependencies=[Depends(auth.require_auth)])
 async def reclassify_item(req: ReclassifyRequest):
-    """Edits details or re-sorts item between Task (Focus/Trivial), Event, Reminder, Project, and Unorganized."""
+    """Edits details or re-sorts item between Task (Focus/Trivial), Event, Reminder, Project, and Unorganised."""
     result = database.reclassify_entity(
         from_type=req.from_type,
         from_id=req.from_id,
@@ -932,7 +936,7 @@ async def seed_samples():
 
 @app.post("/api/sample-data/clear", dependencies=[Depends(auth.require_auth)])
 async def clear_samples():
-    """Wipes ALL tasks, events, reminders, projects, and the unorganized queue.
+    """Wipes ALL tasks, events, reminders, projects, and the unorganised queue.
     This is a full clean-slate reset intended only for testing / demo purposes."""
     return database.clear_all_data()
 

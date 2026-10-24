@@ -187,7 +187,7 @@ async def process_user_input(raw_input: str,
         )
         return {
             "status": "unorganized",
-            "message": "Entry placed in Unorganized Queue for manual review.",
+            "message": "Entry placed in Unorganised Queue for manual review.",
             "reasoning": reasoning,
             "item": unorg_item,
             "temporal": temporal_data,

@@ -484,6 +484,8 @@ async def classify_with_llm(cleaned_text: str,
                     
                     # Validate schema fields
                     entity_type = explicit_entity_type or parsed.get("entity_type", "task")
+                    if str(entity_type).lower() == "unorganised":
+                        entity_type = "unorganized"
                     if entity_type not in ("project", "task", "event", "reminder", "unorganized"):
                         entity_type = "task"
 
