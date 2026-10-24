@@ -1913,6 +1913,15 @@ def reclassify_entity(from_type: str,
                     SET name = ?, description = ?, color = COALESCE(?, color), category = COALESCE(?, category), due_date = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE id = ?
                 """, (title, description, color, valid_cat, due_date, from_id))
+            elif clean_to == "unorganized":
+                raw_text = title
+                if description and not description.startswith("[Unorganised Routing Note:"):
+                    raw_text = f"{title}: {description}"
+                conn.execute("""
+                    UPDATE unorganized_queue
+                    SET raw_input = ?, parsed_date = ?, suggested_project = ?, suggested_tier = ?
+                    WHERE id = ?
+                """, (raw_text, due_date, project_name, tier, from_id))
 
         if clean_to == "task":
             return {"status": "success", "entity_type": "task", "entity": get_task_by_id(from_id, db_path)}

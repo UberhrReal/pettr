@@ -53,8 +53,8 @@ const EntityModal = {
     let activeTier = e.tier || (type === "task" ? "focus" : null);
 
     if (type === "unorganized") {
-      activeType = e.suggested_type || "task";
-      activeTier = e.suggested_tier || "focus";
+      activeType = "unorganized";
+      activeTier = e.suggested_tier || e.tier || "focus";
     }
 
     document.querySelectorAll(".type-pill-btn").forEach(btn => {
@@ -402,21 +402,29 @@ const EntityModal = {
           from_type: this.fromType,
           from_id: this.fromId,
           to_type: "unorganized",
-          title: document.getElementById("entityModalTitle").value.trim() || (this.currentEntity.title || "Untitled"),
+          title: document.getElementById("entityModalTitle").value.trim() || (this.currentEntity.title || this.currentEntity.raw_input || "Untitled"),
           description: document.getElementById("entityModalDesc").value || "",
           due_date: fallbackDate,
           project_name: document.getElementById("entityModalProject").value || null
         })
       });
       if (res.ok) {
-        App.showToast("Item returned to Unorganised Queue!");
+        App.showToast(this.fromType === "unorganized" ? "Changes saved successfully!" : "Item returned to Unorganised Queue!");
         this.close();
-        if (typeof Dashboard !== "undefined") Dashboard.refresh();
+        if (typeof Dashboard !== "undefined") {
+          Dashboard.refresh();
+          const unorgModal = document.getElementById("unorganizedModal");
+          if (unorgModal && unorgModal.dataset.wasOpen === "true") {
+            unorgModal.dataset.wasOpen = "false";
+            Dashboard.openUnorganizedModal();
+          }
+        }
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
+        if (typeof History !== "undefined") History.refresh();
       } else {
-        App.showToast("Failed to return item to unorganised queue", true);
+        App.showToast("Failed to update unorganised item", true);
       }
     } catch (e) {
       console.error(e);
@@ -432,11 +440,6 @@ const EntityModal = {
     const title = document.getElementById("entityModalTitle").value.trim();
     if (!title) {
       App.showToast("Title cannot be empty.", true);
-      return;
-    }
-
-    if (toType === "unorganized") {
-      await this.returnToUnorganized(true);
       return;
     }
 
@@ -556,15 +559,22 @@ const EntityModal = {
         }
         App.showToast("Changes saved successfully!");
         this.close();
-        if (this.fromType === "unorganized" && typeof Dashboard !== "undefined") {
-          Dashboard.closeUnorganizedModal();
+        if (typeof Dashboard !== "undefined") {
+          Dashboard.refresh();
+          const unorgModal = document.getElementById("unorganizedModal");
+          if (unorgModal && unorgModal.dataset.wasOpen === "true") {
+            unorgModal.dataset.wasOpen = "false";
+            Dashboard.openUnorganizedModal();
+          } else if (this.fromType === "unorganized") {
+            Dashboard.closeUnorganizedModal();
+          }
         }
         // Refresh active views
-        if (typeof Dashboard !== "undefined") Dashboard.refresh();
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
         if (typeof SimplifiedMode !== "undefined") SimplifiedMode.refresh();
+        if (typeof History !== "undefined") History.refresh();
       } else {
         alert(data.detail || "Error updating item.");
       }
@@ -595,11 +605,19 @@ const EntityModal = {
         this.close();
         if (typeof Dashboard !== "undefined") {
           Dashboard.refresh();
-          Dashboard.closeUnorganizedModal();
+          const unorgModal = document.getElementById("unorganizedModal");
+          if (unorgModal && unorgModal.dataset.wasOpen === "true") {
+            unorgModal.dataset.wasOpen = "false";
+            Dashboard.openUnorganizedModal();
+          } else {
+            Dashboard.closeUnorganizedModal();
+          }
         }
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
+        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
+        if (typeof History !== "undefined") History.refresh();
         if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
       } else {
         App.showToast("Failed to delete item.", true);

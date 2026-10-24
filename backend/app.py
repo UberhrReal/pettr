@@ -95,6 +95,13 @@ class ResolveUnorganizedRequest(BaseModel):
     due_date: Optional[str] = None
     end_time: Optional[str] = None
 
+class UpdateUnorganizedRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[str] = None
+    project_name: Optional[str] = None
+    tier: Optional[str] = None
+
 class DailyOrderRequest(BaseModel):
     date: str
     order: Optional[List[Dict[str, Any]]] = None
@@ -663,6 +670,32 @@ async def resolve_unorganized(item_id: int, req: ResolveUnorganizedRequest):
         conn.execute("UPDATE unorganized_queue SET status = 'processed' WHERE id = ?", (item_id,))
 
     return {"status": "success", "entity": created}
+
+@app.patch("/api/unorganized/{item_id}", dependencies=[Depends(auth.require_auth)])
+async def update_unorganized_item_endpoint(item_id: int, req: UpdateUnorganizedRequest):
+    """Directly updates title, notes, date, project, or tier of an item in the unorganised queue."""
+    conn = database.get_connection()
+    row = conn.execute("SELECT * FROM unorganized_queue WHERE id = ?", (item_id,)).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Unorganized item not found")
+
+    raw_text = req.title.strip() if (req.title is not None and req.title.strip()) else row["raw_input"]
+    if req.description and not req.description.startswith("[Unorganised Routing Note:"):
+        raw_text = f"{raw_text}: {req.description.strip()}"
+
+    parsed_date = req.due_date if req.due_date is not None else row["parsed_date"]
+    suggested_project = req.project_name if req.project_name is not None else row["suggested_project"]
+    suggested_tier = req.tier if req.tier is not None else row["suggested_tier"]
+
+    with conn:
+        conn.execute("""
+            UPDATE unorganized_queue
+            SET raw_input = ?, parsed_date = ?, suggested_project = ?, suggested_tier = ?
+            WHERE id = ?
+        """, (raw_text, parsed_date, suggested_project, suggested_tier, item_id))
+
+    updated = conn.execute("SELECT * FROM unorganized_queue WHERE id = ?", (item_id,)).fetchone()
+    return {"status": "success", "item": dict(updated)}
 
 @app.delete("/api/unorganized/{item_id}", dependencies=[Depends(auth.require_auth)])
 async def delete_unorganized_item_endpoint(item_id: int):

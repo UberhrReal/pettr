@@ -2738,5 +2738,135 @@ def test_overdue_rollover_task_completion_reversibility_and_priority_preservatio
         assert res_hist_reopen.status_code == 403
 
 
+def test_unorganized_queue_item_editing_and_reclassifying(temp_db, monkeypatch):
+    """Test in-place editing of unorganised queue items and reclassifying to task."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Create an unorganised item
+    item = database.add_to_unorganized_queue(
+        raw_input="Old Unorganized Item Name",
+        parsed_date="2026-10-25",
+        suggested_type="task",
+        suggested_tier="focus",
+        suggested_project="InitialProj",
+        reasoning="Need classification",
+        confidence=0.5,
+        db_path=temp_db
+    )
+    item_id = item["id"]
+    assert item["raw_input"] == "Old Unorganized Item Name"
+    assert item["status"] == "pending"
+
+    # 2. In-place editing via database.reclassify_entity (from: unorganized -> to: unorganized)
+    result = database.reclassify_entity(
+        from_type="unorganized",
+        from_id=item_id,
+        to_type="unorganized",
+        title="Edited In-Place Item Name",
+        description="",
+        due_date="2026-10-28",
+        tier="focus",
+        project_name="UpdatedProj",
+        db_path=temp_db
+    )
+    assert result["status"] == "success"
+    assert result["entity_type"] == "unorganized"
+    assert result["entity"]["raw_input"] == "Edited In-Place Item Name"
+    assert result["entity"]["parsed_date"] == "2026-10-28"
+    assert result["entity"]["suggested_project"] == "UpdatedProj"
+
+    # Verify detail retrieval
+    detail = database.get_entity_detail("unorganized", item_id, db_path=temp_db)
+    assert detail is not None
+    assert detail["raw_input"] == "Edited In-Place Item Name"
+
+    # 3. In-place editing via direct PATCH /api/unorganized/{item_id}
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        patch_res = client.patch(f"/api/unorganized/{item_id}", json={
+            "title": "REST Patched Item Name",
+            "due_date": "2026-10-29",
+            "project_name": "RestProj",
+            "tier": "trivial"
+        })
+        assert patch_res.status_code == 200
+        patch_data = patch_res.json()
+        assert patch_data["status"] == "success"
+        assert patch_data["item"]["raw_input"] == "REST Patched Item Name"
+        assert patch_data["item"]["parsed_date"] == "2026-10-29"
+        assert patch_data["item"]["suggested_project"] == "RestProj"
+        assert patch_data["item"]["suggested_tier"] == "trivial"
+
+    # 4. Reclassify into task via POST /api/entities/reclassify
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        rec_res = client.post("/api/entities/reclassify", json={
+            "from_type": "unorganized",
+            "from_id": item_id,
+            "to_type": "task",
+            "title": "Promoted to Focus Task",
+            "due_date": "2026-10-30",
+            "tier": "focus"
+        })
+        assert rec_res.status_code == 200
+        rec_data = rec_res.json()
+        assert rec_data["status"] == "success"
+        assert rec_data["entity_type"] == "task"
+        assert rec_data["entity"]["title"] == "Promoted to Focus Task"
+
+        # Verify original unorganized item status is marked as 'processed'
+        conn = database.get_connection(temp_db)
+        unorg_row = conn.execute("SELECT * FROM unorganized_queue WHERE id = ?", (item_id,)).fetchone()
+        assert unorg_row["status"] == "processed"
+
+
+def test_ingestion_log_action_edit_integration(temp_db, monkeypatch):
+    """Test ingestion audit log records entity details and frontend history has edit button."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Create a task and an unorganized item
+    task = database.create_task(title="Review Q3 Financials", due_date="2026-10-24", tier="focus", db_path=temp_db)
+    unorg = database.add_to_unorganized_queue(raw_input="unclear random text", db_path=temp_db)
+
+    # 2. Log ingestion audit entries via database.log_history
+    database.log_history(
+        raw_input="add task Review Q3 Financials today",
+        extracted_date="2026-10-24",
+        llm_classification={"entity_type": "task", "reasoning": "Explicit task"},
+        status="success",
+        target_entity_type="task",
+        target_entity_id=task["id"],
+        db_path=temp_db
+    )
+    database.log_history(
+        raw_input="unclear random text",
+        extracted_date=None,
+        llm_classification={"entity_type": "unorganized", "reasoning": "ambiguous"},
+        status="unorganized",
+        target_entity_type="unorganized",
+        target_entity_id=unorg["id"],
+        db_path=temp_db
+    )
+
+    # 3. Verify GET /api/history returns audit_log with target_entity_type and target_entity_id
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.get("/api/history")
+        assert res.status_code == 200
+        audit_log = res.json()["audit_log"]
+        assert len(audit_log) >= 2
+        task_log = next(l for l in audit_log if l["target_entity_type"] == "task")
+        assert task_log["target_entity_id"] == task["id"]
+        unorg_log = next(l for l in audit_log if l["target_entity_type"] == "unorganized")
+        assert unorg_log["target_entity_id"] == unorg["id"]
+
+    # 4. Check frontend/js/history.js contains the Action column and EntityModal.open
+    history_js = Path("frontend/js/history.js").read_text(encoding="utf-8")
+    assert "EntityModal.open" in history_js
+    assert "action-icon-btn" in history_js
+    assert "Action" in history_js
+
+
+
 
 

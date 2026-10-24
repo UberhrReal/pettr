@@ -249,9 +249,10 @@ const History = {
             <th style="padding: 10px 8px;">Time</th>
             <th style="padding: 10px 8px;">Raw Input</th>
             <th style="padding: 10px 8px;">Extracted Date / Rule</th>
-            <th style="padding: 10px 8px;">Classification & Reasoning</th>
+            <th style="padding: 10px 8px;">Classification &amp; Reasoning</th>
             <th style="padding: 10px 8px;">Result Entity</th>
             <th style="padding: 10px 8px;">Status</th>
+            <th style="padding: 10px 8px; text-align: right;">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -261,6 +262,11 @@ const History = {
       const timeStr = item.created_at ? item.created_at.split(".")[0] : "";
       const classification = item.llm_classification || {};
       const statusColor = item.status === "success" ? "#22c55e" : (item.status === "unorganized" ? "#f97316" : "#ef4444");
+
+      const rawEntityType = item.target_entity_type || (classification ? classification.entity_type : null);
+      let entityType = rawEntityType ? String(rawEntityType).toLowerCase() : "task";
+      if (entityType === "focus" || entityType === "trivial") entityType = "task";
+      const hasEntity = Boolean(item.target_entity_id);
 
       html += `
         <tr style="border-bottom: 1px solid var(--card-border);">
@@ -272,12 +278,26 @@ const History = {
             <div style="font-size: 11px; color: var(--text-muted);">${classification.reasoning || ''}</div>
           </td>
           <td style="padding: 10px 8px;">
-            <span class="project-tag">${item.target_entity_type} #${item.target_entity_id || ''}</span>
+            ${hasEntity ? `
+              <span class="project-tag" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" onclick="EntityModal.open('${entityType}', ${item.target_entity_id})" title="Click to open manual edit panel">
+                ${item.target_entity_type} #${item.target_entity_id}
+                <i data-lucide="external-link" style="width:10px;height:10px;"></i>
+              </span>
+            ` : `
+              <span class="project-tag">${item.target_entity_type || 'unorganized'}</span>
+            `}
           </td>
           <td style="padding: 10px 8px;">
             <span style="color: ${statusColor}; font-weight: 700; text-transform: uppercase; font-size: 11px;">
               ${item.status}
             </span>
+          </td>
+          <td style="padding: 10px 8px; text-align: right; white-space: nowrap;">
+            ${hasEntity ? `
+              <button class="action-icon-btn" onclick="EntityModal.open('${entityType}', ${item.target_entity_id})" style="font-size: 11.5px; padding: 4px 10px; font-weight: 600;" title="Open manual edit panel directly">
+                <i data-lucide="edit-3" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Edit
+              </button>
+            ` : '<span style="color: var(--text-muted); font-size: 11px;">—</span>'}
           </td>
         </tr>
       `;
@@ -285,6 +305,9 @@ const History = {
 
     html += "</tbody></table>";
     container.innerHTML = html;
+    if (typeof App !== "undefined" && App.renderIcons) {
+      App.renderIcons();
+    }
   },
 
   toggleAuditLog() {

@@ -2380,6 +2380,8 @@ const Dashboard = {
           div.title = "Click/tap to inspect and edit in modal";
           div.onclick = (e) => {
             if (e.target.closest("button")) return;
+            const um = document.getElementById("unorganizedModal");
+            if (um) um.dataset.wasOpen = "true";
             Dashboard.closeUnorganizedModal();
             EntityModal.open("unorganized", item.id);
           };
@@ -2397,7 +2399,7 @@ const Dashboard = {
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'trivial', '${this.escapeHtml(item.raw_input)}')">⚡ Trivial Errands</button>
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
               <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
-              <button class="action-icon-btn" onclick="Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit Details</button>
+              <button class="action-icon-btn" onclick="const um = document.getElementById('unorganizedModal'); if (um) um.dataset.wasOpen = 'true'; Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit Details</button>
               <button class="action-icon-btn" onclick="Dashboard.deleteUnorg(${item.id})" style="color: var(--urgent-orange); font-weight: 600;" title="Delete this item">🗑️ Delete</button>
             </div>
           `;
