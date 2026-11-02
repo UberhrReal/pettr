@@ -2976,6 +2976,51 @@ def test_focus_cockpit_upgrades_and_scratchpad_notes(temp_db, monkeypatch):
     assert "Scratchpad" in index_html
 
 
+def test_focus_cockpit_duration_slider_and_rain_synthesis():
+    """Verify Focus Cockpit scale slider up to 3 hours and non-tonal rain synthesis."""
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+
+    # 1. Verify duration slider elements and attributes in index.html
+    assert 'id="cockpitDurationSlider"' in index_html
+    assert 'id="cockpitDurationLabel"' in index_html
+    assert 'min="5"' in index_html
+    assert 'max="180"' in index_html
+    assert 'step="5"' in index_html
+    assert "5m" in index_html
+    assert "3h" in index_html
+    assert "Focus Sprint Length" in index_html
+    assert "pettr.css?v=8.8" in index_html
+    assert "focus_cockpit.js?v=8.8" in index_html
+
+    # 2. Verify CSS styles for duration slider and scale
+    assert ".cockpit-duration-slider-wrap" in css
+    assert ".cockpit-duration-slider" in css
+    assert ".cockpit-slider-scale" in css
+    assert ".cockpit-slider-header" in css
+    assert ".cockpit-slider-val" in css
+
+    # 3. Verify JavaScript duration management and bidirectional syncing
+    assert "formatDurationLabel" in cockpit_js
+    assert "onDurationSliderChange" in cockpit_js
+    assert "setDuration" in cockpit_js
+    assert "syncDurationControls" in cockpit_js
+    assert "Math.max(5, Math.min(180," in cockpit_js or "Math.min(180" in cockpit_js
+
+    # 4. Verify Rain Sound Synthesis is strictly non-tonal (no bird-chirping sine waves)
+    assert 'type === "rain"' in cockpit_js
+    # Ensure sine wave tone generator was eliminated from rain droplet synthesis
+    assert "Math.sin(2 * Math.PI * freq * t)" not in cockpit_js
+    # Ensure low-pass filtered stochastic droplet impulse modeling
+    assert "filterCoeff" in cockpit_js
+    assert "dropLen" in cockpit_js
+    assert "decayRate" in cockpit_js
+    # Ensure dual biquad shaping (lowpass + highpass)
+    assert "filterNodeHp" in cockpit_js
+
+
+
 
 
 

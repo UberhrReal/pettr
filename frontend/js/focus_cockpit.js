@@ -17,6 +17,7 @@ const FocusCockpit = {
   audioCtx: null,
   soundSource: null,
   filterNode: null,
+  filterNodeHp: null,
   gainNode: null,
   currentSoundType: "none", // 'none', 'brown', 'pink', 'rain'
   volume: 0.35,
@@ -49,6 +50,7 @@ const FocusCockpit = {
     }
 
     this.renderTaskDetails();
+    this.syncDurationControls(Math.round(this.durationSeconds / 60));
     this.updateTimerDisplay();
     this.updatePlayButton();
     this.renderSoundControls();
@@ -145,18 +147,66 @@ const FocusCockpit = {
     }
   },
 
+  formatDurationLabel(minutes) {
+    const mins = parseInt(minutes, 10);
+    if (isNaN(mins)) return "";
+    if (mins < 60) {
+      return `${mins} min${mins === 1 ? '' : 's'}`;
+    }
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    if (remMins === 0) {
+      return `${hrs} hr${hrs === 1 ? '' : 's'}`;
+    }
+    return `${hrs} hr ${remMins}m`;
+  },
+
+  onDurationSliderChange(value) {
+    const mins = parseInt(value, 10);
+    if (isNaN(mins) || mins <= 0) return;
+    this.setDuration(mins);
+  },
+
+  setDuration(minutes) {
+    const mins = Math.max(5, Math.min(180, parseInt(minutes, 10) || 25));
+    this.isStopwatch = false;
+    this.durationSeconds = mins * 60;
+
+    if (!this.hasStarted) {
+      this.remainingSeconds = this.durationSeconds;
+    } else {
+      this.remainingSeconds = Math.min(this.remainingSeconds, this.durationSeconds);
+    }
+
+    this.syncDurationControls(mins);
+    this.updateTimerDisplay();
+    this.updatePlayButton();
+  },
+
+  syncDurationControls(mins) {
+    const slider = document.getElementById("cockpitDurationSlider");
+    if (slider && parseInt(slider.value, 10) !== mins) {
+      slider.value = mins;
+    }
+
+    const label = document.getElementById("cockpitDurationLabel");
+    if (label) {
+      label.textContent = this.isStopwatch ? "Stopwatch (Count Up)" : this.formatDurationLabel(mins);
+    }
+
+    document.querySelectorAll(".cockpit-preset-chip").forEach(btn => {
+      if (this.isStopwatch) {
+        btn.classList.toggle("active", btn.dataset.mode === "stopwatch");
+      } else {
+        btn.classList.toggle("active", parseInt(btn.dataset.min, 10) === mins);
+      }
+    });
+  },
+
   setPreset(minutes) {
     this.pauseTimer();
     this.hasStarted = false;
-    this.isStopwatch = false;
-    this.durationSeconds = minutes * 60;
-    this.remainingSeconds = this.durationSeconds;
-    this.updateTimerDisplay();
-    this.updatePlayButton();
-
-    document.querySelectorAll(".cockpit-preset-chip").forEach(btn => {
-      btn.classList.toggle("active", parseInt(btn.dataset.min, 10) === minutes);
-    });
+    this.setDuration(minutes);
   },
 
   setStopwatchMode() {
@@ -164,12 +214,9 @@ const FocusCockpit = {
     this.hasStarted = false;
     this.isStopwatch = true;
     this.elapsedSeconds = 0;
+    this.syncDurationControls(Math.round(this.durationSeconds / 60));
     this.updateTimerDisplay();
     this.updatePlayButton();
-
-    document.querySelectorAll(".cockpit-preset-chip").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.mode === "stopwatch");
-    });
   },
 
   toggleTimer() {
@@ -254,9 +301,17 @@ const FocusCockpit = {
 
   updateTimerDisplay() {
     const totalSec = this.isStopwatch ? this.elapsedSeconds : this.remainingSeconds;
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    let timeStr;
+    if (totalSec >= 3600) {
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      timeStr = `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    } else {
+      const mins = Math.floor(totalSec / 60);
+      const secs = totalSec % 60;
+      timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
 
     const digitsEl = document.getElementById("cockpitTimerDigits");
     if (digitsEl) digitsEl.textContent = timeStr;
@@ -283,9 +338,17 @@ const FocusCockpit = {
 
   updateMiniDisplays() {
     const totalSec = this.isStopwatch ? this.elapsedSeconds : this.remainingSeconds;
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    let timeStr;
+    if (totalSec >= 3600) {
+      const hrs = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      timeStr = `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    } else {
+      const mins = Math.floor(totalSec / 60);
+      const secs = totalSec % 60;
+      timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
 
     const floatingPill = document.getElementById("cockpitFloatingPill");
     const floatingDigits = document.getElementById("cockpitFloatingDigits");
@@ -430,39 +493,50 @@ const FocusCockpit = {
           b6 = white * 0.115926;
         }
       } else if (type === "rain") {
-        // Organic light rain: soft ambient drizzle bed + individual delicate pitter-patter droplet impulses
-        // 1. Gentle continuous rainfall bed
-        let b0 = 0, b1 = 0, b2 = 0;
+        // Organic gentle rain: warm continuous precipitation bed + soft pitter-patter droplet impacts (strictly non-tonal)
+        const sampleRate = ctx.sampleRate;
+
+        // 1. Warm pink noise rain wash (Kellet 1/f filter approximation)
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
         for (let i = 0; i < bufferSize; i++) {
           const white = Math.random() * 2 - 1;
-          b0 = 0.99 * b0 + white * 0.04;
-          b1 = 0.95 * b1 + white * 0.12;
-          b2 = 0.85 * b2 + white * 0.20;
-          data[i] = (b0 + b1 + b2) * 0.07;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          const pink = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+          b6 = white * 0.115926;
+
+          // Gentle breathing LFO simulating organic breeze / distant shower variation
+          const t = i / sampleRate;
+          const breeze = 0.88 + 0.12 * Math.sin(2 * Math.PI * 0.07 * t) * Math.cos(2 * Math.PI * 0.13 * t);
+          data[i] = pink * 0.55 * breeze;
         }
 
         // 2. Realistic randomized droplet impacts (soft pitter-patter)
-        const sampleRate = ctx.sampleRate;
-        const dropCount = Math.floor(sampleRate * 5 * 0.0035); // ~35 soft drops per second
+        // Zero tonal sine-waves (no bird-chirping artifacts) - pure low-pass filtered impulse micro-bursts
+        const dropCount = Math.floor(sampleRate * 5 * 0.0040); // ~40 soft drops per second
         for (let d = 0; d < dropCount; d++) {
-          const startIdx = Math.floor(Math.random() * (bufferSize - 2000));
-          const dropLen = Math.floor(sampleRate * (0.012 + Math.random() * 0.022)); // 12ms to 34ms
-          const freq = 2200 + Math.random() * 2400; // soft droplet resonance (2.2kHz - 4.6kHz)
-          const dropAmp = 0.12 + Math.random() * 0.22;
-          const decayRate = 3.5 + Math.random() * 2.0;
+          const startIdx = Math.floor(Math.random() * (bufferSize - 1000));
+          const dropLen = Math.floor(sampleRate * (0.004 + Math.random() * 0.012)); // 4ms to 16ms
+          const dropAmp = 0.10 + Math.random() * 0.22;
+          const decayRate = 4.0 + Math.random() * 3.0;
+          const filterCoeff = 0.18 + Math.random() * 0.16; // Lowpass damping for dull "pat" on leaves / glass
 
+          let filt = 0;
           for (let j = 0; j < dropLen && (startIdx + j) < bufferSize; j++) {
-            const t = j / sampleRate;
             const env = Math.exp(-decayRate * (j / dropLen));
-            const tone = Math.sin(2 * Math.PI * freq * t);
-            const splash = (Math.random() * 2 - 1) * 0.35;
-            data[startIdx + j] += (tone * 0.65 + splash) * env * dropAmp;
+            const wn = Math.random() * 2 - 1;
+            filt = (1 - filterCoeff) * filt + filterCoeff * wn;
+            data[startIdx + j] += filt * env * dropAmp;
           }
         }
 
-        // 3. Smooth soft limiter
+        // 3. Smooth soft limiter / saturation to avoid clipping
         for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.tanh(data[i] * 1.5) * 0.65;
+          data[i] = Math.tanh(data[i] * 1.3) * 0.65;
         }
       }
 
@@ -472,13 +546,21 @@ const FocusCockpit = {
 
       let nodeToConnect = this.soundSource;
       if (type === "rain") {
-        const filter = ctx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.setValueAtTime(1200, ctx.currentTime);
-        filter.Q.setValueAtTime(0.7, ctx.currentTime);
-        this.soundSource.connect(filter);
-        this.filterNode = filter;
-        nodeToConnect = filter;
+        const lp = ctx.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.setValueAtTime(2400, ctx.currentTime);
+        lp.Q.setValueAtTime(0.5, ctx.currentTime);
+
+        const hp = ctx.createBiquadFilter();
+        hp.type = "highpass";
+        hp.frequency.setValueAtTime(180, ctx.currentTime);
+        hp.Q.setValueAtTime(0.7, ctx.currentTime);
+
+        this.soundSource.connect(hp);
+        hp.connect(lp);
+        this.filterNode = lp;
+        this.filterNodeHp = hp;
+        nodeToConnect = lp;
       } else if (type === "brown") {
         const filter = ctx.createBiquadFilter();
         filter.type = "lowpass";
@@ -503,9 +585,11 @@ const FocusCockpit = {
   stopAmbientSound() {
     const oldSource = this.soundSource;
     const oldFilter = this.filterNode;
+    const oldFilterHp = this.filterNodeHp;
     const oldGain = this.gainNode;
     this.soundSource = null;
     this.filterNode = null;
+    this.filterNodeHp = null;
     this.gainNode = null;
 
     if (oldGain && this.audioCtx) {
@@ -521,6 +605,7 @@ const FocusCockpit = {
         try { oldSource.stop(); } catch (e) {}
         try { oldSource.disconnect(); } catch (e) {}
         if (oldFilter) { try { oldFilter.disconnect(); } catch (e) {} }
+        if (oldFilterHp) { try { oldFilterHp.disconnect(); } catch (e) {} }
         if (oldGain) { try { oldGain.disconnect(); } catch (e) {} }
       }, 50);
     }

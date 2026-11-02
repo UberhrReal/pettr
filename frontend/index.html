@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=8.7">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=8.8">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1893,6 +1893,27 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <button type="button" class="cockpit-preset-chip" data-mode="stopwatch" onclick="FocusCockpit.setStopwatchMode()">Stopwatch</button>
         </div>
 
+        <!-- Scale slider to select focus sprint duration up to 3 hours (180 mins) -->
+        <div class="cockpit-duration-slider-wrap">
+          <div class="cockpit-slider-header">
+            <span class="cockpit-slider-label"><i data-lucide="timer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Focus Sprint Length</span>
+            <span class="cockpit-slider-val" id="cockpitDurationLabel">25 mins</span>
+          </div>
+          <input type="range" id="cockpitDurationSlider" class="cockpit-duration-slider"
+                 min="5" max="180" step="5" value="25"
+                 oninput="FocusCockpit.onDurationSliderChange(this.value)"
+                 title="Drag to select sprint duration (5m to 3 hours)">
+          <div class="cockpit-slider-scale">
+            <span>5m</span>
+            <span>30m</span>
+            <span>1h</span>
+            <span>1.5h</span>
+            <span>2h</span>
+            <span>2.5h</span>
+            <span>3h</span>
+          </div>
+        </div>
+
         <div class="cockpit-controls-row">
           <button type="button" class="quick-submit-btn cockpit-action-btn primary" id="cockpitPlayBtn" onclick="FocusCockpit.toggleTimer()" style="position: static; transform: none; display: inline-flex; align-items: center; gap: 6px;">
             <i data-lucide="play" style="width:16px;height:16px;"></i> Start Sprint
@@ -2172,21 +2193,21 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=8.7"></script>
-  <script src="/static/js/app.js?v=8.7"></script>
-  <script src="/static/js/drag_drop.js?v=8.7"></script>
-  <script src="/static/js/wave_canvas.js?v=8.7"></script>
-  <script src="/static/js/entity_modal.js?v=8.7"></script>
-  <script src="/static/js/timeline.js?v=8.7"></script>
-  <script src="/static/js/mindmap.js?v=8.7"></script>
-  <script src="/static/js/dashboard.js?v=8.7"></script>
-  <script src="/static/js/simplified_mode.js?v=8.7"></script>
-  <script src="/static/js/exploded.js?v=8.7"></script>
-  <script src="/static/js/notes.js?v=8.7"></script>
-  <script src="/static/js/history.js?v=8.7"></script>
-  <script src="/static/js/command_palette.js?v=8.7"></script>
-  <script src="/static/js/focus_cockpit.js?v=8.7"></script>
-  <script src="/static/js/evening_debrief.js?v=8.7"></script>
-  <script src="/static/js/horace_chat.js?v=8.7"></script>
+  <script src="/static/js/pin_lock.js?v=8.8"></script>
+  <script src="/static/js/app.js?v=8.8"></script>
+  <script src="/static/js/drag_drop.js?v=8.8"></script>
+  <script src="/static/js/wave_canvas.js?v=8.8"></script>
+  <script src="/static/js/entity_modal.js?v=8.8"></script>
+  <script src="/static/js/timeline.js?v=8.8"></script>
+  <script src="/static/js/mindmap.js?v=8.8"></script>
+  <script src="/static/js/dashboard.js?v=8.8"></script>
+  <script src="/static/js/simplified_mode.js?v=8.8"></script>
+  <script src="/static/js/exploded.js?v=8.8"></script>
+  <script src="/static/js/notes.js?v=8.8"></script>
+  <script src="/static/js/history.js?v=8.8"></script>
+  <script src="/static/js/command_palette.js?v=8.8"></script>
+  <script src="/static/js/focus_cockpit.js?v=8.8"></script>
+  <script src="/static/js/evening_debrief.js?v=8.8"></script>
+  <script src="/static/js/horace_chat.js?v=8.8"></script>
 </body>
 </html>
