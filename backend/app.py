@@ -87,6 +87,18 @@ class SaveNoteRequest(BaseModel):
     content: str
     id: Optional[int] = None
 
+class CreateUnorganizedRequest(BaseModel):
+    raw_input: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[str] = None
+    parsed_date: Optional[str] = None
+    project_name: Optional[str] = None
+    suggested_project: Optional[str] = None
+    tier: Optional[str] = None
+    suggested_tier: Optional[str] = None
+    reasoning: Optional[str] = "Manual entry"
+
 class ResolveUnorganizedRequest(BaseModel):
     entity_type: str # task, event, reminder, project
     title: str
@@ -622,6 +634,29 @@ async def view_history():
 @app.get("/api/unorganised", dependencies=[Depends(auth.require_auth)])
 async def list_unorganized():
     return database.get_unorganized_items()
+
+@app.post("/api/unorganized", dependencies=[Depends(auth.require_auth)])
+@app.post("/api/unorganised", dependencies=[Depends(auth.require_auth)])
+async def create_unorganized_item_endpoint(req: CreateUnorganizedRequest):
+    """Directly adds a new item to the unorganised queue via manual entry."""
+    raw_text = (req.raw_input or req.title or "").strip()
+    if not raw_text:
+        raise HTTPException(status_code=400, detail="Text or title is required for unorganised item")
+    if req.description and not req.description.startswith("[Unorganised Routing Note:"):
+        raw_text = f"{raw_text}: {req.description.strip()}"
+    date_val = req.due_date or req.parsed_date
+    proj_val = req.project_name or req.suggested_project
+    tier_val = req.tier or req.suggested_tier or "focus"
+    item = database.add_to_unorganized_queue(
+        raw_input=raw_text,
+        parsed_date=date_val,
+        suggested_type="task",
+        suggested_tier=tier_val,
+        suggested_project=proj_val,
+        reasoning=req.reasoning or "Manual direct entry",
+        confidence=1.0
+    )
+    return {"status": "success", "item": item}
 
 @app.post("/api/unorganized/{item_id}/resolve", dependencies=[Depends(auth.require_auth)])
 @app.post("/api/unorganised/{item_id}/resolve", dependencies=[Depends(auth.require_auth)])

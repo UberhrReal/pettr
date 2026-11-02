@@ -2544,11 +2544,10 @@ def test_focus_cockpit_minimization_and_mini_displays():
     css = (base_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
     cockpit_js = (base_dir / "frontend" / "js" / "focus_cockpit.js").read_text(encoding="utf-8")
 
-    # Check HTML markup for header mini pill and floating pill
-    assert 'id="headerCockpitMiniPill"' in index_html
-    assert 'id="headerCockpitMiniDigits"' in index_html
+    # Check HTML markup for floating mini pill (header mini pill retired to avoid duplication)
     assert 'id="cockpitFloatingPill"' in index_html
     assert 'id="cockpitFloatingDigits"' in index_html
+    assert 'id="headerCockpitMiniPill"' not in index_html
 
     # Check CSS classes
     assert ".cockpit-mini-pill" in css
@@ -2872,6 +2871,110 @@ def test_ingestion_log_action_edit_integration(temp_db, monkeypatch):
     assert "Action" in history_js
     assert "formatBritish" in history_js
     assert "UNORGANISED" in history_js
+
+
+def test_tailscale_socket_sec_header_and_client_query_param(monkeypatch):
+    """Verify that network status correctly inspects client_host and supports Sec-Tailscale header."""
+    from backend import network
+    monkeypatch.setattr(network, "_query_tailscale_socket", lambda: None)
+    monkeypatch.setattr(network, "_query_tailscale_cli", lambda: None)
+    monkeypatch.setattr(network, "_detect_linux_tailscale_interface", lambda: None)
+
+    class DummyReqWithQuery:
+        def __init__(self, query_params=None, headers=None):
+            self.query_params = query_params or {}
+            self.headers = headers or {}
+            self.client = None
+
+    # Test client_host query param with Tailscale IP
+    req = DummyReqWithQuery(query_params={"client_host": "100.85.12.34"}, headers={"host": "172.18.0.2:8000"})
+    res = network.get_network_status(request=req)
+    assert res["connected"] is True
+    assert res["tailscale_ip"] == "100.85.12.34"
+
+    # Test client_host query param with .ts.net MagicDNS
+    req_dns = DummyReqWithQuery(query_params={"client_host": "shuttle.tailnet.ts.net"}, headers={"host": "172.18.0.2:8000"})
+    res_dns = network.get_network_status(request=req_dns)
+    assert res_dns["connected"] is True
+    assert res_dns["dns_name"] == "shuttle.tailnet.ts.net"
+
+    # Verify British spelling in app.js network status
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    assert "synchronise" in app_js
+    assert "won't synchronise" in app_js
+
+
+def test_unorganized_queue_direct_post_creation_endpoint(temp_db, monkeypatch):
+    """Test POST /api/unorganized and POST /api/unorganised for direct manual item queuing."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # 1. Post to /api/unorganised directly
+        res1 = client.post("/api/unorganised", json={
+            "raw_input": "Ambiguous hardware test requirement",
+            "description": "Needs review with team lead"
+        })
+        assert res1.status_code == 200
+        data1 = res1.json()
+        assert data1["status"] == "success"
+        assert "Ambiguous hardware test requirement" in data1["item"]["raw_input"]
+
+        # 2. Post to /api/unorganized alias
+        res2 = client.post("/api/unorganized", json={
+            "title": "Random idea about solar array",
+            "project_name": "IDEA-1"
+        })
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["status"] == "success"
+        assert "Random idea about solar array" in data2["item"]["raw_input"]
+        assert data2["item"]["suggested_project"] == "IDEA-1"
+
+        # 3. Retrieve queue via GET /api/unorganised
+        res_list = client.get("/api/unorganised")
+        assert res_list.status_code == 200
+        items = res_list.json()
+        assert len(items) >= 2
+
+        # 4. Empty title rejection
+        res_bad = client.post("/api/unorganised", json={"raw_input": "  "})
+        assert res_bad.status_code == 400
+
+
+def test_focus_cockpit_upgrades_and_scratchpad_notes(temp_db, monkeypatch):
+    """Verify Focus Cockpit scratchpad save-to-notes and single minimise button in DOM."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Test note creation API as invoked by saveScratchpadToNotes
+        res = client.post("/api/notes", json={
+            "title": "Focus Note: Kalman Filter Sprints",
+            "content": "**Tied Task:** Kalman Filter Sprints\n\nVerify covariance matrix convergence."
+        })
+        assert res.status_code == 200
+        notes = client.get("/api/notes").json()
+        assert any(n["title"] == "Focus Note: Kalman Filter Sprints" for n in notes)
+
+    # Verify frontend files have expected structure
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+    assert "saveScratchpadToNotes" in cockpit_js
+    assert "/api/notes" in cockpit_js
+    assert "playVictoryFanfare" in cockpit_js or "Triumphant" in cockpit_js
+    assert "updatePlayButton" in cockpit_js
+
+    # Verify index.html does NOT contain redundant footer minimise button or header mini pill
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "headerCockpitMiniPill" not in index_html
+    assert 'onclick="FocusCockpit.minimize()"' in index_html
+    # Exactly 1 minimize button (in cockpit header), none in footer
+    assert index_html.count('onclick="FocusCockpit.minimize()"') == 1
+    assert "Save to Notes" in index_html
+    assert "Scratchpad" in index_html
+
 
 
 

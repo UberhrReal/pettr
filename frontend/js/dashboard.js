@@ -2359,7 +2359,7 @@ const Dashboard = {
     }
   },
 
-  async openUnorganizedModal() {
+  async openUnorganizedModal(focusDirectInput = false) {
     try {
       const res = await fetch("/api/unorganized");
       const items = await res.json();
@@ -2407,8 +2407,43 @@ const Dashboard = {
         });
       }
       document.getElementById("unorganizedModal").style.display = "flex";
+      if (focusDirectInput) {
+        setTimeout(() => {
+          const directInput = document.getElementById("manualUnorgInput");
+          if (directInput) directInput.focus();
+        }, 50);
+      }
     } catch (err) {
       console.error(err);
+    }
+  },
+
+  async addDirectUnorg() {
+    const input = document.getElementById("manualUnorgInput");
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) {
+      App.showToast("Please enter text for the unorganised item", true);
+      return;
+    }
+    try {
+      const res = await fetch("/api/unorganised", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_input: text })
+      });
+      if (res.ok) {
+        input.value = "";
+        App.showToast("Added to Unorganised Queue!");
+        await this.checkUnorganized();
+        await this.openUnorganizedModal();
+      } else {
+        const data = await res.json();
+        App.showToast(data.detail || "Failed to add unorganised item", true);
+      }
+    } catch (e) {
+      console.error(e);
+      App.showToast("Network error adding unorganised item", true);
     }
   },
 
@@ -2614,6 +2649,13 @@ const Dashboard = {
       if (colorRow) colorRow.style.display = "none";
       if (titleLabel) titleLabel.textContent = "Reminder Note *";
       if (dateLabel) dateLabel.textContent = "Reminder Date (YYYY-MM-DD or HH:MM)";
+    } else if (type === "unorganized" || type === "unorganised") {
+      if (projectRow) projectRow.style.display = "none";
+      if (dateRow) dateRow.style.display = "none";
+      if (eventPeriodRow) eventPeriodRow.style.display = "none";
+      if (categoryRow) categoryRow.style.display = "none";
+      if (colorRow) colorRow.style.display = "none";
+      if (titleLabel) titleLabel.textContent = "Unorganised Item / Note *";
     } else {
       // focus or trivial task
       if (projectRow) projectRow.style.display = "block";
@@ -2862,6 +2904,24 @@ const Dashboard = {
           App.showToast(`🔔 Reminder "${title}" saved!`);
         } else {
           App.showToast("Error creating reminder", true);
+          return;
+        }
+      } else if (this.currentManualType === "unorganized" || this.currentManualType === "unorganised") {
+        const res = await fetch("/api/unorganised", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            description,
+            project_name: projectName,
+            due_date: dueDate
+          })
+        });
+        if (res.ok) {
+          App.showToast(`⚠️ Item added to Unorganised Queue!`);
+          await this.checkUnorganized();
+        } else {
+          App.showToast("Error adding to unorganised queue", true);
           return;
         }
       } else {

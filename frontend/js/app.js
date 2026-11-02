@@ -840,7 +840,12 @@ const App = {
 
   async pollNetworkStatus() {
     try {
-      const res = await fetch("/api/network/status");
+      const clientHost = window.location.hostname || "";
+      const isClientTailscale = (
+        (clientHost.startsWith("100.") && !clientHost.startsWith("100.0.") && !clientHost.startsWith("100.1.") && !clientHost.startsWith("100.2.")) ||
+        clientHost.endsWith(".ts.net")
+      );
+      const res = await fetch(`/api/network/status?client_host=${encodeURIComponent(clientHost)}`);
       if (!res.ok) throw new Error("Network status fetch failed");
       const data = await res.json();
       this.networkStatus = data;
@@ -849,13 +854,14 @@ const App = {
       const pill = document.getElementById("systemStatusPill");
       const text = document.getElementById("statusText");
 
-      if (data.connected) {
+      if (data.connected || isClientTailscale) {
         if (pill) {
           pill.className = "status-pill online";
-          pill.title = `MagicDNS: ${data.dns_name || 'N/A'} (Host: ${data.hostname})`;
+          pill.title = `MagicDNS: ${data.dns_name || clientHost} (Host: ${data.hostname || 'pettr'})`;
           pill.onclick = null;
         }
-        if (text) text.textContent = `Tailscale: ${data.tailscale_ip || data.dns_name || 'Online'}`;
+        const displayIp = data.tailscale_ip || (isClientTailscale ? clientHost : (data.dns_name || 'Online'));
+        if (text) text.textContent = `Tailscale: ${displayIp}`;
         this.hideNetworkSyncBanner();
       } else if (data.state === "NeedsLogin") {
         if (pill) {
@@ -877,7 +883,7 @@ const App = {
         const isContainer = data.is_container || (data.lan_ip && data.lan_ip.startsWith("172."));
         if (text) text.textContent = isContainer ? `Container: ${data.lan_ip}` : `Host LAN: ${data.lan_ip}`;
         const lanLabel = isContainer ? "internal container network" : "local host LAN";
-        this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on ${lanLabel} (${data.lan_ip}). Remote updates from other devices won't synchronize until Tailscale connects.`, false);
+        this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on ${lanLabel} (${data.lan_ip}). Remote updates from other devices won't synchronise until Tailscale connects.`, false);
       }
     } catch (err) {
       console.warn("Network check error:", err);
@@ -920,7 +926,7 @@ const App = {
     this.showToast("Checking server connection...");
     await this.pollNetworkStatus();
     await Dashboard.refresh();
-    this.showToast("Dashboard synchronized!");
+    this.showToast("Dashboard synchronised!");
   },
 
   onAuthenticated(authInfo) {
@@ -1488,7 +1494,7 @@ const App = {
               </div>
             </div>`;
         }
-        // Refresh the header pill to keep state synchronized
+        // Refresh the header pill to keep state synchronised
         this.loadLlmStatus();
       } else if (resultEl) {
         resultEl.style.color = "var(--urgent-orange)";

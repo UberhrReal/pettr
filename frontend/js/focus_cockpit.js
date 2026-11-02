@@ -16,6 +16,7 @@ const FocusCockpit = {
   // Audio Context & Sound Engine
   audioCtx: null,
   soundSource: null,
+  filterNode: null,
   gainNode: null,
   currentSoundType: "none", // 'none', 'brown', 'pink', 'rain'
   volume: 0.35,
@@ -35,6 +36,7 @@ const FocusCockpit = {
       const floating = document.getElementById("cockpitFloatingPill");
       if (floating) floating.style.display = "none";
       this.updateTimerDisplay();
+      this.updatePlayButton();
       App.renderIcons();
       App.haptic("light");
       return;
@@ -48,6 +50,7 @@ const FocusCockpit = {
 
     this.renderTaskDetails();
     this.updateTimerDisplay();
+    this.updatePlayButton();
     this.renderSoundControls();
 
     modal.style.display = "flex";
@@ -87,12 +90,11 @@ const FocusCockpit = {
     this.hasStarted = false;
     this.isMinimized = false;
 
-    const headerPill = document.getElementById("headerCockpitMiniPill");
     const floatingPill = document.getElementById("cockpitFloatingPill");
-    if (headerPill) headerPill.style.display = "none";
     if (floatingPill) floatingPill.style.display = "none";
 
     document.title = "PETTR - Personal Errands, Task Tracker & Repository";
+    this.updatePlayButton();
     App.showToast("Focus sprint ended.");
     App.haptic("light");
   },
@@ -145,10 +147,12 @@ const FocusCockpit = {
 
   setPreset(minutes) {
     this.pauseTimer();
+    this.hasStarted = false;
     this.isStopwatch = false;
     this.durationSeconds = minutes * 60;
     this.remainingSeconds = this.durationSeconds;
     this.updateTimerDisplay();
+    this.updatePlayButton();
 
     document.querySelectorAll(".cockpit-preset-chip").forEach(btn => {
       btn.classList.toggle("active", parseInt(btn.dataset.min, 10) === minutes);
@@ -157,9 +161,11 @@ const FocusCockpit = {
 
   setStopwatchMode() {
     this.pauseTimer();
+    this.hasStarted = false;
     this.isStopwatch = true;
     this.elapsedSeconds = 0;
     this.updateTimerDisplay();
+    this.updatePlayButton();
 
     document.querySelectorAll(".cockpit-preset-chip").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.mode === "stopwatch");
@@ -174,16 +180,25 @@ const FocusCockpit = {
     }
   },
 
+  updatePlayButton() {
+    const playBtn = document.getElementById("cockpitPlayBtn");
+    if (!playBtn) return;
+    if (this.isRunning) {
+      playBtn.innerHTML = `<i data-lucide="pause" style="width:18px;height:18px;"></i> Pause`;
+    } else if (this.hasStarted) {
+      playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Resume`;
+    } else {
+      playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Start Sprint`;
+    }
+    App.renderIcons();
+  },
+
   startTimer() {
     if (this.isRunning) return;
     this.isRunning = true;
     this.hasStarted = true;
 
-    const playBtn = document.getElementById("cockpitPlayBtn");
-    if (playBtn) {
-      playBtn.innerHTML = `<i data-lucide="pause" style="width:18px;height:18px;"></i> Pause`;
-      App.renderIcons();
-    }
+    this.updatePlayButton();
 
     // Auto-resume ambient sound if selected
     if (this.currentSoundType !== "none") {
@@ -216,11 +231,10 @@ const FocusCockpit = {
       this.timerInterval = null;
     }
 
-    const playBtn = document.getElementById("cockpitPlayBtn");
-    if (playBtn) {
-      playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Resume`;
-      App.renderIcons();
-    }
+    // Stop ambient noise generator when hitting pause
+    this.stopAmbientSound();
+
+    this.updatePlayButton();
     this.updateMiniDisplays();
   },
 
@@ -233,6 +247,7 @@ const FocusCockpit = {
       this.remainingSeconds = this.durationSeconds;
     }
     this.updateTimerDisplay();
+    this.updatePlayButton();
     this.updateMiniDisplays();
     App.haptic("light");
   },
@@ -272,23 +287,18 @@ const FocusCockpit = {
     const secs = totalSec % 60;
     const timeStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
-    const headerPill = document.getElementById("headerCockpitMiniPill");
-    const headerDigits = document.getElementById("headerCockpitMiniDigits");
     const floatingPill = document.getElementById("cockpitFloatingPill");
     const floatingDigits = document.getElementById("cockpitFloatingDigits");
     const floatingTitle = document.getElementById("cockpitFloatingTitle");
 
-    if (headerDigits) headerDigits.textContent = timeStr;
     if (floatingDigits) floatingDigits.textContent = timeStr;
     if (floatingTitle) {
       floatingTitle.textContent = (this.activeTask && this.activeTask.title) ? this.activeTask.title : "Focus";
     }
 
     if (this.hasStarted) {
-      if (headerPill) headerPill.style.display = "inline-flex";
       if (floatingPill) floatingPill.style.display = this.isMinimized ? "flex" : "none";
     } else {
-      if (headerPill) headerPill.style.display = "none";
       if (floatingPill) floatingPill.style.display = "none";
     }
   },
@@ -322,29 +332,44 @@ const FocusCockpit = {
     try {
       this.initAudio();
       const ctx = this.audioCtx;
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.4, ctx.currentTime);
+      masterGain.connect(ctx.destination);
 
-      osc1.type = "sine";
-      osc1.frequency.setValueAtTime(528, ctx.currentTime); // 528Hz Solfeggio Miracle Tone
-      osc2.type = "triangle";
-      osc2.frequency.setValueAtTime(880, ctx.currentTime); // 880Hz Harmonic
+      // Triumphant Fanfare Arpeggio into Grand Victory Major Chord
+      const notes = [
+        { freq: 523.25, time: 0.0,  duration: 0.16, type: "triangle", gain: 0.35 }, // C5
+        { freq: 659.25, time: 0.15, duration: 0.16, type: "triangle", gain: 0.38 }, // E5
+        { freq: 783.99, time: 0.30, duration: 0.20, type: "triangle", gain: 0.42 }, // G5
+        // Triumphant Major Grand Chord
+        { freq: 523.25,  time: 0.48, duration: 2.2, type: "triangle", gain: 0.28 }, // C5
+        { freq: 659.25,  time: 0.48, duration: 2.2, type: "sine",     gain: 0.28 }, // E5
+        { freq: 783.99,  time: 0.48, duration: 2.4, type: "sine",     gain: 0.30 }, // G5
+        { freq: 1046.50, time: 0.48, duration: 2.6, type: "sine",     gain: 0.36 }, // C6
+        { freq: 1318.51, time: 0.50, duration: 2.4, type: "sine",     gain: 0.18 }, // E6 Harmonic Shimmer
+      ];
 
-      gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.2);
+      notes.forEach(n => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = n.type;
+        osc.frequency.setValueAtTime(n.freq, ctx.currentTime + n.time);
 
-      osc1.connect(gain);
-      osc2.connect(gain);
-      gain.connect(ctx.destination);
+        const tStart = ctx.currentTime + n.time;
+        const tEnd = tStart + n.duration;
 
-      osc1.start(ctx.currentTime);
-      osc2.start(ctx.currentTime);
-      osc1.stop(ctx.currentTime + 2.2);
-      osc2.stop(ctx.currentTime + 2.2);
+        g.gain.setValueAtTime(0, tStart);
+        g.gain.linearRampToValueAtTime(n.gain, tStart + 0.025);
+        g.gain.exponentialRampToValueAtTime(0.0001, tEnd);
+
+        osc.connect(g);
+        g.connect(masterGain);
+
+        osc.start(tStart);
+        osc.stop(tEnd + 0.05);
+      });
     } catch (e) {
-      console.warn("Audio chime failed:", e);
+      console.warn("Audio victory fanfare failed:", e);
     }
   },
 
@@ -357,7 +382,10 @@ const FocusCockpit = {
     if (type === "none") {
       this.stopAmbientSound();
     } else {
-      this.playAmbientSound(type);
+      // Immediate 1-click sound transition
+      if (this.isRunning) {
+        this.playAmbientSound(type);
+      }
     }
   },
 
@@ -402,9 +430,39 @@ const FocusCockpit = {
           b6 = white * 0.115926;
         }
       } else if (type === "rain") {
-        // Soft rain/static with gentle bandpass modulation
+        // Organic light rain: soft ambient drizzle bed + individual delicate pitter-patter droplet impulses
+        // 1. Gentle continuous rainfall bed
+        let b0 = 0, b1 = 0, b2 = 0;
         for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * 0.3;
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99 * b0 + white * 0.04;
+          b1 = 0.95 * b1 + white * 0.12;
+          b2 = 0.85 * b2 + white * 0.20;
+          data[i] = (b0 + b1 + b2) * 0.07;
+        }
+
+        // 2. Realistic randomized droplet impacts (soft pitter-patter)
+        const sampleRate = ctx.sampleRate;
+        const dropCount = Math.floor(sampleRate * 5 * 0.0035); // ~35 soft drops per second
+        for (let d = 0; d < dropCount; d++) {
+          const startIdx = Math.floor(Math.random() * (bufferSize - 2000));
+          const dropLen = Math.floor(sampleRate * (0.012 + Math.random() * 0.022)); // 12ms to 34ms
+          const freq = 2200 + Math.random() * 2400; // soft droplet resonance (2.2kHz - 4.6kHz)
+          const dropAmp = 0.12 + Math.random() * 0.22;
+          const decayRate = 3.5 + Math.random() * 2.0;
+
+          for (let j = 0; j < dropLen && (startIdx + j) < bufferSize; j++) {
+            const t = j / sampleRate;
+            const env = Math.exp(-decayRate * (j / dropLen));
+            const tone = Math.sin(2 * Math.PI * freq * t);
+            const splash = (Math.random() * 2 - 1) * 0.35;
+            data[startIdx + j] += (tone * 0.65 + splash) * env * dropAmp;
+          }
+        }
+
+        // 3. Smooth soft limiter
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.tanh(data[i] * 1.5) * 0.65;
         }
       }
 
@@ -412,26 +470,27 @@ const FocusCockpit = {
       this.soundSource.buffer = buffer;
       this.soundSource.loop = true;
 
-      // Filter for rain smoothing if needed
       let nodeToConnect = this.soundSource;
       if (type === "rain") {
         const filter = ctx.createBiquadFilter();
         filter.type = "bandpass";
-        filter.frequency.setValueAtTime(1000, ctx.currentTime);
-        filter.Q.setValueAtTime(0.8, ctx.currentTime);
+        filter.frequency.setValueAtTime(1200, ctx.currentTime);
+        filter.Q.setValueAtTime(0.7, ctx.currentTime);
         this.soundSource.connect(filter);
+        this.filterNode = filter;
         nodeToConnect = filter;
       } else if (type === "brown") {
         const filter = ctx.createBiquadFilter();
         filter.type = "lowpass";
         filter.frequency.setValueAtTime(320, ctx.currentTime);
         this.soundSource.connect(filter);
+        this.filterNode = filter;
         nodeToConnect = filter;
       }
 
       this.gainNode = ctx.createGain();
       this.gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      this.gainNode.gain.linearRampToValueAtTime(this.volume, ctx.currentTime + 0.6); // smooth fade-in
+      this.gainNode.gain.linearRampToValueAtTime(this.volume, ctx.currentTime + 0.3); // smooth fade-in
 
       nodeToConnect.connect(this.gainNode);
       this.gainNode.connect(ctx.destination);
@@ -442,19 +501,28 @@ const FocusCockpit = {
   },
 
   stopAmbientSound() {
-    if (this.gainNode && this.audioCtx) {
+    const oldSource = this.soundSource;
+    const oldFilter = this.filterNode;
+    const oldGain = this.gainNode;
+    this.soundSource = null;
+    this.filterNode = null;
+    this.gainNode = null;
+
+    if (oldGain && this.audioCtx) {
       try {
-        this.gainNode.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.3); // smooth fade-out
+        oldGain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        oldGain.gain.setValueAtTime(oldGain.gain.value, this.audioCtx.currentTime);
+        oldGain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.04);
       } catch (e) {}
     }
-    if (this.soundSource) {
+
+    if (oldSource) {
       setTimeout(() => {
-        try {
-          this.soundSource.stop();
-          this.soundSource.disconnect();
-          this.soundSource = null;
-        } catch (e) {}
-      }, 350);
+        try { oldSource.stop(); } catch (e) {}
+        try { oldSource.disconnect(); } catch (e) {}
+        if (oldFilter) { try { oldFilter.disconnect(); } catch (e) {} }
+        if (oldGain) { try { oldGain.disconnect(); } catch (e) {} }
+      }, 50);
     }
   },
 
@@ -463,34 +531,37 @@ const FocusCockpit = {
     if (slider) slider.value = this.volume;
   },
 
-  /* --- Fleeting Scratchpad & Task Completion --- */
+  /* --- Scratchpad & Task Completion --- */
   async saveScratchpadToNotes() {
-    const text = document.getElementById("cockpitScratchpad").value.trim();
+    const text = document.getElementById("cockpitScratchpad")?.value.trim();
     if (!text) return;
 
-    if (this.activeTask && this.activeTask.id) {
-      try {
-        await fetch(`/api/tasks/${this.activeTask.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ notes: text })
-        });
-        App.showToast("Scratchpad notes appended to active task!");
-        document.getElementById("cockpitScratchpad").value = "";
-      } catch (e) {
-        console.warn("Could not save scratchpad:", e);
+    const taskTitle = (this.activeTask && this.activeTask.title) ? this.activeTask.title : "Deep Work Sprint";
+    const noteTitle = `Focus Note: ${taskTitle}`;
+    const noteContent = `**Tied Task:** ${taskTitle}\n\n${text}`;
+
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: noteTitle,
+          content: noteContent
+        })
+      });
+      if (res.ok) {
+        App.showToast(`Saved to Notes: "${noteTitle}"!`);
+        const ta = document.getElementById("cockpitScratchpad");
+        if (ta) ta.value = "";
+        if (typeof Notes !== "undefined" && Notes.refresh) {
+          Notes.refresh();
+        }
+      } else {
+        App.showToast("Failed to save note", true);
       }
-    } else {
-      // Save as quick unorganized thought
-      try {
-        await fetch("/api/log", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ raw_text: text })
-        });
-        App.showToast("Captured to Unorganised Queue!");
-        document.getElementById("cockpitScratchpad").value = "";
-      } catch (e) {}
+    } catch (e) {
+      console.warn("Could not save scratchpad to notes:", e);
+      App.showToast("Error saving note", true);
     }
   },
 

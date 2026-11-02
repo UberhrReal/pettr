@@ -67,22 +67,64 @@ def _query_tailscale_socket() -> Optional[Dict[str, Any]]:
     """
     Directly queries Tailscale LocalAPI via mounted Unix domain socket.
     Works inside Docker containers when /var/run/tailscale/tailscaled.sock is mounted.
+    Requires 'Sec-Tailscale: localapi' header for authorization.
     """
     if not hasattr(socket, "AF_UNIX"):
         return None
-    if not os.path.exists(TAILSCALE_SOCKET_PATH):
-        return None
-    if httpx is None:
+
+    candidate_paths = [
+        os.environ.get("TAILSCALE_SOCKET_PATH", ""),
+        TAILSCALE_SOCKET_PATH,
+        "/var/run/tailscale/tailscaled.sock",
+        "/run/tailscale/tailscaled.sock",
+        "/var/run/tailscale/tailscaled.socket",
+    ]
+    socket_path = None
+    for p in candidate_paths:
+        if p and os.path.exists(p):
+            socket_path = p
+            break
+
+    if not socket_path:
         return None
 
+    # Method A: Try httpx with required Sec-Tailscale header
+    if httpx is not None:
+        try:
+            transport = httpx.HTTPTransport(uds=socket_path)
+            with httpx.Client(transport=transport, timeout=2.0) as client:
+                resp = client.get("http://local-tailscaled.sock/localapi/v0/status", headers={"Sec-Tailscale": "localapi"})
+                if resp.status_code == 200:
+                    return resp.json()
+        except Exception:
+            pass
+
+    # Method B: Pure Python socket fallback
     try:
-        transport = httpx.HTTPTransport(uds=TAILSCALE_SOCKET_PATH)
-        with httpx.Client(transport=transport, timeout=2.0) as client:
-            resp = client.get("http://local-tailscaled.sock/localapi/v0/status")
-            if resp.status_code == 200:
-                return resp.json()
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(2.0)
+        s.connect(socket_path)
+        http_req = (
+            b"GET /localapi/v0/status HTTP/1.1\r\n"
+            b"Host: local-tailscaled.sock\r\n"
+            b"Sec-Tailscale: localapi\r\n"
+            b"Connection: close\r\n\r\n"
+        )
+        s.sendall(http_req)
+        response_bytes = b""
+        while True:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            response_bytes += chunk
+        s.close()
+        parts = response_bytes.split(b"\r\n\r\n", 1)
+        if len(parts) == 2:
+            body = parts[1].decode("utf-8", errors="ignore")
+            return json.loads(body)
     except Exception:
-        return None
+        pass
+
     return None
 
 def _query_tailscale_cli() -> Optional[Dict[str, Any]]:
@@ -208,56 +250,45 @@ def get_network_status(request: Optional[Any] = None) -> Dict[str, Any]:
             host_header = raw_host.split(":")[0].strip()
             client_ip = getattr(getattr(request, "client", None), "host", "")
             forwarded = getattr(request, "headers", {}).get("x-forwarded-for", "").split(",")[0].strip() if hasattr(request, "headers") else ""
+            query_client = ""
+            if hasattr(request, "query_params"):
+                query_client = request.query_params.get("client_host", "").strip()
 
-            if is_tailscale_ip(host_header):
-                res = {
-                    "tailscale_installed": True,
-                    "connected": True,
-                    "state": "Running",
-                    "tailscale_ip": host_header,
-                    "dns_name": None,
-                    "auth_url": None,
-                    "hostname": hostname,
-                    "lan_ip": lan_ip,
-                    "is_container": in_container,
-                    "local_url": f"http://{lan_ip}:8000",
-                    "tailscale_url": f"http://{host_header}:8000"
-                }
-                _update_tailscale_cache(res)
-                return res
-            elif host_header.endswith(".ts.net"):
-                res = {
-                    "tailscale_installed": True,
-                    "connected": True,
-                    "state": "Running",
-                    "tailscale_ip": None,
-                    "dns_name": host_header,
-                    "auth_url": None,
-                    "hostname": hostname,
-                    "lan_ip": lan_ip,
-                    "is_container": in_container,
-                    "local_url": f"http://{lan_ip}:8000",
-                    "tailscale_url": f"http://{host_header}:8000"
-                }
-                _update_tailscale_cache(res)
-                return res
-            elif is_tailscale_ip(client_ip) or is_tailscale_ip(forwarded):
-                detected_peer = client_ip if is_tailscale_ip(client_ip) else forwarded
-                res = {
-                    "tailscale_installed": True,
-                    "connected": True,
-                    "state": "Running",
-                    "tailscale_ip": detected_peer,
-                    "dns_name": None,
-                    "auth_url": None,
-                    "hostname": hostname,
-                    "lan_ip": lan_ip,
-                    "is_container": in_container,
-                    "local_url": f"http://{lan_ip}:8000",
-                    "tailscale_url": f"http://{detected_peer}:8000"
-                }
-                _update_tailscale_cache(res)
-                return res
+            candidates = [c for c in [query_client, host_header, client_ip, forwarded] if c]
+            for cand in candidates:
+                cand_clean = cand.split(":")[0].strip()
+                if is_tailscale_ip(cand_clean):
+                    res = {
+                        "tailscale_installed": True,
+                        "connected": True,
+                        "state": "Running",
+                        "tailscale_ip": cand_clean,
+                        "dns_name": None,
+                        "auth_url": None,
+                        "hostname": hostname,
+                        "lan_ip": lan_ip,
+                        "is_container": in_container,
+                        "local_url": f"http://{lan_ip}:8000",
+                        "tailscale_url": f"http://{cand_clean}:8000"
+                    }
+                    _update_tailscale_cache(res)
+                    return res
+                elif cand_clean.endswith(".ts.net"):
+                    res = {
+                        "tailscale_installed": True,
+                        "connected": True,
+                        "state": "Running",
+                        "tailscale_ip": None,
+                        "dns_name": cand_clean,
+                        "auth_url": None,
+                        "hostname": hostname,
+                        "lan_ip": lan_ip,
+                        "is_container": in_container,
+                        "local_url": f"http://{lan_ip}:8000",
+                        "tailscale_url": f"http://{cand_clean}:8000"
+                    }
+                    _update_tailscale_cache(res)
+                    return res
         except Exception:
             pass
 
