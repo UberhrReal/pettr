@@ -14,6 +14,7 @@ const FocusCockpit = {
   isMinimized: false,
   sessionFocusSeconds: 0,
   thisWeekHours: 0,
+  cachedPickerTasks: [],
 
   // Audio Context & Sound Engine
   audioCtx: null,
@@ -25,7 +26,28 @@ const FocusCockpit = {
   volume: 0.35,
 
   init() {
-    // Lazy audio initialization on first user interaction
+    // Dismiss task picker when clicking outside
+    document.addEventListener("click", (e) => {
+      const picker = document.getElementById("cockpitTaskPicker");
+      const btn = document.getElementById("cockpitSwitchTaskBtn");
+      const title = document.getElementById("cockpitTaskTitle");
+      if (picker && picker.style.display !== "none") {
+        if (!picker.contains(e.target) && (!btn || !btn.contains(e.target)) && (!title || !title.contains(e.target))) {
+          this.toggleTaskPicker(false);
+        }
+      }
+    });
+
+    // Close task picker on Escape if open
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const picker = document.getElementById("cockpitTaskPicker");
+        if (picker && picker.style.display !== "none") {
+          e.stopPropagation();
+          this.toggleTaskPicker(false);
+        }
+      }
+    });
   },
 
   async open(task = null) {
@@ -77,6 +99,11 @@ const FocusCockpit = {
   },
 
   close() {
+    const picker = document.getElementById("cockpitTaskPicker");
+    if (picker && picker.style.display !== "none") {
+      this.toggleTaskPicker(false);
+      return;
+    }
     if (this.hasStarted || this.isRunning) {
       // Keep active sprint alive in the mini display when closing / pressing escape
       this.minimize();
@@ -150,10 +177,244 @@ const FocusCockpit = {
       projEl.style.display = "inline-block";
     }
     if (urgEl) {
-      const urg = (this.activeTask.urgency && this.activeTask.urgency.level) || "focus";
+      const urg = (this.activeTask.urgency && this.activeTask.urgency.level) || (this.activeTask.tier || "focus");
       urgEl.textContent = urg.toUpperCase();
       urgEl.className = `urgency-badge ${urg}`;
     }
+  },
+
+  getAvailableTasks() {
+    const list = [];
+    const seenIds = new Set();
+
+    // 1. Items from Dashboard.dailyOrder (preserves priority sequence)
+    if (typeof Dashboard !== "undefined" && Dashboard.dailyOrder && Dashboard.dailyOrder.length > 0) {
+      Dashboard.dailyOrder.forEach((item, idx) => {
+        if (!item.completed && item.id) {
+          seenIds.add(item.id);
+          list.push({
+            id: item.id,
+            title: item.title,
+            project_name: item.project_name || "General",
+            urgency: item.urgency || { level: "focus", label: "FOCUS" },
+            tier: item.tier || "focus",
+            priority_rank: idx + 1,
+            is_priority: true
+          });
+        }
+      });
+    }
+
+    // 2. Pending Focus tasks
+    if (typeof Dashboard !== "undefined" && Dashboard.tasks && Dashboard.tasks.focus) {
+      Dashboard.tasks.focus.forEach(t => {
+        if (t.status !== "completed" && t.id && !seenIds.has(t.id)) {
+          seenIds.add(t.id);
+          list.push({
+            id: t.id,
+            title: t.title,
+            project_name: t.project_name || "General",
+            urgency: t.urgency || { level: "focus", label: "FOCUS" },
+            tier: "focus",
+            priority_rank: null,
+            is_priority: false
+          });
+        }
+      });
+    }
+
+    // 3. Pending Trivial tasks (in case user sprints on trivial task out of order)
+    if (typeof Dashboard !== "undefined" && Dashboard.tasks && Dashboard.tasks.trivial) {
+      Dashboard.tasks.trivial.forEach(t => {
+        if (t.status !== "completed" && t.id && !seenIds.has(t.id)) {
+          seenIds.add(t.id);
+          list.push({
+            id: t.id,
+            title: t.title,
+            project_name: t.project_name || "General",
+            urgency: t.urgency || { level: "trivial", label: "TRIVIAL" },
+            tier: "trivial",
+            priority_rank: null,
+            is_priority: false
+          });
+        }
+      });
+    }
+
+    // 4. Project tasks
+    if (typeof Dashboard !== "undefined" && Dashboard.tasks && Dashboard.tasks.projects) {
+      Dashboard.tasks.projects.forEach(p => {
+        (p.tasks || []).forEach(pt => {
+          if (pt.status !== "completed" && pt.id && !seenIds.has(pt.id)) {
+            seenIds.add(pt.id);
+            list.push({
+              id: pt.id,
+              title: pt.title,
+              project_name: p.name || pt.project_name || "General",
+              urgency: pt.urgency || { level: "focus", label: "FOCUS" },
+              tier: "project",
+              priority_rank: null,
+              is_priority: false
+            });
+          }
+        });
+      });
+    }
+
+    return list;
+  },
+
+  toggleTaskPicker(forceState) {
+    const picker = document.getElementById("cockpitTaskPicker");
+    const btn = document.getElementById("cockpitSwitchTaskBtn");
+    if (!picker) return;
+
+    const shouldShow = (typeof forceState === "boolean") ? forceState : (picker.style.display === "none" || !picker.style.display);
+    if (shouldShow) {
+      this.populateTaskPicker();
+      picker.style.display = "flex";
+      if (btn) btn.classList.add("active");
+      const search = document.getElementById("cockpitTaskSearchInput");
+      if (search) {
+        search.value = "";
+        setTimeout(() => search.focus(), 60);
+      }
+    } else {
+      picker.style.display = "none";
+      if (btn) btn.classList.remove("active");
+    }
+  },
+
+  populateTaskPicker() {
+    const tasks = this.getAvailableTasks();
+    this.cachedPickerTasks = tasks;
+    this.renderPickerList(tasks);
+  },
+
+  renderPickerList(tasks) {
+    const listEl = document.getElementById("cockpitTaskPickerList");
+    if (!listEl) return;
+
+    listEl.innerHTML = "";
+
+    // 1. General Deep Work option (untied to any task)
+    const generalActive = (!this.activeTask || !this.activeTask.id);
+    const genItem = document.createElement("div");
+    genItem.className = `cockpit-picker-item ${generalActive ? 'active' : ''}`;
+    genItem.onclick = () => this.switchActiveTask({
+      id: null,
+      title: "Deep Work Focus Session",
+      project_name: "General Deep Work",
+      urgency: { level: "focus", label: "FOCUS" },
+      tier: "focus"
+    });
+    genItem.innerHTML = `
+      <div class="picker-item-left">
+        <span class="picker-rank-chip general">GEN</span>
+        <div class="picker-item-info">
+          <div class="picker-item-title">General Deep Work Sprint</div>
+          <div class="picker-item-meta">Untied focus sprint (flexible)</div>
+        </div>
+      </div>
+      ${generalActive ? '<span class="picker-active-check">✓ Active</span>' : ''}
+    `;
+    listEl.appendChild(genItem);
+
+    if (!tasks || tasks.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "cockpit-picker-empty";
+      empty.textContent = "No other pending tasks found for today.";
+      listEl.appendChild(empty);
+      return;
+    }
+
+    const divider = document.createElement("div");
+    divider.className = "cockpit-picker-divider";
+    divider.textContent = `Today's Pending Tasks (${tasks.length})`;
+    listEl.appendChild(divider);
+
+    tasks.forEach(t => {
+      const isCurrent = (this.activeTask && this.activeTask.id === t.id);
+      const item = document.createElement("div");
+      item.className = `cockpit-picker-item ${isCurrent ? 'active' : ''}`;
+      item.onclick = () => this.switchActiveTask(t);
+
+      const rankBadge = t.priority_rank 
+        ? `<span class="picker-rank-chip rank" title="Priority #${t.priority_rank}">#${t.priority_rank}</span>`
+        : `<span class="picker-rank-chip other">${(t.tier || 'task').slice(0, 3).toUpperCase()}</span>`;
+
+      const urgLevel = (t.urgency && t.urgency.level) || t.tier || "focus";
+
+      item.innerHTML = `
+        <div class="picker-item-left">
+          ${rankBadge}
+          <div class="picker-item-info">
+            <div class="picker-item-title">${this.escapeHtml(t.title)}</div>
+            <div class="picker-item-meta">
+              <span class="picker-proj-tag">${this.escapeHtml(t.project_name || "General")}</span>
+              <span class="picker-urgency-tag ${urgLevel}">${urgLevel.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+        ${isCurrent ? '<span class="picker-active-check">✓ Active</span>' : ''}
+      `;
+      listEl.appendChild(item);
+    });
+
+    if (window.lucide) {
+      try { lucide.createIcons(); } catch (_) {}
+    }
+  },
+
+  filterTaskPicker(query) {
+    if (!this.cachedPickerTasks) return;
+    const q = (query || "").trim().toLowerCase();
+    if (!q) {
+      this.renderPickerList(this.cachedPickerTasks);
+      return;
+    }
+    const filtered = this.cachedPickerTasks.filter(t => 
+      (t.title && t.title.toLowerCase().includes(q)) ||
+      (t.project_name && t.project_name.toLowerCase().includes(q))
+    );
+    this.renderPickerList(filtered);
+  },
+
+  async switchActiveTask(task) {
+    if (!task) return;
+
+    // Log accumulated sprint duration on previous task if >= 30 seconds
+    if (this.sessionFocusSeconds >= 30) {
+      await this.logCurrentFocusSession(false);
+      this.sessionFocusSeconds = 0;
+    }
+
+    this.activeTask = task;
+    this.renderTaskDetails();
+    this.toggleTaskPicker(false);
+    this.updateMiniDisplays();
+
+    // Contextualize scratchpad if empty
+    const scratchpad = document.getElementById("cockpitScratchpad");
+    if (scratchpad && (!scratchpad.value || !scratchpad.value.trim())) {
+      scratchpad.placeholder = `Jot quick thoughts for "${task.title || 'Focus Sprint'}"...`;
+    }
+
+    App.showToast(`🎯 Switched target: "${task.title || 'General Focus'}"`);
+    App.haptic("light");
+    if (window.lucide) {
+      try { lucide.createIcons(); } catch (_) {}
+    }
+  },
+
+  escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   },
 
   formatDurationLabel(minutes) {
@@ -784,6 +1045,9 @@ const FocusCockpit = {
         this.fetchWeeklyMetrics();
         if (typeof History !== "undefined" && History.renderFocusTelemetry) {
           History.renderFocusTelemetry();
+        }
+        if (typeof Dashboard !== "undefined" && Dashboard.loadProductivityStats) {
+          Dashboard.loadProductivityStats();
         }
       }
     } catch (e) {

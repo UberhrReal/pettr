@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=8.9">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=9.0">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -412,6 +412,9 @@
               <div class="stat-pill" data-filter="reminders" title="Click to view reminders">
                 <i data-lucide="bell" style="width:13px;height:13px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders: <span class="stat-num" id="statReminders">0</span>
               </div>
+              <div class="stat-pill focus-hours-pill" id="statPillFocusHours" title="Focus sprint time logged today (click to launch Focus Cockpit)" onclick="FocusCockpit.launchTopTask()">
+                <i data-lucide="timer" style="width:13px;height:13px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus: <span class="stat-num" id="statTodayFocusHours">0.0h</span>
+              </div>
               <div class="stat-pill unorg-pill" id="statPillUnorg" data-filter="unorganized" style="display: none;" title="Click to triage unorganised queue">
                 <i data-lucide="alert-circle" style="width:13px;height:13px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Unorganised: <span class="stat-num" id="statUnorg">0</span>
               </div>
@@ -422,11 +425,14 @@
             </div>
           </div>
 
-          <!-- 2. Weekly View: 7-Day Completion Bars -->
+          <!-- 2. Weekly View: 7-Day Completion Bars & Focus Hours -->
           <div id="overviewWeekContainer" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Daily Task Completion (Mon - Sun)</span>
-              <span id="weekProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% avg</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Daily Task Completion &amp; Focus Hours (Mon - Sun)</span>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="weekProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% avg</span>
+                <span id="weekFocusHoursBadge" class="week-focus-badge" onclick="App.switchTab('history')" title="Weekly focus hours logged (click to view telemetry in History)">⏱️ 0.0h focus</span>
+              </div>
             </div>
             <div class="productivity-week-grid" id="productivityWeekGrid">
               <!-- Injected by Dashboard.renderProductivityWeek() -->
@@ -438,9 +444,12 @@
 
           <!-- 3. Monthly View: Monthly Progress & Streak -->
           <div id="overviewMonthContainer" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
               <span id="monthProductivityTitle" style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Monthly Performance</span>
-              <span id="monthProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% completed</span>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span id="monthProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% completed</span>
+                <span id="monthFocusHoursBadge" class="month-focus-badge font-mono" title="Monthly focus hours logged">⏱️ 0.0h focus</span>
+              </div>
             </div>
             <div class="project-progress-bar" style="height: 7px; margin-bottom: 12px;">
               <div class="project-progress-fill" id="monthProgressFill" style="width: 0%;"></div>
@@ -1948,12 +1957,32 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <button class="action-icon-btn cockpit-close-btn" onclick="FocusCockpit.minimize()" title="Minimize Cockpit"><i data-lucide="minus" style="width:14px;height:14px;"></i></button>
       </div>
 
-      <div class="cockpit-target-banner">
-        <div class="cockpit-target-meta">
-          <span class="project-tag" id="cockpitTaskProject">General</span>
-          <span class="urgency-badge focus" id="cockpitTaskUrgency">FOCUS</span>
+      <div class="cockpit-target-banner" id="cockpitTargetBanner">
+        <div class="cockpit-target-header-row">
+          <div class="cockpit-target-meta">
+            <span class="project-tag" id="cockpitTaskProject">General</span>
+            <span class="urgency-badge focus" id="cockpitTaskUrgency">FOCUS</span>
+          </div>
+          <button type="button" class="cockpit-switch-task-btn" id="cockpitSwitchTaskBtn" onclick="FocusCockpit.toggleTaskPicker()" title="Switch active task to work out of order">
+            <i data-lucide="arrow-left-right" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>
+            <span>Switch Task</span>
+          </button>
         </div>
-        <h2 class="cockpit-task-title" id="cockpitTaskTitle">Deep Work Focus Sprint</h2>
+        <h2 class="cockpit-task-title" id="cockpitTaskTitle" onclick="FocusCockpit.toggleTaskPicker()" title="Click to switch active task">Deep Work Focus Sprint</h2>
+
+        <!-- Task Picker Dropdown Panel for Working Out of Order -->
+        <div class="cockpit-task-picker" id="cockpitTaskPicker" style="display: none;">
+          <div class="cockpit-picker-header">
+            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);"><i data-lucide="list-todo" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Select Target Task</span>
+            <button type="button" class="action-icon-btn" onclick="FocusCockpit.toggleTaskPicker(false)" style="padding: 2px 7px; font-size: 11px;" title="Close picker">✕</button>
+          </div>
+          <div class="cockpit-picker-search-wrap">
+            <input type="text" id="cockpitTaskSearchInput" class="cockpit-picker-search" placeholder="Search pending tasks or projects..." oninput="FocusCockpit.filterTaskPicker(this.value)">
+          </div>
+          <div class="cockpit-picker-list" id="cockpitTaskPickerList">
+            <!-- Dynamically populated task items -->
+          </div>
+        </div>
       </div>
 
       <div class="cockpit-timer-section" id="cockpitTimerContainer">
@@ -2294,21 +2323,21 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=8.9"></script>
-  <script src="/static/js/app.js?v=8.9"></script>
-  <script src="/static/js/drag_drop.js?v=8.9"></script>
-  <script src="/static/js/wave_canvas.js?v=8.9"></script>
-  <script src="/static/js/entity_modal.js?v=8.9"></script>
-  <script src="/static/js/timeline.js?v=8.9"></script>
-  <script src="/static/js/mindmap.js?v=8.9"></script>
-  <script src="/static/js/dashboard.js?v=8.9"></script>
-  <script src="/static/js/simplified_mode.js?v=8.9"></script>
-  <script src="/static/js/exploded.js?v=8.9"></script>
-  <script src="/static/js/notes.js?v=8.9"></script>
-  <script src="/static/js/history.js?v=8.9"></script>
-  <script src="/static/js/command_palette.js?v=8.9"></script>
-  <script src="/static/js/focus_cockpit.js?v=8.9"></script>
-  <script src="/static/js/evening_debrief.js?v=8.9"></script>
-  <script src="/static/js/horace_chat.js?v=8.9"></script>
+  <script src="/static/js/pin_lock.js?v=9.0"></script>
+  <script src="/static/js/app.js?v=9.0"></script>
+  <script src="/static/js/drag_drop.js?v=9.0"></script>
+  <script src="/static/js/wave_canvas.js?v=9.0"></script>
+  <script src="/static/js/entity_modal.js?v=9.0"></script>
+  <script src="/static/js/timeline.js?v=9.0"></script>
+  <script src="/static/js/mindmap.js?v=9.0"></script>
+  <script src="/static/js/dashboard.js?v=9.0"></script>
+  <script src="/static/js/simplified_mode.js?v=9.0"></script>
+  <script src="/static/js/exploded.js?v=9.0"></script>
+  <script src="/static/js/notes.js?v=9.0"></script>
+  <script src="/static/js/history.js?v=9.0"></script>
+  <script src="/static/js/command_palette.js?v=9.0"></script>
+  <script src="/static/js/focus_cockpit.js?v=9.0"></script>
+  <script src="/static/js/evening_debrief.js?v=9.0"></script>
+  <script src="/static/js/horace_chat.js?v=9.0"></script>
 </body>
 </html>

@@ -2823,6 +2823,16 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         is_today = (curr_d == target_date)
         is_future = (curr_d > target_date)
 
+        # Query focus telemetry for curr_str
+        focus_day_row = conn.execute("""
+            SELECT COALESCE(SUM(duration_seconds), 0) as total_secs, COUNT(*) as sessions_cnt
+            FROM focus_sessions
+            WHERE date(completed_at) = date(?)
+        """, (curr_str,)).fetchone()
+        day_focus_secs = int(focus_day_row["total_secs"]) if focus_day_row else 0
+        day_focus_hours = round(day_focus_secs / 3600.0, 1)
+        day_focus_sessions = int(focus_day_row["sessions_cnt"]) if focus_day_row else 0
+
         week_days.append({
             "date": curr_str,
             "day_name": curr_d.strftime("%a"),
@@ -2833,7 +2843,10 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
             "completed": completed_cnt,
             "total": total_cnt,
             "rate": rate,
-            "completion_rate": rate
+            "completion_rate": rate,
+            "focus_seconds": day_focus_secs,
+            "focus_hours": day_focus_hours,
+            "focus_sessions": day_focus_sessions
         })
 
         if not is_future:
@@ -2841,6 +2854,9 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
             total_week_due += total_cnt
 
     week_avg = round((total_week_completed / total_week_due) * 100) if total_week_due > 0 else 0
+    total_week_focus_secs = sum(d["focus_seconds"] for d in week_days)
+    total_week_focus_hours = round(total_week_focus_secs / 3600.0, 1)
+    total_week_focus_sessions = sum(d["focus_sessions"] for d in week_days)
 
     # 2. Monthly view: Completion metrics combining permanently archived day_seals and active tasks
     month_str = target_date.strftime("%Y-%m")
@@ -2874,6 +2890,19 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
 
     active_projects_cnt = conn.execute("SELECT COUNT(*) FROM projects WHERE status = 'active'").fetchone()[0]
 
+    month_focus_row = conn.execute("""
+        SELECT COALESCE(SUM(duration_seconds), 0) as total_secs, COUNT(*) as sessions_cnt
+        FROM focus_sessions
+        WHERE strftime('%Y-%m', completed_at) = ?
+    """, (month_str,)).fetchone()
+    month_focus_secs = int(month_focus_row["total_secs"]) if month_focus_row else 0
+    month_focus_hours = round(month_focus_secs / 3600.0, 1)
+    month_focus_sessions = int(month_focus_row["sessions_cnt"]) if month_focus_row else 0
+
+    today_focus_secs = next((d["focus_seconds"] for d in week_days if d["is_today"]), 0)
+    today_focus_hours = round(today_focus_secs / 3600.0, 1)
+    today_focus_sessions = next((d["focus_sessions"] for d in week_days if d["is_today"]), 0)
+
     week_data = {
         "start_date": start_of_week.strftime("%Y-%m-%d"),
         "end_date": (start_of_week + datetime.timedelta(days=6)).strftime("%Y-%m-%d"),
@@ -2882,7 +2911,10 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         "overall_rate_pct": week_avg,
         "total_completed": total_week_completed,
         "total_tasks": total_week_due,
-        "total_scheduled": total_week_due
+        "total_scheduled": total_week_due,
+        "total_focus_seconds": total_week_focus_secs,
+        "total_focus_hours": total_week_focus_hours,
+        "total_focus_sessions": total_week_focus_sessions
     }
 
     month_data = {
@@ -2896,11 +2928,19 @@ def get_productivity_stats(target_date: Optional[datetime.date] = None, db_path:
         "monthly_rate": monthly_rate,
         "completion_rate_pct": monthly_rate,
         "active_projects": active_projects_cnt,
-        "pending_tasks": max(0, month_total - month_completed)
+        "pending_tasks": max(0, month_total - month_completed),
+        "focus_seconds": month_focus_secs,
+        "focus_hours": month_focus_hours,
+        "focus_sessions": month_focus_sessions
     }
 
     return {
         "status": "success",
+        "today": {
+            "focus_seconds": today_focus_secs,
+            "focus_hours": today_focus_hours,
+            "focus_sessions": today_focus_sessions
+        },
         "week": week_data,
         "weekly": week_data,
         "month": month_data,

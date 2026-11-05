@@ -4214,21 +4214,302 @@ body {
 .cockpit-target-banner {
   text-align: center;
   padding: 6px 0;
+  position: relative;
+}
+
+.cockpit-target-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .cockpit-target-meta {
   display: flex;
-  justify-content: center;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
+}
+
+.cockpit-switch-task-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--focus-indigo);
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.cockpit-switch-task-btn:hover,
+.cockpit-switch-task-btn.active {
+  background: var(--focus-indigo);
+  color: #fff;
+  border-color: var(--focus-indigo);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
 .cockpit-task-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.02em;
   line-height: 1.3;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.cockpit-task-title:hover {
+  color: var(--focus-indigo);
+}
+
+/* --- Task Picker Dropdown Panel --- */
+.cockpit-task-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 120;
+  margin-top: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(20px);
+  padding: 12px;
+  text-align: left;
+  max-height: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeInDown 0.18s ease-out;
+}
+
+.cockpit-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.cockpit-picker-search-wrap {
+  width: 100%;
+}
+
+.cockpit-picker-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 11px;
+  font-size: 12.5px;
+  color: var(--text-main);
+  background: var(--bg-primary);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.cockpit-picker-search:focus {
+  border-color: var(--focus-indigo);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.cockpit-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 240px;
+  padding-right: 2px;
+}
+
+.cockpit-picker-divider {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 6px 4px 2px;
+}
+
+.cockpit-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cockpit-picker-item:hover {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.cockpit-picker-item.active {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: var(--focus-indigo);
+}
+
+.picker-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.picker-rank-chip {
+  font-size: 10.5px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.picker-rank-chip.rank {
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--focus-indigo);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.picker-rank-chip.general {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--normal-green);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.picker-rank-chip.other {
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  border: 1px solid var(--card-border);
+}
+
+.picker-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.picker-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.picker-proj-tag {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.picker-urgency-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.picker-urgency-tag.focus {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--focus-indigo);
+}
+
+.picker-urgency-tag.trivial {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--normal-green);
+}
+
+.picker-urgency-tag.urgent {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--urgent-orange);
+}
+
+.picker-active-check {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--normal-green);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.cockpit-picker-empty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --- Productivity & Tracking Focus Telemetry Integration Styles --- */
+.stat-pill.focus-hours-pill {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.06);
+  cursor: pointer;
+}
+.stat-pill.focus-hours-pill:hover {
+  border-color: var(--focus-indigo);
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.week-focus-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--focus-indigo);
+  font-family: var(--font-mono);
+  background: rgba(99, 102, 241, 0.12);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.week-focus-badge:hover {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: var(--focus-indigo);
+}
+
+.month-focus-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--focus-indigo);
+  font-family: var(--font-mono);
+  background: rgba(99, 102, 241, 0.12);
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.prod-focus-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--focus-indigo);
+  font-family: var(--font-mono);
+  margin-top: 2px;
 }
 
 .cockpit-timer-section {
@@ -5866,6 +6147,15 @@ body {
 
   .cockpit-target-banner {
     padding: 4px 0 !important;
+  }
+
+  .cockpit-target-header-row {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .cockpit-task-picker {
+    max-height: 280px !important;
   }
 
   .cockpit-task-title {

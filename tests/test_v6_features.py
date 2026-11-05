@@ -2991,8 +2991,8 @@ def test_focus_cockpit_duration_slider_and_rain_synthesis():
     assert "5m" in index_html
     assert "3h" in index_html
     assert "Focus Sprint Length" in index_html
-    assert "pettr.css?v=8." in index_html
-    assert "focus_cockpit.js?v=8." in index_html
+    assert "pettr.css?v=" in index_html
+    assert "focus_cockpit.js?v=" in index_html
 
     # 2. Verify CSS styles for duration slider and scale
     assert ".cockpit-duration-slider-wrap" in css
@@ -3142,6 +3142,110 @@ def test_v8_9_focus_metrics_mobile_and_overtime(temp_db, monkeypatch):
     # Verify mobile touch optimizations
     assert "max-width: 768px" in css
     assert "clamp(32px, 10vw, 44px)" in css
+
+
+def test_v9_0_focus_tracking_integration_and_cockpit_task_switching(temp_db, monkeypatch):
+    """Verify focus hours tracking integrated under Productivity & Tracking and Focus Cockpit task switcher."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Database focus session logging and productivity stats integration
+    today = datetime.date.today().isoformat()
+    sess1 = database.log_focus_session(
+        task_id=None,
+        task_title="Kalman Filter Algorithm Sprints",
+        project_name="Autonomous Navigation",
+        duration_seconds=3600,
+        target_seconds=3600,
+        completed_task=True,
+        db_path=temp_db
+    )
+    assert sess1["id"] is not None
+
+    sess2 = database.log_focus_session(
+        task_id=None,
+        task_title="IMU Dead Reckoning Verification",
+        project_name="Autonomous Navigation",
+        duration_seconds=1800,
+        target_seconds=1800,
+        completed_task=False,
+        db_path=temp_db
+    )
+    assert sess2["id"] is not None
+
+    # Verify get_productivity_stats includes focus telemetry
+    stats = database.get_productivity_stats(db_path=temp_db)
+    assert stats["status"] == "success"
+    assert "today" in stats
+    assert stats["today"]["focus_seconds"] == 5400
+    assert stats["today"]["focus_hours"] == 1.5
+    assert stats["today"]["focus_sessions"] == 2
+
+    assert "weekly" in stats
+    assert stats["weekly"]["total_focus_seconds"] == 5400
+    assert stats["weekly"]["total_focus_hours"] == 1.5
+    assert stats["weekly"]["total_focus_sessions"] == 2
+    today_day = next((d for d in stats["weekly"]["days"] if d["is_today"]), None)
+    assert today_day is not None
+    assert today_day["focus_hours"] == 1.5
+    assert today_day["focus_sessions"] == 2
+
+    assert "monthly" in stats
+    assert stats["monthly"]["focus_seconds"] == 5400
+    assert stats["monthly"]["focus_hours"] == 1.5
+    assert stats["monthly"]["focus_sessions"] == 2
+
+    # 2. REST API /api/productivity returns integrated focus telemetry
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res = client.get("/api/productivity")
+        assert res.status_code == 200
+        api_data = res.json()
+        assert api_data["today"]["focus_hours"] == 1.5
+        assert api_data["weekly"]["total_focus_hours"] == 1.5
+        assert api_data["monthly"]["focus_hours"] == 1.5
+
+    # 3. Frontend Focus Cockpit Task Switcher verification
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+    assert "toggleTaskPicker" in cockpit_js
+    assert "getAvailableTasks" in cockpit_js
+    assert "populateTaskPicker" in cockpit_js
+    assert "renderPickerList" in cockpit_js
+    assert "filterTaskPicker" in cockpit_js
+    assert "switchActiveTask" in cockpit_js
+    assert "cachedPickerTasks" in cockpit_js
+    assert "Dashboard.loadProductivityStats" in cockpit_js
+
+    # 4. Frontend Dashboard Productivity & Tracking integration verification
+    dashboard_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "todayFocusHours" in dashboard_js
+    assert "statTodayFocusHours" in dashboard_js
+    assert "weekFocusHoursBadge" in dashboard_js
+    assert "prod-focus-tag" in dashboard_js
+    assert "monthFocusHoursBadge" in dashboard_js
+    assert "total_focus_hours" in dashboard_js
+
+    # 5. Frontend HTML & CSS structure verification
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+
+    assert 'id="cockpitSwitchTaskBtn"' in index_html
+    assert 'id="cockpitTaskPicker"' in index_html
+    assert 'id="cockpitTaskSearchInput"' in index_html
+    assert 'id="cockpitTaskPickerList"' in index_html
+    assert 'id="statTodayFocusHours"' in index_html
+    assert 'id="weekFocusHoursBadge"' in index_html
+    assert 'id="monthFocusHoursBadge"' in index_html
+    assert "pettr.css?v=9.0" in index_html
+    assert "focus_cockpit.js?v=9.0" in index_html
+
+    assert ".cockpit-switch-task-btn" in css
+    assert ".cockpit-task-picker" in css
+    assert ".cockpit-picker-item" in css
+    assert ".week-focus-badge" in css
+    assert ".month-focus-badge" in css
+    assert ".prod-focus-tag" in css
+    assert ".stat-pill.focus-hours-pill" in css
+
 
 
 

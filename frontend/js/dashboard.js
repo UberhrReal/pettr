@@ -866,7 +866,8 @@ const Dashboard = {
       }
     } else {
       if (textEl) textEl.textContent = `${pct}%`;
-      if (subtextEl) subtextEl.textContent = `${completed} of ${total} completed (${remaining} remaining)`;
+      const focusExtra = this.todayFocusHours ? ` · ${this.todayFocusHours}h focus` : '';
+      if (subtextEl) subtextEl.textContent = `${completed} of ${total} completed (${remaining} remaining)${focusExtra}`;
       if (circleEl) {
         const c = 138.23;
         circleEl.style.strokeDasharray = `${c}`;
@@ -913,13 +914,29 @@ const Dashboard = {
 
   renderProductivityStats(data) {
     if (!data) return;
-    const { weekly, monthly } = data;
+    const { weekly, monthly, today } = data;
+
+    // Today Focus Hours integration
+    const todayFocusHours = (today && today.focus_hours) !== undefined ? today.focus_hours : 0;
+    this.todayFocusHours = todayFocusHours;
+    const statFocusEl = document.getElementById("statTodayFocusHours");
+    if (statFocusEl) {
+      statFocusEl.textContent = `${todayFocusHours}h`;
+    }
+    this.updateProgressRing();
 
     // 1. Weekly View
     const weekBadge = document.getElementById("weekProductivityBadge");
     if (weekBadge) {
       weekBadge.textContent = `${weekly.overall_rate_pct}% avg`;
       weekBadge.style.color = weekly.overall_rate_pct >= 70 ? "var(--normal-green)" : (weekly.overall_rate_pct > 0 ? "var(--urgent-orange)" : "var(--text-muted)");
+    }
+
+    const weekFocusBadge = document.getElementById("weekFocusHoursBadge");
+    if (weekFocusBadge) {
+      const wkHours = weekly.total_focus_hours || 0;
+      weekFocusBadge.textContent = `⏱️ ${wkHours}h focus`;
+      weekFocusBadge.title = `Total focus time this week: ${wkHours}h across ${weekly.total_focus_sessions || 0} sprints (click to view History telemetry)`;
     }
 
     const grid = document.getElementById("productivityWeekGrid");
@@ -939,13 +956,16 @@ const Dashboard = {
           else if (d.completion_rate > 0) fillColor = "var(--urgent-orange)";
         }
 
+        const focusText = (d.focus_hours > 0) ? `${d.focus_hours}h` : '0h';
+
         col.innerHTML = `
           <span style="font-size: 10px; font-weight: 700; color: ${d.is_today ? 'var(--text-main)' : 'var(--text-muted)'}; font-family: var(--font-mono);">${pctText}</span>
-          <div class="prod-bar-track" title="${d.day_name} (${d.date}): ${d.completed}/${d.total} tasks completed">
+          <div class="prod-bar-track" title="${d.day_name} (${d.date}): ${d.completed}/${d.total} tasks completed • ${d.focus_hours || 0}h focus logged">
             <div class="prod-bar-fill" style="height: ${fillHeight}%; background: ${fillColor}; opacity: ${d.completion_rate === null ? '0.25' : '1'};"></div>
           </div>
           <span class="prod-day-label ${d.is_today ? 'today-label' : ''}" style="${d.is_today ? 'font-weight: 800; color: var(--text-main); text-decoration: underline;' : ''}">${d.day_name}</span>
           <span style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono);">${d.completed}/${d.total}</span>
+          <span class="prod-focus-tag" style="font-size: 9px; font-weight: 700; color: ${d.focus_hours > 0 ? 'var(--focus-indigo)' : 'var(--text-dim)'}; font-family: var(--font-mono);" title="${d.focus_hours || 0}h focus logged">${focusText}</span>
         `;
         grid.appendChild(col);
       });
@@ -953,7 +973,9 @@ const Dashboard = {
 
     const weekSummary = document.getElementById("weekProductivitySummary");
     if (weekSummary) {
-      weekSummary.innerHTML = `<strong>${weekly.total_completed} of ${weekly.total_scheduled} tasks completed</strong> across this week (${weekly.start_date} to ${weekly.end_date}).`;
+      const wkHours = weekly.total_focus_hours || 0;
+      const wkSprints = weekly.total_focus_sessions || 0;
+      weekSummary.innerHTML = `<strong>${weekly.total_completed} of ${weekly.total_scheduled} tasks completed</strong> (${weekly.overall_rate_pct}% avg) &bull; <strong style="color:var(--focus-indigo);">${wkHours} hrs</strong> logged across ${wkSprints} focus sprints this week.`;
     }
 
     // 2. Monthly View
@@ -964,6 +986,12 @@ const Dashboard = {
     if (monthBadge) {
       monthBadge.textContent = `${monthly.completion_rate_pct}% completed`;
       monthBadge.style.color = monthly.completion_rate_pct >= 70 ? "var(--normal-green)" : (monthly.completion_rate_pct > 0 ? "var(--urgent-orange)" : "var(--text-muted)");
+    }
+
+    const monthFocusBadge = document.getElementById("monthFocusHoursBadge");
+    if (monthFocusBadge) {
+      const mHours = monthly.focus_hours || 0;
+      monthFocusBadge.textContent = `⏱️ ${mHours}h focus`;
     }
 
     const monthFill = document.getElementById("monthProgressFill");
@@ -978,6 +1006,10 @@ const Dashboard = {
         <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
           <span>Completed Tasks:</span>
           <strong style="color:var(--text-main); font-family:var(--font-mono);">${monthly.completed_tasks} / ${monthly.total_tasks}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
+          <span>Focus Time Logged:</span>
+          <strong style="color:var(--focus-indigo); font-family:var(--font-mono);">${monthly.focus_hours || 0} hrs (${monthly.focus_sessions || 0} sprints)</strong>
         </div>
         <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
           <span>Active Ongoing Projects:</span>
