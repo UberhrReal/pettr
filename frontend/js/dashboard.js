@@ -2993,6 +2993,17 @@ const Dashboard = {
     }
   },
 
+  scrollToYourStats() {
+    setTimeout(() => {
+      const panel = document.getElementById("focusTelemetryPanel");
+      if (panel) {
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        panel.classList.add("highlight-pulse");
+        setTimeout(() => panel.classList.remove("highlight-pulse"), 2200);
+      }
+    }, 120);
+  },
+
   escapeHtml(text) {
     if (!text) return "";
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

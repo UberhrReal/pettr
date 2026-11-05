@@ -3235,8 +3235,8 @@ def test_v9_0_focus_tracking_integration_and_cockpit_task_switching(temp_db, mon
     assert 'id="statTodayFocusHours"' in index_html
     assert 'id="weekFocusHoursBadge"' in index_html
     assert 'id="monthFocusHoursBadge"' in index_html
-    assert "pettr.css?v=9.0" in index_html
-    assert "focus_cockpit.js?v=9.0" in index_html
+    assert "pettr.css?v=9." in index_html
+    assert "focus_cockpit.js?v=9." in index_html
 
     assert ".cockpit-switch-task-btn" in css
     assert ".cockpit-task-picker" in css
@@ -3245,6 +3245,78 @@ def test_v9_0_focus_tracking_integration_and_cockpit_task_switching(temp_db, mon
     assert ".month-focus-badge" in css
     assert ".prod-focus-tag" in css
     assert ".stat-pill.focus-hours-pill" in css
+
+
+def test_v9_1_your_stats_unification_and_cockpit_no_general_pill(temp_db, monkeypatch):
+    """Verify renaming to 'Your Stats', unification with Productivity & Tracking, and omission of 'General' pill in Focus Cockpit."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Frontend HTML: Check panel rename, bidirectional quick links, 5th KPI card, and hidden project pill
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert 'id="yourStatsPanelTitle"' in index_html
+    assert "Your Stats" in index_html
+    assert "Focus Telemetry &amp; Weekly Hours" not in index_html
+
+    assert 'id="yourStatsCompletionCard"' in index_html
+    assert 'id="focusKpiTaskRate"' in index_html
+    assert 'id="focusKpiTaskSummary"' in index_html
+
+    # Check two-way linking buttons
+    assert 'class="action-icon-btn your-stats-quicklink"' in index_html
+    assert "Dashboard.scrollToYourStats();" in index_html
+    assert "Dashboard Overview" in index_html
+
+    # Check cockpit task project initial state is hidden (no glowing 'General' pill)
+    assert '<span class="project-tag" id="cockpitTaskProject" style="display: none;"></span>' in index_html
+
+    # Cache buster version check
+    assert 'pettr.css?v=9.1' in index_html
+    assert 'dashboard.js?v=9.1' in index_html
+    assert 'history.js?v=9.1' in index_html
+    assert 'focus_cockpit.js?v=9.1' in index_html
+
+    # 2. Frontend CSS: Verify styles for Your Stats quick links, grid layout, and pulse highlight
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert ".your-stats-quicklink" in css
+    assert ".highlight-pulse" in css
+    assert "@keyframes highlightPanelPulse" in css
+    assert "grid-template-columns: repeat(5, 1fr);" in css
+
+    # 3. Frontend JS - Dashboard: Verify scrollToYourStats()
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    assert "scrollToYourStats()" in dash_js
+    assert "focusTelemetryPanel" in dash_js
+    assert "highlight-pulse" in dash_js
+
+    # 4. Frontend JS - History: Verify renderFocusTelemetry fetches /api/productivity
+    hist_js = Path("frontend/js/history.js").read_text(encoding="utf-8")
+    assert "/api/focus/metrics" in hist_js
+    assert "/api/productivity" in hist_js
+    assert "focusKpiTaskRate" in hist_js
+    assert "focusKpiTaskSummary" in hist_js
+    assert "focusTelemetryWeekBadge" in hist_js
+
+    # 5. Frontend JS - Focus Cockpit: Verify suppression of 'General' project pill
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+    assert "isWiderProject" in cockpit_js
+    assert 'rawProj.toLowerCase() !== "general"' in cockpit_js
+    assert 'rawProj.toLowerCase() !== "general deep work"' in cockpit_js
+    assert 'projEl.style.display = "inline-flex"' in cockpit_js
+    assert 'projEl.style.display = "none"' in cockpit_js
+    assert 'GENERAL DEEP WORK' in cockpit_js
+    assert 'isWider ? `<span class="picker-proj-tag">' in cockpit_js
+
+    # 6. API verification: confirm /api/productivity and /api/focus/metrics run together seamlessly
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+        res_prod = client.get("/api/productivity")
+        assert res_prod.status_code == 200
+        assert "weekly" in res_prod.json()
+
+        res_focus = client.get("/api/focus/metrics")
+        assert res_focus.status_code == 200
+        assert "this_week_hours" in res_focus.json()
+
 
 
 

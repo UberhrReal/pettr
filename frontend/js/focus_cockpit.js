@@ -154,8 +154,8 @@ const FocusCockpit = {
     return {
       id: null,
       title: "Deep Work Focus Session",
-      project_name: "High Priority",
-      urgency: { level: "urgent" }
+      project_name: null,
+      urgency: { level: "focus", label: "GENERAL DEEP WORK" }
     };
   },
 
@@ -172,14 +172,39 @@ const FocusCockpit = {
     if (!this.activeTask) return;
 
     if (titleEl) titleEl.textContent = this.activeTask.title || "Focused Sprint";
+
+    const rawProj = (this.activeTask.project_name || "").trim();
+    const isWiderProject = Boolean(
+      rawProj &&
+      rawProj.toLowerCase() !== "general" &&
+      rawProj.toLowerCase() !== "general deep work"
+    );
+
     if (projEl) {
-      projEl.textContent = this.activeTask.project_name || "General Deep Work";
-      projEl.style.display = "inline-block";
+      if (isWiderProject) {
+        projEl.textContent = rawProj;
+        projEl.style.display = "inline-flex";
+        if (typeof Dashboard !== "undefined" && Dashboard.getProjectColor) {
+          const color = Dashboard.getProjectColor(rawProj);
+          projEl.style.color = color;
+          projEl.style.borderColor = color;
+        }
+      } else {
+        projEl.textContent = "";
+        projEl.style.display = "none";
+      }
     }
+
     if (urgEl) {
-      const urg = (this.activeTask.urgency && this.activeTask.urgency.level) || (this.activeTask.tier || "focus");
-      urgEl.textContent = urg.toUpperCase();
-      urgEl.className = `urgency-badge ${urg}`;
+      if (!this.activeTask.id) {
+        urgEl.textContent = "GENERAL DEEP WORK";
+        urgEl.className = "urgency-badge focus";
+      } else {
+        const urg = (this.activeTask.urgency && this.activeTask.urgency.level) || (this.activeTask.tier || "focus");
+        const label = (this.activeTask.urgency && this.activeTask.urgency.label) ? this.activeTask.urgency.label : urg;
+        urgEl.textContent = label.toUpperCase();
+        urgEl.className = `urgency-badge ${urg}`;
+      }
     }
   },
 
@@ -195,7 +220,7 @@ const FocusCockpit = {
           list.push({
             id: item.id,
             title: item.title,
-            project_name: item.project_name || "General",
+            project_name: item.project_name || null,
             urgency: item.urgency || { level: "focus", label: "FOCUS" },
             tier: item.tier || "focus",
             priority_rank: idx + 1,
@@ -213,7 +238,7 @@ const FocusCockpit = {
           list.push({
             id: t.id,
             title: t.title,
-            project_name: t.project_name || "General",
+            project_name: t.project_name || null,
             urgency: t.urgency || { level: "focus", label: "FOCUS" },
             tier: "focus",
             priority_rank: null,
@@ -231,7 +256,7 @@ const FocusCockpit = {
           list.push({
             id: t.id,
             title: t.title,
-            project_name: t.project_name || "General",
+            project_name: t.project_name || null,
             urgency: t.urgency || { level: "trivial", label: "TRIVIAL" },
             tier: "trivial",
             priority_rank: null,
@@ -250,7 +275,7 @@ const FocusCockpit = {
             list.push({
               id: pt.id,
               title: pt.title,
-              project_name: p.name || pt.project_name || "General",
+              project_name: p.name || pt.project_name || null,
               urgency: pt.urgency || { level: "focus", label: "FOCUS" },
               tier: "project",
               priority_rank: null,
@@ -304,8 +329,8 @@ const FocusCockpit = {
     genItem.onclick = () => this.switchActiveTask({
       id: null,
       title: "Deep Work Focus Session",
-      project_name: "General Deep Work",
-      urgency: { level: "focus", label: "FOCUS" },
+      project_name: null,
+      urgency: { level: "focus", label: "GENERAL DEEP WORK" },
       tier: "focus"
     });
     genItem.innerHTML = `
@@ -344,6 +369,9 @@ const FocusCockpit = {
         : `<span class="picker-rank-chip other">${(t.tier || 'task').slice(0, 3).toUpperCase()}</span>`;
 
       const urgLevel = (t.urgency && t.urgency.level) || t.tier || "focus";
+      const rawProj = (t.project_name || "").trim();
+      const isWider = Boolean(rawProj && rawProj.toLowerCase() !== "general" && rawProj.toLowerCase() !== "general deep work");
+      const projBadge = isWider ? `<span class="picker-proj-tag">${this.escapeHtml(rawProj)}</span>` : '';
 
       item.innerHTML = `
         <div class="picker-item-left">
@@ -351,7 +379,7 @@ const FocusCockpit = {
           <div class="picker-item-info">
             <div class="picker-item-title">${this.escapeHtml(t.title)}</div>
             <div class="picker-item-meta">
-              <span class="picker-proj-tag">${this.escapeHtml(t.project_name || "General")}</span>
+              ${projBadge}
               <span class="picker-urgency-tag ${urgLevel}">${urgLevel.toUpperCase()}</span>
             </div>
           </div>

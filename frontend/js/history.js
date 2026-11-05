@@ -388,12 +388,25 @@ const History = {
 
   async renderFocusTelemetry() {
     try {
-      const res = await fetch("/api/focus/metrics");
+      const [res, prodRes] = await Promise.all([
+        fetch("/api/focus/metrics"),
+        fetch("/api/productivity").catch(() => null)
+      ]);
       if (!res.ok) return;
       const data = await res.json();
+      let prodData = null;
+      if (prodRes && prodRes.ok) {
+        prodData = await prodRes.json();
+      }
 
       const weekBadge = document.getElementById("focusTelemetryWeekBadge");
-      if (weekBadge) weekBadge.textContent = `This Week: ${data.this_week_hours} hrs`;
+      if (weekBadge) {
+        if (prodData && prodData.week) {
+          weekBadge.textContent = `This Week: ${data.this_week_hours} hrs • ${prodData.week.week_average}% done`;
+        } else {
+          weekBadge.textContent = `This Week: ${data.this_week_hours} hrs`;
+        }
+      }
 
       const kpiThisWeek = document.getElementById("focusKpiThisWeek");
       if (kpiThisWeek) kpiThisWeek.textContent = `${data.this_week_hours}h`;
@@ -403,6 +416,20 @@ const History = {
         const sign = data.diff_hours >= 0 ? "+" : "";
         kpiDiff.textContent = `${sign}${data.diff_hours}h (${sign}${data.diff_pct}%) vs last week`;
         kpiDiff.style.color = data.diff_hours >= 0 ? "var(--normal-green)" : "var(--urgent-orange)";
+      }
+
+      const kpiTaskRate = document.getElementById("focusKpiTaskRate");
+      if (kpiTaskRate) {
+        const rate = prodData?.week?.week_average ?? 0;
+        kpiTaskRate.textContent = `${rate}%`;
+        kpiTaskRate.style.color = rate >= 70 ? "var(--normal-green)" : (rate > 0 ? "var(--accent-cyan)" : "var(--urgent-orange)");
+      }
+
+      const kpiTaskSummary = document.getElementById("focusKpiTaskSummary");
+      if (kpiTaskSummary) {
+        const completed = prodData?.week?.total_completed ?? 0;
+        const total = prodData?.week?.total_tasks ?? 0;
+        kpiTaskSummary.textContent = `${completed} of ${total} tasks`;
       }
 
       const kpiSessions = document.getElementById("focusKpiSessions");
