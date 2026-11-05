@@ -23,6 +23,7 @@ const History = {
       this.renderTasks(archive.completed_tasks || []);
       this.renderReminders(archive.inactive_reminders || []);
       this.renderAuditLog(archive.audit_log || []);
+      await this.renderFocusTelemetry();
 
       if (showFeedback && typeof App !== "undefined" && App.showToast) {
         App.showToast("History repository refreshed", "success");
@@ -382,6 +383,167 @@ const History = {
     } catch (err) {
       console.error(err);
       App.showToast("Network error restoring reminder", true);
+    }
+  },
+
+  async renderFocusTelemetry() {
+    try {
+      const res = await fetch("/api/focus/metrics");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const weekBadge = document.getElementById("focusTelemetryWeekBadge");
+      if (weekBadge) weekBadge.textContent = `This Week: ${data.this_week_hours} hrs`;
+
+      const kpiThisWeek = document.getElementById("focusKpiThisWeek");
+      if (kpiThisWeek) kpiThisWeek.textContent = `${data.this_week_hours}h`;
+
+      const kpiDiff = document.getElementById("focusKpiDiff");
+      if (kpiDiff) {
+        const sign = data.diff_hours >= 0 ? "+" : "";
+        kpiDiff.textContent = `${sign}${data.diff_hours}h (${sign}${data.diff_pct}%) vs last week`;
+        kpiDiff.style.color = data.diff_hours >= 0 ? "var(--normal-green)" : "var(--urgent-orange)";
+      }
+
+      const kpiSessions = document.getElementById("focusKpiSessions");
+      if (kpiSessions) kpiSessions.textContent = `${data.this_week_sessions}`;
+
+      const kpiDailyAvg = document.getElementById("focusKpiDailyAvg");
+      if (kpiDailyAvg) kpiDailyAvg.textContent = `${data.daily_avg_hours}h`;
+
+      const kpiActiveDays = document.getElementById("focusKpiActiveDays");
+      if (kpiActiveDays) kpiActiveDays.textContent = `${data.active_days} active days`;
+
+      const kpiAllTime = document.getElementById("focusKpiAllTime");
+      if (kpiAllTime) kpiAllTime.textContent = `${data.all_time_hours}h`;
+
+      const kpiAllTimeSessions = document.getElementById("focusKpiAllTimeSessions");
+      if (kpiAllTimeSessions) kpiAllTimeSessions.textContent = `${data.all_time_sessions} sessions`;
+
+      // Render 7-day weekly bar chart
+      const barsContainer = document.getElementById("focusWeeklyBars");
+      if (barsContainer && Array.isArray(data.daily_breakdown)) {
+        const maxH = Math.max(...data.daily_breakdown.map(d => d.hours), 3);
+        barsContainer.innerHTML = data.daily_breakdown.map(d => {
+          const pct = Math.min(100, Math.round((d.hours / maxH) * 100));
+          return `
+            <div class="focus-bar-col ${d.is_today ? 'is-today' : ''}" title="${d.label}: ${d.hours} hrs (${d.sessions} sessions)">
+              <span class="focus-bar-val">${d.hours > 0 ? d.hours + 'h' : ''}</span>
+              <div class="focus-bar-track">
+                <div class="focus-bar-fill" style="height: ${pct}%;"></div>
+              </div>
+              <span class="focus-bar-day">${d.day_name}</span>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // Render weekly history comparison rows
+      const tableBody = document.getElementById("focusWeeksTableBody");
+      if (tableBody && Array.isArray(data.weekly_history)) {
+        tableBody.innerHTML = data.weekly_history.map(w => {
+          let badgeClass = "trivial";
+          let badgeText = "IDLE";
+          if (w.hours >= 12) { badgeClass = "urgent"; badgeText = "HIGH VELOCITY"; }
+          else if (w.hours >= 5) { badgeClass = "focus"; badgeText = "SOLID MOMENTUM"; }
+          else if (w.hours > 0) { badgeClass = "normal"; badgeText = "ACTIVE"; }
+
+          return `
+            <tr>
+              <td style="padding: 10px 12px;">
+                <strong style="color: var(--text-main); font-size: 13px;">${w.label}</strong>
+                <span style="font-size: 11px; color: var(--text-muted); display: block;">${w.range}</span>
+              </td>
+              <td style="padding: 10px 12px;">
+                <span class="font-mono font-bold" style="font-size: 13.5px; color: var(--focus-indigo);">${w.hours} hrs</span>
+                <span style="font-size: 11px; color: var(--text-muted); display: block;">${Math.round(w.seconds / 60)} mins</span>
+              </td>
+              <td style="padding: 10px 12px; font-size: 12.5px;">
+                ${w.sessions} ${w.sessions === 1 ? 'sprint' : 'sprints'}
+              </td>
+              <td style="padding: 10px 12px;">
+                <span class="urgency-badge ${badgeClass}" style="font-size: 10px;">${badgeText}</span>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      // Project breakdown
+      const projContainer = document.getElementById("focusProjectBreakdown");
+      if (projContainer && Array.isArray(data.project_breakdown)) {
+        if (data.project_breakdown.length === 0) {
+          projContainer.innerHTML = `<span style="font-size: 12px; color: var(--text-muted);">No focus sessions logged this week yet.</span>`;
+        } else {
+          projContainer.innerHTML = data.project_breakdown.map(p => `
+            <div class="focus-proj-pill" title="${p.percentage}% of weekly focus">
+              <span class="project-tag">${p.project_name}</span>
+              <span class="font-mono font-bold" style="font-size: 11.5px; color: var(--text-main);">${p.hours}h (${p.percentage}%)</span>
+            </div>
+          `).join("");
+        }
+      }
+    } catch (err) {
+      console.warn("Could not render focus telemetry:", err);
+    }
+  },
+
+  async toggleFocusSessionsModal() {
+    const modal = document.getElementById("focusSessionsModal");
+    if (!modal) return;
+    if (modal.style.display === "none") {
+      modal.style.display = "flex";
+      document.body.classList.add("modal-open");
+      await this.renderSessionsHistoryList();
+    } else {
+      modal.style.display = "none";
+      document.body.classList.remove("modal-open");
+    }
+  },
+
+  async renderSessionsHistoryList() {
+    const listEl = document.getElementById("focusSessionsModalList");
+    if (!listEl) return;
+    listEl.innerHTML = `<div style="text-align:center; padding:16px; color:var(--text-muted);">Loading focus logs...</div>`;
+
+    try {
+      const res = await fetch("/api/focus/sessions?limit=60");
+      if (!res.ok) throw new Error("Failed to load sessions");
+      const sessions = await res.json();
+
+      if (sessions.length === 0) {
+        listEl.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">No focus periods logged yet. Run sprints in the Focus Cockpit to build your history!</div>`;
+        return;
+      }
+
+      listEl.innerHTML = sessions.map(s => {
+        const mins = Math.round(s.duration_seconds / 60);
+        const hrs = (s.duration_seconds / 3600).toFixed(1);
+        const durationStr = s.duration_seconds >= 3600 ? `${hrs} hrs (${mins}m)` : `${mins} mins`;
+        const completedBadge = s.completed_task
+          ? `<span class="urgency-badge normal" style="font-size:10px;"><i data-lucide="check" style="width:10px;height:10px;display:inline-block;vertical-align:-1px;"></i> Completed</span>`
+          : `<span class="urgency-badge focus" style="font-size:10px;">Sprint Run</span>`;
+
+        return `
+          <div class="history-item focus-session-row" style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; background:var(--bg-secondary); border:1px solid var(--card-border); border-radius:10px;">
+            <div style="min-width:0; flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                <span class="project-tag">${this.escapeHtml(s.project_name || 'General')}</span>
+                ${completedBadge}
+                <span style="font-size:11px; color:var(--text-dim);">${s.completed_at || s.started_at}</span>
+              </div>
+              <strong style="font-size:13px; color:var(--text-main); word-break:break-word;">${this.escapeHtml(s.task_title)}</strong>
+            </div>
+            <div style="text-align:right; flex-shrink:0;">
+              <span class="font-mono font-bold" style="font-size:14px; color:var(--focus-indigo);">${durationStr}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+    } catch (e) {
+      listEl.innerHTML = `<div style="text-align:center; padding:16px; color:var(--urgent-orange);">Failed to load focus sessions.</div>`;
     }
   },
 

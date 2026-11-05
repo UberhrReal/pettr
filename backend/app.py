@@ -138,6 +138,16 @@ class ReclassifyRequest(BaseModel):
     category: Optional[str] = None
     is_time_sensitive: Optional[bool] = None
 
+class FocusSessionLogRequest(BaseModel):
+    task_id: Optional[int] = None
+    task_title: Optional[str] = "Deep Work Sprint"
+    project_name: Optional[str] = "General"
+    duration_seconds: int = 0
+    target_seconds: Optional[int] = 0
+    completed_task: Optional[bool] = False
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+
 class ProfileUpdateRequest(BaseModel):
     user_name: str
 
@@ -922,12 +932,39 @@ async def reclassify_item(req: ReclassifyRequest):
     )
     return result
 
-# --- Productivity Metrics Routes ---
+# --- Productivity & Focus Telemetry Metrics Routes ---
 
 @app.get("/api/productivity", dependencies=[Depends(auth.require_auth)])
 async def get_productivity():
     """Returns weekly (Monday-Sunday) and monthly task completion rates and streak stats."""
     return database.get_productivity_stats()
+
+@app.post("/api/focus/log", dependencies=[Depends(auth.require_auth)])
+async def log_focus_session_endpoint(req: FocusSessionLogRequest):
+    """Logs a completed focus period into focus telemetry."""
+    if req.duration_seconds < 1:
+        raise HTTPException(status_code=400, detail="Duration must be at least 1 second.")
+    session = database.log_focus_session(
+        task_id=req.task_id,
+        task_title=req.task_title or "Deep Work Focus Session",
+        project_name=req.project_name or "General",
+        duration_seconds=req.duration_seconds,
+        target_seconds=req.target_seconds or 0,
+        completed_task=bool(req.completed_task),
+        started_at=req.started_at,
+        completed_at=req.completed_at
+    )
+    return {"success": True, "session": session}
+
+@app.get("/api/focus/metrics", dependencies=[Depends(auth.require_auth)])
+async def get_focus_metrics_endpoint(weeks: int = 4):
+    """Returns weekly focus hours and telemetry metrics."""
+    return database.get_focus_metrics(weeks=weeks)
+
+@app.get("/api/focus/sessions", dependencies=[Depends(auth.require_auth)])
+async def get_focus_sessions_endpoint(limit: int = 50, offset: int = 0):
+    """Returns recent focus sessions history."""
+    return database.get_focus_sessions_history(limit=limit, offset=offset)
 
 @app.post("/api/debrief/seal", dependencies=[Depends(auth.require_auth)])
 async def seal_day_endpoint(request: Request):

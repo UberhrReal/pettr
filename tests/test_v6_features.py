@@ -2991,8 +2991,8 @@ def test_focus_cockpit_duration_slider_and_rain_synthesis():
     assert "5m" in index_html
     assert "3h" in index_html
     assert "Focus Sprint Length" in index_html
-    assert "pettr.css?v=8.8" in index_html
-    assert "focus_cockpit.js?v=8.8" in index_html
+    assert "pettr.css?v=8." in index_html
+    assert "focus_cockpit.js?v=8." in index_html
 
     # 2. Verify CSS styles for duration slider and scale
     assert ".cockpit-duration-slider-wrap" in css
@@ -3018,6 +3018,131 @@ def test_focus_cockpit_duration_slider_and_rain_synthesis():
     assert "decayRate" in cockpit_js
     # Ensure dual biquad shaping (lowpass + highpass)
     assert "filterNodeHp" in cockpit_js
+
+
+def test_v8_9_focus_metrics_mobile_and_overtime(temp_db, monkeypatch):
+    """Verify v8.9 focus period tracking metrics, overtime additions, ambient independence, and mobile optimizations."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    # 1. Database focus session logging and metrics
+    sess1 = database.log_focus_session(
+        task_id=1,
+        task_title="System Architecture Refinement",
+        project_name="PETTR Core",
+        duration_seconds=1800,
+        target_seconds=1800,
+        completed_task=True,
+        db_path=temp_db
+    )
+    assert sess1["id"] is not None
+    assert sess1["duration_seconds"] == 1800
+    assert sess1["completed_task"] is True
+
+    sess2 = database.log_focus_session(
+        task_id=2,
+        task_title="Telemetry Visualizer",
+        project_name="PETTR Core",
+        duration_seconds=3600,
+        target_seconds=1500,
+        completed_task=False,
+        db_path=temp_db
+    )
+    assert sess2["duration_seconds"] == 3600
+
+    # History list verification
+    history = database.get_focus_sessions_history(limit=10, db_path=temp_db)
+    assert len(history) == 2
+    assert history[0]["task_title"] == "Telemetry Visualizer"
+
+    # Aggregated metrics verification
+    metrics = database.get_focus_metrics(weeks=4, db_path=temp_db)
+    assert metrics["this_week_seconds"] == 5400
+    assert metrics["this_week_hours"] == 1.5
+    assert metrics["this_week_sessions"] == 2
+    assert "PETTR Core" in [p["project_name"] for p in metrics["project_breakdown"]]
+    assert len(metrics["daily_breakdown"]) == 7
+    assert len(metrics["weekly_history"]) == 4
+
+    # 2. REST API verification
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Successful focus log
+        res_log = client.post("/api/focus/log", json={
+            "task_id": 10,
+            "task_title": "Mobile Viewport Tuning",
+            "project_name": "Ergonomics",
+            "duration_seconds": 900,
+            "target_seconds": 900,
+            "completed_task": True
+        })
+        assert res_log.status_code == 200
+        assert res_log.json()["success"] is True
+
+        # Validation error for duration < 1s
+        res_invalid = client.post("/api/focus/log", json={
+            "task_title": "Empty session",
+            "duration_seconds": 0
+        })
+        assert res_invalid.status_code == 400
+
+        # Fetch metrics via API
+        res_metrics = client.get("/api/focus/metrics")
+        assert res_metrics.status_code == 200
+        data = res_metrics.json()
+        assert data["this_week_hours"] >= 1.7
+        assert data["this_week_sessions"] == 3
+
+        # Fetch session list via API
+        res_sessions = client.get("/api/focus/sessions?limit=5")
+        assert res_sessions.status_code == 200
+        assert len(res_sessions.json()) == 3
+
+    # 3. Frontend notes hotkey isolation guard verification
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    assert 'this.currentTab === "notes"' in app_js
+    assert "notes-editor-surface" in app_js
+    assert "#notesEditPane" in app_js
+    assert "isContentEditable" in app_js
+
+    # 4. Frontend Focus Cockpit overtime and independent sound verification
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+    assert "addTime" in cockpit_js
+    assert "fetchWeeklyMetrics" in cockpit_js
+    assert "logCurrentFocusSession" in cockpit_js
+    assert "this.sessionFocusSeconds" in cockpit_js
+    # Verify ambient sound does not stop on pause
+    assert "pauseTimer() {" in cockpit_js
+    pause_body = cockpit_js.split("pauseTimer() {")[1].split("}")[0]
+    assert "stopAmbientSound" not in pause_body
+    # Verify overtime resets remainingSeconds if <= 0
+    assert "this.remainingSeconds <= 0" in cockpit_js
+
+    # 5. Frontend UI elements and CSS mobile responsiveness
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    history_js = Path("frontend/js/history.js").read_text(encoding="utf-8")
+
+    assert 'id="focusTelemetryPanel"' in index_html
+    assert 'id="cockpitWeeklyHoursBadge"' in index_html
+    assert 'id="focusSessionsModal"' in index_html
+    assert "overtime-chip" in index_html
+    assert "+5m" in index_html
+    assert "+15m" in index_html
+
+    assert "renderFocusTelemetry" in history_js
+    assert "toggleFocusSessionsModal" in history_js
+
+    assert ".focus-telemetry-panel" in css
+    assert ".focus-kpi-grid" in css
+    assert ".focus-weekly-chart-card" in css
+    assert ".focus-bars-container" in css
+    assert ".cockpit-weekly-badge" in css
+    assert ".cockpit-preset-chip.overtime-chip" in css
+    # Verify mobile touch optimizations
+    assert "max-width: 768px" in css
+    assert "clamp(32px, 10vw, 44px)" in css
+
 
 
 

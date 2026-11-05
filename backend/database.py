@@ -45,6 +45,24 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_created ON llm_chat_messages(created_at);")
     except Exception:
         pass
+    try:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS focus_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+            task_title TEXT NOT NULL,
+            project_name TEXT DEFAULT 'General',
+            duration_seconds INTEGER NOT NULL,
+            target_seconds INTEGER DEFAULT 0,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_task INTEGER DEFAULT 0
+        );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_focus_completed_at ON focus_sessions(completed_at);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_focus_task_id ON focus_sessions(task_id);")
+    except Exception:
+        pass
 
 def get_connection(db_path: Optional[Path] = None, auto_init: bool = True) -> sqlite3.Connection:
     """Creates a connection with WAL mode, normal synchronous durability, and row factory enabled."""
@@ -186,6 +204,18 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS focus_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+            task_title TEXT NOT NULL,
+            project_name TEXT DEFAULT 'General',
+            duration_seconds INTEGER NOT NULL,
+            target_seconds INTEGER DEFAULT 0,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_task INTEGER DEFAULT 0
+        );
+
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
@@ -193,6 +223,8 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
         CREATE INDEX IF NOT EXISTS idx_reminders_task ON reminders(task_id);
         CREATE INDEX IF NOT EXISTS idx_reminders_date ON reminders(reminder_date);
         CREATE INDEX IF NOT EXISTS idx_chat_created ON llm_chat_messages(created_at);
+        CREATE INDEX IF NOT EXISTS idx_focus_completed_at ON focus_sessions(completed_at);
+        CREATE INDEX IF NOT EXISTS idx_focus_task_id ON focus_sessions(task_id);
         """)
         try:
             conn.execute("ALTER TABLE projects ADD COLUMN completed_at TIMESTAMP")
@@ -3029,3 +3061,202 @@ def clear_chat_history(db_path: Optional[Path] = None) -> None:
     conn = get_connection(db_path)
     with conn:
         conn.execute("DELETE FROM llm_chat_messages")
+
+
+# --- Focus Cockpit Telemetry & Weekly Hours Tracking ---
+
+def log_focus_session(
+    task_id: Optional[int] = None,
+    task_title: str = "Deep Work Sprint",
+    project_name: Optional[str] = None,
+    duration_seconds: int = 0,
+    target_seconds: int = 0,
+    completed_task: bool = False,
+    started_at: Optional[str] = None,
+    completed_at: Optional[str] = None,
+    db_path: Optional[Path] = None
+) -> Dict[str, Any]:
+    """Logs a completed focus period into focus_sessions."""
+    if not task_title or not task_title.strip():
+        task_title = "Deep Work Focus Session"
+    if not project_name or not project_name.strip():
+        project_name = "General"
+
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    start_str = started_at or now_str
+    end_str = completed_at or now_str
+
+    conn = get_connection(db_path)
+    with conn:
+        if task_id is not None:
+            task_exists = conn.execute("SELECT 1 FROM tasks WHERE id = ?", (task_id,)).fetchone()
+            if not task_exists:
+                task_id = None
+
+        cursor = conn.execute("""
+            INSERT INTO focus_sessions (
+                task_id, task_title, project_name, duration_seconds, target_seconds, started_at, completed_at, completed_task
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            task_id,
+            task_title.strip(),
+            project_name.strip(),
+            max(0, int(duration_seconds)),
+            max(0, int(target_seconds)),
+            start_str,
+            end_str,
+            1 if completed_task else 0
+        ))
+        new_id = cursor.lastrowid
+        row = conn.execute("SELECT * FROM focus_sessions WHERE id = ?", (new_id,)).fetchone()
+        res = dict(row)
+        res["completed_task"] = bool(res.get("completed_task"))
+        return res
+
+
+def get_focus_metrics(weeks: int = 4, db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Aggregates focus telemetry: weekly hours, daily breakdown, past weeks history, and project attribution."""
+    now = datetime.datetime.now()
+    # Monday 00:00:00 of the current week
+    this_monday = (now - datetime.timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    this_sunday = this_monday + datetime.timedelta(days=6, hours=23, minutes=59, seconds=59)
+
+    last_monday = this_monday - datetime.timedelta(days=7)
+    last_sunday = this_monday - datetime.timedelta(seconds=1)
+
+    this_monday_str = this_monday.strftime("%Y-%m-%d 00:00:00")
+    this_sunday_str = this_sunday.strftime("%Y-%m-%d 23:59:59")
+    last_monday_str = last_monday.strftime("%Y-%m-%d 00:00:00")
+    last_sunday_str = last_sunday.strftime("%Y-%m-%d 23:59:59")
+
+    conn = get_connection(db_path)
+    with conn:
+        # Current week rows
+        this_week_rows = conn.execute("""
+            SELECT id, task_id, task_title, project_name, duration_seconds, target_seconds, started_at, completed_at, completed_task
+            FROM focus_sessions
+            WHERE completed_at >= ? AND completed_at <= ?
+            ORDER BY completed_at DESC, id DESC
+        """, (this_monday_str, this_sunday_str)).fetchall()
+
+        # Last week rows
+        last_week_rows = conn.execute("""
+            SELECT id, duration_seconds FROM focus_sessions
+            WHERE completed_at >= ? AND completed_at <= ?
+        """, (last_monday_str, last_sunday_str)).fetchall()
+
+        this_week_secs = sum(int(r["duration_seconds"]) for r in this_week_rows)
+        this_week_hours = round(this_week_secs / 3600.0, 1)
+        this_week_sessions = len(this_week_rows)
+
+        last_week_secs = sum(int(r["duration_seconds"]) for r in last_week_rows)
+        last_week_hours = round(last_week_secs / 3600.0, 1)
+
+        diff_secs = this_week_secs - last_week_secs
+        diff_hours = round(diff_secs / 3600.0, 1)
+        diff_pct = round((diff_secs / last_week_secs) * 100) if last_week_secs > 0 else (100 if this_week_secs > 0 else 0)
+
+        # 7-day breakdown for this week (Mon to Sun)
+        daily_breakdown = []
+        for i in range(7):
+            day_date = this_monday + datetime.timedelta(days=i)
+            day_str = day_date.strftime("%Y-%m-%d")
+            day_name = day_date.strftime("%a")
+            day_rows = [r for r in this_week_rows if str(r["completed_at"]).startswith(day_str)]
+            day_secs = sum(int(r["duration_seconds"]) for r in day_rows)
+            daily_breakdown.append({
+                "date": day_str,
+                "day_name": day_name,
+                "label": f"{day_name} ({day_date.strftime('%d %b')})",
+                "seconds": day_secs,
+                "hours": round(day_secs / 3600.0, 2),
+                "sessions": len(day_rows),
+                "is_today": day_date.date() == now.date()
+            })
+
+        # Project breakdown for this week
+        proj_map: Dict[str, int] = {}
+        for r in this_week_rows:
+            p_name = r["project_name"] or "General"
+            proj_map[p_name] = proj_map.get(p_name, 0) + int(r["duration_seconds"])
+
+        project_breakdown = []
+        for p_name, p_secs in sorted(proj_map.items(), key=lambda x: x[1], reverse=True):
+            pct = round((p_secs / this_week_secs) * 100) if this_week_secs > 0 else 0
+            project_breakdown.append({
+                "project_name": p_name,
+                "seconds": p_secs,
+                "hours": round(p_secs / 3600.0, 1),
+                "percentage": pct
+            })
+
+        # Past weeks historical comparison (up to `weeks` weeks)
+        weekly_history = []
+        for w in range(max(1, weeks)):
+            w_mon = this_monday - datetime.timedelta(weeks=w)
+            w_sun = w_mon + datetime.timedelta(days=6, hours=23, minutes=59, seconds=59)
+            w_mon_str = w_mon.strftime("%Y-%m-%d 00:00:00")
+            w_sun_str = w_sun.strftime("%Y-%m-%d 23:59:59")
+
+            w_row = conn.execute("""
+                SELECT COALESCE(SUM(duration_seconds), 0) as total_secs, COUNT(*) as count
+                FROM focus_sessions
+                WHERE completed_at >= ? AND completed_at <= ?
+            """, (w_mon_str, w_sun_str)).fetchone()
+
+            w_secs = int(w_row["total_secs"])
+            w_count = int(w_row["count"])
+            label = "This Week" if w == 0 else ("Last Week" if w == 1 else f"{w_mon.strftime('%d %b')} – {w_sun.strftime('%d %b')}")
+            weekly_history.append({
+                "week_index": w,
+                "label": label,
+                "range": f"{w_mon.strftime('%d %b')} – {w_sun.strftime('%d %b')}",
+                "seconds": w_secs,
+                "hours": round(w_secs / 3600.0, 1),
+                "sessions": w_count
+            })
+
+        # All-time metrics
+        all_time_row = conn.execute("SELECT COALESCE(SUM(duration_seconds), 0) as total_secs, COUNT(*) as count FROM focus_sessions").fetchone()
+        all_time_secs = int(all_time_row["total_secs"])
+        all_time_hours = round(all_time_secs / 3600.0, 1)
+        all_time_sessions = int(all_time_row["count"])
+
+        # Active days this week
+        active_days = sum(1 for d in daily_breakdown if d["seconds"] > 0)
+        daily_avg_hours = round((this_week_secs / active_days) / 3600.0, 1) if active_days > 0 else 0.0
+
+        return {
+            "this_week_seconds": this_week_secs,
+            "this_week_hours": this_week_hours,
+            "this_week_sessions": this_week_sessions,
+            "last_week_seconds": last_week_secs,
+            "last_week_hours": last_week_hours,
+            "diff_hours": diff_hours,
+            "diff_pct": diff_pct,
+            "active_days": active_days,
+            "daily_avg_hours": daily_avg_hours,
+            "daily_breakdown": daily_breakdown,
+            "project_breakdown": project_breakdown,
+            "weekly_history": weekly_history,
+            "all_time_hours": all_time_hours,
+            "all_time_sessions": all_time_sessions
+        }
+
+
+def get_focus_sessions_history(limit: int = 50, offset: int = 0, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """Retrieves recent focus session entries."""
+    conn = get_connection(db_path)
+    with conn:
+        rows = conn.execute("""
+            SELECT id, task_id, task_title, project_name, duration_seconds, target_seconds, started_at, completed_at, completed_task
+            FROM focus_sessions
+            ORDER BY completed_at DESC, id DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset)).fetchall()
+        res_list = []
+        for r in rows:
+            d = dict(r)
+            d["completed_task"] = bool(d.get("completed_task"))
+            res_list.append(d)
+        return res_list

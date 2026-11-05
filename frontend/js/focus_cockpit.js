@@ -12,6 +12,8 @@ const FocusCockpit = {
   elapsedSeconds: 0,
   hasStarted: false,
   isMinimized: false,
+  sessionFocusSeconds: 0,
+  thisWeekHours: 0,
 
   // Audio Context & Sound Engine
   audioCtx: null,
@@ -54,6 +56,7 @@ const FocusCockpit = {
     this.updateTimerDisplay();
     this.updatePlayButton();
     this.renderSoundControls();
+    this.fetchWeeklyMetrics();
 
     modal.style.display = "flex";
     document.body.classList.add("cockpit-active");
@@ -83,12 +86,18 @@ const FocusCockpit = {
   },
 
   stopSession() {
+    this.logCurrentFocusSession(false);
     const modal = document.getElementById("focusCockpitModal");
     if (modal) modal.style.display = "none";
     document.body.classList.remove("cockpit-active");
 
     this.pauseTimer();
     this.stopAmbientSound();
+    this.currentSoundType = "none";
+    document.querySelectorAll(".ambient-sound-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.sound === "none");
+    });
+
     this.hasStarted = false;
     this.isMinimized = false;
 
@@ -169,18 +178,43 @@ const FocusCockpit = {
 
   setDuration(minutes) {
     const mins = Math.max(5, Math.min(180, parseInt(minutes, 10) || 25));
+    const oldDuration = this.durationSeconds;
     this.isStopwatch = false;
     this.durationSeconds = mins * 60;
 
-    if (!this.hasStarted) {
+    if (!this.hasStarted || this.remainingSeconds <= 0) {
+      // If timer has not started or countdown has run down to 0, resetting duration resets countdown
       this.remainingSeconds = this.durationSeconds;
+      this.hasStarted = false;
+    } else if (this.isRunning) {
+      const delta = this.durationSeconds - oldDuration;
+      this.remainingSeconds = Math.max(1, this.remainingSeconds + delta);
     } else {
-      this.remainingSeconds = Math.min(this.remainingSeconds, this.durationSeconds);
+      const delta = this.durationSeconds - oldDuration;
+      this.remainingSeconds = Math.max(1, Math.min(this.durationSeconds, this.remainingSeconds + delta));
     }
 
     this.syncDurationControls(mins);
     this.updateTimerDisplay();
     this.updatePlayButton();
+  },
+
+  addTime(minutes) {
+    const addSecs = (parseInt(minutes, 10) || 5) * 60;
+    this.isStopwatch = false;
+    if (this.remainingSeconds <= 0 || !this.hasStarted) {
+      this.durationSeconds = addSecs;
+      this.remainingSeconds = addSecs;
+      this.hasStarted = false;
+    } else {
+      this.durationSeconds = Math.min(180 * 60, this.durationSeconds + addSecs);
+      this.remainingSeconds += addSecs;
+    }
+    this.syncDurationControls(Math.round(this.durationSeconds / 60));
+    this.updateTimerDisplay();
+    this.updatePlayButton();
+    App.showToast(`+${minutes} mins added to focus sprint!`);
+    App.haptic("light");
   },
 
   syncDurationControls(mins) {
@@ -247,14 +281,16 @@ const FocusCockpit = {
 
     this.updatePlayButton();
 
-    // Auto-resume ambient sound if selected
-    if (this.currentSoundType !== "none") {
+    // Auto-resume ambient sound if selected and not already playing
+    if (this.currentSoundType !== "none" && !this.soundSource) {
       this.playAmbientSound(this.currentSoundType);
     }
 
     this.updateMiniDisplays();
 
     this.timerInterval = setInterval(() => {
+      this.sessionFocusSeconds++; // Accumulate active focus seconds
+
       if (this.isStopwatch) {
         this.elapsedSeconds++;
         this.updateTimerDisplay();
@@ -278,8 +314,7 @@ const FocusCockpit = {
       this.timerInterval = null;
     }
 
-    // Stop ambient noise generator when hitting pause
-    this.stopAmbientSound();
+    // Note: Ambient sound is independent of timer and continues playing while paused
 
     this.updatePlayButton();
     this.updateMiniDisplays();
@@ -369,14 +404,19 @@ const FocusCockpit = {
   onTimerComplete() {
     this.pauseTimer();
     this.playHarmonicChime();
-    App.showToast("⚡ Focus Sprint Completed! Excellent execution.", 4000);
+    this.logCurrentFocusSession(false);
+    App.showToast("⚡ Focus Sprint Completed! Set more time or mark completed.", 4500);
     App.haptic("medium");
+
+    // Allow user to immediately set more time or restart
+    this.hasStarted = false;
 
     const pulseEl = document.getElementById("cockpitTimerContainer");
     if (pulseEl) {
       pulseEl.classList.add("timer-complete-pulse");
       setTimeout(() => pulseEl.classList.remove("timer-complete-pulse"), 2500);
     }
+    this.updatePlayButton();
     this.updateMiniDisplays();
   },
 
@@ -445,10 +485,8 @@ const FocusCockpit = {
     if (type === "none") {
       this.stopAmbientSound();
     } else {
-      // Immediate 1-click sound transition
-      if (this.isRunning) {
-        this.playAmbientSound(type);
-      }
+      // Immediate ambient sound playback - independent of timer state!
+      this.playAmbientSound(type);
     }
   },
 
@@ -657,6 +695,16 @@ const FocusCockpit = {
     }
 
     try {
+      // Log accumulated focus sprint duration before closing
+      await this.logCurrentFocusSession(true);
+
+      // Automatically cut ambient sound when item is marked completed
+      this.stopAmbientSound();
+      this.currentSoundType = "none";
+      document.querySelectorAll(".ambient-sound-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.sound === "none");
+      });
+
       await fetch(`/api/tasks/${this.activeTask.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -683,6 +731,63 @@ const FocusCockpit = {
       }
     } catch (e) {
       console.error("Could not complete task:", e);
+    }
+  },
+
+  /* --- Focus Telemetry & Metric Logging --- */
+  async fetchWeeklyMetrics() {
+    try {
+      const res = await fetch("/api/focus/metrics");
+      if (res.ok) {
+        const data = await res.json();
+        this.thisWeekHours = data.this_week_hours || 0;
+        this.updateHeaderBadge(data);
+      }
+    } catch (e) {
+      console.warn("Could not fetch focus metrics:", e);
+    }
+  },
+
+  updateHeaderBadge(data) {
+    const badge = document.getElementById("cockpitWeeklyHoursBadge");
+    if (badge) {
+      const hrs = data.this_week_hours || 0;
+      badge.textContent = `⚡ This Week: ${hrs}h`;
+      badge.title = `Total focus time logged this week: ${hrs} hours (${data.this_week_sessions || 0} sessions). Click to view breakdown in History.`;
+    }
+  },
+
+  async logCurrentFocusSession(completedTask = false) {
+    if (this.sessionFocusSeconds < 30) {
+      return; // Ignore quick accidental clicks under 30s
+    }
+
+    const duration = this.sessionFocusSeconds;
+    this.sessionFocusSeconds = 0; // reset accumulator
+
+    const payload = {
+      task_id: this.activeTask?.id || null,
+      task_title: this.activeTask?.title || "Deep Work Sprint",
+      project_name: this.activeTask?.project_name || "General",
+      duration_seconds: duration,
+      target_seconds: this.durationSeconds || duration,
+      completed_task: !!completedTask
+    };
+
+    try {
+      const res = await fetch("/api/focus/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        this.fetchWeeklyMetrics();
+        if (typeof History !== "undefined" && History.renderFocusTelemetry) {
+          History.renderFocusTelemetry();
+        }
+      }
+    } catch (e) {
+      console.warn("Could not log focus session:", e);
     }
   }
 };

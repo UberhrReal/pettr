@@ -1027,15 +1027,36 @@ const App = {
 
     // Global hotkey '/' to focus quick input (switches to dashboard first if needed)
     window.addEventListener("keydown", (e) => {
-      if (e.key === "/" && document.activeElement !== input && document.activeElement.tagName !== "TEXTAREA" && document.activeElement.tagName !== "INPUT") {
-        e.preventDefault();
-        if (this.currentTab !== "dashboard") {
-          this.switchTab("dashboard");
-        }
-        setTimeout(() => {
-          if (input) input.focus();
-        }, 50);
+      if (e.key !== "/") return;
+
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl === input ||
+        activeEl.tagName === "INPUT" ||
+        activeEl.tagName === "TEXTAREA" ||
+        activeEl.isContentEditable ||
+        (typeof activeEl.closest === "function" && (
+          activeEl.closest('[contenteditable="true"]') ||
+          activeEl.closest('.notes-editor-surface') ||
+          activeEl.closest('#notesEditPane') ||
+          activeEl.closest('.cockpit-scratchpad-input') ||
+          activeEl.closest('.modal-card') ||
+          activeEl.closest('.horace-panel')
+        ))
+      );
+
+      // Do not hijack '/' while typing, or while user is working inside the Notes tab
+      if (isTyping || this.currentTab === "notes") {
+        return;
       }
+
+      e.preventDefault();
+      if (this.currentTab !== "dashboard") {
+        this.switchTab("dashboard");
+      }
+      setTimeout(() => {
+        if (input) input.focus();
+      }, 50);
     });
 
     // Enter key inside quick input
