@@ -4,7 +4,7 @@ import datetime
 from pathlib import Path
 from fastapi.testclient import TestClient
 
-from backend import database, backup
+from backend import database, backup, network
 from backend.app import app
 from backend.parser.pipeline import process_user_input
 from backend.parser.deterministic import extract_explicit_entity_intent
@@ -3270,10 +3270,10 @@ def test_v9_1_your_stats_unification_and_cockpit_no_general_pill(temp_db, monkey
     assert '<span class="project-tag" id="cockpitTaskProject" style="display: none;"></span>' in index_html
 
     # Cache buster version check
-    assert 'pettr.css?v=9.1' in index_html
-    assert 'dashboard.js?v=9.1' in index_html
-    assert 'history.js?v=9.1' in index_html
-    assert 'focus_cockpit.js?v=9.1' in index_html
+    assert 'pettr.css?v=9.' in index_html
+    assert 'dashboard.js?v=9.' in index_html
+    assert 'history.js?v=9.' in index_html
+    assert 'focus_cockpit.js?v=9.' in index_html
 
     # 2. Frontend CSS: Verify styles for Your Stats quick links, grid layout, and pulse highlight
     css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
@@ -3316,6 +3316,75 @@ def test_v9_1_your_stats_unification_and_cockpit_no_general_pill(temp_db, monkey
         res_focus = client.get("/api/focus/metrics")
         assert res_focus.status_code == 200
         assert "this_week_hours" in res_focus.json()
+
+
+def test_v9_2_tailscale_persistence_and_decluttered_iconography(temp_db, monkeypatch, tmp_path):
+    """Verify Tailscale persistent caching, traffic inspection, and decluttered UI iconography."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+    monkeypatch.setenv("PETTR_DATA_DIR", str(tmp_path))
+
+    # 1. Backend: Tailscale disk persistence & traffic inspection
+    network._LAST_TAILSCALE_CACHE = None
+    network._LAST_TAILSCALE_CACHE_TIME = 0.0
+
+    test_ts_data = {
+        "tailscale_installed": True,
+        "connected": True,
+        "state": "Running",
+        "tailscale_ip": "100.99.88.77",
+        "dns_name": "shuttle.tailnet.ts.net",
+        "tailscale_url": "http://100.99.88.77:8000"
+    }
+    network._save_tailscale_persistent_cache(test_ts_data)
+    loaded = network._load_tailscale_persistent_cache()
+    assert loaded is not None
+    assert loaded["tailscale_ip"] == "100.99.88.77"
+    assert loaded["connected"] is True
+
+    # Test _get_tailscale_cache retrieves from disk when memory cache is empty
+    network._LAST_TAILSCALE_CACHE = None
+    restored = network._get_tailscale_cache()
+    assert restored is not None
+    assert restored["tailscale_ip"] == "100.99.88.77"
+
+    # Test record_request_traffic refreshes Tailscale cache on incoming requests
+    class MockReq:
+        def __init__(self, host_val):
+            self.headers = {"host": host_val}
+            self.client = None
+            self.query_params = {}
+
+    network.record_request_traffic(MockReq("100.120.30.40:8000"))
+    assert network._LAST_TAILSCALE_CACHE["tailscale_ip"] == "100.120.30.40"
+
+    # 2. Frontend HTML & JavaScript: Verify banner dismissal and suppression of false-alarm banner
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    assert "dismissNetworkSyncBanner" in app_js
+    assert "pettr_dismiss_network_banner" in app_js
+    assert "Suppress false-alarm banner in Docker container" in app_js
+
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    assert "banner-dismiss-btn" in index_html
+    assert "App.dismissNetworkSyncBanner()" in index_html
+
+    # 3. Interface Decluttering & Iconography Checks
+    assert '<button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme(\'auto\')" title="Auto Solar Cycle' in index_html
+    assert '<span class="direct-entry-label">Direct</span>' in index_html
+    assert '<h3 class="column-title focus-title"><i data-lucide="crosshair" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus Tasks</h3>' in index_html
+    assert '<h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Errands</h3>' in index_html
+    assert '<h3 class="column-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Scheduled Events</h3>' in index_html
+    assert '<button type="button" class="cockpit-preset-chip active" data-min="25" onclick="FocusCockpit.setPreset(25)">25m</button>' in index_html
+    assert '<button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType(\'none\')" title="Mute ambient sound"><i data-lucide="volume-x"' in index_html
+
+    # 4. Cache buster check (v=9.2)
+    assert 'pettr.css?v=9.2' in index_html
+    assert 'app.js?v=9.2' in index_html
+    assert 'dashboard.js?v=9.2' in index_html
+    assert 'focus_cockpit.js?v=9.2' in index_html
+
+    # 5. CSS Check
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    assert ".banner-dismiss-btn" in css
 
 
 

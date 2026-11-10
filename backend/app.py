@@ -50,6 +50,7 @@ app = FastAPI(title="PETTR", description="Personal Errands, Task Tracker & Repos
 
 @app.middleware("http")
 async def add_no_cache_headers(request: Request, call_next):
+    network.record_request_traffic(request)
     response = await call_next(request)
     if request.url.path.startswith("/static") or request.url.path == "/":
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"

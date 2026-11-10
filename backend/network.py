@@ -4,6 +4,7 @@ import json
 import socket
 import ipaddress
 import time
+from pathlib import Path
 from typing import Dict, Any, Optional
 
 try:
@@ -15,19 +16,104 @@ TAILSCALE_SOCKET_PATH = os.environ.get("TAILSCALE_SOCKET_PATH", "/var/run/tailsc
 
 _LAST_TAILSCALE_CACHE: Optional[Dict[str, Any]] = None
 _LAST_TAILSCALE_CACHE_TIME: float = 0.0
-_TAILSCALE_CACHE_TTL: float = 900.0  # 15 minutes
+_TAILSCALE_CACHE_TTL: float = 86400.0  # 24 hours
+
+def _get_persistent_cache_path() -> Path:
+    data_dir = os.environ.get("PETTR_DATA_DIR", "data")
+    return Path(data_dir) / "tailscale_state.json"
+
+def _save_tailscale_persistent_cache(data: Dict[str, Any]) -> None:
+    """Persists confirmed Tailscale status to disk so restarts preserve mesh connectivity."""
+    try:
+        path = _get_persistent_cache_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        save_obj = {
+            "tailscale_installed": data.get("tailscale_installed", True),
+            "connected": True,
+            "state": "Running",
+            "tailscale_ip": data.get("tailscale_ip"),
+            "dns_name": data.get("dns_name"),
+            "tailscale_url": data.get("tailscale_url"),
+            "saved_at": time.time()
+        }
+        path.write_text(json.dumps(save_obj), encoding="utf-8")
+    except Exception:
+        pass
+
+def _load_tailscale_persistent_cache() -> Optional[Dict[str, Any]]:
+    """Loads persistent Tailscale connectivity from disk if available."""
+    try:
+        path = _get_persistent_cache_path()
+        if path.exists():
+            content = path.read_text(encoding="utf-8")
+            if content.strip():
+                data = json.loads(content)
+                if data.get("connected"):
+                    return data
+    except Exception:
+        pass
+    return None
 
 def _update_tailscale_cache(data: Dict[str, Any]) -> None:
     global _LAST_TAILSCALE_CACHE, _LAST_TAILSCALE_CACHE_TIME
     if data and data.get("connected"):
         _LAST_TAILSCALE_CACHE = dict(data)
         _LAST_TAILSCALE_CACHE_TIME = time.time()
+        _save_tailscale_persistent_cache(_LAST_TAILSCALE_CACHE)
 
 def _get_tailscale_cache() -> Optional[Dict[str, Any]]:
     global _LAST_TAILSCALE_CACHE, _LAST_TAILSCALE_CACHE_TIME
     if _LAST_TAILSCALE_CACHE and (time.time() - _LAST_TAILSCALE_CACHE_TIME) < _TAILSCALE_CACHE_TTL:
         return _LAST_TAILSCALE_CACHE
+    disk_cached = _load_tailscale_persistent_cache()
+    if disk_cached and disk_cached.get("connected"):
+        _LAST_TAILSCALE_CACHE = dict(disk_cached)
+        _LAST_TAILSCALE_CACHE_TIME = time.time()
+        return _LAST_TAILSCALE_CACHE
     return None
+
+def record_request_traffic(request: Any) -> None:
+    """Inspects any incoming request to detect if client or host is on Tailscale, refreshing cache."""
+    if not request:
+        return
+    try:
+        raw_host = getattr(request, "headers", {}).get("host", "") if hasattr(request, "headers") else ""
+        host_header = raw_host.split(":")[0].strip()
+        client_ip = getattr(getattr(request, "client", None), "host", "")
+        forwarded = getattr(request, "headers", {}).get("x-forwarded-for", "").split(",")[0].strip() if hasattr(request, "headers") else ""
+        query_client = ""
+        if hasattr(request, "query_params"):
+            query_client = request.query_params.get("client_host", "").strip()
+
+        candidates = [c for c in [query_client, host_header, client_ip, forwarded] if c]
+        for cand in candidates:
+            cand_clean = cand.split(":")[0].strip()
+            if is_tailscale_ip(cand_clean):
+                res = {
+                    "tailscale_installed": True,
+                    "connected": True,
+                    "state": "Running",
+                    "tailscale_ip": cand_clean,
+                    "dns_name": None,
+                    "auth_url": None,
+                    "tailscale_url": f"http://{cand_clean}:8000"
+                }
+                _update_tailscale_cache(res)
+                return
+            elif cand_clean.endswith(".ts.net"):
+                res = {
+                    "tailscale_installed": True,
+                    "connected": True,
+                    "state": "Running",
+                    "tailscale_ip": None,
+                    "dns_name": cand_clean,
+                    "auth_url": None,
+                    "tailscale_url": f"http://{cand_clean}:8000"
+                }
+                _update_tailscale_cache(res)
+                return
+    except Exception:
+        pass
 
 def is_in_container() -> bool:
     """Detects if running inside Docker or another container runtime."""
@@ -120,7 +206,29 @@ def _query_tailscale_socket() -> Optional[Dict[str, Any]]:
         s.close()
         parts = response_bytes.split(b"\r\n\r\n", 1)
         if len(parts) == 2:
-            body = parts[1].decode("utf-8", errors="ignore")
+            headers_raw = parts[0].decode("latin-1", errors="ignore").lower()
+            body_bytes = parts[1]
+            if "transfer-encoding: chunked" in headers_raw:
+                chunks = []
+                rem = body_bytes
+                while rem:
+                    nl = rem.find(b"\r\n")
+                    if nl == -1:
+                        break
+                    hex_len = rem[:nl].split(b";")[0].strip()
+                    try:
+                        chunk_len = int(hex_len, 16)
+                    except ValueError:
+                        break
+                    if chunk_len == 0:
+                        break
+                    start = nl + 2
+                    chunk_data = rem[start:start + chunk_len]
+                    chunks.append(chunk_data)
+                    rem = rem[start + chunk_len + 2:]
+                body = b"".join(chunks).decode("utf-8", errors="ignore")
+            else:
+                body = body_bytes.decode("utf-8", errors="ignore")
             return json.loads(body)
     except Exception:
         pass

@@ -877,13 +877,18 @@ const App = {
       } else {
         if (pill) {
           pill.className = "status-pill offline";
-          pill.title = "Tailscale is inactive. Run 'tailscale up' on host PC.";
+          pill.title = "Local network mode. Tailscale inactive on container interface.";
           pill.onclick = null;
         }
         const isContainer = data.is_container || (data.lan_ip && data.lan_ip.startsWith("172."));
         if (text) text.textContent = isContainer ? `Container: ${data.lan_ip}` : `Host LAN: ${data.lan_ip}`;
         const lanLabel = isContainer ? "internal container network" : "local host LAN";
-        this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on ${lanLabel} (${data.lan_ip}). Remote updates from other devices won't synchronise until Tailscale connects.`, false);
+        // Suppress false-alarm banner in Docker container since host forwards traffic seamlessly
+        if (!isContainer && !data.connected) {
+          this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on ${lanLabel} (${data.lan_ip}). Remote updates from other devices won't synchronise until Tailscale connects.`, false);
+        } else {
+          this.hideNetworkSyncBanner();
+        }
       }
     } catch (err) {
       console.warn("Network check error:", err);
@@ -896,6 +901,9 @@ const App = {
   },
 
   showNetworkSyncBanner(title, message, isCritical = false) {
+    if (!isCritical && sessionStorage.getItem("pettr_dismiss_network_banner") === "1") {
+      return;
+    }
     const banner = document.getElementById("networkSyncBanner");
     const titleEl = document.getElementById("networkSyncTitle");
     const subEl = document.getElementById("networkSyncSub");
@@ -920,6 +928,11 @@ const App = {
   hideNetworkSyncBanner() {
     const banner = document.getElementById("networkSyncBanner");
     if (banner) banner.style.display = "none";
+  },
+
+  dismissNetworkSyncBanner() {
+    this.hideNetworkSyncBanner();
+    sessionStorage.setItem("pettr_dismiss_network_banner", "1");
   },
 
   async retryNetworkSync() {

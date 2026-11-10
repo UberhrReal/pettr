@@ -293,6 +293,28 @@ body {
   transform: translateY(-1px);
 }
 
+.banner-dismiss-btn {
+  background: transparent !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  color: inherit !important;
+  padding: 5px 8px !important;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .banner-dismiss-btn {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.banner-dismiss-btn:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="dark"] .banner-dismiss-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
 /* --- Universal Header (Dynamic Welcome Splash that Shrinks on Scroll) --- */
 .app-header {
   background: var(--glass-bg);
