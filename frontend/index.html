@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=9.2">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=9.3">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -96,7 +96,7 @@
         <div class="brand-title">PETTR</div>
         <div class="brand-full-name">Personal Errands, Task Tracker &amp; Repository</div>
         <div class="brand-tagline-carousel" id="heroDynamicTagline">
-          Autonomous node · 100% private Tailscale mesh
+          Your brain is a sieve · Write it down before you forget it again
         </div>
       </div>
 
@@ -107,9 +107,6 @@
         </button>
         <button class="action-icon-btn mobile-simplified-btn" id="mobileSimplifiedBtn" onclick="SimplifiedMode.toggle()" title="Simplified Mode (Today Focus)" aria-label="Simplified Mode">
           <i data-lucide="zap" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i>
-        </button>
-        <button class="action-icon-btn evening-debrief-trigger" id="eveningDebriefHeaderBtn" onclick="EveningDebrief.open()" title="Evening Debrief (Accessible after 18:00 or when done)" aria-label="Evening Debrief" style="display:none; color: var(--focus-indigo); font-weight:600;">
-          <i data-lucide="moon-star" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i>
         </button>
         <!-- Theme Switcher (Auto Solar, Light, Dark & Time of Day Slider) -->
         <div class="theme-switcher-wrapper">
@@ -139,7 +136,8 @@
 
     <!-- Nav Tab Row -->
     <div class="header-nav-row">
-      <nav class="nav-tabs">
+      <nav class="nav-tabs" id="mainNavTabs">
+        <div class="nav-tab-indicator" id="navTabIndicator" aria-hidden="true"></div>
         <button class="tab-btn active" data-tab="dashboard">
           <i data-lucide="layout-dashboard"></i> <span>Dashboard</span>
         </button>
@@ -292,13 +290,13 @@
       <!-- Historical Locked Record Banner -->
       <div id="dashboardLockedArchiveBanner" class="day-status-banner locked-banner" style="display:none;">
         <i data-lucide="lock" style="width:15px;height:15px;"></i>
-        <span><strong>Historical Record (Locked):</strong> Archived past day (<span id="lockedArchiveDateText"></span>). Tasks are preserved and uneditable.</span>
+        <span><strong>Locked:</strong> <span id="lockedArchiveDateText"></span> is archived and read-only.</span>
       </div>
 
       <!-- Future Scheduled Preview Banner -->
       <div id="dashboardFuturePreviewBanner" class="day-status-banner future-banner" style="display:none;">
         <i data-lucide="sparkles" style="width:15px;height:15px;"></i>
-        <span><strong>Scheduled Preview:</strong> Planning ahead for <span id="futurePreviewDateText"></span>. Tasks can be pre-arranged; metrics remain inactive until arrival.</span>
+        <span><strong>Preview:</strong> Planning ahead for <span id="futurePreviewDateText"></span>.</span>
       </div>
 
       <!-- Full-Width Snapshot Window & Tasking Priority -->
@@ -308,9 +306,13 @@
             <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="compass" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Snapshot</span>
             <span id="briefingShowcaseDate" style="font-size: 13px; font-weight: 500; color: var(--text-muted);">Today</span>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="action-icon-btn" id="eveningDebriefDashBtn" onclick="EveningDebrief.open()" title="Evening Debrief (Accessible after 18:00 or when work is done)" style="display:none; font-size:12px; color:var(--focus-indigo); font-weight:600;"><i data-lucide="moon-star" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Debrief</button>
-            <button class="action-icon-btn" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Markdown brief to clipboard"><i data-lucide="copy" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;"></i> Copy</button>
+          <div class="snapshot-action-group briefing-showcase-actions">
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-debrief" id="eveningDebriefDashBtn" onclick="EveningDebrief.open()" title="Launch Evening Debrief (Available after 18:00)" style="display:none;">
+              <i data-lucide="moon-star" style="width:13px;height:13px;"></i> <span>Debrief</span>
+            </button>
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-copy" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Markdown brief to clipboard">
+              <i data-lucide="copy" style="width:13px;height:13px;"></i> <span>Copy</span>
+            </button>
           </div>
         </div>
 
@@ -327,13 +329,17 @@
               <div>
                 <div class="daily-order-title">
                   <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="list-ordered" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Tasking Priority</span>
-                  <span class="stat-pill" id="dailyOrderCountBadge">0 in sequence</span>
+                  <span class="stat-pill" id="dailyOrderCountBadge">0 queued</span>
                 </div>
-                <div class="daily-order-subtitle">Drag items here to set execution order.</div>
+                <div class="daily-order-subtitle">Drag items to queue execution order.</div>
               </div>
-              <div style="display: flex; gap: 6px; align-items: center;">
-                <button class="action-icon-btn" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit" style="font-size: 11px; padding: 2px 8px; color: var(--focus-indigo); border-color: rgba(99, 102, 241, 0.4);"><i data-lucide="zap" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Focus</button>
-                <button class="action-icon-btn" onclick="Dashboard.clearDailyOrder()" title="Reset order" style="font-size: 11px; padding: 2px 7px;"><i data-lucide="rotate-ccw" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Reset</button>
+              <div class="snapshot-action-group daily-order-actions">
+                <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit">
+                  <i data-lucide="zap" style="width:13px;height:13px;"></i> <span>Focus</span>
+                </button>
+                <button class="action-icon-btn snapshot-action-btn snapshot-btn-reset" onclick="Dashboard.clearDailyOrder()" title="Reset priority sequence">
+                  <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i> <span>Reset</span>
+                </button>
               </div>
             </div>
             
@@ -436,10 +442,10 @@
           <!-- 2. Weekly View: 7-Day Completion Bars & Focus Hours -->
           <div id="overviewWeekContainer" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Daily Task Completion &amp; Focus Hours (Mon - Sun)</span>
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Weekly Completion &amp; Focus</span>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span id="weekProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% avg</span>
-                <span id="weekFocusHoursBadge" class="week-focus-badge" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();" title="Weekly focus hours logged (click to view Your Stats)">⏱️ 0.0h focus</span>
+                <span id="weekFocusHoursBadge" class="week-focus-badge" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();" title="Weekly focus hours logged (click to view Your Stats)"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 0.0h</span>
               </div>
             </div>
             <div class="productivity-week-grid" id="productivityWeekGrid">
@@ -456,7 +462,7 @@
               <span id="monthProductivityTitle" style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Monthly Performance</span>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span id="monthProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% completed</span>
-                <span id="monthFocusHoursBadge" class="month-focus-badge font-mono" title="Monthly focus hours logged">⏱️ 0.0h focus</span>
+                <span id="monthFocusHoursBadge" class="month-focus-badge font-mono" title="Monthly focus hours logged"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 0.0h</span>
               </div>
             </div>
             <div class="project-progress-bar" style="height: 7px; margin-bottom: 12px;">
@@ -554,12 +560,9 @@
     <!-- Tab 2: Exploded View (Interactive Mindmap & Project Cards) -->
     <section id="tabExploded" class="tab-pane">
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Exploded View: Global Project Pool</h2>
-            <span class="panel-count-badge" id="explodedProjectCountBadge" style="font-size: 11px; padding: 3px 8px; font-weight: 600;">0 Projects</span>
-          </div>
-          <span style="font-size: 13px; font-weight: 300; color: var(--text-muted);">Interactive mindmap tree or structured project cards</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Global Project Pool</h2>
+          <span class="panel-count-badge" id="explodedProjectCountBadge" style="font-size: 11px; padding: 3px 8px; font-weight: 600;">0 Projects</span>
         </div>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <!-- Card Pool Category Filter Group (visible in cards mode) -->
@@ -830,11 +833,8 @@
     <!-- Tab 5: History -->
     <section id="tabHistory" class="tab-pane">
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Archive & Completed History</h2>
-          <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Repository of wrapped-up projects, finished tasks, dismissed reminders, and raw ingestion logs.</p>
-        </div>
-        <button class="action-icon-btn" onclick="History.refresh(true)"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
+        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Archive</h2>
+        <button class="action-icon-btn" onclick="History.refresh(true)" title="Refresh Archive"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
       </div>
 
       <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
@@ -846,9 +846,6 @@
               <span class="panel-count-badge" id="focusTelemetryWeekBadge">This Week: 0.0 hrs</span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <button class="action-icon-btn your-stats-quicklink" onclick="App.switchTab('dashboard')" style="font-size: 11px; padding: 4px 10px; font-weight: 600;" title="Return to Dashboard Overview">
-                <i data-lucide="layout-dashboard" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Dashboard
-              </button>
               <button class="action-icon-btn" onclick="History.toggleFocusSessionsModal()" style="font-size: 11px; padding: 4px 10px; font-weight: 600;" title="View detailed focus session logs">
                 <i data-lucide="list" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Sessions
               </button>
@@ -981,10 +978,7 @@
     <!-- Tab 6: Settings -->
     <section id="tabSettings" class="tab-pane">
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">PETTR Configuration & Host Management</h2>
-          <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Manage identity, localhost security PIN, offline Ollama integration, cloud backups, and server resources.</p>
-        </div>
+        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Settings</h2>
       </div>
 
       <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
@@ -1006,7 +1000,7 @@
         <!-- Panel 2: PIN Change & Inspection Card -->
         <div class="column-card history-panel">
           <div class="column-header">
-            <h3 class="column-title"><i data-lucide="shield" style="width:15px;height:15px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Security PIN Management</h3>
+            <h3 class="column-title"><i data-lucide="shield" style="width:15px;height:15px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Security PIN</h3>
           </div>
           <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
             To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
@@ -1029,10 +1023,10 @@
           <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
         </div>
 
-        <!-- Panel 3: Tailscale Access Information -->
+        <!-- Panel 3: Tailscale Access -->
         <div class="column-card history-panel">
           <div class="column-header">
-            <h3 class="column-title"><i data-lucide="network" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Tailscale Access Information</h3>
+            <h3 class="column-title"><i data-lucide="network" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Tailscale Access</h3>
           </div>
           <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
             PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
@@ -1043,11 +1037,11 @@
           </p>
         </div>
 
-        <!-- Panel 4: Local LLM Engine (Ollama Integration) -->
+        <!-- Panel 4: Local LLM (Ollama) -->
         <div class="column-card history-panel">
           <div class="column-header" style="flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <h3 class="column-title"><i data-lucide="cpu" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Local LLM Engine (Ollama Integration)</h3>
+              <h3 class="column-title"><i data-lucide="cpu" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Local LLM (Ollama)</h3>
             </div>
             <div id="llmStatusPill" class="network-badge offline">
               <span class="network-dot"></span>
@@ -1055,20 +1049,20 @@
             </div>
           </div>
           <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
-            Connect to local Ollama on this mini PC for 100% offline, zero-cloud intent understanding.
+            Connect to local Ollama on this mini PC for 100% offline intent classification.
           </p>
 
           <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <div>
-                <span style="font-size: 12px; color: var(--text-muted);">Active Classifier Model:</span>
+                <span style="font-size: 12px; color: var(--text-muted);">Model:</span>
                 <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
               </div>
               <div style="display: flex; gap: 8px;">
                 <select id="llmModelSelect" class="modal-input" style="padding: 4px 8px; font-size: 12px; max-width: 180px;" onchange="App.selectLlmModel(this.value)">
                   <option value="llama3.2:3b">llama3.2:3b</option>
                 </select>
-                <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;">⚡ Test Latency</button>
+                <button class="action-icon-btn" onclick="App.testLlmPing()" style="font-size: 12px; font-weight: 600;"><i data-lucide="zap" style="width:12px;height:12px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Ping</button>
               </div>
             </div>
             <div id="llmTestResult" style="font-size: 12px; color: var(--text-muted);"></div>
@@ -1076,7 +1070,7 @@
 
           <!-- Quick Beginner Walkthrough Accordion -->
           <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
-            <summary style="font-weight: 600; color: var(--text-main);">📖 How to get started with local LLMs (First-time setup walkthrough)</summary>
+            <summary style="font-weight: 600; color: var(--text-main);"><i data-lucide="book-open" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:4px;"></i> First-time Ollama setup walkthrough</summary>
             <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
               <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
                 <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
@@ -1091,34 +1085,32 @@
           </details>
         </div>
 
-        <!-- Panel 5: Local Backups & Google Drive Sync -->
+        <!-- Panel 5: Backups & Sync -->
         <div class="column-card history-panel">
           <div class="column-header">
-            <h3 class="column-title"><i data-lucide="archive" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Local Backups &amp; Google Drive Sync</h3>
+            <h3 class="column-title"><i data-lucide="archive" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Backups &amp; Sync</h3>
           </div>
           <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-            Creates a local archive in <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> containing your SQLite database, Markdown summary, and JSON data. If <code>rclone</code> is configured with Google Drive, snapshots are also synced offsite automatically.
+            Archives SQLite, Markdown summary, and JSON into <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> with optional <code>rclone</code> sync.
           </p>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.triggerManualBackup()">📦 Run Backup &amp; Sync Now</button>
-            <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()">💾 Download Archive (.zip) to Device</button>
+            <button class="quick-submit-btn" style="position: static; transform: none; display: inline-flex; align-items: center; gap: 6px;" onclick="App.triggerManualBackup()"><i data-lucide="archive" style="width:14px;height:14px;"></i> Run Backup</button>
+            <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()"><i data-lucide="download" style="width:13px;height:13px;"></i> Download (.zip)</button>
           </div>
           <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
         </div>
 
-        <!-- Panel 6: Server Storage & Resource Footprint -->
+        <!-- Panel 6: Server Storage -->
         <div class="column-card history-panel" id="settingsStorageCard">
-          <div class="column-header" style="flex-wrap: wrap; gap: 8px;">
-            <div>
-              <h3 class="column-title"><i data-lucide="hard-drive" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Server Storage &amp; Resource Footprint</h3>
+          <div class="column-header" style="flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h3 class="column-title"><i data-lucide="hard-drive" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Server Storage</h3>
+              <span title="Drive storage, PETTR process memory, local LLM RAM allocation, and server capacity" style="color:var(--text-dim);display:inline-flex;align-items:center;cursor:help;"><i data-lucide="info" style="width:13px;height:13px;"></i></span>
             </div>
             <button class="action-icon-btn" onclick="App.loadStorageMetrics(true)" style="font-size: 12px; font-weight: 600;">
               <i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh
             </button>
           </div>
-          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
-            Real-time breakdown of host drive storage, PETTR process memory, local LLM RAM allocation, and server hardware capacity.
-          </p>
 
           <div id="storageMetricsContainer">
             <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading real-time storage metrics...</div>
@@ -1127,13 +1119,10 @@
       </div>
     </section>
 
-    <!-- Tab 7: In-App User & Deployment Guide -->
+    <!-- Tab 7: User Guide -->
     <section id="tabGuide" class="tab-pane">
       <div class="guide-header-block" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">In-App Architecture &amp; User Guide</h2>
-          <p style="color: var(--text-muted); font-size: 13px; font-weight: 300;">Complete architectural reference, keyboard shortcuts, deployment guide, and operational runbook.</p>
-        </div>
+        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">User Guide</h2>
       </div>
       <div class="guide-container">
         <!-- Sticky Sidebar Navigation -->
@@ -2022,7 +2011,6 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <div class="cockpit-duration-slider-wrap">
           <div class="cockpit-slider-header">
             <span class="cockpit-slider-label"><i data-lucide="timer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Focus Sprint Length</span>
-            <span class="cockpit-slider-val" id="cockpitDurationLabel">25 mins</span>
           </div>
           <input type="range" id="cockpitDurationSlider" class="cockpit-duration-slider"
                  min="5" max="180" step="5" value="25"
@@ -2051,7 +2039,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
       <div class="cockpit-ambient-deck">
         <div class="ambient-deck-header">
-          <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="headphones" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Offline Ambient Sound Generator</span>
+          <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="headphones" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Ambient Sound</span>
           <div class="ambient-volume-wrap">
             <i data-lucide="volume-2" style="width:12px;height:12px;opacity:0.6;"></i>
             <input type="range" id="cockpitVolumeSlider" min="0" max="1" step="0.05" value="0.35" oninput="FocusCockpit.setVolume(this.value)" class="ambient-vol-slider" title="Volume">
@@ -2098,7 +2086,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     <div class="modal-card debrief-card" style="max-width: 580px;">
       <div class="debrief-header">
         <div>
-          <div class="debrief-badge font-mono"><i data-lucide="moon-star" style="width:13px;height:13px;color:var(--focus-indigo);"></i> EVENING DEBRIEF</div>
+          <div class="debrief-badge font-mono"><i data-lucide="moon-star" style="width:13px;height:13px;color:var(--focus-indigo);"></i> Debrief</div>
           <h2 class="debrief-title" id="debriefDateStr">Today's Wrap-Up</h2>
         </div>
         <button class="action-icon-btn" onclick="EveningDebrief.close()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
@@ -2110,13 +2098,13 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <div class="score-subtext" id="debriefScoreCount">-- of -- completed</div>
         </div>
         <div class="debrief-score-desc">
-          Daily loops audit. Review what got done, quickly triage unclosed targets, and log your closing takeaway.
+          Audit open targets, roll unfinished items to tomorrow, and log your takeaway.
         </div>
       </div>
 
       <div class="debrief-section">
         <div class="debrief-section-title-row">
-          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Unclosed Loops (Rapid Triage)</span>
+          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Unclosed Loops</span>
           <button type="button" class="action-icon-btn" id="debriefBulkRollBtn" onclick="EveningDebrief.rollAllRemainingToTomorrow()" style="font-size: 11px; padding: 2px 8px;">
             <i data-lucide="arrow-right-circle" style="width:11px;height:11px;"></i> Roll All to Tomorrow
           </button>
@@ -2134,7 +2122,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
       <div class="debrief-section">
         <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px; font-weight: 600;">
-          One-Line Retrospective / Key Win
+          Takeaway
         </label>
         <input type="text" id="debriefRetroInput" class="modal-input" placeholder="e.g. Cleared Kalman filter architecture, stayed focused despite meetings">
         <div class="debrief-tags-row">
@@ -2341,21 +2329,21 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=9.2"></script>
-  <script src="/static/js/app.js?v=9.2"></script>
-  <script src="/static/js/drag_drop.js?v=9.2"></script>
-  <script src="/static/js/wave_canvas.js?v=9.2"></script>
-  <script src="/static/js/entity_modal.js?v=9.2"></script>
-  <script src="/static/js/timeline.js?v=9.2"></script>
-  <script src="/static/js/mindmap.js?v=9.2"></script>
-  <script src="/static/js/dashboard.js?v=9.2"></script>
-  <script src="/static/js/simplified_mode.js?v=9.2"></script>
-  <script src="/static/js/exploded.js?v=9.2"></script>
-  <script src="/static/js/notes.js?v=9.2"></script>
-  <script src="/static/js/history.js?v=9.2"></script>
-  <script src="/static/js/command_palette.js?v=9.2"></script>
-  <script src="/static/js/focus_cockpit.js?v=9.2"></script>
-  <script src="/static/js/evening_debrief.js?v=9.2"></script>
-  <script src="/static/js/horace_chat.js?v=9.2"></script>
+  <script src="/static/js/pin_lock.js?v=9.3"></script>
+  <script src="/static/js/app.js?v=9.3"></script>
+  <script src="/static/js/drag_drop.js?v=9.3"></script>
+  <script src="/static/js/wave_canvas.js?v=9.3"></script>
+  <script src="/static/js/entity_modal.js?v=9.3"></script>
+  <script src="/static/js/timeline.js?v=9.3"></script>
+  <script src="/static/js/mindmap.js?v=9.3"></script>
+  <script src="/static/js/dashboard.js?v=9.3"></script>
+  <script src="/static/js/simplified_mode.js?v=9.3"></script>
+  <script src="/static/js/exploded.js?v=9.3"></script>
+  <script src="/static/js/notes.js?v=9.3"></script>
+  <script src="/static/js/history.js?v=9.3"></script>
+  <script src="/static/js/command_palette.js?v=9.3"></script>
+  <script src="/static/js/focus_cockpit.js?v=9.3"></script>
+  <script src="/static/js/evening_debrief.js?v=9.3"></script>
+  <script src="/static/js/horace_chat.js?v=9.3"></script>
 </body>
 </html>

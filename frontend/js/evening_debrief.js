@@ -25,12 +25,8 @@ const EveningDebrief = {
 
   updateDebriefButtonState() {
     const isPast18 = this.isAccessible();
-    const headerBtn = document.getElementById("eveningDebriefHeaderBtn");
     const dashBtn = document.getElementById("eveningDebriefDashBtn");
 
-    if (headerBtn) {
-      headerBtn.style.display = isPast18 ? "inline-flex" : "none";
-    }
     if (dashBtn) {
       dashBtn.style.display = isPast18 ? "inline-flex" : "none";
     }

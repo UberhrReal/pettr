@@ -107,7 +107,7 @@ const Dashboard = {
     const dayName = dateObj.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", year: "numeric" });
 
     if (this.isToday()) {
-      if (labelEl) labelEl.textContent = `Today: ${dayName}`;
+      if (labelEl) labelEl.textContent = dayName;
       if (this.isDaySealed(this.selectedDate)) {
         if (tagEl) {
           tagEl.innerHTML = `<i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> SEALED TODAY`;
@@ -115,7 +115,7 @@ const Dashboard = {
         }
         if (lockedBanner) {
           lockedBanner.style.display = "flex";
-          if (lockedDateText) lockedDateText.textContent = `${dayName} (Evening Debrief Complete · Day Sealed)`;
+          if (lockedDateText) lockedDateText.textContent = `${dayName} (Debrief complete · Day sealed)`;
         }
       } else {
         if (tagEl) {
@@ -127,7 +127,7 @@ const Dashboard = {
       if (jumpBtn) jumpBtn.style.display = "none";
       if (futureBanner) futureBanner.style.display = "none";
     } else if (this.isFutureDay()) {
-      if (labelEl) labelEl.textContent = `Preview: ${dayName}`;
+      if (labelEl) labelEl.textContent = dayName;
       if (tagEl) {
         tagEl.textContent = "FUTURE PREVIEW";
         tagEl.className = "date-status-tag tag-future";
@@ -139,7 +139,7 @@ const Dashboard = {
         if (futureDateText) futureDateText.textContent = dayName;
       }
     } else {
-      if (labelEl) labelEl.textContent = `Archive: ${dayName}`;
+      if (labelEl) labelEl.textContent = dayName;
       if (tagEl) {
         tagEl.textContent = "LOCKED ARCHIVE";
         tagEl.className = "date-status-tag tag-past";
@@ -197,10 +197,11 @@ const Dashboard = {
   },
 
   heroTaglines: [
-    "Autonomous local node · 100% private Tailscale mesh · Zero cloud leakage",
-    "From stream of consciousness to structured execution",
-    "High-focus daily command center for deep work & project tracking",
-    "Self-hosted personal repository · Always online 24/7"
+    "Your brain is a sieve · Write it down before you forget it again",
+    "100% self-hosted · Zero Big Tech peeking at your questionable life choices",
+    "Stop reorganising the dashboard and go finish the damn task",
+    "Turns out raw brain-vomit actually looks decent in dark mode",
+    "Local node running 24/7 so your chaos never clocks out either"
   ],
   taglineIndex: 0,
   _taglineTimer: null,
@@ -257,11 +258,12 @@ const Dashboard = {
 
     if (this.isUnorgCollapsed) {
       panel.classList.add("collapsed");
-      if (toggleBtn) toggleBtn.textContent = "◧ Expand Queue";
+      if (toggleBtn) toggleBtn.innerHTML = `<i data-lucide="panel-right-open" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Expand`;
     } else {
       panel.classList.remove("collapsed");
-      if (toggleBtn) toggleBtn.textContent = "◨ Hide to Side";
+      if (toggleBtn) toggleBtn.innerHTML = `<i data-lucide="panel-right-close" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Hide`;
     }
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
   },
 
   async loadUserProfile() {
@@ -935,7 +937,7 @@ const Dashboard = {
     const weekFocusBadge = document.getElementById("weekFocusHoursBadge");
     if (weekFocusBadge) {
       const wkHours = weekly.total_focus_hours || 0;
-      weekFocusBadge.textContent = `⏱️ ${wkHours}h focus`;
+      weekFocusBadge.innerHTML = `<i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> ${wkHours}h`;
       weekFocusBadge.title = `Total focus time this week: ${wkHours}h across ${weekly.total_focus_sessions || 0} sprints (click to view History telemetry)`;
     }
 
@@ -991,8 +993,9 @@ const Dashboard = {
     const monthFocusBadge = document.getElementById("monthFocusHoursBadge");
     if (monthFocusBadge) {
       const mHours = monthly.focus_hours || 0;
-      monthFocusBadge.textContent = `⏱️ ${mHours}h focus`;
+      monthFocusBadge.innerHTML = `<i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> ${mHours}h`;
     }
+    App.renderIcons();
 
     const monthFill = document.getElementById("monthProgressFill");
     if (monthFill) {
@@ -1182,7 +1185,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
+              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;"></i></span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
@@ -1196,13 +1199,13 @@ const Dashboard = {
     }
     html += `</div></div>`;
 
-    // 2. Trivial Tasks
+    // 2. Trivial Errands
     html += `
       <div class="briefing-section-block">
         <div class="briefing-section-header">
           <span style="display:flex; align-items:center; gap:6px;">
             <i data-lucide="check-square" style="width:14px;height:14px;color:var(--normal-green);"></i>
-            Trivial Tasks
+            Trivial Errands
           </span>
         </div>
         <div class="briefing-items-pills">
@@ -1232,7 +1235,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:8px;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
+              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;"></i></span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
               ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
             </div>
@@ -1273,7 +1276,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" style="font-size:10.5px; color:var(--text-muted); font-style:italic;">(in sequence)</span>` : ''}
+              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;"></i></span>` : ''}
               ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
             ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
@@ -1496,7 +1499,7 @@ const Dashboard = {
     if (!container) return;
 
     const count = this.dailyOrder.length;
-    if (countBadge) countBadge.textContent = `${count} in sequence`;
+    if (countBadge) countBadge.textContent = `${count} queued`;
 
     if (count === 0) {
       container.innerHTML = `

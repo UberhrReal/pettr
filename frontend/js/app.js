@@ -28,6 +28,7 @@ const App = {
   init() {
     this.initTheme();
     this.bindNavigation();
+    this.initTabIndicator();
     this.bindKeyboardShortcuts();
     this.bindHeaderScroll();
     this.initMissionClock();
@@ -957,6 +958,44 @@ const App = {
     if (typeof FocusCockpit !== "undefined") FocusCockpit.init();
     if (typeof EveningDebrief !== "undefined") EveningDebrief.init();
     this.renderIcons();
+    requestAnimationFrame(() => this.updateTabIndicator(true));
+    setTimeout(() => this.updateTabIndicator(true), 120);
+  },
+
+  initTabIndicator() {
+    const nav = document.getElementById("mainNavTabs") || document.querySelector(".nav-tabs");
+    if (!nav) return;
+    nav.classList.add("nav-tabs--animated");
+
+    window.addEventListener("resize", () => this.updateTabIndicator(true));
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => this.updateTabIndicator(true)).catch(() => {});
+    }
+    requestAnimationFrame(() => this.updateTabIndicator(true));
+  },
+
+  updateTabIndicator(instant = false) {
+    const nav = document.getElementById("mainNavTabs") || document.querySelector(".nav-tabs");
+    const indicator = document.getElementById("navTabIndicator");
+    if (!nav || !indicator) return;
+    const activeBtn = nav.querySelector(".tab-btn.active");
+    if (!activeBtn || activeBtn.offsetWidth === 0) return;
+
+    if (instant) {
+      indicator.style.transition = "none";
+    } else {
+      indicator.style.transition = "";
+    }
+
+    indicator.style.width = `${activeBtn.offsetWidth}px`;
+    indicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
+    indicator.style.opacity = "1";
+
+    if (instant) {
+      // Force reflow so subsequent switches animate smoothly
+      void indicator.offsetWidth;
+      indicator.style.transition = "";
+    }
   },
 
   bindNavigation() {
@@ -983,6 +1022,11 @@ const App = {
         btn.classList.remove("active");
       }
     });
+
+    // Slide the active tab pill smoothly to the selected button
+    this.updateTabIndicator(false);
+    requestAnimationFrame(() => this.updateTabIndicator(false));
+    setTimeout(() => this.updateTabIndicator(false), 180);
 
     // Update tab pane visibility
     document.querySelectorAll(".tab-pane").forEach(pane => {
@@ -1399,7 +1443,10 @@ const App = {
       pinDisplay.textContent = this.pinRevealed ? this.cachedPin : "••••";
     }
     if (toggleBtn) {
-      toggleBtn.textContent = this.pinRevealed ? "🙈 Hide PIN" : "👁️ Show PIN";
+      toggleBtn.innerHTML = this.pinRevealed
+        ? `<i data-lucide="eye-off" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Hide PIN`
+        : `<i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN`;
+      this.renderIcons();
     }
   },
 

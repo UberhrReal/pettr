@@ -21,6 +21,20 @@ const WaveCanvas = {
   gustEndTime: 0,
   gustSpawnCount: 0,
   maxGustLeaves: 16,
+  // Morning: Dandelion seeds / warm pollen thermals
+  dandelions: [],
+  nextMorningGustTime: 0,
+  morningGustActive: false,
+  morningGustEndTime: 0,
+  morningSpawnCount: 0,
+  maxMorningSeeds: 14,
+  // Light/Afternoon: Soaring sky swallows / birds
+  birds: [],
+  nextFlockTime: 0,
+  // Dark/Night: Zenith twinkling stars & shooting stars
+  stars: [],
+  meteors: [],
+  nextMeteorTime: 0,
 
   getThemeMode() {
     const docTheme = document.documentElement.getAttribute("data-theme");
@@ -73,6 +87,7 @@ const WaveCanvas = {
     if (!this.canvas) return;
     this.width = this.canvas.width = window.innerWidth;
     this.height = this.canvas.height = window.innerHeight;
+    this.stars = [];
   },
 
   animate() {
@@ -90,11 +105,25 @@ const WaveCanvas = {
     const mode = this.getThemeMode();
     const isDark = (mode === "dark" || mode === "evening");
 
-    // Clear leaves if not in evening mode
+    // Clear off-theme ambient particle engines so nothing lingers across theme transitions
     if (mode !== "evening" && (this.leaves.length > 0 || this.gustActive)) {
       this.leaves = [];
       this.gustActive = false;
       this.nextGustTime = 0;
+    }
+    if (mode !== "morning" && (this.dandelions.length > 0 || this.morningGustActive)) {
+      this.dandelions = [];
+      this.morningGustActive = false;
+      this.nextMorningGustTime = 0;
+    }
+    if (mode !== "light" && (this.birds.length > 0 || this.nextFlockTime)) {
+      this.birds = [];
+      this.nextFlockTime = 0;
+    }
+    if (mode !== "dark" && (this.meteors.length > 0 || this.stars.length > 0 || this.nextMeteorTime)) {
+      this.meteors = [];
+      this.stars = [];
+      this.nextMeteorTime = 0;
     }
 
     // 1. Theme-adaptive canvas background
@@ -268,6 +297,9 @@ const WaveCanvas = {
 
       ctx.restore();
 
+      // 5. Night Zenith Star Glints & Shooting Stars
+      this.updateAndDrawNightMeteors(ctx, w, h);
+
     } else if (mode === "morning") {
       // Dawn/Sunrise: Radiant rising morning sun rays and warm peach/gold horizon wash
       ctx.save();
@@ -316,6 +348,9 @@ const WaveCanvas = {
       }
 
       ctx.restore();
+
+      // 5. Morning Thermal Updraft: Backlit Dandelion Seeds & Sun Motes
+      this.updateAndDrawMorningSeeds(ctx, w, h);
 
     } else if (mode === "evening") {
       // Golden Hour: Radiant low-sun solar wash, honey ribbons, velvety blue undertones, and blowing leaves
@@ -523,6 +558,9 @@ const WaveCanvas = {
       });
 
       ctx.restore();
+
+      // 5. Daytime Celestial Wildlife: Soaring Distant Swallow Silhouettes
+      this.updateAndDrawDayBirds(ctx, w, h);
     }
   },
 
@@ -650,6 +688,312 @@ const WaveCanvas = {
       ctx.restore();
     }
     this.leaves = alive;
+  },
+
+  // --- MORNING THEME: Backlit Dandelion Seeds & Warm Sun Motes ---
+  triggerMorningThermal(now, w, h) {
+    this.morningGustActive = true;
+    this.morningGustEndTime = now + 5200 + Math.random() * 2400;
+    this.morningSpawnCount = 0;
+    this.maxMorningSeeds = 12 + Math.floor(Math.random() * 6);
+    const burst = 3 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < burst; i++) {
+      this.spawnMorningSeed(w, h, true);
+    }
+  },
+
+  spawnMorningSeed(w, h, isBurst) {
+    const isMote = Math.random() < 0.35;
+    this.dandelions.push({
+      isMote,
+      x: isBurst ? (-10 + Math.random() * (w * 0.35)) : (-25 - Math.random() * 80),
+      y: h * (0.28 + Math.random() * 0.56),
+      vx: isMote ? (0.8 + Math.random() * 1.1) : (1.25 + Math.random() * 1.45),
+      vy: -(0.22 + Math.random() * 0.52), // Rising on warm sunrise thermal updrafts
+      size: isMote ? (1.8 + Math.random() * 2.2) : (6.5 + Math.random() * 4.5),
+      sway: Math.random() * Math.PI * 2,
+      swaySpeed: 0.02 + Math.random() * 0.025,
+      tilt: (Math.random() - 0.5) * 0.45,
+      alpha: isMote ? (0.42 + Math.random() * 0.30) : (0.58 + Math.random() * 0.25)
+    });
+    this.morningSpawnCount++;
+  },
+
+  updateAndDrawMorningSeeds(ctx, w, h) {
+    const now = performance.now();
+    if (!this.nextMorningGustTime) {
+      this.nextMorningGustTime = now + 1300;
+    }
+    if (!this.morningGustActive && now >= this.nextMorningGustTime) {
+      this.triggerMorningThermal(now, w, h);
+    } else if (this.morningGustActive) {
+      if (this.morningSpawnCount < this.maxMorningSeeds && Math.random() < 0.18) {
+        this.spawnMorningSeed(w, h, false);
+      }
+      if (now >= this.morningGustEndTime) {
+        this.morningGustActive = false;
+        this.nextMorningGustTime = now + 10000 + Math.random() * 6000;
+      }
+    }
+
+    if (this.dandelions.length === 0) return;
+
+    const alive = [];
+    for (let i = 0; i < this.dandelions.length; i++) {
+      const p = this.dandelions[i];
+      p.sway += p.swaySpeed;
+      p.x += p.vx + Math.sin(p.sway * 0.8) * 0.35;
+      p.y += p.vy + Math.cos(p.sway) * 0.35;
+
+      if (p.x > w + 50 || p.y < -50) continue;
+      alive.push(p);
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      const pulse = 0.78 + 0.22 * Math.sin(p.sway * 1.4);
+
+      if (p.isMote) {
+        // Warm luminous pollen / dew mote
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 2.4);
+        g.addColorStop(0, `rgba(251, 191, 36, ${(p.alpha * pulse).toFixed(3)})`);
+        g.addColorStop(0.5, `rgba(244, 63, 94, ${(p.alpha * 0.35 * pulse).toFixed(3)})`);
+        g.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Feathered dandelion seed parachute catching sunrise light
+        ctx.rotate(p.tilt + Math.sin(p.sway) * 0.16);
+        const s = p.size;
+        const a = p.alpha * pulse;
+
+        // Soft sunlit glow halo around pappus head
+        const halo = ctx.createRadialGradient(0, -s * 0.75, 1, 0, -s * 0.75, s * 1.15);
+        halo.addColorStop(0, `rgba(254, 243, 199, ${(a * 0.55).toFixed(3)})`);
+        halo.addColorStop(1, "rgba(251, 191, 36, 0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(0, -s * 0.75, s * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Stalk & amber seed achene
+        ctx.strokeStyle = `rgba(180, 83, 9, ${(a * 0.65).toFixed(3)})`;
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.55);
+        ctx.lineTo(0, -s * 0.55);
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(217, 119, 6, ${(a * 0.9).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(0, s * 0.65, 1.3, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Gossamer pappus silk filaments fanned at crown
+        ctx.strokeStyle = `rgba(245, 158, 11, ${(a * 0.72).toFixed(3)})`;
+        ctx.lineWidth = 0.7;
+        const rays = [-0.85, -0.45, 0, 0.45, 0.85];
+        rays.forEach((ang) => {
+          const rx = Math.sin(ang) * (s * 0.85);
+          const ry = -s * 0.55 - Math.cos(ang) * (s * 0.45);
+          ctx.beginPath();
+          ctx.moveTo(0, -s * 0.55);
+          ctx.lineTo(rx, ry);
+          ctx.stroke();
+        });
+      }
+      ctx.restore();
+    }
+    this.dandelions = alive;
+  },
+
+  // --- LIGHT / AFTERNOON THEME: Soaring Swallow Flock Across Cloud Sky ---
+  spawnDayFlock(w, h) {
+    const fromLeft = Math.random() < 0.7;
+    const count = 4 + Math.floor(Math.random() * 4);
+    const baseY = 55 + Math.random() * Math.min(210, h * 0.28);
+    const baseSpeed = 1.6 + Math.random() * 0.9;
+
+    for (let i = 0; i < count; i++) {
+      const depth = 0.65 + Math.random() * 0.55; // Depth scaling (size & speed)
+      const lag = i * (26 + Math.random() * 20);
+      this.birds.push({
+        dir: fromLeft ? 1 : -1,
+        x: fromLeft ? (-35 - lag) : (w + 35 + lag),
+        y: baseY + (i - count / 2) * (14 + Math.random() * 10) + (Math.random() - 0.5) * 18,
+        vx: (fromLeft ? 1 : -1) * baseSpeed * (0.85 + depth * 0.35),
+        vy: (Math.random() - 0.52) * 0.25,
+        span: (9 + Math.random() * 5) * depth,
+        flapPhase: Math.random() * Math.PI * 2,
+        flapSpeed: 0.14 + Math.random() * 0.06,
+        glideClock: Math.random() * 180,
+        alpha: 0.22 + depth * 0.18
+      });
+    }
+  },
+
+  updateAndDrawDayBirds(ctx, w, h) {
+    const now = performance.now();
+    if (!this.nextFlockTime) {
+      this.nextFlockTime = now + 1500;
+    }
+    if (now >= this.nextFlockTime) {
+      this.spawnDayFlock(w, h);
+      this.nextFlockTime = now + 11500 + Math.random() * 7000;
+    }
+
+    if (this.birds.length === 0) return;
+
+    const alive = [];
+    for (let i = 0; i < this.birds.length; i++) {
+      const b = this.birds[i];
+      b.glideClock += 1;
+      // Alternating 4-beat wing flaps and smooth motionless soar glides
+      const isGliding = (b.glideClock % 150) > 65;
+      if (!isGliding) {
+        b.flapPhase += b.flapSpeed;
+      } else {
+        b.flapPhase += (0.35 - Math.sin(b.flapPhase)) * 0.08;
+      }
+
+      b.x += b.vx;
+      b.y += b.vy + Math.sin(b.glideClock * 0.03) * 0.18;
+
+      if ((b.dir > 0 && b.x > w + 60) || (b.dir < 0 && b.x < -60)) continue;
+      alive.push(b);
+
+      const wingLift = Math.sin(b.flapPhase) * b.span * 0.52;
+      const halfSpan = b.span;
+
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.strokeStyle = `rgba(51, 65, 85, ${b.alpha.toFixed(3)})`;
+      ctx.lineWidth = Math.max(1.1, b.span * 0.12);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      // Graceful dual-arc swallow silhouette
+      ctx.beginPath();
+      ctx.moveTo(-halfSpan, -wingLift * 0.85);
+      ctx.quadraticCurveTo(-halfSpan * 0.45, -wingLift * 1.15 - 2, 0, 0);
+      ctx.quadraticCurveTo(halfSpan * 0.45, -wingLift * 1.15 - 2, halfSpan, -wingLift * 0.85);
+      ctx.stroke();
+      ctx.restore();
+    }
+    this.birds = alive;
+  },
+
+  // --- DARK / NIGHT THEME: Zenith Star Glints & Aurora Shooting Stars ---
+  initNightStars(w, h) {
+    this.stars = [];
+    const starCount = 32;
+    for (let i = 0; i < starCount; i++) {
+      this.stars.push({
+        x: Math.random() * w,
+        y: Math.random() * Math.min(380, h * 0.55),
+        r: 0.7 + Math.random() * 1.1,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.035,
+        tint: Math.random() < 0.35 ? "165, 243, 252" : (Math.random() < 0.5 ? "167, 243, 208" : "226, 232, 240")
+      });
+    }
+  },
+
+  spawnMeteor(w, h) {
+    const startX = w * (0.15 + Math.random() * 0.70);
+    const startY = 15 + Math.random() * Math.min(180, h * 0.24);
+    const dir = startX > w * 0.5 ? -1 : 1;
+    const angle = dir > 0 ? (0.34 + Math.random() * 0.24) : (Math.PI - 0.34 - Math.random() * 0.24);
+    const speed = 9.5 + Math.random() * 5.0;
+    const isEmerald = Math.random() < 0.45;
+    this.meteors.push({
+      x: startX,
+      y: startY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      len: 75 + Math.random() * 65,
+      life: 0,
+      maxLife: 38 + Math.floor(Math.random() * 20),
+      color: isEmerald ? "110, 231, 183" : "125, 211, 252"
+    });
+  },
+
+  updateAndDrawNightMeteors(ctx, w, h) {
+    if (this.stars.length === 0) {
+      this.initNightStars(w, h);
+    }
+
+    // Subtle twinkling high-altitude stars
+    ctx.save();
+    for (let i = 0; i < this.stars.length; i++) {
+      const s = this.stars[i];
+      s.phase += s.speed;
+      const alpha = 0.14 + 0.38 * (0.5 + 0.5 * Math.sin(s.phase));
+      ctx.fillStyle = `rgba(${s.tint}, ${alpha.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Periodic shooting stars (every 6 to 11.5 seconds)
+    const now = performance.now();
+    if (!this.nextMeteorTime) {
+      this.nextMeteorTime = now + 1200;
+    }
+    if (now >= this.nextMeteorTime) {
+      this.spawnMeteor(w, h);
+      if (Math.random() < 0.35) {
+        // Occasional paired meteor streak shortly offset
+        setTimeout(() => {
+          if (this.getThemeMode() === "dark") this.spawnMeteor(this.width, this.height);
+        }, 320);
+      }
+      this.nextMeteorTime = now + 6000 + Math.random() * 5500;
+    }
+
+    if (this.meteors.length > 0) {
+      const alive = [];
+      for (let i = 0; i < this.meteors.length; i++) {
+        const m = this.meteors[i];
+        m.x += m.vx;
+        m.y += m.vy;
+        m.life++;
+        if (m.life >= m.maxLife) continue;
+        alive.push(m);
+
+        const progress = m.life / m.maxLife;
+        const fade = progress < 0.18 ? (progress / 0.18) : (1 - (progress - 0.18) / 0.82);
+        const speedMag = Math.hypot(m.vx, m.vy) || 1;
+        const tailX = m.x - (m.vx / speedMag) * m.len * Math.min(1, progress * 3.5);
+        const tailY = m.y - (m.vy / speedMag) * m.len * Math.min(1, progress * 3.5);
+
+        const grad = ctx.createLinearGradient(tailX, tailY, m.x, m.y);
+        grad.addColorStop(0, `rgba(${m.color}, 0)`);
+        grad.addColorStop(0.65, `rgba(${m.color}, ${(fade * 0.45).toFixed(3)})`);
+        grad.addColorStop(1, `rgba(255, 255, 255, ${(fade * 0.95).toFixed(3)})`);
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(m.x, m.y);
+        ctx.stroke();
+
+        // Luminous meteor head glint
+        const headGlow = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 6);
+        headGlow.addColorStop(0, `rgba(255, 255, 255, ${(fade * 0.95).toFixed(3)})`);
+        headGlow.addColorStop(0.5, `rgba(${m.color}, ${(fade * 0.45).toFixed(3)})`);
+        headGlow.addColorStop(1, `rgba(${m.color}, 0)`);
+        ctx.fillStyle = headGlow;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      this.meteors = alive;
+    }
+    ctx.restore();
   }
 };
 

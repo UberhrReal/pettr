@@ -512,11 +512,6 @@ const FocusCockpit = {
       slider.value = mins;
     }
 
-    const label = document.getElementById("cockpitDurationLabel");
-    if (label) {
-      label.textContent = this.isStopwatch ? "Stopwatch (Count Up)" : this.formatDurationLabel(mins);
-    }
-
     document.querySelectorAll(".cockpit-preset-chip").forEach(btn => {
       if (this.isStopwatch) {
         btn.classList.toggle("active", btn.dataset.mode === "stopwatch");

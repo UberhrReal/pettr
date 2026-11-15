@@ -1867,7 +1867,7 @@ async def test_horace_adopts_display_name_without_wiping_chat_history(temp_db, m
     # Verify Guide tab title block and date navigator in index.html
     index_html = Path("frontend/index.html").read_text(encoding="utf-8")
     assert "guide-header-block" in index_html
-    assert "In-App Architecture &amp; User Guide" in index_html
+    assert "User Guide" in index_html
     assert "dashboardJumpTodayBtn" in index_html
 
 
@@ -2982,9 +2982,9 @@ def test_focus_cockpit_duration_slider_and_rain_synthesis():
     css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
     cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
 
-    # 1. Verify duration slider elements and attributes in index.html
+    # 1. Verify duration slider elements and attributes in index.html (small redundant timer removed in v9.3)
     assert 'id="cockpitDurationSlider"' in index_html
-    assert 'id="cockpitDurationLabel"' in index_html
+    assert 'id="cockpitDurationLabel"' not in index_html
     assert 'min="5"' in index_html
     assert 'max="180"' in index_html
     assert 'step="5"' in index_html
@@ -2999,7 +2999,7 @@ def test_focus_cockpit_duration_slider_and_rain_synthesis():
     assert ".cockpit-duration-slider" in css
     assert ".cockpit-slider-scale" in css
     assert ".cockpit-slider-header" in css
-    assert ".cockpit-slider-val" in css
+    assert ".cockpit-slider-val" not in css
 
     # 3. Verify JavaScript duration management and bidirectional syncing
     assert "formatDurationLabel" in cockpit_js
@@ -3261,10 +3261,10 @@ def test_v9_1_your_stats_unification_and_cockpit_no_general_pill(temp_db, monkey
     assert 'id="focusKpiTaskRate"' in index_html
     assert 'id="focusKpiTaskSummary"' in index_html
 
-    # Check two-way linking buttons
+    # Check Dashboard quick link button (History redundant Dashboard button removed in v9.3)
     assert 'class="action-icon-btn your-stats-quicklink"' in index_html
     assert "Dashboard.scrollToYourStats();" in index_html
-    assert "Dashboard Overview" in index_html
+    assert "Return to Dashboard Overview" not in index_html
 
     # Check cockpit task project initial state is hidden (no glowing 'General' pill)
     assert '<span class="project-tag" id="cockpitTaskProject" style="display: none;"></span>' in index_html
@@ -3376,15 +3376,81 @@ def test_v9_2_tailscale_persistence_and_decluttered_iconography(temp_db, monkeyp
     assert '<button type="button" class="cockpit-preset-chip active" data-min="25" onclick="FocusCockpit.setPreset(25)">25m</button>' in index_html
     assert '<button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType(\'none\')" title="Mute ambient sound"><i data-lucide="volume-x"' in index_html
 
-    # 4. Cache buster check (v=9.2)
-    assert 'pettr.css?v=9.2' in index_html
-    assert 'app.js?v=9.2' in index_html
-    assert 'dashboard.js?v=9.2' in index_html
-    assert 'focus_cockpit.js?v=9.2' in index_html
+    # 4. Cache buster check
+    assert 'pettr.css?v=9.' in index_html
+    assert 'app.js?v=9.' in index_html
+    assert 'dashboard.js?v=9.' in index_html
+    assert 'focus_cockpit.js?v=9.' in index_html
 
     # 5. CSS Check
     css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
     assert ".banner-dismiss-btn" in css
+
+
+def test_v9_3_ui_refinements_animations_and_diurnal_particles():
+    """Verify v9.3 UI/UX refinements, sliding nav indicator, diurnal animations, and mobile optimisations."""
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    debrief_js = Path("frontend/js/evening_debrief.js").read_text(encoding="utf-8")
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+    wave_js = Path("frontend/js/wave_canvas.js").read_text(encoding="utf-8")
+
+    # 1. Focus Cockpit smaller timer removed
+    assert 'id="cockpitDurationLabel"' not in index_html
+    assert 'cockpitDurationLabel' not in cockpit_js
+
+    # 2. Single prominent Debrief button & unified Snapshot/Priority action buttons
+    assert 'id="eveningDebriefHeaderBtn"' not in index_html
+    assert 'eveningDebriefHeaderBtn' not in debrief_js
+    assert 'id="eveningDebriefDashBtn"' in index_html
+    assert "snapshot-action-group" in index_html
+    assert "snapshot-btn-debrief" in index_html and ".snapshot-btn-debrief" in css
+    assert "snapshot-btn-copy" in index_html and ".snapshot-btn-copy" in css
+    assert "snapshot-btn-focus" in index_html and ".snapshot-btn-focus" in css
+    assert "snapshot-btn-reset" in index_html and ".snapshot-btn-reset" in css
+    assert "#f59e0b" in css  # Distinct sunset amber colour for Debrief vs Focus indigo
+
+    # 3. Top PETTR carousel casual/sarcastic/tongue-in-cheek copy (British spelling)
+    assert "Your brain is a sieve" in index_html
+    assert "Your brain is a sieve" in dash_js
+    assert "questionable life choices" in dash_js
+    assert "reorganising the dashboard" in dash_js
+
+    # 4. Snapshot headers aligned with rest of window & streamlined titles
+    assert "text-transform: none;" in css
+    assert "Exploded View: Global Project Pool" not in index_html
+    assert "PETTR Configuration & Host Management" not in index_html
+    assert "Archive & Completed History" not in index_html
+    assert "In-App Architecture &amp; User Guide" not in index_html
+
+    # 5. History tab redundant 'Dashboard' button & Date navigator prefix removal
+    assert "Return to Dashboard Overview" not in index_html
+    assert "if (labelEl) labelEl.textContent = dayName;" in dash_js
+    assert "`Today: ${dayName}`" not in dash_js
+    assert "`Preview: ${dayName}`" not in dash_js
+    assert "`Archive: ${dayName}`" not in dash_js
+
+    # 6. Smooth sliding tab selector animation
+    assert 'id="navTabIndicator"' in index_html
+    assert ".nav-tab-indicator" in css
+    assert "cubic-bezier(0.22, 1, 0.36, 1)" in css
+    assert "initTabIndicator()" in app_js
+    assert "updateTabIndicator(" in app_js
+
+    # 7. Distinct diurnal ambient particle animations (not reusing blowing leaves)
+    assert "updateAndDrawMorningSeeds(" in wave_js
+    assert "updateAndDrawDayBirds(" in wave_js
+    assert "updateAndDrawNightMeteors(" in wave_js
+    assert "updateAndDrawLeaves(" in wave_js
+
+    # 8. Mobile responsiveness polish & v9.3 cache buster
+    assert ".focus-kpi-card:last-child:nth-child(odd)" in css
+    assert 'pettr.css?v=9.3' in index_html
+    assert 'wave_canvas.js?v=9.3' in index_html
+    assert 'app.js?v=9.3' in index_html
+    assert 'dashboard.js?v=9.3' in index_html
 
 
 
