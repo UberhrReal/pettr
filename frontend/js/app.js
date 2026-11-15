@@ -410,6 +410,13 @@ const App = {
     this.renderIcons();
   },
 
+  closeThemeSlider() {
+    const drawer = document.getElementById("themeSliderDrawer");
+    if (drawer && drawer.style.display !== "none") {
+      drawer.style.display = "none";
+    }
+  },
+
   toggleThemeSlider() {
     const drawer = document.getElementById("themeSliderDrawer");
     if (!drawer) return;
@@ -1079,8 +1086,117 @@ const App = {
     }
   },
 
+  handleGlobalEscape(e) {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+
+    const pinLock = document.getElementById("pinLockOverlay");
+    if (pinLock && pinLock.style.display !== "none") return;
+
+    const dismiss = () => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      return true;
+    };
+
+    const lightbox = document.getElementById("notesMediaLightboxModal");
+    if (lightbox && lightbox.style.display !== "none" && typeof Notes !== "undefined") {
+      Notes.closeMediaLightbox();
+      return dismiss();
+    }
+
+    const entityModal = document.getElementById("entityModalOverlay");
+    if (entityModal && entityModal.style.display !== "none" && typeof EntityModal !== "undefined") {
+      EntityModal.close();
+      return dismiss();
+    }
+
+    const manualCreateModal = document.getElementById("manualCreateModalOverlay");
+    if (manualCreateModal && manualCreateModal.style.display !== "none" && typeof Dashboard !== "undefined") {
+      Dashboard.closeManualCreateModal();
+      return dismiss();
+    }
+
+    const unorgModal = document.getElementById("unorganizedModal");
+    if (unorgModal && unorgModal.style.display !== "none" && typeof Dashboard !== "undefined") {
+      Dashboard.closeUnorganizedModal();
+      return dismiss();
+    }
+
+    const sessionsModal = document.getElementById("focusSessionsModal");
+    if (sessionsModal && sessionsModal.style.display !== "none" && typeof History !== "undefined") {
+      History.toggleFocusSessionsModal();
+      return dismiss();
+    }
+
+    const debriefModal = document.getElementById("eveningDebriefModal");
+    if (debriefModal && debriefModal.style.display !== "none" && typeof EveningDebrief !== "undefined") {
+      EveningDebrief.close();
+      return dismiss();
+    }
+
+    const timezoneModal = document.getElementById("timezoneModal");
+    if (timezoneModal && timezoneModal.style.display !== "none") {
+      this.closeTimezoneModal();
+      return dismiss();
+    }
+
+    const voiceModal = document.getElementById("voiceTroubleshootModal");
+    if (voiceModal && voiceModal.style.display !== "none") {
+      this.closeVoiceTroubleshootModal();
+      return dismiss();
+    }
+
+    const cockpitPicker = document.getElementById("cockpitTaskPicker");
+    if (cockpitPicker && cockpitPicker.style.display !== "none" && typeof FocusCockpit !== "undefined") {
+      FocusCockpit.toggleTaskPicker(false);
+      return dismiss();
+    }
+
+    const cockpitModal = document.getElementById("focusCockpitModal");
+    if (cockpitModal && cockpitModal.style.display !== "none" && typeof FocusCockpit !== "undefined") {
+      FocusCockpit.close();
+      return dismiss();
+    }
+
+    const simplifiedOverlay = document.getElementById("simplifiedModeOverlay");
+    if (simplifiedOverlay && simplifiedOverlay.style.display !== "none" && typeof SimplifiedMode !== "undefined") {
+      SimplifiedMode.close();
+      return dismiss();
+    }
+
+    const themeDrawer = document.getElementById("themeSliderDrawer");
+    if (themeDrawer && themeDrawer.style.display !== "none") {
+      this.closeThemeSlider();
+      return dismiss();
+    }
+
+    const horacePanel = document.getElementById("horacePanel");
+    if (
+      typeof HoraceChat !== "undefined" &&
+      (HoraceChat.isOpen || (horacePanel && horacePanel.style.display !== "none"))
+    ) {
+      HoraceChat.close();
+      return dismiss();
+    }
+  },
+
   bindKeyboardShortcuts() {
     const input = document.getElementById("quickInput");
+
+    // Global Escape key dismisses topmost open dropdown / popup / modal panel
+    document.addEventListener("keydown", (e) => {
+      this.handleGlobalEscape(e);
+    });
+
+    // Click outside dismisses the diurnal theme slider drawer
+    document.addEventListener("click", (e) => {
+      const drawer = document.getElementById("themeSliderDrawer");
+      if (!drawer || drawer.style.display === "none") return;
+      if (!e.target.closest(".theme-switcher-wrapper")) {
+        this.closeThemeSlider();
+      }
+    });
 
     // Global hotkey '/' to focus quick input (switches to dashboard first if needed)
     window.addEventListener("keydown", (e) => {

@@ -43,11 +43,20 @@ const FocusCockpit = {
       if (e.key === "Escape") {
         const picker = document.getElementById("cockpitTaskPicker");
         if (picker && picker.style.display !== "none") {
+          e.preventDefault();
           e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
           this.toggleTaskPicker(false);
         }
       }
     });
+  },
+
+  updateSliderVisibility() {
+    const wrap = document.getElementById("cockpitDurationSliderWrap") || document.querySelector(".cockpit-duration-slider-wrap");
+    if (!wrap) return;
+    const shouldHide = Boolean(this.hasStarted || this.isRunning);
+    wrap.classList.toggle("is-hidden", shouldHide);
   },
 
   async open(task = null) {
@@ -62,6 +71,7 @@ const FocusCockpit = {
       if (floating) floating.style.display = "none";
       this.updateTimerDisplay();
       this.updatePlayButton();
+      this.updateSliderVisibility();
       App.renderIcons();
       App.haptic("light");
       return;
@@ -77,6 +87,7 @@ const FocusCockpit = {
     this.syncDurationControls(Math.round(this.durationSeconds / 60));
     this.updateTimerDisplay();
     this.updatePlayButton();
+    this.updateSliderVisibility();
     this.renderSoundControls();
     this.fetchWeeklyMetrics();
 
@@ -133,6 +144,7 @@ const FocusCockpit = {
 
     document.title = "PETTR - Personal Errands, Task Tracker & Repository";
     this.updatePlayButton();
+    this.updateSliderVisibility();
     App.showToast("Focus sprint ended.");
     App.haptic("light");
   },
@@ -525,6 +537,7 @@ const FocusCockpit = {
     this.pauseTimer();
     this.hasStarted = false;
     this.setDuration(minutes);
+    this.updateSliderVisibility();
   },
 
   setStopwatchMode() {
@@ -535,6 +548,7 @@ const FocusCockpit = {
     this.syncDurationControls(Math.round(this.durationSeconds / 60));
     this.updateTimerDisplay();
     this.updatePlayButton();
+    this.updateSliderVisibility();
   },
 
   toggleTimer() {
@@ -564,6 +578,7 @@ const FocusCockpit = {
     this.hasStarted = true;
 
     this.updatePlayButton();
+    this.updateSliderVisibility();
 
     // Auto-resume ambient sound if selected and not already playing
     if (this.currentSoundType !== "none" && !this.soundSource) {
@@ -601,6 +616,7 @@ const FocusCockpit = {
     // Note: Ambient sound is independent of timer and continues playing while paused
 
     this.updatePlayButton();
+    this.updateSliderVisibility();
     this.updateMiniDisplays();
   },
 
@@ -614,6 +630,7 @@ const FocusCockpit = {
     }
     this.updateTimerDisplay();
     this.updatePlayButton();
+    this.updateSliderVisibility();
     this.updateMiniDisplays();
     App.haptic("light");
   },
@@ -701,6 +718,7 @@ const FocusCockpit = {
       setTimeout(() => pulseEl.classList.remove("timer-complete-pulse"), 2500);
     }
     this.updatePlayButton();
+    this.updateSliderVisibility();
     this.updateMiniDisplays();
   },
 

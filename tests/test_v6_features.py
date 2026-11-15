@@ -3413,9 +3413,7 @@ def test_v9_3_ui_refinements_animations_and_diurnal_particles():
     assert "#f59e0b" in css  # Distinct sunset amber colour for Debrief vs Focus indigo
 
     # 3. Top PETTR carousel casual/sarcastic/tongue-in-cheek copy (British spelling)
-    assert "Your brain is a sieve" in index_html
-    assert "Your brain is a sieve" in dash_js
-    assert "questionable life choices" in dash_js
+    assert "Stop reorganising the dashboard and go finish the damn task" in index_html
     assert "reorganising the dashboard" in dash_js
 
     # 4. Snapshot headers aligned with rest of window & streamlined titles
@@ -3445,12 +3443,80 @@ def test_v9_3_ui_refinements_animations_and_diurnal_particles():
     assert "updateAndDrawNightMeteors(" in wave_js
     assert "updateAndDrawLeaves(" in wave_js
 
-    # 8. Mobile responsiveness polish & v9.3 cache buster
+    # 8. Mobile responsiveness polish & v9.x cache buster
     assert ".focus-kpi-card:last-child:nth-child(odd)" in css
-    assert 'pettr.css?v=9.3' in index_html
-    assert 'wave_canvas.js?v=9.3' in index_html
-    assert 'app.js?v=9.3' in index_html
-    assert 'dashboard.js?v=9.3' in index_html
+    assert 'pettr.css?v=9.' in index_html
+    assert 'wave_canvas.js?v=9.' in index_html
+    assert 'app.js?v=9.' in index_html
+    assert 'dashboard.js?v=9.' in index_html
+
+
+def test_v9_4_carousel_snapshot_date_escape_keys_and_slider_collapse():
+    """Verify v9.4 hero carousel copy, Snapshot date removal, global Escape handlers, and slider sprint animation."""
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    entity_js = Path("frontend/js/entity_modal.js").read_text(encoding="utf-8")
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+
+    # 1. Exact 6 hero carousel lines in order
+    expected_taglines = [
+        "Stop reorganising the dashboard and go finish the damn task",
+        "Wow all this theming is really distracting, huh",
+        "Thank you Horace, for adding $3 to my electricity bill",
+        "Always remember that you- uh, uhm. I forgor.",
+        '"Wah wah I have 17 open projects" bitch I\'m a glorified to-do list idgaf',
+        "Accessible worldwide - if things ever get that bad",
+    ]
+    assert expected_taglines[0] in index_html
+    last_pos = -1
+    for line in expected_taglines:
+        pos = dash_js.find(line)
+        assert pos > last_pos, f"Missing or out-of-order tagline: {line}"
+        last_pos = pos
+
+    # 2. Redundant date marker next to Snapshot title removed
+    assert 'id="briefingShowcaseDate"' not in index_html
+    assert "briefingShowcaseDate" not in dash_js
+
+    # 3. Escape key dismisses dropdowns, popups, diurnal theme menu, focus cockpit, and manual edit modal
+    assert "closeThemeSlider()" in app_js
+    assert "handleGlobalEscape(e)" in app_js
+    assert "e.stopImmediatePropagation" in app_js
+    assert "e.stopImmediatePropagation" in entity_js
+    assert "e.stopImmediatePropagation" in cockpit_js
+    for target_id in (
+        "notesMediaLightboxModal",
+        "entityModalOverlay",
+        "manualCreateModalOverlay",
+        "unorganizedModal",
+        "focusSessionsModal",
+        "eveningDebriefModal",
+        "timezoneModal",
+        "voiceTroubleshootModal",
+        "cockpitTaskPicker",
+        "focusCockpitModal",
+        "simplifiedModeOverlay",
+        "themeSliderDrawer",
+        "horacePanel",
+    ):
+        assert f'"{target_id}"' in app_js
+
+    # 4. Focus sprint duration slider collapses smoothly when sprint starts & returns when ended
+    assert 'id="cockpitDurationSliderWrap"' in index_html
+    assert "updateSliderVisibility()" in cockpit_js
+    assert 'classList.toggle("is-hidden"' in cockpit_js
+    assert ".cockpit-duration-slider-wrap.is-hidden" in css
+    assert "max-height: 0 !important;" in css
+
+    # 5. Cache buster bumped to v9.4
+    assert "pettr.css?v=9.4" in index_html
+    assert "app.js?v=9.4" in index_html
+    assert "dashboard.js?v=9.4" in index_html
+    assert "focus_cockpit.js?v=9.4" in index_html
+    assert "entity_modal.js?v=9.4" in index_html
+
 
 
 

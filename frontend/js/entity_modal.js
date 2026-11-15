@@ -634,6 +634,8 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     const overlay = document.getElementById("entityModalOverlay");
     if (overlay && overlay.style.display !== "none") {
+      e.preventDefault();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       EntityModal.close();
     }
   }

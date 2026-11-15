@@ -197,11 +197,12 @@ const Dashboard = {
   },
 
   heroTaglines: [
-    "Your brain is a sieve · Write it down before you forget it again",
-    "100% self-hosted · Zero Big Tech peeking at your questionable life choices",
     "Stop reorganising the dashboard and go finish the damn task",
-    "Turns out raw brain-vomit actually looks decent in dark mode",
-    "Local node running 24/7 so your chaos never clocks out either"
+    "Wow all this theming is really distracting, huh",
+    "Thank you Horace, for adding $3 to my electricity bill",
+    "Always remember that you- uh, uhm. I forgor.",
+    `"Wah wah I have 17 open projects" bitch I'm a glorified to-do list idgaf`,
+    "Accessible worldwide - if things ever get that bad"
   ],
   taglineIndex: 0,
   _taglineTimer: null,
@@ -1040,9 +1041,7 @@ const Dashboard = {
       this.updateDateNavigatorUI();
       this.updateManualCreationButtonsState(this.isPastDay());
       const dateEl = document.getElementById("briefingDate");
-      const showcaseDate = document.getElementById("briefingShowcaseDate");
       if (dateEl) dateEl.textContent = data.date;
-      if (showcaseDate) showcaseDate.textContent = data.date;
 
       document.getElementById("statFocus").textContent = data.focus_count;
       document.getElementById("statTrivial").textContent = data.trivial_count;

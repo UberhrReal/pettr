@@ -4725,6 +4725,31 @@ body {
   background: var(--bg-secondary);
   border: 1px solid var(--card-border);
   border-radius: 10px;
+  max-height: 180px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition:
+    max-height 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.26s ease,
+    margin-top 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    padding-top 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    padding-bottom 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 0.28s ease,
+    border-color 0.25s ease,
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cockpit-duration-slider-wrap.is-hidden {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  border-color: transparent;
+  transform: translateY(-8px);
+  pointer-events: none;
 }
 
 .cockpit-slider-header {
@@ -6420,6 +6445,17 @@ body {
   .cockpit-duration-slider-wrap {
     margin-top: 10px !important;
     padding: 8px 10px !important;
+  }
+
+  .cockpit-duration-slider-wrap.is-hidden {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border-width: 0 !important;
+    border-color: transparent !important;
+    transform: translateY(-8px) !important;
   }
 
   .cockpit-duration-slider {
