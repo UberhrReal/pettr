@@ -3510,12 +3510,142 @@ def test_v9_4_carousel_snapshot_date_escape_keys_and_slider_collapse():
     assert ".cockpit-duration-slider-wrap.is-hidden" in css
     assert "max-height: 0 !important;" in css
 
-    # 5. Cache buster bumped to v9.4
-    assert "pettr.css?v=9.4" in index_html
-    assert "app.js?v=9.4" in index_html
-    assert "dashboard.js?v=9.4" in index_html
-    assert "focus_cockpit.js?v=9.4" in index_html
-    assert "entity_modal.js?v=9.4" in index_html
+    # 5. Cache buster bumped to v9.x
+    assert "pettr.css?v=9." in index_html
+    assert "app.js?v=9." in index_html
+    assert "dashboard.js?v=9." in index_html
+    assert "focus_cockpit.js?v=9." in index_html
+    assert "entity_modal.js?v=9." in index_html
+
+
+def test_v9_5_in_sequence_priority_queue_edits_checkoff_and_filtering(temp_db, monkeypatch):
+    """Verify v9.5 'In sequence' marker clarity, task edits preserving priority queue position, single-click sync, and panel filtering."""
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    today_str = today.isoformat()
+    yesterday_str = yesterday.isoformat()
+
+    # Create two focus tasks: one due today, one overdue from yesterday
+    t_today = database.create_task(
+        title="Draft avionics report",
+        tier="focus",
+        due_date=f"{today_str} 18:00:00",
+        db_path=temp_db,
+    )
+    t_overdue = database.create_task(
+        title="Verify thermal margin",
+        tier="focus",
+        due_date=f"{yesterday_str} 17:00:00",
+        db_path=temp_db,
+    )
+
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Seed both tasks into today's Tasking Priority queue in specific order
+        seed_res = client.post("/api/daily-order", json={
+            "date": today_str,
+            "order": [
+                {"id": t_today["id"], "type": "task", "title": t_today["title"], "tier": "focus", "completed": False},
+                {"id": t_overdue["id"], "type": "task", "title": t_overdue["title"], "tier": "focus", "completed": False},
+            ],
+        })
+        assert seed_res.status_code == 200
+
+        # 1. Editing text of either task (including overdue task whose due_date < today_str)
+        #    keeps it at its exact index in today's queue with updated text!
+        edit1 = client.post("/api/entities/reclassify", json={
+            "from_type": "task",
+            "from_id": t_today["id"],
+            "to_type": "task",
+            "title": "Draft final avionics report",
+            "tier": "focus",
+            "due_date": f"{today_str} 18:00:00",
+            "status": "pending",
+        })
+        assert edit1.status_code == 200
+
+        edit2 = client.post("/api/entities/reclassify", json={
+            "from_type": "task",
+            "from_id": t_overdue["id"],
+            "to_type": "task",
+            "title": "Verify updated thermal margin",
+            "tier": "focus",
+            "due_date": f"{yesterday_str} 17:00:00",
+            "status": "pending",
+        })
+        assert edit2.status_code == 200
+
+        q_res = client.get(f"/api/daily-order?date={today_str}")
+        assert q_res.status_code == 200
+        q_items = q_res.json()["order"]
+        assert [it["id"] for it in q_items] == [t_today["id"], t_overdue["id"]]
+        assert q_items[0]["title"] == "Draft final avionics report"
+        assert q_items[1]["title"] == "Verify updated thermal margin"
+
+        # Completing via PATCH keeps completed status & completed_at preserved when edited later
+        done_res = client.patch(f"/api/tasks/{t_overdue['id']}", json={"status": "completed"})
+        assert done_res.status_code == 200
+        edit3 = client.post("/api/entities/reclassify", json={
+            "from_type": "task",
+            "from_id": t_overdue["id"],
+            "to_type": "task",
+            "title": "Verify completed thermal margin",
+            "tier": "focus",
+            "due_date": f"{yesterday_str} 17:00:00",
+            "status": "completed",
+        })
+        assert edit3.status_code == 200
+        q_after = client.get(f"/api/daily-order?date={today_str}").json()["order"]
+        assert [it["id"] for it in q_after] == [t_today["id"], t_overdue["id"]]
+        assert q_after[1]["title"] == "Verify completed thermal margin"
+        assert q_after[1]["completed"] is True
+
+        # Reopen cleanly
+        reopen_res = client.patch(f"/api/tasks/{t_overdue['id']}", json={"status": "pending"})
+        assert reopen_res.status_code == 200
+        q_reopened = client.get(f"/api/daily-order?date={today_str}").json()["order"]
+        assert q_reopened[1]["completed"] is False
+
+    # 2. Frontend code contracts for all four v9.5 fixes
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    entity_js = Path("frontend/js/entity_modal.js").read_text(encoding="utf-8")
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+
+    # Clear "In sequence" badge in Snapshot & non-conflicting CSS
+    assert '<span>In sequence</span>' in dash_js
+    assert ".briefing-item-row.in-sequence" in css
+    assert css.count(".in-sequence-badge {") == 1
+
+    # EntityModal preserves queue order on title edits & awaits saveDailyOrder before refresh
+    assert "newDay !== origDay" in entity_js
+    assert "await Dashboard.saveDailyOrder();" in entity_js
+    assert "await Dashboard.refresh();" in entity_js
+    assert "rawTier === \"trivial\"" in entity_js
+
+    # Single-click checkoff / reopen on Priority Queue & optimistic dual-pane sync
+    assert "syncLocalEntityStatus(entityType, entityId, isCompleted)" in dash_js
+    assert "async toggleDailyOrderItem(idx, isCompleted)" in dash_js
+    assert 'onclick="event.stopPropagation()" onchange="Dashboard.toggleDailyOrderItem' in dash_js
+    assert "await this.saveDailyOrder();" in dash_js
+
+    # Working dashboard panel filtering view
+    assert "applyPanelFilter()" in dash_js
+    assert "filter-panel-hidden" in dash_js and ".filter-panel-hidden" in css
+    assert "filter-single-panel" in dash_js and ".dashboard-overview-row.filter-single-panel" in css
+    assert "filter-focused-panel" in dash_js and ".dynamic-panel.filter-focused-panel" in css
+    assert "Dashboard.clearFilter()" in app_js
+
+    # Cache buster bumped to v9.5
+    assert "pettr.css?v=9.5" in index_html
+    assert "dashboard.js?v=9.5" in index_html
+    assert "entity_modal.js?v=9.5" in index_html
+    assert "app.js?v=9.5" in index_html
+
 
 
 

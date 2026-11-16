@@ -1357,12 +1357,27 @@ body {
   background: rgba(239, 68, 68, 0.08) !important;
 }
 
+.briefing-item-row.in-sequence {
+  border-left: 3px solid var(--focus-indigo);
+  background: rgba(99, 102, 241, 0.06);
+}
+
 .in-sequence-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
   color: var(--focus-indigo);
-  opacity: 0.78;
+  background: rgba(99, 102, 241, 0.14);
+  border: 1px solid rgba(99, 102, 241, 0.34);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .briefing-showcase-title {
@@ -2124,22 +2139,36 @@ body {
   display: none;
   background: var(--text-main);
   color: var(--text-inverse);
-  padding: 8px 16px;
+  padding: 10px 16px;
   border-radius: var(--radius-md);
-  margin-bottom: 20px;
+  margin-bottom: 18px;
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
   font-weight: 600;
 }
 
+.filter-panel-hidden {
+  display: none !important;
+}
+
+.dashboard-overview-row.filter-single-panel {
+  grid-template-columns: 1fr !important;
+}
+
+.dynamic-panel.filter-focused-panel {
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+}
+
 .filter-clear-btn {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #ffffff;
+  color: var(--text-inverse);
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -7007,15 +7036,6 @@ body {
 .task-item.in-sequence:hover {
   opacity: 0.88;
   filter: none;
-}
-
-.in-sequence-badge {
-  display: inline-block;
-  font-size: 11px;
-  color: var(--text-dim);
-  font-style: italic;
-  font-weight: 500;
-  margin-left: 6px;
 }
 
 /* Theme Switcher & Collapsible Solar Slider Drawer */

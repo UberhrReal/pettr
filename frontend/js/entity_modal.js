@@ -50,14 +50,18 @@ const EntityModal = {
     
     // Set type switcher buttons
     let activeType = type;
-    let activeTier = e.tier || (type === "task" ? "focus" : null);
+    let activeTier = null;
 
-    if (type === "unorganized" || type === "unorganised") {
+    if (type === "task") {
+      const rawTier = String(e.tier || "focus").trim().toLowerCase();
+      activeTier = rawTier === "trivial" ? "trivial" : "focus";
+    } else if (type === "unorganized" || type === "unorganised") {
       activeType = "unorganized";
-      activeTier = e.suggested_tier || e.tier || "focus";
+      const rawTier = String(e.suggested_tier || e.tier || "focus").trim().toLowerCase();
+      activeTier = rawTier === "trivial" ? "trivial" : "focus";
     }
 
-    document.querySelectorAll(".type-pill-btn").forEach(btn => {
+    document.querySelectorAll("#entityModalOverlay .type-pill-btn").forEach(btn => {
       const targetType = btn.dataset.type;
       const targetTier = btn.dataset.tier;
       if (targetType === activeType && (!targetTier || targetTier === activeTier)) {
@@ -165,6 +169,9 @@ const EntityModal = {
     }
     if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(str)) {
       return str.replace(" ", "T").slice(0, 16);
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return `${str}T23:59`;
     }
     const d = new Date(str);
     if (!isNaN(d.getTime())) {
@@ -530,18 +537,32 @@ const EntityModal = {
 
       const data = await res.json();
       if (res.ok) {
+        const origRawDate = this.currentEntity
+          ? (this.currentEntity.due_date || this.currentEntity.start_time || this.currentEntity.reminder_date || "")
+          : "";
+        const origDay = String(origRawDate).split("T")[0].split(" ")[0];
         const newDay = (dueDate || "").split("T")[0].split(" ")[0];
-        const hasMovedDay = Boolean(newDay && typeof Dashboard !== "undefined" && Dashboard.selectedDate && newDay !== Dashboard.selectedDate);
+        const selectedDay = (typeof Dashboard !== "undefined" && Dashboard.selectedDate) ? Dashboard.selectedDate : "";
+        let hasMovedDay = false;
+        if (newDay && selectedDay && newDay !== origDay) {
+          if (toType === "event") {
+            hasMovedDay = (newDay !== selectedDay);
+          } else {
+            const isViewingToday = (typeof Dashboard !== "undefined" && typeof Dashboard.isToday === "function") ? Dashboard.isToday() : true;
+            hasMovedDay = isViewingToday ? (newDay > selectedDay) : (newDay !== selectedDay);
+          }
+        }
         if (typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
           if (toType !== this.fromType || hasMovedDay) {
             Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(String(item.id) === String(this.fromId) && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
             localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
             Dashboard.renderDailyOrder();
-            Dashboard.saveDailyOrder();
+            await Dashboard.saveDailyOrder();
           } else {
             const existing = Dashboard.dailyOrder.find(item => String(item.id) === String(this.fromId) && (item.type === this.fromType || (!item.type && this.fromType === 'task')));
             if (existing) {
-              existing.title = title;
+              existing.title = title.replace(/^\s*\[.*?\]\s*/, '');
+              existing.completed = (status === "completed");
               if (toTier) existing.tier = toTier;
               if (toType === "task") {
                 const milTime = dueDate ? App.formatMilitaryTime(dueDate) : "";
@@ -553,14 +574,14 @@ const EntityModal = {
               }
               localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
               Dashboard.renderDailyOrder();
-              Dashboard.saveDailyOrder();
+              await Dashboard.saveDailyOrder();
             }
           }
         }
         App.showToast("Changes saved successfully!");
         this.close();
         if (typeof Dashboard !== "undefined") {
-          Dashboard.refresh();
+          await Dashboard.refresh();
           const unorgModal = document.getElementById("unorganizedModal");
           if (unorgModal && unorgModal.dataset.wasOpen === "true") {
             unorgModal.dataset.wasOpen = "false";

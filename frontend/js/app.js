@@ -1179,6 +1179,11 @@ const App = {
       HoraceChat.close();
       return dismiss();
     }
+
+    if (typeof Dashboard !== "undefined" && Dashboard.activeFilter) {
+      Dashboard.clearFilter();
+      return dismiss();
+    }
   },
 
   bindKeyboardShortcuts() {

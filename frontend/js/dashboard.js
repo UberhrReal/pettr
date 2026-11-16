@@ -650,11 +650,6 @@ const Dashboard = {
       this.openUnorganizedModal();
       return;
     }
-    if (category === "projects") {
-      const col = document.getElementById("projectsCardSection");
-      if (col) col.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
 
     if (this.activeFilter === category) {
       this.clearFilter();
@@ -662,47 +657,89 @@ const Dashboard = {
     }
 
     this.activeFilter = category;
+    this.applyPanelFilter();
 
-    document.querySelectorAll(".stat-pill").forEach(p => {
-      if (p.dataset.filter === category) p.classList.add("active");
-      else p.classList.remove("active");
-    });
-
-    const bar = document.getElementById("filterActiveBar");
-    const label = document.getElementById("filterActiveLabel");
-    if (bar && label) {
-      bar.style.display = "flex";
-      const names = {
-        focus: "Standalone Focus Tasks (Deep Work)",
-        trivial: "Standalone Trivial Tasks (Errands)",
-        events: "Today's Scheduled Events",
-        reminders: "Today's Reminders"
-      };
-      label.textContent = `Filtering view: ${names[category] || category}`;
-    }
-
-    if (category === "focus") {
-      const col = document.getElementById("focusTasksList");
-      if (col) col.scrollIntoView({ behavior: "smooth", block: "center" });
-    } else if (category === "trivial") {
-      const col = document.getElementById("trivialTasksList");
-      if (col) col.scrollIntoView({ behavior: "smooth", block: "center" });
-    } else if (category === "events") {
-      const col = document.getElementById("eventsList");
-      if (col) col.scrollIntoView({ behavior: "smooth", block: "center" });
-    } else if (category === "reminders") {
-      const col = document.getElementById("remindersList");
-      if (col) col.scrollIntoView({ behavior: "smooth", block: "center" });
+    const targetMap = {
+      focus: "focusCardSection",
+      trivial: "trivialCardSection",
+      events: "eventsCardSection",
+      projects: "projectsCardSection",
+      reminders: "remindersCardSection"
+    };
+    const panelEl = document.getElementById(targetMap[category] || "");
+    if (panelEl) {
+      panelEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
     App.showToast(`Filtering by ${category}`);
   },
 
+  applyPanelFilter() {
+    const category = this.activeFilter;
+    const bar = document.getElementById("filterActiveBar");
+    const label = document.getElementById("filterActiveLabel");
+    const overviewRow = document.querySelector(".dashboard-overview-row");
+    const dynamicPanels = document.getElementById("dashboardDynamicPanels");
+    const showcase = document.getElementById("briefingShowcaseWindow");
+    const unorgPanel = document.getElementById("unorgPermanentPanel");
+
+    const panelMap = {
+      events: document.getElementById("eventsCardSection"),
+      projects: document.getElementById("projectsCardSection"),
+      focus: document.getElementById("focusCardSection"),
+      trivial: document.getElementById("trivialCardSection"),
+      reminders: document.getElementById("remindersCardSection")
+    };
+
+    document.querySelectorAll(".stat-pill").forEach(p => {
+      p.classList.toggle("active", Boolean(category && p.dataset.filter === category));
+    });
+
+    if (!category || !panelMap[category]) {
+      if (bar) bar.style.display = "none";
+      if (showcase) showcase.classList.remove("filter-panel-hidden");
+      if (unorgPanel) unorgPanel.classList.remove("filter-panel-hidden");
+      if (overviewRow) overviewRow.classList.remove("filter-single-panel");
+      if (dynamicPanels) dynamicPanels.classList.remove("filter-panel-hidden");
+      Object.values(panelMap).forEach(el => {
+        if (el) el.classList.remove("filter-panel-hidden", "filter-focused-panel");
+      });
+      return;
+    }
+
+    const names = {
+      focus: "Focus Tasks (Deep Work)",
+      trivial: "Trivial Errands",
+      events: "Scheduled Events",
+      projects: "Projects Today",
+      reminders: "Reminders"
+    };
+    if (bar && label) {
+      bar.style.display = "flex";
+      label.textContent = `Filtering view: ${names[category] || category}`;
+    }
+
+    if (showcase) showcase.classList.add("filter-panel-hidden");
+    if (unorgPanel) unorgPanel.classList.add("filter-panel-hidden");
+
+    Object.entries(panelMap).forEach(([key, el]) => {
+      if (!el) return;
+      const isMatch = (key === category);
+      el.classList.toggle("filter-panel-hidden", !isMatch);
+      el.classList.toggle("filter-focused-panel", isMatch && el.classList.contains("dynamic-panel"));
+    });
+
+    if (overviewRow) {
+      overviewRow.classList.toggle("filter-single-panel", category !== "events");
+    }
+    if (dynamicPanels) {
+      dynamicPanels.classList.toggle("filter-panel-hidden", category === "events");
+    }
+  },
+
   clearFilter() {
     this.activeFilter = null;
-    document.querySelectorAll(".stat-pill").forEach(p => p.classList.remove("active"));
-    const bar = document.getElementById("filterActiveBar");
-    if (bar) bar.style.display = "none";
+    this.applyPanelFilter();
     App.showToast("All panels visible");
   },
 
@@ -719,10 +756,12 @@ const Dashboard = {
     ]);
     if (this.selectedDate === refreshDate) {
       this.reconcileDailyOrderTitles();
+      this.renderDailyOrder();
     }
     await this.loadBriefing();
     this.updateProgressRing();
     this.adjustPanelScaling();
+    this.applyPanelFilter();
     if (typeof EveningDebrief !== "undefined") EveningDebrief.updateDebriefButtonState();
     if (typeof SimplifiedMode !== "undefined" && SimplifiedMode.isOpen) {
       SimplifiedMode.refresh();
@@ -1168,7 +1207,7 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMarker = this.formatSnapshotTimeMarker(t, this.selectedDate);
         const timeMil = timeMarker.timeBadge;
-        const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
+        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(t.id) && (d.type === 'task' || !d.type));
         const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isDone
           ? ''
@@ -1181,10 +1220,10 @@ const Dashboard = {
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}" 
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${this.escapeHtml(timeMil)}')`}">
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;"></i></span>` : ''}
+              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
@@ -1218,7 +1257,7 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMarker = this.formatSnapshotTimeMarker(t, this.selectedDate);
         const timeMil = timeMarker.timeBadge;
-        const inSeq = (this.dailyOrder || []).some(d => d.id === t.id && (d.type === 'task' || !d.type));
+        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(t.id) && (d.type === 'task' || !d.type));
         const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isDone
           ? ''
@@ -1231,10 +1270,10 @@ const Dashboard = {
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${this.escapeHtml(timeMil)}')`}">
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;"></i></span>` : ''}
+              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
               ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
             </div>
@@ -1268,14 +1307,14 @@ const Dashboard = {
         const isDone = e.status === "completed";
         const cleanTitle = (e.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : 'Today';
-        const inSeq = (this.dailyOrder || []).some(d => d.id === e.id && d.type === 'event');
+        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(e.id) && d.type === 'event');
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')`}">
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;"></i></span>` : ''}
+              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
             ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
@@ -1399,6 +1438,52 @@ const Dashboard = {
     }
   },
 
+  syncLocalEntityStatus(entityType, entityId, isCompleted) {
+    const newStatus = isCompleted ? "completed" : (entityType === "event" ? "scheduled" : "pending");
+    const idStr = String(entityId);
+
+    if (entityType === "event") {
+      (this.events || []).forEach(ev => {
+        if (String(ev.id) === idStr) ev.status = newStatus;
+      });
+      if (this.briefingData && Array.isArray(this.briefingData.events_today)) {
+        this.briefingData.events_today.forEach(ev => {
+          if (String(ev.id) === idStr) ev.status = newStatus;
+        });
+      }
+    } else {
+      const applyTask = (t) => {
+        if (t && String(t.id) === idStr) {
+          t.status = newStatus;
+          t.completed = Boolean(isCompleted);
+        }
+      };
+      if (this.tasks) {
+        (this.tasks.focus || []).forEach(applyTask);
+        (this.tasks.trivial || []).forEach(applyTask);
+        (this.tasks.standalone_focus || []).forEach(applyTask);
+        (this.tasks.standalone_trivial || []).forEach(applyTask);
+        (this.tasks.projects || []).forEach(p => (p.tasks || []).forEach(applyTask));
+      }
+      if (this.briefingData) {
+        (this.briefingData.focus_tasks || []).forEach(applyTask);
+        (this.briefingData.trivial_tasks || []).forEach(applyTask);
+        (this.briefingData.projects || []).forEach(p => (p.tasks || []).forEach(applyTask));
+      }
+    }
+
+    if (Array.isArray(this.dailyOrder)) {
+      this.dailyOrder.forEach(item => {
+        const matchesType = entityType === "event"
+          ? item.type === "event"
+          : (item.type === "task" || !item.type);
+        if (matchesType && String(item.id) === idStr) {
+          item.completed = Boolean(isCompleted);
+        }
+      });
+    }
+  },
+
   reconcileDailyOrderTitles() {
     if (!this.dailyOrder || !this.dailyOrder.length) return;
     if (this.dailyOrderDate && this.dailyOrderDate !== this.selectedDate) return;
@@ -1412,7 +1497,7 @@ const Dashboard = {
     ];
     (this.tasks && this.tasks.projects || []).forEach(p => {
       (p.tasks || []).forEach(pt => {
-        if (!allTasks.some(t => t.id === pt.id)) allTasks.push(pt);
+        if (!allTasks.some(t => String(t.id) === String(pt.id))) allTasks.push(pt);
       });
     });
 
@@ -1420,7 +1505,7 @@ const Dashboard = {
     const initialLen = this.dailyOrder.length;
     this.dailyOrder = this.dailyOrder.filter(item => {
       if (item.type === "task" || !item.type) {
-        const found = allTasks.find(t => t.id === item.id);
+        const found = allTasks.find(t => String(t.id) === String(item.id));
         if (!found) {
           modified = true;
           return false;
@@ -1445,13 +1530,18 @@ const Dashboard = {
         return true;
       }
       if (item.type === "event") {
-        const found = (this.events || []).find(e => e.id === item.id);
+        const found = (this.events || []).find(e => String(e.id) === String(item.id));
         if (!found) {
           modified = true;
           return false;
         }
         if (found.title && item.title !== found.title) {
           item.title = found.title;
+          modified = true;
+        }
+        const isComp = (found.status === "completed");
+        if (Boolean(item.completed) !== isComp) {
+          item.completed = isComp;
           modified = true;
         }
         return true;
@@ -1461,8 +1551,8 @@ const Dashboard = {
 
     if (modified) {
       localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+      this.renderDailyOrder();
       if (this.dailyOrder.length !== initialLen) {
-        this.renderDailyOrder();
         this.saveDailyOrder();
       }
     }
@@ -1535,8 +1625,9 @@ const Dashboard = {
             item.is_overdue = true;
           }
         }
-      } else if (item.type === "event" && this.briefingData && this.briefingData.events_today) {
-        const match = this.briefingData.events_today.find(e => String(e.id) === String(item.id));
+      } else if (item.type === "event") {
+        const evList = (this.events && this.events.length) ? this.events : ((this.briefingData && this.briefingData.events_today) || []);
+        const match = evList.find(e => String(e.id) === String(item.id));
         if (match) {
           isDone = match.status === "completed";
           item.completed = isDone;
@@ -1575,7 +1666,7 @@ const Dashboard = {
              ondrop="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDrop(event, ${idx})`}">
           <span class="slot-rank">#${rank}</span>
           <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
-                 onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
+                 onclick="event.stopPropagation()" onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
           <span class="slot-title">${this.escapeHtml(item.title)}</span>
           ${isOverdue && !isDone ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>` : ''}
           ${displayTime ? `<span style="font-size:11px; font-family:var(--font-mono); color:${isOverdue && !isDone ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${isOverdue && !isDone ? '600' : '400'};">${this.escapeHtml(displayTime)}</span>` : ''}
@@ -1744,22 +1835,31 @@ const Dashboard = {
     }
   },
 
-  toggleDailyOrderItem(idx, isCompleted) {
+  async toggleDailyOrderItem(idx, isCompleted) {
     if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
       App.showToast("Cannot modify locked historical records.", true);
       this.renderDailyOrder();
       return;
     }
-    if (this.dailyOrder[idx]) {
-      this.dailyOrder[idx].completed = isCompleted;
-      this.saveDailyOrder();
-      // If task, also sync underlying task
-      const item = this.dailyOrder[idx];
-      if ((item.type === "task" || !item.type) && item.id) {
-        this.toggleTaskStatus(item.id, isCompleted);
-      } else if (item.type === "event" && item.id) {
-        this.toggleEventStatus(item.id, isCompleted);
-      }
+    const item = this.dailyOrder && this.dailyOrder[idx];
+    if (!item) return;
+
+    const entityType = item.type === "event" ? "event" : "task";
+    this.syncLocalEntityStatus(entityType, item.id, isCompleted);
+    try {
+      localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify(this.dailyOrder));
+    } catch (_) {}
+    this.renderDailyOrder();
+    if (this.briefingData) {
+      this.renderVisualBriefing(this.briefingData, this.briefingMarkdown || "");
+    }
+
+    if (entityType === "task" && item.id) {
+      await this.toggleTaskStatus(item.id, isCompleted);
+    } else if (entityType === "event" && item.id) {
+      await this.toggleEventStatus(item.id, isCompleted);
+    } else {
+      await this.saveDailyOrder();
     }
   },
 
@@ -2096,6 +2196,8 @@ const Dashboard = {
       App.showToast("Cannot complete future tasks before their date arrives.", true);
       return;
     }
+    this.syncLocalEntityStatus("task", taskId, isCompleted);
+    this.renderDailyOrder();
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -2105,29 +2207,21 @@ const Dashboard = {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         App.showToast(err.detail || "Failed to update task status", true);
-        this.renderDailyOrder();
+        await this.refresh();
         return;
       }
       App.showToast(isCompleted ? "Task completed! Marked with strikethrough." : "Task reopened.");
-      if (this.dailyOrder && this.dailyOrder.length > 0) {
-        let changed = false;
-        this.dailyOrder.forEach(item => {
-          if ((item.type === "task" || !item.type) && String(item.id) === String(taskId)) {
-            item.completed = isCompleted;
-            changed = true;
-          }
-        });
-        if (changed) {
-          this.renderDailyOrder();
-          this.saveDailyOrder();
-        }
+      this.syncLocalEntityStatus("task", taskId, isCompleted);
+      if (this.dailyOrder && this.dailyOrder.some(item => (item.type === "task" || !item.type) && String(item.id) === String(taskId))) {
+        this.renderDailyOrder();
+        await this.saveDailyOrder();
       }
       await this.refresh();
-      await this.loadBriefing();
       if (typeof Timeline !== "undefined") Timeline.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
       console.error(err);
+      await this.refresh();
     }
   },
 
@@ -2235,6 +2329,8 @@ const Dashboard = {
       App.showToast("Cannot complete future appointments before their date arrives.", true);
       return;
     }
+    this.syncLocalEntityStatus("event", eventId, isCompleted);
+    this.renderDailyOrder();
     try {
       const res = await fetch(`/api/events/${eventId}/status`, {
         method: "PATCH",
@@ -2244,29 +2340,21 @@ const Dashboard = {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         App.showToast(err.detail || "Failed to update appointment status", true);
-        this.renderDailyOrder();
+        await this.refresh();
         return;
       }
       App.showToast(isCompleted ? "Appointment completed!" : "Appointment reopened.");
-      if (this.dailyOrder && this.dailyOrder.length > 0) {
-        let changed = false;
-        this.dailyOrder.forEach(item => {
-          if (item.type === "event" && String(item.id) === String(eventId)) {
-            item.completed = isCompleted;
-            changed = true;
-          }
-        });
-        if (changed) {
-          this.renderDailyOrder();
-          this.saveDailyOrder();
-        }
+      this.syncLocalEntityStatus("event", eventId, isCompleted);
+      if (this.dailyOrder && this.dailyOrder.some(item => item.type === "event" && String(item.id) === String(eventId))) {
+        this.renderDailyOrder();
+        await this.saveDailyOrder();
       }
       await this.refresh();
-      await this.loadBriefing();
       if (typeof Timeline !== "undefined") Timeline.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
       console.error("Error updating event status:", err);
+      await this.refresh();
     }
   },
 

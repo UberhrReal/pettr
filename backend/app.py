@@ -302,13 +302,13 @@ async def ingest_entry(req: IngestRequest, request: Request):
 async def get_briefing(request: Request, date: Optional[str] = None):
     client_now = get_client_now(request)
     target = datetime.date.fromisoformat(date) if date else client_now.date()
-    return database.get_daily_briefing(target)
+    return database.get_daily_briefing(target, today_date=client_now.date())
 
 @app.get("/api/tasks", dependencies=[Depends(auth.require_auth)])
 async def get_tasks(request: Request, date: Optional[str] = None):
     client_now = get_client_now(request)
     target = datetime.date.fromisoformat(date) if date else client_now.date()
-    return database.get_tasks_for_day(target)
+    return database.get_tasks_for_day(target, today_date=client_now.date())
 
 @app.post("/api/tasks/reorder", dependencies=[Depends(auth.require_auth)])
 async def reorder_tasks(req: ReorderRequest):
@@ -845,10 +845,11 @@ async def delete_notes_media(filename: str):
 # --- Daily Sequence & Tasking Priority Order ---
 
 @app.get("/api/daily-order", dependencies=[Depends(auth.require_auth)])
-async def get_daily_order_endpoint(date: Optional[str] = None):
+async def get_daily_order_endpoint(request: Request, date: Optional[str] = None):
+    client_now = get_client_now(request)
     if not date:
-        date = datetime.date.today().strftime("%Y-%m-%d")
-    order = database.get_daily_order(date)
+        date = client_now.date().strftime("%Y-%m-%d")
+    order = database.get_daily_order(date, today_date=client_now.date())
     return {"status": "success", "date": date, "order": order, "items": order}
 
 @app.post("/api/daily-order", dependencies=[Depends(auth.require_auth)])
@@ -913,8 +914,9 @@ async def get_entity(entity_type: str, entity_id: int):
     return {"status": "success", "entity": item}
 
 @app.post("/api/entities/reclassify", dependencies=[Depends(auth.require_auth)])
-async def reclassify_item(req: ReclassifyRequest):
+async def reclassify_item(req: ReclassifyRequest, request: Request):
     """Edits details or re-sorts item between Task (Focus/Trivial), Event, Reminder, Project, and Unorganised."""
+    client_now = get_client_now(request)
     result = database.reclassify_entity(
         from_type=req.from_type,
         from_id=req.from_id,
@@ -929,7 +931,8 @@ async def reclassify_item(req: ReclassifyRequest):
         recurrence=req.recurrence,
         color=req.color,
         category=req.category,
-        is_time_sensitive=req.is_time_sensitive
+        is_time_sensitive=req.is_time_sensitive,
+        completed_at_str=client_now.strftime("%Y-%m-%d %H:%M:%S")
     )
     return result
 
