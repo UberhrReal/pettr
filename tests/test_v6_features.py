@@ -3791,11 +3791,20 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "unlockSnapshot()" in dash_js
     assert "modal-form-grid-2col" in index_html and ".modal-form-grid-2col" in css
 
-    # Static cache-busters bumped to v10.0
-    assert "pettr.css?v=10.0" in index_html
-    assert "dashboard.js?v=10.0" in index_html
-    assert "entity_modal.js?v=10.0" in index_html
-    assert "app.js?v=10.0" in index_html
+    # Unified panel-free large-type editorial briefing (no nested sub-cards inside locked snapshot)
+    assert "snapshot-unified-doc" in dash_js and ".snapshot-unified-doc" in css
+    assert "snapshot-unified-prose" in dash_js and ".snapshot-unified-prose" in css
+    assert "snapshot-unified-section" in dash_js and ".snapshot-unified-section" in css
+    assert "snapshot-unified-row" in dash_js and ".snapshot-unified-row" in css
+    assert "snapshot-section-card" not in dash_js and "snapshot-section-card" not in css
+    assert "snapshot-narrative-card" not in dash_js and "snapshot-narrative-card" not in css
+    assert "snapshot-details-grid" not in dash_js and "snapshot-details-grid" not in css
+
+    # Static cache-busters bumped to v10.1
+    assert "pettr.css?v=10.1" in index_html
+    assert "dashboard.js?v=10.1" in index_html
+    assert "entity_modal.js?v=10.1" in index_html
+    assert "app.js?v=10.1" in index_html
 
 
 

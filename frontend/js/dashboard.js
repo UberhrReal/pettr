@@ -2280,144 +2280,170 @@ const Dashboard = {
     const remarkObj = b.remark || {};
     const remarkText = this.isSnapshotRemarkLoading
       ? "Horace is sizing up your schedule..."
-      : (remarkObj.text || "Focus on one block at a time and finish strong.");
-    const remarkBadgeLabel = remarkObj.source === "llm" ? "Horace · Local LLM" : "Horace · Outlook";
+      : (remarkObj.text || "One deliberate step at a time.");
+    const remarkBadgeLabel = remarkObj.source === "llm" ? "Horace · Local LLM" : "Horace";
     const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
 
-    const queue = b.priority_queue || [];
-    const queueHtml = queue.length > 0 ? `
-      <div class="snapshot-section-card">
-        <div class="snapshot-section-heading">
-          <span style="display:flex; align-items:center; gap:7px;">
-            <i data-lucide="list-ordered" style="width:14px;height:14px;color:var(--focus-indigo);"></i>
-            Execution Sequence
-          </span>
-          <span class="stat-pill" style="padding:2px 8px; font-size:11px;">${counts.queued_pending || 0} remaining / ${queue.length} queued</span>
-        </div>
-        <div class="snapshot-queue-cards">
-          ${queue.map((it, idx) => {
-            const rank = String(idx + 1).padStart(2, "0");
-            const isDone = Boolean(it.completed);
-            const itype = it.type || "task";
-            const isOverdue = Boolean(it.is_overdue && !isDone);
-            return `
-              <div class="snapshot-queue-card ${isDone ? 'completed' : ''}">
-                <div class="snapshot-queue-card-left">
-                  <span class="slot-rank">#${rank}</span>
-                  <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
-                         onclick="event.stopPropagation()" onchange="Dashboard.toggleSnapshotItemStatus('${itype}', ${it.id}, this.checked)"
-                         title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
-                  <span class="snapshot-queue-card-title">${this.escapeHtml(it.title)}</span>
-                </div>
-                <div class="snapshot-queue-card-meta">
-                  ${isOverdue ? '<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>' : ''}
-                  ${it.time ? `<span style="font-size:11px; font-family:var(--font-mono); color:${isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'};">${this.escapeHtml(it.time)}</span>` : ''}
-                  <span class="urgency-badge ${it.tier || 'normal'}" style="font-size:10px; padding:1px 6px;">${String(it.tier || itype).toUpperCase()}</span>
-                  ${(!isDone && itype === "task" && !isLockedDay) ? `<button type="button" class="action-icon-btn" style="padding:3px 8px; font-size:11px; color:var(--focus-indigo); font-weight:600;" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Focus Sprint on this task"><i data-lucide="play" style="width:11px;height:11px;"></i> Focus</button>` : ''}
-                </div>
-              </div>
-            `;
-          }).join("")}
-        </div>
-      </div>
-    ` : "";
+    const metricParts = [];
+    metricParts.push(`${counts.focus_pending || 0} Focus`);
+    if ((counts.overdue_total || 0) > 0) metricParts.push(`${counts.overdue_total} Overdue`);
+    metricParts.push(`${counts.trivial_pending || 0} Errand${(counts.trivial_pending || 0) === 1 ? "" : "s"}`);
+    metricParts.push(`${counts.events_pending || 0} Event${(counts.events_pending || 0) === 1 ? "" : "s"}`);
+    if ((counts.projects_total || 0) > 0) metricParts.push(`${counts.projects_total} Project${counts.projects_total === 1 ? "" : "s"}`);
+    if ((counts.reminders_active || 0) > 0) metricParts.push(`${counts.reminders_active} Reminder${counts.reminders_active === 1 ? "" : "s"}`);
 
+    const renderTaskOrQueueRow = (it, idx, isQueueRow) => {
+      const isDone = Boolean(it.completed);
+      const itype = it.type || "task";
+      const isOverdue = Boolean(it.is_overdue && !isDone);
+      const rankHtml = isQueueRow ? `<span class="snapshot-unified-rank">${String(idx + 1).padStart(2, "0")}</span>` : "";
+
+      const metaBits = [];
+      if (isOverdue) metaBits.push(`<span class="snapshot-meta-alert">Overdue</span>`);
+      if (it.time || it.time_label) metaBits.push(`<span class="font-mono">${this.escapeHtml(it.time || it.time_label)}</span>`);
+      if (it.project_name) metaBits.push(`<span>${this.escapeHtml(it.project_name)}</span>`);
+      if (isQueueRow && it.tier) metaBits.push(`<span>${it.tier === "focus" ? "Focus" : (it.tier === "trivial" ? "Errand" : "Event")}</span>`);
+      if (!isQueueRow && it.in_sequence) metaBits.push(`<span class="snapshot-meta-accent">In sequence</span>`);
+      if (!isQueueRow && it.is_time_sensitive && !isDone) metaBits.push(`<span class="snapshot-meta-alert">Time Sensitive</span>`);
+
+      return `
+        <div class="snapshot-unified-row ${isDone ? 'completed' : ''}">
+          <div class="snapshot-unified-row-main">
+            ${rankHtml}
+            <input type="checkbox" class="snapshot-unified-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
+                   onclick="event.stopPropagation()" onchange="Dashboard.toggleSnapshotItemStatus('${itype}', ${it.id}, this.checked)"
+                   title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
+            <div class="snapshot-unified-row-copy">
+              <div class="snapshot-unified-item-title">${this.escapeHtml(it.title)}</div>
+              ${metaBits.length > 0 ? `<div class="snapshot-unified-item-meta">${metaBits.join('<span class="snapshot-meta-dot">·</span>')}</div>` : ''}
+            </div>
+          </div>
+          ${(!isDone && itype === "task" && !isLockedDay) ? `
+            <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Focus Sprint">
+              <i data-lucide="play" style="width:13px;height:13px;"></i> <span>Focus</span>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    };
+
+    const queue = b.priority_queue || [];
     const focusList = b.focus_items || [];
     const eventsList = b.events || [];
     const projectsList = b.projects || [];
     const errandsList = b.trivial_items || [];
     const remindersList = b.reminders || [];
 
+    const dateEyebrow = b.date_display || this.selectedDate;
+
     container.innerHTML = `
-      <div class="snapshot-remark-banner" id="snapshotRemarkBanner">
-        <div class="snapshot-remark-body">
-          <div class="snapshot-remark-eyebrow">
-            <i data-lucide="sparkles" style="width:12px;height:12px;"></i>
-            <span>${this.escapeHtml(remarkBadgeLabel)}</span>
-          </div>
-          <div class="snapshot-remark-text ${this.isSnapshotRemarkLoading ? 'is-loading' : ''}" id="snapshotRemarkText">
-            "${this.escapeHtml(remarkText)}"
-          </div>
-        </div>
-        <button type="button" class="action-icon-btn" onclick="Dashboard.refreshSnapshotRemark()" title="Refresh witty remark" style="padding:5px 8px; flex-shrink:0;" ${this.isSnapshotRemarkLoading ? 'disabled' : ''}>
-          <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
-        </button>
-      </div>
+      <div class="snapshot-unified-doc">
+        <header class="snapshot-unified-lead">
+          <div class="snapshot-unified-eyebrow">${this.escapeHtml(dateEyebrow)}</div>
+          <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.escapeHtml(b.summary_narrative || "")}</p>
+          <div class="snapshot-unified-metrics">${metricParts.map(p => `<span>${this.escapeHtml(p)}</span>`).join('<span class="snapshot-meta-dot">·</span>')}</div>
+          <blockquote class="snapshot-unified-aside" id="snapshotRemarkBanner">
+            <span class="snapshot-remark-text ${this.isSnapshotRemarkLoading ? 'is-loading' : ''}" id="snapshotRemarkText">
+              "${this.escapeHtml(remarkText)}"
+            </span>
+            <footer class="snapshot-unified-aside-meta">
+              <span>${this.escapeHtml(remarkBadgeLabel)}</span>
+              <button type="button" class="snapshot-unified-refresh-btn" onclick="Dashboard.refreshSnapshotRemark()" title="Fresh outlook remark" ${this.isSnapshotRemarkLoading ? 'disabled' : ''}>
+                <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
+              </button>
+            </footer>
+          </blockquote>
+        </header>
 
-      <div class="snapshot-narrative-card">
-        <p class="snapshot-narrative-prose" id="snapshotNarrativeProse">${this.escapeHtml(b.summary_narrative || "")}</p>
-        <div class="snapshot-counts-ribbon">
-          <span class="snapshot-count-chip"><i data-lucide="crosshair" style="width:12px;height:12px;color:var(--focus-indigo);"></i> ${counts.focus_pending || 0} Focus${counts.focus_total ? ` / ${counts.focus_total}` : ''}</span>
-          <span class="snapshot-count-chip"><i data-lucide="check-square" style="width:12px;height:12px;color:var(--normal-green);"></i> ${counts.trivial_pending || 0} Errand${(counts.trivial_pending || 0) === 1 ? '' : 's'}</span>
-          <span class="snapshot-count-chip"><i data-lucide="calendar" style="width:12px;height:12px;color:var(--accent-blue);"></i> ${counts.events_pending || 0} Event${(counts.events_pending || 0) === 1 ? '' : 's'}</span>
-          <span class="snapshot-count-chip"><i data-lucide="folder" style="width:12px;height:12px;color:var(--recurrence-purple);"></i> ${counts.projects_total || 0} Project${(counts.projects_total || 0) === 1 ? '' : 's'}</span>
-          <span class="snapshot-count-chip"><i data-lucide="bell" style="width:12px;height:12px;color:var(--accent-cyan);"></i> ${counts.reminders_active || 0} Reminder${(counts.reminders_active || 0) === 1 ? '' : 's'}</span>
-          ${(counts.overdue_total || 0) > 0 ? `<span class="snapshot-count-chip" style="border-color: rgba(255,69,0,0.35); color: var(--urgent-orange);"><i data-lucide="alert-circle" style="width:12px;height:12px;"></i> ${counts.overdue_total} Overdue</span>` : ''}
-        </div>
-      </div>
+        ${queue.length > 0 ? `
+          <section class="snapshot-unified-section">
+            <div class="snapshot-unified-section-header">
+              <span>Priority Execution Sequence</span>
+              <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
+            </div>
+            <div class="snapshot-unified-list">
+              ${queue.map((it, idx) => renderTaskOrQueueRow(it, idx, true)).join("")}
+            </div>
+          </section>
+        ` : ""}
 
-      ${queueHtml}
+        ${eventsList.length > 0 ? `
+          <section class="snapshot-unified-section">
+            <div class="snapshot-unified-section-header">
+              <span>Scheduled Events</span>
+              <span class="snapshot-unified-section-count">${counts.events_pending || 0} upcoming</span>
+            </div>
+            <div class="snapshot-unified-list">
+              ${eventsList.map((e, idx) => renderTaskOrQueueRow({ ...e, type: "event" }, idx, false)).join("")}
+            </div>
+          </section>
+        ` : ""}
 
-      <div class="snapshot-details-grid">
-        <div class="snapshot-section-card">
-          <div class="snapshot-section-heading">
-            <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="crosshair" style="width:13px;height:13px;color:var(--focus-indigo);"></i> Focus &amp; Active Projects</span>
-          </div>
-          <div class="snapshot-detail-list">
-            ${focusList.length === 0 ? '<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No focus tasks scheduled for this view.</div>' : focusList.map(t => `
-              <div class="snapshot-detail-row ${t.completed ? 'completed' : ''}">
-                <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1;">
-                  <span>${this.escapeHtml(t.title)}</span>
-                  ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10px;">${this.escapeHtml(t.project_name)}</span>` : ''}
-                  ${(t.is_time_sensitive && !t.completed) ? '<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡</span>' : ''}
-                </span>
-                <span style="font-size:11px; font-family:var(--font-mono); color:${(t.is_overdue && !t.completed) ? 'var(--urgent-orange)' : 'var(--text-muted)'}; white-space:nowrap;">
-                  ${this.escapeHtml(t.time_label || (t.is_overdue && !t.completed ? 'OVERDUE' : ''))}
-                </span>
-              </div>
-            `).join("")}
-            ${projectsList.length > 0 ? `
-              <div style="margin-top:6px; padding-top:8px; border-top:1px dashed var(--card-border); display:flex; flex-direction:column; gap:5px;">
-                <div style="font-size:11px; font-weight:700; color:var(--text-muted);">Projects Active Today</div>
-                ${projectsList.map(p => `
-                  <div class="snapshot-detail-row">
-                    <span style="font-weight:600;">${this.escapeHtml(p.name)}</span>
-                    <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${p.completed_count}/${p.total_count} done</span>
+        ${focusList.length > 0 ? `
+          <section class="snapshot-unified-section">
+            <div class="snapshot-unified-section-header">
+              <span>Focus Tasks</span>
+              <span class="snapshot-unified-section-count">${counts.focus_pending || 0} pending</span>
+            </div>
+            <div class="snapshot-unified-list">
+              ${focusList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
+            </div>
+          </section>
+        ` : ""}
+
+        ${projectsList.length > 0 ? `
+          <section class="snapshot-unified-section">
+            <div class="snapshot-unified-section-header">
+              <span>Active Projects</span>
+              <span class="snapshot-unified-section-count">${projectsList.length} in motion</span>
+            </div>
+            <div class="snapshot-unified-list">
+              ${projectsList.map(p => `
+                <div class="snapshot-unified-row">
+                  <div class="snapshot-unified-row-main">
+                    <div class="snapshot-unified-row-copy">
+                      <div class="snapshot-unified-item-title">${this.escapeHtml(p.name)}</div>
+                      <div class="snapshot-unified-item-meta">${p.pending_count} remaining · ${p.completed_count}/${p.total_count} completed</div>
+                    </div>
                   </div>
-                `).join("")}
-              </div>
-            ` : ''}
-          </div>
-        </div>
+                </div>
+              `).join("")}
+            </div>
+          </section>
+        ` : ""}
 
-        <div class="snapshot-section-card">
-          <div class="snapshot-section-heading">
-            <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="calendar" style="width:13px;height:13px;color:var(--accent-blue);"></i> Events, Errands &amp; Reminders</span>
-          </div>
-          <div class="snapshot-detail-list">
-            ${eventsList.map(e => `
-              <div class="snapshot-detail-row ${e.completed ? 'completed' : ''}">
-                <span style="display:flex; align-items:center; gap:6px;">
-                  <span style="font-size:10.5px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:1px 6px; border-radius:4px; font-weight:700;">${this.escapeHtml(e.time_label)}</span>
-                  <span>${this.escapeHtml(e.title)}</span>
-                </span>
-                ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10px;">${this.escapeHtml(e.project_name)}</span>` : ''}
-              </div>
-            `).join("")}
-            ${errandsList.map(t => `
-              <div class="snapshot-detail-row ${t.completed ? 'completed' : ''}">
-                <span>⚡ ${this.escapeHtml(t.title)}</span>
-                ${t.time_label ? `<span style="font-size:11px; font-family:var(--font-mono); color:${(t.is_overdue && !t.completed) ? 'var(--urgent-orange)' : 'var(--text-muted)'};">${this.escapeHtml(t.time_label)}</span>` : ''}
-              </div>
-            `).join("")}
-            ${remindersList.map(r => `
-              <div class="snapshot-detail-row ${r.dismissed ? 'completed' : ''}">
-                <span>• ${this.escapeHtml(r.title)}${r.details ? ` — <span style="color:var(--text-muted);">${this.escapeHtml(r.details)}</span>` : ''}</span>
-              </div>
-            `).join("")}
-            ${(eventsList.length === 0 && errandsList.length === 0 && remindersList.length === 0) ? '<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No events, errands, or reminders scheduled today.</div>' : ''}
-          </div>
-        </div>
+        ${errandsList.length > 0 ? `
+          <section class="snapshot-unified-section">
+            <div class="snapshot-unified-section-header">
+              <span>Trivial Errands</span>
+              <span class="snapshot-unified-section-count">${counts.trivial_pending || 0} remaining</span>
+            </div>
+            <div class="snapshot-unified-list">
+              ${errandsList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
+            </div>
+          </section>
+        ` : ""}
+
+        ${remindersList.length > 0 ? `
+          <section class="snapshot-unified-section">
+            <div class="snapshot-unified-section-header">
+              <span>Reminders</span>
+              <span class="snapshot-unified-section-count">${counts.reminders_active || 0} active</span>
+            </div>
+            <div class="snapshot-unified-list">
+              ${remindersList.map(r => `
+                <div class="snapshot-unified-row ${r.dismissed ? 'completed' : ''}">
+                  <div class="snapshot-unified-row-main">
+                    <div class="snapshot-unified-row-copy">
+                      <div class="snapshot-unified-item-title">${this.escapeHtml(r.title)}</div>
+                      ${r.details ? `<div class="snapshot-unified-item-meta">${this.escapeHtml(r.details)}</div>` : ''}
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </section>
+        ` : ""}
       </div>
     `;
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
