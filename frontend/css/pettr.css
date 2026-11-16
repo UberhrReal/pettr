@@ -29,22 +29,21 @@
 
   --card-border: rgba(0, 0, 0, 0.08);
   --card-border-hover: rgba(0, 0, 0, 0.16);
-  --glass-bg: rgba(255, 255, 255, 0.64);
-  --glass-border: rgba(255, 255, 255, 0.78);
-  --glass-sheet: rgba(232, 238, 247, 0.50);
-  --glass-sheet-subtle: rgba(214, 223, 236, 0.36);
-  --glass-sheet-elevated: rgba(242, 246, 252, 0.78);
-  --glass-edge: rgba(255, 255, 255, 0.52);
-  --glass-edge-hover: rgba(37, 99, 235, 0.38);
-  --glass-inset-gleam: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(15, 23, 42, 0.06);
-  --glass-backdrop: blur(34px) saturate(160%);
-  --glass-frost-sheen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.042'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(15, 23, 42, 0.035) 100%);
+  --glass-bg: rgba(255, 255, 255, 0.56);
+  --glass-border: rgba(255, 255, 255, 0.72);
+  --glass-sheet: rgba(255, 255, 255, 0.44);
+  --glass-sheet-subtle: rgba(255, 255, 255, 0.28);
+  --glass-sheet-elevated: rgba(255, 255, 255, 0.74);
+  --glass-edge: rgba(255, 255, 255, 0.72);
+  --glass-edge-hover: rgba(37, 99, 235, 0.36);
+  --glass-inset-gleam: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  --glass-backdrop: blur(22px) saturate(155%);
   
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.03);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.06);
-  --shadow-floating: 0 12px 32px -6px rgba(15, 23, 42, 0.09), 0 22px 52px -12px rgba(37, 99, 235, 0.09);
-  --shadow-floating-hover: 0 16px 40px -6px rgba(15, 23, 42, 0.13), 0 28px 64px -10px rgba(37, 99, 235, 0.15);
+  --shadow-floating: 0 12px 32px -6px rgba(15, 23, 42, 0.08), 0 22px 52px -12px rgba(37, 99, 235, 0.08);
+  --shadow-floating-hover: 0 16px 40px -6px rgba(15, 23, 42, 0.12), 0 28px 64px -10px rgba(37, 99, 235, 0.14);
   
   /* Squircles & Continuous Curves */
   --radius-xs: 6px;
@@ -84,19 +83,18 @@
   
   --card-border: rgba(42, 23, 19, 0.09);
   --card-border-hover: rgba(234, 88, 12, 0.28);
-  --glass-bg: rgba(255, 248, 242, 0.66);
-  --glass-border: rgba(255, 245, 235, 0.86);
-  --glass-sheet: rgba(238, 224, 212, 0.52);
-  --glass-sheet-subtle: rgba(224, 204, 190, 0.38);
-  --glass-sheet-elevated: rgba(247, 236, 226, 0.80);
-  --glass-edge: rgba(255, 228, 206, 0.58);
-  --glass-edge-hover: rgba(234, 88, 12, 0.42);
-  --glass-inset-gleam: inset 0 1px 0 rgba(255, 248, 240, 0.48), inset 0 -1px 0 rgba(42, 23, 19, 0.06);
-  --glass-backdrop: blur(34px) saturate(162%);
-  --glass-frost-sheen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.042'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255, 248, 240, 0.05) 0%, rgba(42, 23, 19, 0.035) 100%);
+  --glass-bg: rgba(255, 248, 242, 0.58);
+  --glass-border: rgba(255, 245, 235, 0.84);
+  --glass-sheet: rgba(255, 249, 243, 0.46);
+  --glass-sheet-subtle: rgba(255, 244, 234, 0.30);
+  --glass-sheet-elevated: rgba(255, 249, 244, 0.76);
+  --glass-edge: rgba(255, 238, 224, 0.82);
+  --glass-edge-hover: rgba(234, 88, 12, 0.40);
+  --glass-inset-gleam: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --glass-backdrop: blur(22px) saturate(160%);
   
-  --shadow-floating: 0 12px 32px -6px rgba(245, 158, 11, 0.14), 0 22px 52px -12px rgba(42, 23, 19, 0.09);
-  --shadow-floating-hover: 0 16px 40px -6px rgba(245, 158, 11, 0.20), 0 28px 64px -10px rgba(42, 23, 19, 0.13);
+  --shadow-floating: 0 12px 32px -6px rgba(245, 158, 11, 0.12), 0 22px 52px -12px rgba(42, 23, 19, 0.08);
+  --shadow-floating-hover: 0 16px 40px -6px rgba(245, 158, 11, 0.18), 0 28px 64px -10px rgba(42, 23, 19, 0.12);
 }
 
 [data-theme="evening"] {
@@ -122,20 +120,19 @@
   
   --card-border: rgba(251, 191, 36, 0.20);
   --card-border-hover: rgba(251, 191, 36, 0.44);
-  --glass-bg: rgba(34, 22, 16, 0.68);
-  --glass-border: rgba(253, 230, 138, 0.28);
-  --glass-sheet: rgba(22, 14, 10, 0.68);
-  --glass-sheet-subtle: rgba(15, 9, 6, 0.48);
-  --glass-sheet-elevated: rgba(18, 12, 8, 0.86);
-  --glass-edge: rgba(253, 224, 154, 0.20);
-  --glass-edge-hover: rgba(251, 191, 36, 0.52);
-  --glass-inset-gleam: inset 0 1px 0 rgba(255, 243, 209, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.32);
-  --glass-backdrop: blur(34px) saturate(160%);
-  --glass-frost-sheen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.045'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(251, 191, 36, 0.015) 0%, rgba(0, 0, 0, 0.16) 100%);
+  --glass-bg: rgba(34, 22, 16, 0.60);
+  --glass-border: rgba(253, 230, 138, 0.26);
+  --glass-sheet: rgba(38, 25, 18, 0.44);
+  --glass-sheet-subtle: rgba(54, 34, 24, 0.30);
+  --glass-sheet-elevated: rgba(32, 21, 15, 0.76);
+  --glass-edge: rgba(253, 224, 154, 0.24);
+  --glass-edge-hover: rgba(251, 191, 36, 0.50);
+  --glass-inset-gleam: inset 0 1px 0 rgba(255, 243, 209, 0.22);
+  --glass-backdrop: blur(24px) saturate(155%);
   
   /* Velvety blue undertone shadows layered with glowing warm amber ambient light */
-  --shadow-floating: 0 14px 36px rgba(10, 14, 24, 0.64), 0 24px 60px rgba(245, 158, 11, 0.16);
-  --shadow-floating-hover: 0 18px 46px rgba(10, 14, 24, 0.78), 0 32px 72px rgba(251, 191, 36, 0.24);
+  --shadow-floating: 0 14px 36px rgba(10, 14, 24, 0.62), 0 24px 60px rgba(245, 158, 11, 0.14);
+  --shadow-floating-hover: 0 18px 46px rgba(10, 14, 24, 0.76), 0 32px 72px rgba(251, 191, 36, 0.22);
 }
 
 [data-theme="dark"] {
@@ -153,19 +150,18 @@
   
   --card-border: rgba(255, 255, 255, 0.11);
   --card-border-hover: rgba(255, 255, 255, 0.24);
-  --glass-bg: rgba(16, 18, 24, 0.66);
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-sheet: rgba(9, 10, 14, 0.70);
-  --glass-sheet-subtle: rgba(5, 6, 10, 0.50);
-  --glass-sheet-elevated: rgba(9, 10, 14, 0.88);
-  --glass-edge: rgba(255, 255, 255, 0.14);
-  --glass-edge-hover: rgba(255, 255, 255, 0.36);
-  --glass-inset-gleam: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.40);
-  --glass-backdrop: blur(36px) saturate(160%);
-  --glass-frost-sheen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.045'/%3E%3C/svg%3E"), linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.18) 100%);
+  --glass-bg: rgba(16, 18, 24, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-sheet: rgba(18, 20, 27, 0.44);
+  --glass-sheet-subtle: rgba(255, 255, 255, 0.045);
+  --glass-sheet-elevated: rgba(16, 18, 24, 0.76);
+  --glass-edge: rgba(255, 255, 255, 0.17);
+  --glass-edge-hover: rgba(255, 255, 255, 0.34);
+  --glass-inset-gleam: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --glass-backdrop: blur(24px) saturate(155%);
   
-  --shadow-floating: 0 14px 36px rgba(0, 0, 0, 0.56), 0 24px 60px rgba(0, 0, 0, 0.64);
-  --shadow-floating-hover: 0 18px 44px rgba(0, 0, 0, 0.68), 0 32px 72px rgba(0, 0, 0, 0.74);
+  --shadow-floating: 0 14px 36px rgba(0, 0, 0, 0.54), 0 24px 60px rgba(0, 0, 0, 0.62);
+  --shadow-floating-hover: 0 18px 44px rgba(0, 0, 0, 0.66), 0 32px 72px rgba(0, 0, 0, 0.72);
 }
 
 * {
@@ -9280,10 +9276,9 @@ body {
    Translucent sheets over #bgWaveCanvas so live diurnal waves & particles shine through
    ========================================================================== */
 .app-header {
-  background-color: var(--glass-sheet-elevated);
-  background-image: var(--glass-frost-sheen);
-  backdrop-filter: blur(40px) saturate(170%);
-  -webkit-backdrop-filter: blur(40px) saturate(170%);
+  background: var(--glass-sheet-elevated);
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
   border-bottom: 1px solid var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), var(--shadow-sm);
 }
@@ -9376,8 +9371,7 @@ body {
 .history-day-subpanel,
 .guide-sidebar,
 .guide-section-card {
-  background-color: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
+  background: var(--glass-sheet);
   backdrop-filter: var(--glass-backdrop);
   -webkit-backdrop-filter: var(--glass-backdrop);
   border-color: var(--glass-edge);
@@ -9443,10 +9437,9 @@ body {
 .theme-slider-drawer,
 .mindmap-tooltip,
 .horace-panel {
-  background-color: var(--glass-sheet-elevated) !important;
-  background-image: var(--glass-frost-sheen) !important;
-  backdrop-filter: blur(40px) saturate(170%) !important;
-  -webkit-backdrop-filter: blur(40px) saturate(170%) !important;
+  background: var(--glass-sheet-elevated) !important;
+  backdrop-filter: blur(28px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(165%) !important;
   border-color: var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), var(--shadow-floating-hover);
 }
@@ -9462,10 +9455,6 @@ body {
 }
 
 /* Diurnal Frosted Glassmorphism Showcase Canvas when Locked In */
-.snapshot-glass-aurora {
-  display: none;
-}
-
 .briefing-showcase-window.is-locked-in {
   position: relative;
   overflow: hidden;
@@ -9473,8 +9462,8 @@ body {
   border-radius: 22px;
   border-width: 1px;
   border-style: solid;
-  backdrop-filter: blur(36px) saturate(165%);
-  -webkit-backdrop-filter: blur(36px) saturate(165%);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
   transition: background 0.55s ease, border-color 0.4s ease, box-shadow 0.45s ease, padding 0.35s ease;
 }
 
@@ -9487,61 +9476,6 @@ body {
   transform: none;
 }
 
-/* Subtle glass prism edge sheen so actual #bgWaveCanvas motion flows visibly through the glass */
-.briefing-showcase-window.is-locked-in .snapshot-glass-aurora {
-  display: block;
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0.16;
-  z-index: 0;
-}
-
-.snapshot-glass-orb {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(28px);
-  pointer-events: none;
-  will-change: transform;
-}
-
-.snapshot-glass-orb.orb-1 {
-  width: 340px;
-  height: 340px;
-  top: -130px;
-  right: -70px;
-  animation: snapshotOrbDriftA 18s ease-in-out infinite;
-}
-
-.snapshot-glass-orb.orb-2 {
-  width: 380px;
-  height: 380px;
-  bottom: -165px;
-  right: 12%;
-  animation: snapshotOrbDriftB 22s ease-in-out infinite;
-}
-
-.snapshot-glass-orb.orb-3 {
-  width: 280px;
-  height: 280px;
-  bottom: 10%;
-  left: -120px;
-  animation: snapshotOrbDriftA 25s ease-in-out infinite reverse;
-}
-
-.briefing-showcase-window.is-locked-in::before {
-  content: "";
-  position: absolute;
-  inset: -25%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.24;
-  background-size: 200% 200%;
-  animation: snapshotDiurnalDrift 18s ease-in-out infinite;
-}
-
 .briefing-showcase-window.is-locked-in::after {
   content: "";
   position: absolute;
@@ -9552,7 +9486,7 @@ body {
   box-shadow: var(--glass-inset-gleam), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.briefing-showcase-window.is-locked-in > *:not(.snapshot-glass-aurora) {
+.briefing-showcase-window.is-locked-in > * {
   position: relative;
   z-index: 2;
 }
@@ -9568,110 +9502,38 @@ body {
 
 /* Afternoon / Light Default Diurnal Frosted Crystal Glass */
 .briefing-showcase-window.is-locked-in {
-  background-color: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
+  background: color-mix(in srgb, var(--glass-sheet) 88%, transparent);
   border-color: var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), 0 24px 60px -14px rgba(37, 99, 235, 0.14), 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
-.briefing-showcase-window.is-locked-in::before {
-  background: radial-gradient(circle at 14% 20%, rgba(56, 189, 248, 0.16), transparent 50%),
-              radial-gradient(circle at 86% 78%, rgba(99, 102, 241, 0.12), transparent 52%);
-}
-
-.briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-1 {
-  background: radial-gradient(circle at 32% 32%, rgba(255, 255, 255, 0.85), rgba(147, 197, 253, 0.4) 55%, transparent);
-}
-
-.briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-2 {
-  background: radial-gradient(circle at 38% 36%, rgba(224, 242, 254, 0.78), rgba(129, 140, 248, 0.35) 55%, transparent);
-}
-
-.briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-3 {
-  background: radial-gradient(circle at 42% 40%, rgba(255, 255, 255, 0.72), rgba(110, 231, 183, 0.28) 55%, transparent);
-}
-
 /* Morning Dawn Frosted Rose-Amber Glass */
 [data-theme="morning"] .briefing-showcase-window.is-locked-in {
-  background-color: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
+  background: color-mix(in srgb, var(--glass-sheet) 88%, transparent);
   border-color: var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), 0 24px 60px -12px rgba(234, 88, 12, 0.14), 0 8px 24px rgba(124, 45, 18, 0.05);
 }
 
-[data-theme="morning"] .briefing-showcase-window.is-locked-in::before {
-  background: radial-gradient(circle at 16% 18%, rgba(251, 146, 60, 0.18), transparent 50%),
-              radial-gradient(circle at 84% 74%, rgba(244, 63, 94, 0.14), transparent 52%);
-}
-
-[data-theme="morning"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-1 {
-  background: radial-gradient(circle at 32% 32%, rgba(255, 250, 240, 0.85), rgba(253, 186, 116, 0.45) 52%, transparent);
-}
-
-[data-theme="morning"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-2 {
-  background: radial-gradient(circle at 38% 36%, rgba(255, 241, 242, 0.8), rgba(251, 113, 133, 0.34) 55%, transparent);
-}
-
-[data-theme="morning"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-3 {
-  background: radial-gradient(circle at 42% 40%, rgba(255, 251, 235, 0.8), rgba(252, 211, 77, 0.38) 55%, transparent);
-}
-
 /* Evening Golden Hour Smoky Obsidian-Bronze Frosted Glass */
 [data-theme="evening"] .briefing-showcase-window.is-locked-in {
-  background-color: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
+  background: color-mix(in srgb, var(--glass-sheet) 88%, transparent);
   border-color: var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), 0 26px 64px -10px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(251, 191, 36, 0.08);
-}
-
-[data-theme="evening"] .briefing-showcase-window.is-locked-in::before {
-  background: radial-gradient(circle at 18% 18%, rgba(251, 191, 36, 0.14), transparent 50%),
-              radial-gradient(circle at 82% 82%, rgba(251, 113, 133, 0.12), transparent 52%);
 }
 
 [data-theme="evening"] .briefing-showcase-window.is-locked-in::after {
   box-shadow: var(--glass-inset-gleam), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
-[data-theme="evening"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-1 {
-  background: radial-gradient(circle at 34% 34%, rgba(255, 247, 230, 0.42), rgba(251, 191, 36, 0.28) 48%, transparent);
-}
-
-[data-theme="evening"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-2 {
-  background: radial-gradient(circle at 38% 36%, rgba(255, 237, 213, 0.36), rgba(251, 146, 60, 0.22) 52%, transparent);
-}
-
-[data-theme="evening"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-3 {
-  background: radial-gradient(circle at 42% 40%, rgba(253, 230, 138, 0.28), rgba(168, 85, 247, 0.18) 54%, transparent);
-}
-
 /* Dark Night Smoky Chrome-Pearl Frosted Glass */
 [data-theme="dark"] .briefing-showcase-window.is-locked-in {
-  background-color: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
+  background: color-mix(in srgb, var(--glass-sheet) 88%, transparent);
   border-color: var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), 0 28px 68px -12px rgba(0, 0, 0, 0.56), 0 0 0 1px rgba(148, 163, 184, 0.08);
 }
 
-[data-theme="dark"] .briefing-showcase-window.is-locked-in::before {
-  background: radial-gradient(circle at 18% 18%, rgba(226, 232, 240, 0.08), transparent 50%),
-              radial-gradient(circle at 82% 80%, rgba(99, 102, 241, 0.12), transparent 52%);
-}
-
 [data-theme="dark"] .briefing-showcase-window.is-locked-in::after {
   box-shadow: var(--glass-inset-gleam), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-}
-
-[data-theme="dark"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-1 {
-  background: radial-gradient(circle at 34% 34%, rgba(241, 245, 249, 0.36), rgba(165, 180, 252, 0.18) 48%, transparent);
-}
-
-[data-theme="dark"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-2 {
-  background: radial-gradient(circle at 38% 36%, rgba(248, 250, 252, 0.30), rgba(148, 163, 184, 0.20) 48%, transparent);
-}
-
-[data-theme="dark"] .briefing-showcase-window.is-locked-in .snapshot-glass-orb.orb-3 {
-  background: radial-gradient(circle at 42% 40%, rgba(226, 232, 240, 0.24), rgba(129, 140, 248, 0.16) 52%, transparent);
 }
 
 /* Unified Single-Canvas Full-Width Editorial Briefing */
@@ -10298,10 +10160,9 @@ body {
   height: 38px;
   border-radius: 999px;
   border: 1px solid var(--glass-edge);
-  background-color: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
-  backdrop-filter: blur(22px) saturate(165%);
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  background: var(--glass-sheet-subtle);
+  backdrop-filter: blur(16px) saturate(155%);
+  -webkit-backdrop-filter: blur(16px) saturate(155%);
   box-shadow: var(--glass-inset-gleam), 0 4px 14px rgba(0, 0, 0, 0.08);
   color: var(--text-main);
   display: inline-flex;
@@ -10405,33 +10266,6 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-}
-
-@keyframes snapshotDiurnalDrift {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(2%, -2%, 0) scale(1.04);
-  }
-}
-
-@keyframes snapshotOrbDriftA {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(-24px, 18px, 0) scale(1.06);
-  }
-}
-
-@keyframes snapshotOrbDriftB {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(20px, -22px, 0) scale(0.95);
-  }
 }
 
 @keyframes snapshotLockInEnter {
@@ -10753,14 +10587,13 @@ body {
 
 .history-day-subpanel {
   background: var(--glass-sheet);
-  background-image: var(--glass-frost-sheen);
   border: 1px solid var(--glass-edge);
   border-radius: 16px;
   padding: 12px 16px;
   margin-bottom: 12px;
   box-shadow: var(--glass-inset-gleam), var(--shadow-sm);
-  backdrop-filter: blur(22px) saturate(155%);
-  -webkit-backdrop-filter: blur(22px) saturate(155%);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 

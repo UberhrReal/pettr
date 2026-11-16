@@ -3776,12 +3776,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'id="eveningDebriefDashBtn"' in index_html
     assert 'id="snapshotLockedBriefingView"' in index_html
 
-    # Diurnal theme gradients & subtle animations
+    # Diurnal frosted glass & subtle animations
     assert ".briefing-showcase-window.is-locked-in" in css
     assert '[data-theme="morning"] .briefing-showcase-window.is-locked-in' in css
     assert '[data-theme="evening"] .briefing-showcase-window.is-locked-in' in css
     assert '[data-theme="dark"] .briefing-showcase-window.is-locked-in' in css
-    assert "@keyframes snapshotDiurnalDrift" in css
     assert "@keyframes snapshotLockInEnter" in css
 
     # Mobile Snapshot editing & edit-modal touch layout optimizations
@@ -3804,7 +3803,8 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
 
     # App-wide translucent frosted glassmorphism language & transparent master frame over WaveCanvas
     assert "--glass-sheet:" in css and "--glass-backdrop:" in css
-    assert "snapshot-glass-aurora" in index_html and ".snapshot-glass-aurora" in css
+    assert "snapshot-glass-aurora" not in index_html and ".snapshot-glass-aurora" not in css
+    assert "snapshot-glass-orb" not in index_html and ".snapshot-glass-orb" not in css
     assert "backdrop-filter: blur(" in css
     assert "buildHighlightedNarrativeHtml(" in dash_js
     assert "snapshot-hl-count" in dash_js and ".snapshot-hl-count" in css
@@ -3812,8 +3812,8 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "snapshot-unified-streams" in dash_js and ".snapshot-unified-streams" in css
     assert "snapshot-unified-tail" in dash_js and ".snapshot-unified-tail" in css
 
-    # Richer frosted glass sheen, single glassmorphism control cluster when locked in & no distracting Horace quip
-    assert "--glass-frost-sheen:" in css
+    # Rolled back to clean v10.3 glass translucency (no heavy white frost sheen wash), single button cluster & no Horace quip
+    assert "--glass-frost-sheen:" not in css
     assert ".briefing-showcase-window.is-locked-in .briefing-showcase-actions" in css
     assert 'id="snapshotHeaderRemark"' not in index_html and ".snapshot-header-remark" not in css
     assert 'id="snapshotInlineRemark"' not in dash_js and ".snapshot-lead-remark-inline" not in css
@@ -3837,11 +3837,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.7
-    assert "pettr.css?v=10.7" in index_html
-    assert "dashboard.js?v=10.7" in index_html
-    assert "entity_modal.js?v=10.7" in index_html
-    assert "app.js?v=10.7" in index_html
+    # Static cache-busters bumped to v10.8
+    assert "pettr.css?v=10.8" in index_html
+    assert "dashboard.js?v=10.8" in index_html
+    assert "entity_modal.js?v=10.8" in index_html
+    assert "app.js?v=10.8" in index_html
 
 
 def test_v10_5_refinements():
@@ -3896,14 +3896,15 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=10.7" in index_html
-    assert "timeline.js?v=10.7" in index_html
+    assert "history.js?v=10.8" in index_html
+    assert "timeline.js?v=10.8" in index_html
 
-    # 8. Deeper smoked glass shading, mobile-only Snapshot + Queue button, bold numeric ranks, 'Items' count, and Unorganised spacing
-    assert "rgba(9, 10, 14, 0.70)" in css
-    assert "rgba(22, 14, 10, 0.68)" in css
-    assert "rgba(232, 238, 247, 0.50)" in css
-    assert "rgba(238, 224, 212, 0.52)" in css
+    # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, and Unorganised spacing
+    assert "rgba(255, 255, 255, 0.44)" in css
+    assert "rgba(255, 249, 243, 0.46)" in css
+    assert "rgba(38, 25, 18, 0.44)" in css
+    assert "rgba(18, 20, 27, 0.44)" in css
+    assert "snapshot-glass-orb" not in css and "snapshot-glass-orb" not in index_html
     assert ".briefing-item-row .snapshot-quick-queue-btn" in css
     assert "@media (max-width: 768px), (hover: none) and (pointer: coarse)" in css
     assert "Drag tasks here to lock execution order." in index_html
