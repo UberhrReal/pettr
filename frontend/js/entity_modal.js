@@ -594,7 +594,6 @@ const EntityModal = {
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
-        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.refresh();
         if (typeof History !== "undefined") History.refresh();
       } else {
         alert(data.detail || "Error updating item.");
@@ -617,15 +616,15 @@ const EntityModal = {
       const res = await fetch(endpoint, { method: "DELETE" });
       if (res.ok) {
         if (typeof Dashboard !== "undefined" && Dashboard.dailyOrder) {
-          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(item.id === this.fromId && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
+          Dashboard.dailyOrder = Dashboard.dailyOrder.filter(item => !(String(item.id) === String(this.fromId) && (item.type === this.fromType || (!item.type && this.fromType === 'task'))));
           localStorage.setItem("pettr_daily_order_" + Dashboard.selectedDate, JSON.stringify(Dashboard.dailyOrder));
           Dashboard.renderDailyOrder();
-          Dashboard.saveDailyOrder();
+          await Dashboard.saveDailyOrder();
         }
         App.showToast("Item deleted.");
         this.close();
         if (typeof Dashboard !== "undefined") {
-          Dashboard.refresh();
+          await Dashboard.refresh();
           const unorgModal = document.getElementById("unorganizedModal");
           if (unorgModal && unorgModal.dataset.wasOpen === "true") {
             unorgModal.dataset.wasOpen = "false";
@@ -637,9 +636,7 @@ const EntityModal = {
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
-        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
         if (typeof History !== "undefined") History.refresh();
-        if (typeof SimplifiedMode !== "undefined") SimplifiedMode.render();
       } else {
         App.showToast("Failed to delete item.", true);
       }

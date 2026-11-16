@@ -1188,9 +1188,9 @@ def test_overdue_tasks_persist_in_daily_order_and_tagged_overdue(temp_db, monkey
     dash_code = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
     assert "OVERDUE" in dash_code
     assert "is_overdue" in dash_code
-    simplified_code = Path("frontend/js/simplified_mode.js").read_text(encoding="utf-8")
-    assert "OVERDUE" in simplified_code
-    assert "is_overdue" in simplified_code
+    db_code = Path("backend/database.py").read_text(encoding="utf-8")
+    assert "build_procedural_snapshot_briefing" in db_code
+    assert "is_overdue" in db_code
 
 def test_resolve_best_model_aliases():
     """Verify smart model tag matching and fallback logic."""
@@ -3235,8 +3235,8 @@ def test_v9_0_focus_tracking_integration_and_cockpit_task_switching(temp_db, mon
     assert 'id="statTodayFocusHours"' in index_html
     assert 'id="weekFocusHoursBadge"' in index_html
     assert 'id="monthFocusHoursBadge"' in index_html
-    assert "pettr.css?v=9." in index_html
-    assert "focus_cockpit.js?v=9." in index_html
+    assert "pettr.css?v=" in index_html
+    assert "focus_cockpit.js?v=" in index_html
 
     assert ".cockpit-switch-task-btn" in css
     assert ".cockpit-task-picker" in css
@@ -3270,10 +3270,10 @@ def test_v9_1_your_stats_unification_and_cockpit_no_general_pill(temp_db, monkey
     assert '<span class="project-tag" id="cockpitTaskProject" style="display: none;"></span>' in index_html
 
     # Cache buster version check
-    assert 'pettr.css?v=9.' in index_html
-    assert 'dashboard.js?v=9.' in index_html
-    assert 'history.js?v=9.' in index_html
-    assert 'focus_cockpit.js?v=9.' in index_html
+    assert 'pettr.css?v=' in index_html
+    assert 'dashboard.js?v=' in index_html
+    assert 'history.js?v=' in index_html
+    assert 'focus_cockpit.js?v=' in index_html
 
     # 2. Frontend CSS: Verify styles for Your Stats quick links, grid layout, and pulse highlight
     css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
@@ -3377,10 +3377,10 @@ def test_v9_2_tailscale_persistence_and_decluttered_iconography(temp_db, monkeyp
     assert '<button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType(\'none\')" title="Mute ambient sound"><i data-lucide="volume-x"' in index_html
 
     # 4. Cache buster check
-    assert 'pettr.css?v=9.' in index_html
-    assert 'app.js?v=9.' in index_html
-    assert 'dashboard.js?v=9.' in index_html
-    assert 'focus_cockpit.js?v=9.' in index_html
+    assert 'pettr.css?v=' in index_html
+    assert 'app.js?v=' in index_html
+    assert 'dashboard.js?v=' in index_html
+    assert 'focus_cockpit.js?v=' in index_html
 
     # 5. CSS Check
     css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
@@ -3443,12 +3443,12 @@ def test_v9_3_ui_refinements_animations_and_diurnal_particles():
     assert "updateAndDrawNightMeteors(" in wave_js
     assert "updateAndDrawLeaves(" in wave_js
 
-    # 8. Mobile responsiveness polish & v9.x cache buster
+    # 8. Mobile responsiveness polish & cache buster
     assert ".focus-kpi-card:last-child:nth-child(odd)" in css
-    assert 'pettr.css?v=9.' in index_html
-    assert 'wave_canvas.js?v=9.' in index_html
-    assert 'app.js?v=9.' in index_html
-    assert 'dashboard.js?v=9.' in index_html
+    assert 'pettr.css?v=' in index_html
+    assert 'wave_canvas.js?v=' in index_html
+    assert 'app.js?v=' in index_html
+    assert 'dashboard.js?v=' in index_html
 
 
 def test_v9_4_carousel_snapshot_date_escape_keys_and_slider_collapse():
@@ -3497,7 +3497,6 @@ def test_v9_4_carousel_snapshot_date_escape_keys_and_slider_collapse():
         "voiceTroubleshootModal",
         "cockpitTaskPicker",
         "focusCockpitModal",
-        "simplifiedModeOverlay",
         "themeSliderDrawer",
         "horacePanel",
     ):
@@ -3510,12 +3509,12 @@ def test_v9_4_carousel_snapshot_date_escape_keys_and_slider_collapse():
     assert ".cockpit-duration-slider-wrap.is-hidden" in css
     assert "max-height: 0 !important;" in css
 
-    # 5. Cache buster bumped to v9.x
-    assert "pettr.css?v=9." in index_html
-    assert "app.js?v=9." in index_html
-    assert "dashboard.js?v=9." in index_html
-    assert "focus_cockpit.js?v=9." in index_html
-    assert "entity_modal.js?v=9." in index_html
+    # 5. Cache buster check
+    assert "pettr.css?v=" in index_html
+    assert "app.js?v=" in index_html
+    assert "dashboard.js?v=" in index_html
+    assert "focus_cockpit.js?v=" in index_html
+    assert "entity_modal.js?v=" in index_html
 
 
 def test_v9_5_in_sequence_priority_queue_edits_checkoff_and_filtering(temp_db, monkeypatch):
@@ -3640,11 +3639,164 @@ def test_v9_5_in_sequence_priority_queue_edits_checkoff_and_filtering(temp_db, m
     assert "filter-focused-panel" in dash_js and ".dynamic-panel.filter-focused-panel" in css
     assert "Dashboard.clearFilter()" in app_js
 
-    # Cache buster bumped to v9.5
-    assert "pettr.css?v=9.5" in index_html
-    assert "dashboard.js?v=9.5" in index_html
-    assert "entity_modal.js?v=9.5" in index_html
-    assert "app.js?v=9.5" in index_html
+    # Cache buster check
+    assert "pettr.css?v=" in index_html
+    assert "dashboard.js?v=" in index_html
+    assert "entity_modal.js?v=" in index_html
+    assert "app.js?v=" in index_html
+
+
+def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypatch):
+    """Verify v10.0 Lock-In procedural natural-language Snapshot, witty LLM remark integration, diurnal themes, Simplified Mode replacement, and mobile editing."""
+    from backend import daily_intel
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", temp_db)
+
+    today = datetime.date.today()
+    yesterday = today - datetime.timedelta(days=1)
+    today_str = today.isoformat()
+    yesterday_str = yesterday.isoformat()
+
+    # 1. Seed representative factual items across all categories
+    t1 = database.create_task(
+        title="Build attitude control loop",
+        tier="focus",
+        project_name="CubeSat ADCS",
+        due_date=f"{today_str} 16:00:00",
+        is_time_sensitive=True,
+        db_path=temp_db,
+    )
+    t2 = database.create_task(
+        title="Review thermal budget sheet",
+        tier="focus",
+        due_date=f"{yesterday_str} 18:00:00",
+        db_path=temp_db,
+    )
+    t3 = database.create_task(
+        title="Buy AA batteries",
+        tier="trivial",
+        due_date=f"{today_str} 19:00:00",
+        db_path=temp_db,
+    )
+    ev1 = database.create_event(
+        title="Advisor sync",
+        start_time=f"{today_str} 14:00:00",
+        end_time=f"{today_str} 15:00:00",
+        project_name="CubeSat ADCS",
+        db_path=temp_db,
+    )
+    database.create_reminder(
+        title="Pack lab pass",
+        reminder_date=f"{today_str} 09:00:00",
+        db_path=temp_db,
+    )
+    database.save_daily_order(today_str, [
+        {"id": t1["id"], "type": "task", "title": t1["title"], "tier": "focus", "completed": False},
+        {"id": ev1["id"], "type": "event", "title": ev1["title"], "tier": "event", "completed": False},
+    ], db_path=temp_db)
+
+    # 2. Procedural briefing calculation is 100% factual & accurate
+    procedural = database.build_procedural_snapshot_briefing(today, today_date=today, db_path=temp_db)
+    counts = procedural["counts"]
+    assert counts["focus_pending"] == 2
+    assert counts["focus_overdue"] == 1
+    assert counts["trivial_pending"] == 1
+    assert counts["events_pending"] == 1
+    assert counts["projects_total"] == 1
+    assert counts["reminders_active"] == 1
+    assert counts["queued_pending"] == 2
+
+    narrative = procedural["summary_narrative"]
+    assert "2 focus tasks (1 overdue)" in narrative
+    assert "1 trivial errand" in narrative
+    assert "1 scheduled event" in narrative
+    assert "1 active project" in narrative
+    assert "1 reminder" in narrative
+    assert "Advisor sync" in narrative
+    assert "Build attitude control loop" in narrative
+
+    curated_wit = daily_intel.get_curated_snapshot_remark(counts, target_date=today, user_name="Alex", client_hour=14)
+    assert isinstance(curated_wit, str) and len(curated_wit) > 10
+
+    # 3. API endpoints: GET /api/snapshot/briefing and POST /api/snapshot/lock
+    with TestClient(app) as client:
+        client.post("/api/auth/login", json={"pin": "1234"})
+
+        # Unlocked by default
+        init_res = client.get(f"/api/snapshot/briefing?date={today_str}&hour=14")
+        assert init_res.status_code == 200
+        init_data = init_res.json()
+        assert init_data["is_locked"] is False
+        assert init_data["briefing"]["counts"]["focus_pending"] == 2
+        assert "Advisor sync" in init_data["briefing"]["copy_text"]
+
+        # Mock LLM remark generator -> zero hallucination impact on procedural counts
+        async def fake_witty_remark(**kwargs):
+            return {"text": "Two deep-work blocks and an afternoon sync — tea helps.", "source": "llm", "model": "llama3.2:latest"}
+
+        monkeypatch.setattr(daily_intel, "generate_snapshot_witty_remark", fake_witty_remark)
+        lock_res = client.post("/api/snapshot/lock", json={"date": today_str, "locked": True, "hour": 14, "refresh_remark": True})
+        assert lock_res.status_code == 200
+        lock_data = lock_res.json()
+        assert lock_data["is_locked"] is True
+        assert lock_data["remark"]["text"] == "Two deep-work blocks and an afternoon sync — tea helps."
+        assert lock_data["remark"]["source"] == "llm"
+        assert lock_data["briefing"]["counts"]["queued_pending"] == 2
+
+        # Persists on subsequent GET (for Tailscale cross-device sync)
+        persisted = client.get(f"/api/snapshot/briefing?date={today_str}&hour=14").json()
+        assert persisted["is_locked"] is True
+        assert persisted["remark"]["text"] == "Two deep-work blocks and an afternoon sync — tea helps."
+
+        # Unlock cleanly
+        unlock_res = client.post("/api/snapshot/lock", json={"date": today_str, "locked": False, "hour": 14})
+        assert unlock_res.status_code == 200
+        assert unlock_res.json()["is_locked"] is False
+
+    # 4. Version bump (v10.0), Simplified Mode replacement, diurnal styling & mobile editing ergonomics
+    assert app.version == "10.0.0"
+
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    cmd_js = Path("frontend/js/command_palette.js").read_text(encoding="utf-8")
+
+    # Simplified Mode replaced on mobile
+    assert 'id="mobileSimplifiedBtn"' not in index_html
+    assert 'id="simplifiedModeOverlay"' not in index_html
+    assert "simplified_mode.js" not in index_html
+    assert not Path("frontend/js/simplified_mode.js").exists()
+    assert "Dashboard.toggleLockIn()" in cmd_js
+
+    # Locked Snapshot UI & requested controls (Focus, Unlock, Copy, Debrief)
+    assert 'id="snapshotLockInBtn"' in index_html
+    assert 'id="snapshotUnlockBtn"' in index_html
+    assert 'id="snapshotFocusBtn"' in index_html
+    assert 'id="snapshotCopyBtn"' in index_html
+    assert 'id="eveningDebriefDashBtn"' in index_html
+    assert 'id="snapshotLockedBriefingView"' in index_html
+
+    # Diurnal theme gradients & subtle animations
+    assert ".briefing-showcase-window.is-locked-in" in css
+    assert '[data-theme="morning"] .briefing-showcase-window.is-locked-in' in css
+    assert '[data-theme="evening"] .briefing-showcase-window.is-locked-in' in css
+    assert '[data-theme="dark"] .briefing-showcase-window.is-locked-in' in css
+    assert "@keyframes snapshotDiurnalDrift" in css
+    assert "@keyframes snapshotLockInEnter" in css
+
+    # Mobile Snapshot editing & edit-modal touch layout optimizations
+    assert "toggleQueueFromSnapshot(" in dash_js
+    assert "moveDailyOrderItem(" in dash_js
+    assert "editDailyOrderItem(" in dash_js
+    assert "lockInSnapshot()" in dash_js
+    assert "unlockSnapshot()" in dash_js
+    assert "modal-form-grid-2col" in index_html and ".modal-form-grid-2col" in css
+
+    # Static cache-busters bumped to v10.0
+    assert "pettr.css?v=10.0" in index_html
+    assert "dashboard.js?v=10.0" in index_html
+    assert "entity_modal.js?v=10.0" in index_html
+    assert "app.js?v=10.0" in index_html
+
 
 
 

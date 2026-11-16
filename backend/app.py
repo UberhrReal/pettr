@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     backup_task.cancel()
     midnight_typewriter_task.cancel()
 
-app = FastAPI(title="PETTR", description="Personal Errands, Task Tracker & Repository", lifespan=lifespan)
+app = FastAPI(title="PETTR", description="Personal Errands, Task Tracker & Repository", version="10.0.0", lifespan=lifespan)
 
 @app.middleware("http")
 async def add_no_cache_headers(request: Request, call_next):
@@ -122,6 +122,12 @@ class DailyOrderRequest(BaseModel):
 
     def get_order_list(self) -> List[Dict[str, Any]]:
         return self.order if self.order is not None else (self.items or [])
+
+class SnapshotLockRequest(BaseModel):
+    date: Optional[str] = None
+    locked: bool = True
+    hour: Optional[int] = None
+    refresh_remark: bool = False
 
 class ReclassifyRequest(BaseModel):
     from_type: str
@@ -903,6 +909,92 @@ async def get_rich_briefing_text(date: Optional[str] = None):
     target = datetime.date.fromisoformat(date) if date else None
     text = database.get_rich_text_briefing(target)
     return {"status": "success", "markdown": text}
+
+@app.get("/api/snapshot/briefing", dependencies=[Depends(auth.require_auth)])
+async def get_snapshot_briefing(request: Request, date: Optional[str] = None, hour: Optional[int] = None):
+    """Returns lock-in status, procedural natural-language Snapshot briefing, and factual witty remark."""
+    client_now = get_client_now(request)
+    target = datetime.date.fromisoformat(date) if date else client_now.date()
+    date_str = target.strftime("%Y-%m-%d")
+    eff_hour = hour if hour is not None else client_now.hour
+    profile = get_user_profile()
+    user_name = profile.get("user_name", "User")
+
+    lock_info = database.get_snapshot_lock(date_str)
+    briefing = database.build_procedural_snapshot_briefing(target, today_date=client_now.date())
+    remark_text = lock_info.get("llm_remark")
+    remark_source = lock_info.get("remark_source") or "curated"
+    if not remark_text:
+        remark_text = daily_intel.get_curated_snapshot_remark(
+            briefing.get("counts") or {},
+            target_date=target,
+            user_name=user_name,
+            client_hour=eff_hour,
+        )
+        remark_source = "curated"
+    briefing["remark"] = {"text": remark_text, "source": remark_source}
+    briefing["copy_text"] = database.format_locked_snapshot_copy_text(briefing, remark_text=remark_text)
+    return {
+        "status": "success",
+        "date": date_str,
+        "is_locked": bool(lock_info.get("is_locked")),
+        "locked_at": lock_info.get("locked_at"),
+        "briefing": briefing,
+        "remark": briefing["remark"],
+    }
+
+@app.post("/api/snapshot/lock", dependencies=[Depends(auth.require_auth)])
+async def toggle_snapshot_lock_endpoint(req: SnapshotLockRequest, request: Request):
+    """Locks in or unlocks the procedural Snapshot briefing for the selected date and refreshes LLM outlook remark."""
+    client_now = get_client_now(request)
+    target = datetime.date.fromisoformat(req.date) if req.date else client_now.date()
+    date_str = target.strftime("%Y-%m-%d")
+    eff_hour = req.hour if req.hour is not None else client_now.hour
+    profile = get_user_profile()
+    user_name = profile.get("user_name", "User")
+
+    briefing = database.build_procedural_snapshot_briefing(target, today_date=client_now.date())
+    existing_lock = database.get_snapshot_lock(date_str)
+
+    if req.locked:
+        if req.refresh_remark or not existing_lock.get("llm_remark"):
+            remark_obj = await daily_intel.generate_snapshot_witty_remark(
+                briefing=briefing,
+                target_date=target,
+                user_name=user_name,
+                client_hour=eff_hour,
+            )
+            remark_text = remark_obj.get("text", "")
+            remark_source = remark_obj.get("source", "curated")
+        else:
+            remark_text = existing_lock.get("llm_remark")
+            remark_source = existing_lock.get("remark_source") or "curated"
+        lock_info = database.set_snapshot_lock(
+            date_str,
+            is_locked=True,
+            llm_remark=remark_text,
+            remark_source=remark_source,
+        )
+    else:
+        lock_info = database.set_snapshot_lock(date_str, is_locked=False)
+        remark_text = lock_info.get("llm_remark") or daily_intel.get_curated_snapshot_remark(
+            briefing.get("counts") or {},
+            target_date=target,
+            user_name=user_name,
+            client_hour=eff_hour,
+        )
+        remark_source = lock_info.get("remark_source") or "curated"
+
+    briefing["remark"] = {"text": remark_text, "source": remark_source}
+    briefing["copy_text"] = database.format_locked_snapshot_copy_text(briefing, remark_text=remark_text)
+    return {
+        "status": "success",
+        "date": date_str,
+        "is_locked": bool(lock_info.get("is_locked")),
+        "locked_at": lock_info.get("locked_at"),
+        "briefing": briefing,
+        "remark": briefing["remark"],
+    }
 
 # --- Entity Detail & Re-sorting / Conversion ---
 

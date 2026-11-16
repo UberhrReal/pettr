@@ -11,6 +11,10 @@ const Dashboard = {
   userName: "User",
   activeFilter: null,
   isUnorgCollapsed: false,
+  isSnapshotLocked: false,
+  snapshotBriefing: null,
+  snapshotLockDate: null,
+  isSnapshotRemarkLoading: false,
   dailyOrder: [],
   dailyOrderDate: (() => {
     const d = new Date();
@@ -69,6 +73,13 @@ const Dashboard = {
     this.selectedDate = newDate;
     this.dailyOrderDate = newDate;
     this.briefingData = null;
+    this.snapshotBriefing = null;
+    this.snapshotLockDate = newDate;
+    try {
+      this.isSnapshotLocked = localStorage.getItem("pettr_snapshot_lock_" + newDate) === "true";
+    } catch (_) {
+      this.isSnapshotLocked = false;
+    }
     // Swap dailyOrder array immediately to this specific date's cache to avoid stale cross-contamination
     try {
       const saved = localStorage.getItem("pettr_daily_order_" + newDate);
@@ -76,6 +87,7 @@ const Dashboard = {
     } catch (_) {
       this.dailyOrder = [];
     }
+    this.applySnapshotLockUI();
     this.renderDailyOrder();
     this.refresh();
   },
@@ -209,6 +221,12 @@ const Dashboard = {
 
   async init() {
     this.dailyOrderDate = this.selectedDate;
+    this.snapshotLockDate = this.selectedDate;
+    try {
+      this.isSnapshotLocked = localStorage.getItem("pettr_snapshot_lock_" + this.selectedDate) === "true";
+    } catch (_) {
+      this.isSnapshotLocked = false;
+    }
     try {
       const saved = localStorage.getItem("pettr_daily_order_" + this.selectedDate);
       if (saved) this.dailyOrder = JSON.parse(saved);
@@ -218,6 +236,7 @@ const Dashboard = {
     this.bindSummaryPills();
     this.initTaglineRotation();
     this.initUnorgPanelState();
+    this.applySnapshotLockUI();
     this.startDiurnalWatcher();
     await this.loadUserProfile();
     await this.refresh();
@@ -752,7 +771,8 @@ const Dashboard = {
       this.loadReminders(),
       this.loadDailyOrder(),
       this.checkUnorganized(),
-      this.loadProductivityStats()
+      this.loadProductivityStats(),
+      this.loadSnapshotBriefing()
     ]);
     if (this.selectedDate === refreshDate) {
       this.reconcileDailyOrderTitles();
@@ -762,10 +782,8 @@ const Dashboard = {
     this.updateProgressRing();
     this.adjustPanelScaling();
     this.applyPanelFilter();
+    this.applySnapshotLockUI();
     if (typeof EveningDebrief !== "undefined") EveningDebrief.updateDebriefButtonState();
-    if (typeof SimplifiedMode !== "undefined" && SimplifiedMode.isOpen) {
-      SimplifiedMode.refresh();
-    }
     App.renderIcons();
   },
 
@@ -1229,6 +1247,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:6px;">
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
+              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
@@ -1280,6 +1299,7 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:6px;">
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
+              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
@@ -1317,7 +1337,10 @@ const Dashboard = {
               ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
-            ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
+            <div style="display:flex; align-items:center; gap:6px;">
+              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('event', ${e.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
+              ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
+            </div>
           </div>
         `;
       });
@@ -1655,6 +1678,8 @@ const Dashboard = {
       }
 
       const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
+      const isFirst = idx === 0;
+      const isLast = idx === this.dailyOrder.length - 1;
 
       return `
         <div class="daily-order-slot ${isDone ? 'completed' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
@@ -1671,8 +1696,14 @@ const Dashboard = {
           ${isOverdue && !isDone ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>` : ''}
           ${displayTime ? `<span style="font-size:11px; font-family:var(--font-mono); color:${isOverdue && !isDone ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${isOverdue && !isDone ? '600' : '400'};">${this.escapeHtml(displayTime)}</span>` : ''}
           <span class="urgency-badge ${item.tier || 'normal'}" style="font-size:10px; padding:1px 6px;">${(item.tier || item.type).toUpperCase()}</span>
-          ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="cursor:grab; color:var(--text-dim); font-size:12px;" title="Drag to re-order">⋮⋮</span>'}
-          ${isLockedDay ? '' : `<button class="action-icon-btn" onclick="Dashboard.removeDailyOrderItem(${idx})" title="Remove from daily sequence" style="padding:2px 5px; font-size:11px; color:var(--text-muted);"><i data-lucide="x" style="width:11px;height:11px;"></i></button>`}
+          ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : `
+            <div class="daily-order-slot-actions">
+              <button type="button" class="action-icon-btn daily-order-move-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation(); Dashboard.moveDailyOrderItem(${idx}, -1)" title="Move up in queue"><i data-lucide="chevron-up" style="width:12px;height:12px;"></i></button>
+              <button type="button" class="action-icon-btn daily-order-move-btn" ${isLast ? 'disabled' : ''} onclick="event.stopPropagation(); Dashboard.moveDailyOrderItem(${idx}, 1)" title="Move down in queue"><i data-lucide="chevron-down" style="width:12px;height:12px;"></i></button>
+              <button type="button" class="action-icon-btn daily-order-edit-btn" onclick="event.stopPropagation(); Dashboard.editDailyOrderItem(${idx})" title="Edit item details"><i data-lucide="edit-3" style="width:11px;height:11px;"></i></button>
+              <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.removeDailyOrderItem(${idx})" title="Remove from daily sequence" style="padding:3px 6px; font-size:11px; color:var(--text-muted);"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
+            </div>
+          `}
         </div>
       `;
     }).join("");
@@ -1872,6 +1903,74 @@ const Dashboard = {
     this.saveDailyOrder();
   },
 
+  moveDailyOrderItem(idx, delta) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      App.showToast("Cannot modify locked historical records.", true);
+      return;
+    }
+    if (!Array.isArray(this.dailyOrder)) return;
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= this.dailyOrder.length) return;
+    const [moved] = this.dailyOrder.splice(idx, 1);
+    this.dailyOrder.splice(targetIdx, 0, moved);
+    this.saveDailyOrder();
+    if (typeof App !== "undefined" && App.haptic) App.haptic("light");
+  },
+
+  editDailyOrderItem(idx) {
+    const item = this.dailyOrder && this.dailyOrder[idx];
+    if (!item || !item.id || typeof EntityModal === "undefined") return;
+    const entityType = item.type === "event" ? "event" : "task";
+    EntityModal.open(entityType, item.id);
+  },
+
+  async toggleQueueFromSnapshot(entityType, entityId) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      App.showToast("Cannot modify locked historical records.", true);
+      return;
+    }
+    if (!Array.isArray(this.dailyOrder)) this.dailyOrder = [];
+    const existingIdx = this.dailyOrder.findIndex(
+      d => String(d.id) === String(entityId) && (entityType === "event" ? d.type === "event" : (d.type === "task" || !d.type))
+    );
+    if (existingIdx !== -1) {
+      this.dailyOrder.splice(existingIdx, 1);
+      await this.saveDailyOrder();
+      App.showToast("Removed from Tasking Priority.");
+      return;
+    }
+
+    let entry = null;
+    if (entityType === "event") {
+      const ev = (this.events || []).find(e => String(e.id) === String(entityId));
+      if (!ev) return;
+      const cleanTitle = (ev.title || "").replace(/^\s*\[.*?\]\s*/, '');
+      const timePart = ev.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(ev.start_time, ev.end_time) : App.formatMilitaryTime(ev.start_time)) : "";
+      entry = { id: ev.id, type: "event", title: cleanTitle, tier: "event", time: timePart, completed: ev.status === "completed" };
+    } else {
+      const projTasks = (this.tasks && this.tasks.projects || []).flatMap(p => p.tasks || []);
+      const allTasks = [...((this.tasks && this.tasks.focus) || []), ...((this.tasks && this.tasks.trivial) || []), ...projTasks];
+      const t = allTasks.find(x => String(x.id) === String(entityId));
+      if (!t) return;
+      const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
+      const tm = this.formatSnapshotTimeMarker(t, this.selectedDate);
+      entry = {
+        id: t.id,
+        type: "task",
+        title: cleanTitle,
+        tier: t.tier || "focus",
+        time: tm.timeBadge || "",
+        completed: t.status === "completed",
+        is_overdue: Boolean(tm.isOverdue)
+      };
+    }
+
+    this.dailyOrder.push(entry);
+    await this.saveDailyOrder();
+    if (typeof App !== "undefined" && App.haptic) App.haptic("light");
+    App.showToast(`Queued in Tasking Priority: ${entry.title}`);
+  },
+
   async clearDailyOrder() {
     if (!confirm("Clear your Daily Order execution list for today?")) return;
     this.dailyOrder = [];
@@ -1881,7 +1980,476 @@ const Dashboard = {
     App.showToast("Daily sequence reset.");
   },
 
+  /* --- v10.0 Lock-In Natural Language Snapshot Briefing --- */
+  async loadSnapshotBriefing() {
+    const targetDate = this.selectedDate;
+    const clientHour = new Date().getHours();
+    try {
+      const res = await fetch(`/api/snapshot/briefing?date=${targetDate}&hour=${clientHour}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (this.selectedDate !== targetDate) return;
+
+      this.isSnapshotLocked = Boolean(data.is_locked);
+      this.snapshotBriefing = data.briefing || null;
+      this.snapshotLockDate = targetDate;
+      try {
+        localStorage.setItem("pettr_snapshot_lock_" + targetDate, this.isSnapshotLocked ? "true" : "false");
+      } catch (_) {}
+      this.applySnapshotLockUI();
+    } catch (err) {
+      console.warn("Could not load snapshot briefing state:", err);
+    }
+  },
+
+  async lockInSnapshot() {
+    const targetDate = this.selectedDate;
+    const clientHour = new Date().getHours();
+    this.isSnapshotLocked = true;
+    this.isSnapshotRemarkLoading = true;
+    this.snapshotLockDate = targetDate;
+    try {
+      localStorage.setItem("pettr_snapshot_lock_" + targetDate, "true");
+    } catch (_) {}
+
+    // Transition immediately to keep UI responsive while saving & generating witty outlook
+    this.applySnapshotLockUI();
+    if (typeof App !== "undefined" && App.haptic) App.haptic("medium");
+
+    try {
+      await this.saveDailyOrder();
+      const res = await fetch("/api/snapshot/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: targetDate,
+          locked: true,
+          hour: clientHour,
+          refresh_remark: true
+        })
+      });
+      if (res.ok && this.selectedDate === targetDate) {
+        const data = await res.json();
+        this.isSnapshotLocked = Boolean(data.is_locked);
+        this.snapshotBriefing = data.briefing || this.snapshotBriefing;
+      }
+    } catch (err) {
+      console.warn("Snapshot lock-in request error:", err);
+    } finally {
+      if (this.selectedDate === targetDate) {
+        this.isSnapshotRemarkLoading = false;
+        this.applySnapshotLockUI();
+        App.showToast("Snapshot locked in! Focused briefing active.", 2500);
+      }
+    }
+  },
+
+  async unlockSnapshot() {
+    const targetDate = this.selectedDate;
+    this.isSnapshotLocked = false;
+    this.isSnapshotRemarkLoading = false;
+    this.snapshotLockDate = targetDate;
+    try {
+      localStorage.setItem("pettr_snapshot_lock_" + targetDate, "false");
+    } catch (_) {}
+    this.applySnapshotLockUI();
+    if (typeof App !== "undefined" && App.haptic) App.haptic("light");
+
+    try {
+      await fetch("/api/snapshot/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: targetDate,
+          locked: false,
+          hour: new Date().getHours()
+        })
+      });
+      App.showToast("Snapshot unlocked for editing.");
+    } catch (err) {
+      console.warn("Snapshot unlock error:", err);
+    }
+  },
+
+  async toggleLockIn() {
+    if (this.isSnapshotLocked) {
+      await this.unlockSnapshot();
+    } else {
+      await this.lockInSnapshot();
+    }
+  },
+
+  async refreshSnapshotRemark() {
+    if (!this.isSnapshotLocked || this.isSnapshotRemarkLoading) return;
+    const targetDate = this.selectedDate;
+    this.isSnapshotRemarkLoading = true;
+    this.renderLockedSnapshotView();
+    try {
+      const res = await fetch("/api/snapshot/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: targetDate,
+          locked: true,
+          hour: new Date().getHours(),
+          refresh_remark: true
+        })
+      });
+      if (res.ok && this.selectedDate === targetDate) {
+        const data = await res.json();
+        this.snapshotBriefing = data.briefing || this.snapshotBriefing;
+      }
+    } catch (err) {
+      console.warn("Failed refreshing outlook remark:", err);
+    } finally {
+      if (this.selectedDate === targetDate) {
+        this.isSnapshotRemarkLoading = false;
+        this.renderLockedSnapshotView();
+      }
+    }
+  },
+
+  applySnapshotLockUI() {
+    const showcase = document.getElementById("briefingShowcaseWindow");
+    const lockedPill = document.getElementById("snapshotLockedPill");
+    const lockBtn = document.getElementById("snapshotLockInBtn");
+    const unlockBtn = document.getElementById("snapshotUnlockBtn");
+    const focusBtn = document.getElementById("snapshotFocusBtn");
+    const dualLayout = document.getElementById("briefingDualLayout");
+    const lockedView = document.getElementById("snapshotLockedBriefingView");
+
+    const locked = Boolean(this.isSnapshotLocked);
+    if (showcase) showcase.classList.toggle("is-locked-in", locked);
+    if (lockedPill) lockedPill.style.display = locked ? "inline-flex" : "none";
+    if (lockBtn) lockBtn.style.display = locked ? "none" : "inline-flex";
+    if (unlockBtn) unlockBtn.style.display = locked ? "inline-flex" : "none";
+    if (focusBtn) focusBtn.style.display = locked ? "inline-flex" : "none";
+    if (dualLayout) dualLayout.style.display = locked ? "none" : "";
+    if (lockedView) {
+      lockedView.style.display = locked ? "flex" : "none";
+      if (locked) {
+        this.renderLockedSnapshotView();
+      }
+    }
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+  },
+
+  async toggleSnapshotItemStatus(entityType, entityId, isCompleted) {
+    if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+      App.showToast("Cannot modify locked historical records.", true);
+      this.renderLockedSnapshotView();
+      return;
+    }
+    this.syncLocalEntityStatus(entityType, entityId, isCompleted);
+    if (this.snapshotBriefing) {
+      const updateBucket = (arr) => {
+        if (!Array.isArray(arr)) return;
+        arr.forEach(x => {
+          if (String(x.id) === String(entityId) && (!x.type || x.type === entityType)) {
+            x.completed = Boolean(isCompleted);
+          }
+        });
+      };
+      updateBucket(this.snapshotBriefing.priority_queue);
+      if (entityType === "event") {
+        updateBucket(this.snapshotBriefing.events);
+      } else {
+        updateBucket(this.snapshotBriefing.focus_items);
+        updateBucket(this.snapshotBriefing.trivial_items);
+      }
+    }
+    this.renderLockedSnapshotView();
+    if (entityType === "event") {
+      await this.toggleEventStatus(entityId, isCompleted);
+    } else {
+      await this.toggleTaskStatus(entityId, isCompleted);
+    }
+  },
+
+  launchLockedFocusTask(taskId) {
+    if (typeof FocusCockpit === "undefined") return;
+    const projTasks = (this.tasks && this.tasks.projects || []).flatMap(p => p.tasks || []);
+    const allTasks = [...((this.tasks && this.tasks.focus) || []), ...((this.tasks && this.tasks.trivial) || []), ...projTasks];
+    let found = allTasks.find(t => String(t.id) === String(taskId));
+    if (!found && this.snapshotBriefing && Array.isArray(this.snapshotBriefing.priority_queue)) {
+      const q = this.snapshotBriefing.priority_queue.find(it => String(it.id) === String(taskId));
+      if (q) found = { id: q.id, title: q.title, tier: q.tier || "focus" };
+    }
+    FocusCockpit.open(found || null);
+  },
+
+  buildLocalSnapshotFallback() {
+    const focusAll = (this.tasks && this.tasks.focus) || [];
+    const trivialAll = (this.tasks && this.tasks.trivial) || [];
+    const projectsAll = (this.tasks && this.tasks.projects) || [];
+    const eventsAll = this.events || [];
+    const remindersAll = this.reminders || [];
+    const queue = this.dailyOrder || [];
+
+    const mapTask = (t) => {
+      const clean = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
+      const tm = this.formatSnapshotTimeMarker(t, this.selectedDate);
+      return {
+        id: t.id,
+        title: clean,
+        tier: t.tier || "focus",
+        completed: t.status === "completed",
+        is_overdue: Boolean(tm.isOverdue),
+        is_time_sensitive: Boolean(t.is_time_sensitive),
+        project_name: t.project_name || null,
+        time_label: tm.displayText || ""
+      };
+    };
+
+    const focus_items = focusAll.map(mapTask);
+    const trivial_items = trivialAll.map(mapTask);
+    const events = eventsAll.map(ev => ({
+      id: ev.id,
+      title: (ev.title || "").replace(/^\s*\[.*?\]\s*/, ''),
+      completed: ev.status === "completed",
+      time_label: ev.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(ev.start_time, ev.end_time) : App.formatMilitaryTime(ev.start_time)) : "Today",
+      project_name: ev.project_name || null
+    }));
+    const projects = projectsAll.map(p => {
+      const pts = p.tasks || [];
+      const done = pts.filter(x => x.status === "completed").length;
+      return { id: p.id, name: p.name, total_count: pts.length, completed_count: done, pending_count: pts.length - done };
+    });
+    const reminders = remindersAll.map(r => ({
+      id: r.id,
+      title: r.title,
+      details: r.details || "",
+      dismissed: Boolean(r.is_dismissed)
+    }));
+
+    const focusPending = focus_items.filter(x => !x.completed);
+    const trivialPending = trivial_items.filter(x => !x.completed);
+    const eventsPending = events.filter(x => !x.completed);
+    const remindersActive = reminders.filter(x => !x.dismissed);
+
+    const parts = [];
+    if (focusPending.length) parts.push(`${focusPending.length} focus task${focusPending.length === 1 ? '' : 's'}`);
+    if (trivialPending.length) parts.push(`${trivialPending.length} trivial errand${trivialPending.length === 1 ? '' : 's'}`);
+    if (eventsPending.length) parts.push(`${eventsPending.length} scheduled event${eventsPending.length === 1 ? '' : 's'}`);
+    if (projects.length) parts.push(`${projects.length} active project${projects.length === 1 ? '' : 's'}`);
+    if (remindersActive.length) parts.push(`${remindersActive.length} reminder${remindersActive.length === 1 ? '' : 's'}`);
+
+    const summary_narrative = parts.length
+      ? `You have ${parts.join(", ")} lined up.`
+      : "Your slate is clear right now with no pending items left.";
+
+    return {
+      date_iso: this.selectedDate,
+      summary_narrative,
+      remark: { text: "Locking in your plan cleanly — let momentum lead.", source: "curated" },
+      counts: {
+        focus_pending: focusPending.length,
+        focus_total: focus_items.length,
+        focus_overdue: focusPending.filter(x => x.is_overdue).length,
+        trivial_pending: trivialPending.length,
+        events_pending: eventsPending.length,
+        projects_total: projects.length,
+        reminders_active: remindersActive.length,
+        queued_total: queue.length,
+        queued_pending: queue.filter(x => !x.completed).length,
+        overdue_total: focusPending.filter(x => x.is_overdue).length + trivialPending.filter(x => x.is_overdue).length
+      },
+      priority_queue: queue.map(q => ({
+        id: q.id,
+        type: q.type || "task",
+        title: (q.title || "").replace(/^\s*\[.*?\]\s*/, ''),
+        tier: q.tier || "focus",
+        time: q.time || "",
+        completed: Boolean(q.completed),
+        is_overdue: Boolean(q.is_overdue || q.is_rolled_over)
+      })),
+      focus_items,
+      trivial_items,
+      events,
+      projects,
+      reminders
+    };
+  },
+
+  renderLockedSnapshotView() {
+    const container = document.getElementById("snapshotLockedBriefingView");
+    if (!container) return;
+
+    const b = this.snapshotBriefing || this.buildLocalSnapshotFallback();
+    const counts = b.counts || {};
+    const remarkObj = b.remark || {};
+    const remarkText = this.isSnapshotRemarkLoading
+      ? "Horace is sizing up your schedule..."
+      : (remarkObj.text || "Focus on one block at a time and finish strong.");
+    const remarkBadgeLabel = remarkObj.source === "llm" ? "Horace · Local LLM" : "Horace · Outlook";
+    const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
+
+    const queue = b.priority_queue || [];
+    const queueHtml = queue.length > 0 ? `
+      <div class="snapshot-section-card">
+        <div class="snapshot-section-heading">
+          <span style="display:flex; align-items:center; gap:7px;">
+            <i data-lucide="list-ordered" style="width:14px;height:14px;color:var(--focus-indigo);"></i>
+            Execution Sequence
+          </span>
+          <span class="stat-pill" style="padding:2px 8px; font-size:11px;">${counts.queued_pending || 0} remaining / ${queue.length} queued</span>
+        </div>
+        <div class="snapshot-queue-cards">
+          ${queue.map((it, idx) => {
+            const rank = String(idx + 1).padStart(2, "0");
+            const isDone = Boolean(it.completed);
+            const itype = it.type || "task";
+            const isOverdue = Boolean(it.is_overdue && !isDone);
+            return `
+              <div class="snapshot-queue-card ${isDone ? 'completed' : ''}">
+                <div class="snapshot-queue-card-left">
+                  <span class="slot-rank">#${rank}</span>
+                  <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
+                         onclick="event.stopPropagation()" onchange="Dashboard.toggleSnapshotItemStatus('${itype}', ${it.id}, this.checked)"
+                         title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
+                  <span class="snapshot-queue-card-title">${this.escapeHtml(it.title)}</span>
+                </div>
+                <div class="snapshot-queue-card-meta">
+                  ${isOverdue ? '<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">OVERDUE</span>' : ''}
+                  ${it.time ? `<span style="font-size:11px; font-family:var(--font-mono); color:${isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'};">${this.escapeHtml(it.time)}</span>` : ''}
+                  <span class="urgency-badge ${it.tier || 'normal'}" style="font-size:10px; padding:1px 6px;">${String(it.tier || itype).toUpperCase()}</span>
+                  ${(!isDone && itype === "task" && !isLockedDay) ? `<button type="button" class="action-icon-btn" style="padding:3px 8px; font-size:11px; color:var(--focus-indigo); font-weight:600;" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Focus Sprint on this task"><i data-lucide="play" style="width:11px;height:11px;"></i> Focus</button>` : ''}
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    ` : "";
+
+    const focusList = b.focus_items || [];
+    const eventsList = b.events || [];
+    const projectsList = b.projects || [];
+    const errandsList = b.trivial_items || [];
+    const remindersList = b.reminders || [];
+
+    container.innerHTML = `
+      <div class="snapshot-remark-banner" id="snapshotRemarkBanner">
+        <div class="snapshot-remark-body">
+          <div class="snapshot-remark-eyebrow">
+            <i data-lucide="sparkles" style="width:12px;height:12px;"></i>
+            <span>${this.escapeHtml(remarkBadgeLabel)}</span>
+          </div>
+          <div class="snapshot-remark-text ${this.isSnapshotRemarkLoading ? 'is-loading' : ''}" id="snapshotRemarkText">
+            "${this.escapeHtml(remarkText)}"
+          </div>
+        </div>
+        <button type="button" class="action-icon-btn" onclick="Dashboard.refreshSnapshotRemark()" title="Refresh witty remark" style="padding:5px 8px; flex-shrink:0;" ${this.isSnapshotRemarkLoading ? 'disabled' : ''}>
+          <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
+        </button>
+      </div>
+
+      <div class="snapshot-narrative-card">
+        <p class="snapshot-narrative-prose" id="snapshotNarrativeProse">${this.escapeHtml(b.summary_narrative || "")}</p>
+        <div class="snapshot-counts-ribbon">
+          <span class="snapshot-count-chip"><i data-lucide="crosshair" style="width:12px;height:12px;color:var(--focus-indigo);"></i> ${counts.focus_pending || 0} Focus${counts.focus_total ? ` / ${counts.focus_total}` : ''}</span>
+          <span class="snapshot-count-chip"><i data-lucide="check-square" style="width:12px;height:12px;color:var(--normal-green);"></i> ${counts.trivial_pending || 0} Errand${(counts.trivial_pending || 0) === 1 ? '' : 's'}</span>
+          <span class="snapshot-count-chip"><i data-lucide="calendar" style="width:12px;height:12px;color:var(--accent-blue);"></i> ${counts.events_pending || 0} Event${(counts.events_pending || 0) === 1 ? '' : 's'}</span>
+          <span class="snapshot-count-chip"><i data-lucide="folder" style="width:12px;height:12px;color:var(--recurrence-purple);"></i> ${counts.projects_total || 0} Project${(counts.projects_total || 0) === 1 ? '' : 's'}</span>
+          <span class="snapshot-count-chip"><i data-lucide="bell" style="width:12px;height:12px;color:var(--accent-cyan);"></i> ${counts.reminders_active || 0} Reminder${(counts.reminders_active || 0) === 1 ? '' : 's'}</span>
+          ${(counts.overdue_total || 0) > 0 ? `<span class="snapshot-count-chip" style="border-color: rgba(255,69,0,0.35); color: var(--urgent-orange);"><i data-lucide="alert-circle" style="width:12px;height:12px;"></i> ${counts.overdue_total} Overdue</span>` : ''}
+        </div>
+      </div>
+
+      ${queueHtml}
+
+      <div class="snapshot-details-grid">
+        <div class="snapshot-section-card">
+          <div class="snapshot-section-heading">
+            <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="crosshair" style="width:13px;height:13px;color:var(--focus-indigo);"></i> Focus &amp; Active Projects</span>
+          </div>
+          <div class="snapshot-detail-list">
+            ${focusList.length === 0 ? '<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No focus tasks scheduled for this view.</div>' : focusList.map(t => `
+              <div class="snapshot-detail-row ${t.completed ? 'completed' : ''}">
+                <span style="display:flex; align-items:center; gap:6px; min-width:0; flex:1;">
+                  <span>${this.escapeHtml(t.title)}</span>
+                  ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10px;">${this.escapeHtml(t.project_name)}</span>` : ''}
+                  ${(t.is_time_sensitive && !t.completed) ? '<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡</span>' : ''}
+                </span>
+                <span style="font-size:11px; font-family:var(--font-mono); color:${(t.is_overdue && !t.completed) ? 'var(--urgent-orange)' : 'var(--text-muted)'}; white-space:nowrap;">
+                  ${this.escapeHtml(t.time_label || (t.is_overdue && !t.completed ? 'OVERDUE' : ''))}
+                </span>
+              </div>
+            `).join("")}
+            ${projectsList.length > 0 ? `
+              <div style="margin-top:6px; padding-top:8px; border-top:1px dashed var(--card-border); display:flex; flex-direction:column; gap:5px;">
+                <div style="font-size:11px; font-weight:700; color:var(--text-muted);">Projects Active Today</div>
+                ${projectsList.map(p => `
+                  <div class="snapshot-detail-row">
+                    <span style="font-weight:600;">${this.escapeHtml(p.name)}</span>
+                    <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${p.completed_count}/${p.total_count} done</span>
+                  </div>
+                `).join("")}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <div class="snapshot-section-card">
+          <div class="snapshot-section-heading">
+            <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="calendar" style="width:13px;height:13px;color:var(--accent-blue);"></i> Events, Errands &amp; Reminders</span>
+          </div>
+          <div class="snapshot-detail-list">
+            ${eventsList.map(e => `
+              <div class="snapshot-detail-row ${e.completed ? 'completed' : ''}">
+                <span style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:10.5px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:1px 6px; border-radius:4px; font-weight:700;">${this.escapeHtml(e.time_label)}</span>
+                  <span>${this.escapeHtml(e.title)}</span>
+                </span>
+                ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+              </div>
+            `).join("")}
+            ${errandsList.map(t => `
+              <div class="snapshot-detail-row ${t.completed ? 'completed' : ''}">
+                <span>⚡ ${this.escapeHtml(t.title)}</span>
+                ${t.time_label ? `<span style="font-size:11px; font-family:var(--font-mono); color:${(t.is_overdue && !t.completed) ? 'var(--urgent-orange)' : 'var(--text-muted)'};">${this.escapeHtml(t.time_label)}</span>` : ''}
+              </div>
+            `).join("")}
+            ${remindersList.map(r => `
+              <div class="snapshot-detail-row ${r.dismissed ? 'completed' : ''}">
+                <span>• ${this.escapeHtml(r.title)}${r.details ? ` — <span style="color:var(--text-muted);">${this.escapeHtml(r.details)}</span>` : ''}</span>
+              </div>
+            `).join("")}
+            ${(eventsList.length === 0 && errandsList.length === 0 && remindersList.length === 0) ? '<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No events, errands, or reminders scheduled today.</div>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+  },
+
   async copyBriefingMarkdown() {
+    if (this.isSnapshotLocked && this.snapshotBriefing && this.snapshotBriefing.copy_text) {
+      let ok = false;
+      const lockedText = this.snapshotBriefing.copy_text;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(lockedText);
+          ok = true;
+        } catch (e) {}
+      }
+      if (!ok) {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = lockedText;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          ok = document.execCommand("copy");
+          ta.remove();
+        } catch (e) {}
+      }
+      App.showToast(ok ? "Locked-In Snapshot copied to clipboard!" : "Failed to copy brief to clipboard.", !ok);
+      return;
+    }
+
     let text = (this.briefingMarkdown && this.briefingMarkdown !== "Loading executive brief...") ? this.briefingMarkdown : "";
     if (!text) {
       const el = document.getElementById("briefingRichContent");

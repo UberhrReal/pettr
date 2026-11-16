@@ -1159,12 +1159,6 @@ const App = {
       return dismiss();
     }
 
-    const simplifiedOverlay = document.getElementById("simplifiedModeOverlay");
-    if (simplifiedOverlay && simplifiedOverlay.style.display !== "none" && typeof SimplifiedMode !== "undefined") {
-      SimplifiedMode.close();
-      return dismiss();
-    }
-
     const themeDrawer = document.getElementById("themeSliderDrawer");
     if (themeDrawer && themeDrawer.style.display !== "none") {
       this.closeThemeSlider();

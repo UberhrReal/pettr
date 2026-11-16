@@ -852,6 +852,122 @@ def get_daily_intel(target_date: Optional[datetime.date] = None,
         "source": "curated"
     }
 
+def get_curated_snapshot_remark(counts: Dict[str, Any],
+                                target_date: Optional[datetime.date] = None,
+                                user_name: str = "User",
+                                client_hour: Optional[int] = None) -> str:
+    """Returns a factual, tongue-in-cheek curated remark tuned cleanly to actual workload & hour."""
+    focus_pending = int(counts.get("focus_pending", 0) or 0)
+    trivial_pending = int(counts.get("trivial_pending", 0) or 0)
+    events_pending = int(counts.get("events_pending", 0) or 0)
+    overdue_total = int(counts.get("overdue_total", 0) or 0)
+    total_pending = int(counts.get("total_pending", 0) or 0)
+    total_completed = int(counts.get("total_completed", 0) or 0)
+    hour = (client_hour % 24) if client_hour is not None else datetime.datetime.now().hour
+
+    if total_pending == 0 and total_completed > 0:
+        return f"Clean sweep, {user_name}: every task on today's ledger is struck through. Even Horace has nothing left to nag about."
+    if total_pending == 0:
+        return f"An empty runway for once, {user_name} — savour the stillness before tomorrow's chaos files a ticket."
+    if overdue_total >= 3:
+        return f"You've got {overdue_total} overdue items glaring from yesterday — deep breath, pick #01, and shrink that debt."
+    if overdue_total > 0 and focus_pending >= 3:
+        return f"Moderate turbulence ahead: {focus_pending} deep-work blocks and {overdue_total} overdue carry-over{'s' if overdue_total != 1 else ''}. Tea helps."
+    if events_pending >= 3:
+        return f"{events_pending} calendar commitments competing for your oxygen today — guard the gaps between them."
+    if focus_pending >= 4:
+        return f"A proper heavy-lift slate ({focus_pending} focus tasks). Less fiddling with the dashboard, more chipping at #01."
+    if trivial_pending > focus_pending and trivial_pending >= 3:
+        return f"Heavy on the admin errands ({trivial_pending}) today — knock the quick wins down like dominoes."
+    if hour < 6 or hour >= 23:
+        return f"Quiet hours lock-in, {user_name}: minimal noise, maximum runway, just don't stare at the clock till dawn."
+    if hour >= 18:
+        return f"Evening lock-in active: finish what actually matters tonight, then wrap the rest cleanly in Debrief."
+    return f"Tidy, winnable slate ahead, {user_name} — follow the queue top-to-bottom and let momentum do the rest."
+
+
+async def generate_snapshot_witty_remark(briefing: Dict[str, Any],
+                                         target_date: datetime.date,
+                                         user_name: str = "User",
+                                         client_hour: Optional[int] = None,
+                                         timeout_seconds: float = 9.0) -> Dict[str, str]:
+    """
+    Uses the configured local LLM (Ollama) strictly to write a short, fun, witty remark
+    about the day's factual outlook — falling back instantaneously to curated quips if offline.
+    """
+    counts = briefing.get("counts") or {}
+    fallback = get_curated_snapshot_remark(counts, target_date=target_date, user_name=user_name, client_hour=client_hour)
+
+    try:
+        from config.config import get_ollama_candidate_urls
+        candidate_urls = get_ollama_candidate_urls()
+    except Exception:
+        candidate_urls = ["http://localhost:11434", "http://127.0.0.1:11434"]
+
+    config = get_or_create_config()
+    target_model = os.environ.get("OLLAMA_MODEL") or config.get("ollama_model") or config.get("active_llm") or "llama3.2:3b"
+
+    hour = (client_hour % 24) if client_hour is not None else datetime.datetime.now().hour
+    period = get_diurnal_period(hour)
+    top_titles = [it.get("title", "") for it in (briefing.get("priority_queue") or [])[:3] if it.get("title")]
+    queue_hint = ", ".join(top_titles) if top_titles else "none queued yet"
+
+    system_prompt = (
+        "You are Horace, the wry, warm, lightly sarcastic local server companion inside PETTR. "
+        "Use British English spelling (prioritise, organise, colour, savour, favour). "
+        "CRITICAL ANTI-HALLUCINATION RULE: Respond ONLY with a single short witty observation (1 to 2 sentences, max 35 words) "
+        "reacting to the EXACT counts provided below. Do NOT invent, guess, or add any task names, clock times, meetings, or deadlines "
+        "that were not explicitly provided."
+    )
+    user_prompt = (
+        f"Date: {target_date.strftime('%A, %d %b %Y')} ({period}). User: {user_name}.\n"
+        f"Factual workload counts:\n"
+        f"- Focus tasks pending: {counts.get('focus_pending', 0)} (overdue: {counts.get('focus_overdue', 0)})\n"
+        f"- Trivial errands pending: {counts.get('trivial_pending', 0)}\n"
+        f"- Scheduled events upcoming: {counts.get('events_pending', 0)}\n"
+        f"- Active projects today: {counts.get('projects_total', 0)}\n"
+        f"- Active reminders: {counts.get('reminders_active', 0)}\n"
+        f"- Top priority queue items: {queue_hint}\n\n"
+        "Write one punchy, fun, slightly sarcastic remark (1-2 sentences, max 35 words, plain text, no quotes or hashtags)."
+    )
+
+    for ollama_url in candidate_urls:
+        try:
+            model_name = target_model
+            async with httpx.AsyncClient(timeout=httpx.Timeout(2.5, connect=1.5)) as probe_client:
+                tags_resp = await probe_client.get(f"{ollama_url}/api/tags")
+                if tags_resp.status_code != 200:
+                    continue
+                tags_data = tags_resp.json()
+                available_models = [m.get("name") for m in tags_data.get("models", []) if m.get("name")]
+                if available_models and model_name not in available_models and not any(model_name in am for am in available_models):
+                    model_name = available_models[0]
+
+            payload = {
+                "model": model_name,
+                "prompt": user_prompt,
+                "system": system_prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.8,
+                    "num_predict": 90
+                }
+            }
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_seconds, connect=2.5)) as client:
+                resp = await client.post(f"{ollama_url}/api/generate", json=payload)
+                if resp.status_code == 200:
+                    text = (resp.json().get("response") or "").strip()
+                    text = text.strip('"\' ').replace("\n", " ")
+                    while "  " in text:
+                        text = text.replace("  ", " ")
+                    if 12 <= len(text) <= 280:
+                        return {"text": text, "source": "llm", "model": model_name}
+        except Exception as e:
+            logger.debug(f"Snapshot remark LLM skip on {ollama_url}: {e}")
+            continue
+
+    return {"text": fallback, "source": "curated", "model": "procedural"}
+
 async def midnight_typewriter_scheduler_loop():
     """
     Background daemon loop that triggers at midnight (00:00:05) every day.

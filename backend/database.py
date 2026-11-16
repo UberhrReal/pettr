@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import random
+import re
 import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -43,6 +44,19 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         );
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_chat_created ON llm_chat_messages(created_at);")
+    except Exception:
+        pass
+    try:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS snapshot_locks (
+            date TEXT PRIMARY KEY,
+            is_locked INTEGER DEFAULT 0,
+            llm_remark TEXT,
+            remark_source TEXT DEFAULT 'curated',
+            locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
     except Exception:
         pass
     try:
@@ -175,6 +189,15 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
         CREATE TABLE IF NOT EXISTS daily_orders (
             date TEXT PRIMARY KEY,
             order_data TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS snapshot_locks (
+            date TEXT PRIMARY KEY,
+            is_locked INTEGER DEFAULT 0,
+            llm_remark TEXT,
+            remark_source TEXT DEFAULT 'curated',
+            locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -2298,6 +2321,356 @@ def save_daily_order(date_str: str, order_data: List[Dict[str, Any]], db_path: O
             ON CONFLICT(date) DO UPDATE SET order_data = excluded.order_data, updated_at = CURRENT_TIMESTAMP
         """, (date_str, data_json))
     return filtered_data
+
+def _ensure_snapshot_locks_table(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS snapshot_locks (
+            date TEXT PRIMARY KEY,
+            is_locked INTEGER DEFAULT 0,
+            llm_remark TEXT,
+            remark_source TEXT DEFAULT 'curated',
+            locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+def get_snapshot_lock(date_str: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Returns lock-in status and cached remark for a date."""
+    conn = get_connection(db_path)
+    _ensure_snapshot_locks_table(conn)
+    row = conn.execute(
+        "SELECT date, is_locked, llm_remark, remark_source, locked_at FROM snapshot_locks WHERE date = ?",
+        (date_str,),
+    ).fetchone()
+    if not row:
+        return {"date": date_str, "is_locked": False, "llm_remark": None, "remark_source": "curated", "locked_at": None}
+    return {
+        "date": row["date"],
+        "is_locked": bool(row["is_locked"]),
+        "llm_remark": row["llm_remark"],
+        "remark_source": row["remark_source"] or "curated",
+        "locked_at": row["locked_at"],
+    }
+
+def set_snapshot_lock(date_str: str,
+                      is_locked: bool,
+                      llm_remark: Optional[str] = None,
+                      remark_source: str = "curated",
+                      db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """Persists Snapshot Lock-In state for date_str across devices."""
+    conn = get_connection(db_path)
+    _ensure_snapshot_locks_table(conn)
+    with conn:
+        if is_locked:
+            conn.execute("""
+                INSERT INTO snapshot_locks (date, is_locked, llm_remark, remark_source, locked_at, updated_at)
+                VALUES (?, 1, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT(date) DO UPDATE SET
+                    is_locked = 1,
+                    llm_remark = COALESCE(excluded.llm_remark, snapshot_locks.llm_remark),
+                    remark_source = CASE WHEN excluded.llm_remark IS NOT NULL THEN excluded.remark_source ELSE snapshot_locks.remark_source END,
+                    locked_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (date_str, llm_remark, remark_source))
+        else:
+            conn.execute("""
+                INSERT INTO snapshot_locks (date, is_locked, updated_at)
+                VALUES (?, 0, CURRENT_TIMESTAMP)
+                ON CONFLICT(date) DO UPDATE SET is_locked = 0, updated_at = CURRENT_TIMESTAMP
+            """, (date_str,))
+    return get_snapshot_lock(date_str, db_path=db_path)
+
+def _clean_snapshot_title(raw_title: Optional[str]) -> str:
+    return re.sub(r"^\s*\[.*?\]\s*", "", str(raw_title or "")).strip() or "Untitled item"
+
+def _join_natural_phrases(parts: List[str]) -> str:
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return f"{parts[0]} and {parts[1]}"
+    return ", ".join(parts[:-1]) + f", and {parts[-1]}"
+
+def _summarize_snapshot_task_row(row: Dict[str, Any], target_date: datetime.date) -> Dict[str, Any]:
+    is_done = row.get("status") == "completed"
+    due_raw = row.get("due_date") or row.get("due_date_raw")
+    mil = format_military_time(due_raw)
+    due_day = str(due_raw).split("T")[0].split(" ")[0] if due_raw else ""
+    is_overdue = bool(not is_done and (row.get("is_overdue") or row.get("is_rolled_over") or (due_day and due_day < target_date.isoformat())))
+    time_label = ""
+    if is_overdue and due_day:
+        try:
+            task_d = datetime.date.fromisoformat(due_day)
+            diff = (target_date - task_d).days
+            rel = "Yesterday" if diff == 1 else task_d.strftime("%d %b")
+            time_label = f"{rel} @ {mil}" if mil else f"Due {rel}"
+        except Exception:
+            time_label = f"Due {due_day}"
+    elif mil:
+        time_label = f"@ {mil}"
+    elif is_overdue:
+        time_label = "Overdue"
+
+    return {
+        "id": row.get("id"),
+        "title": _clean_snapshot_title(row.get("title")),
+        "tier": row.get("tier") or "focus",
+        "completed": is_done,
+        "is_overdue": is_overdue,
+        "is_time_sensitive": bool(row.get("is_time_sensitive")),
+        "project_name": row.get("project_name"),
+        "time_label": time_label,
+        "recurrence": row.get("recurrence"),
+    }
+
+def build_procedural_snapshot_briefing(target_date: Optional[datetime.date] = None,
+                                       today_date: Optional[datetime.date] = None,
+                                       db_path: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Procedurally builds a structured, zero-hallucination natural-language Snapshot briefing
+    summarising exact upcoming task/event/project/reminder counts and Tasking Priority order.
+    """
+    eff_today = today_date or datetime.date.today()
+    if target_date is None:
+        target_date = eff_today
+    date_str = target_date.strftime("%Y-%m-%d")
+
+    tasks_data = get_tasks_for_day(target_date, db_path=db_path, today_date=eff_today)
+    events_raw = get_events_for_day(target_date, db_path=db_path)
+    reminders_raw = get_reminders_for_day(target_date, db_path=db_path)
+    daily_order = get_daily_order(date_str, db_path=db_path, today_date=eff_today)
+
+    focus_items = [_summarize_snapshot_task_row(t, target_date) for t in (tasks_data.get("focus") or [])]
+    trivial_items = [_summarize_snapshot_task_row(t, target_date) for t in (tasks_data.get("trivial") or [])]
+
+    events_items = []
+    for ev in events_raw:
+        s_mil = format_military_time(ev.get("start_time")) or "Today"
+        e_mil = format_military_time(ev.get("end_time")) if ev.get("end_time") else ""
+        time_span = f"{s_mil}–{e_mil}" if (s_mil != "Today" and e_mil) else s_mil
+        events_items.append({
+            "id": ev.get("id"),
+            "title": _clean_snapshot_title(ev.get("title")),
+            "completed": ev.get("status") == "completed",
+            "time_label": time_span,
+            "project_name": ev.get("project_name"),
+        })
+
+    projects_items = []
+    for pr in (tasks_data.get("projects") or []):
+        pr_tasks = pr.get("tasks") or []
+        done_cnt = sum(1 for pt in pr_tasks if pt.get("status") == "completed")
+        total_cnt = len(pr_tasks)
+        projects_items.append({
+            "id": pr.get("id"),
+            "name": pr.get("name") or "Untitled Project",
+            "pending_count": total_cnt - done_cnt,
+            "completed_count": done_cnt,
+            "total_count": total_cnt,
+            "color": pr.get("color"),
+        })
+
+    reminders_items = [
+        {
+            "id": r.get("id"),
+            "title": _clean_snapshot_title(r.get("title")),
+            "details": (r.get("details") or "").strip(),
+            "dismissed": bool(r.get("is_dismissed")),
+            "time_label": format_military_time(r.get("reminder_date")),
+        }
+        for r in reminders_raw
+    ]
+
+    queued_items = []
+    queued_id_types = set()
+    for it in daily_order:
+        itype = it.get("type") or "task"
+        iid = it.get("id")
+        queued_id_types.add((itype, str(iid)))
+        queued_items.append({
+            "id": iid,
+            "type": itype,
+            "title": _clean_snapshot_title(it.get("title")),
+            "tier": it.get("tier") or ("event" if itype == "event" else "focus"),
+            "time": it.get("time") or "",
+            "completed": bool(it.get("completed")),
+            "is_overdue": bool(it.get("is_overdue") or it.get("is_rolled_over")),
+        })
+
+    # Attach queued marker onto lists cleanly
+    for f_it in focus_items:
+        f_it["in_sequence"] = ("task", str(f_it["id"])) in queued_id_types
+    for t_it in trivial_items:
+        t_it["in_sequence"] = ("task", str(t_it["id"])) in queued_id_types
+    for e_it in events_items:
+        e_it["in_sequence"] = ("event", str(e_it["id"])) in queued_id_types
+
+    focus_pending = [x for x in focus_items if not x["completed"]]
+    trivial_pending = [x for x in trivial_items if not x["completed"]]
+    events_pending = [x for x in events_items if not x["completed"]]
+    reminders_active = [x for x in reminders_items if not x["dismissed"]]
+    queued_pending = [x for x in queued_items if not x["completed"]]
+
+    focus_overdue = sum(1 for x in focus_pending if x["is_overdue"])
+    trivial_overdue = sum(1 for x in trivial_pending if x["is_overdue"])
+    time_sensitive_count = sum(1 for x in (focus_pending + trivial_pending) if x["is_time_sensitive"])
+
+    counts = {
+        "focus_total": len(focus_items),
+        "focus_pending": len(focus_pending),
+        "focus_completed": len(focus_items) - len(focus_pending),
+        "focus_overdue": focus_overdue,
+        "trivial_total": len(trivial_items),
+        "trivial_pending": len(trivial_pending),
+        "trivial_completed": len(trivial_items) - len(trivial_pending),
+        "trivial_overdue": trivial_overdue,
+        "events_total": len(events_items),
+        "events_pending": len(events_pending),
+        "projects_total": len(projects_items),
+        "projects_pending": sum(1 for p in projects_items if p["pending_count"] > 0),
+        "reminders_total": len(reminders_items),
+        "reminders_active": len(reminders_active),
+        "queued_total": len(queued_items),
+        "queued_pending": len(queued_pending),
+        "overdue_total": focus_overdue + trivial_overdue,
+        "time_sensitive_count": time_sensitive_count,
+        "total_items": len(focus_items) + len(trivial_items) + len(events_items),
+        "total_pending": len(focus_pending) + len(trivial_pending) + len(events_pending),
+        "total_completed": (len(focus_items) - len(focus_pending)) + (len(trivial_items) - len(trivial_pending)) + (len(events_items) - len(events_pending)),
+    }
+
+    # Natural language summary paragraph (100% factual & procedural)
+    delta_days = (target_date - eff_today).days
+    if delta_days == 0:
+        day_intro = f"Today ({target_date.strftime('%A, %d %b')})"
+    elif delta_days == 1:
+        day_intro = f"Tomorrow ({target_date.strftime('%A, %d %b')})"
+    elif delta_days == -1:
+        day_intro = f"Yesterday ({target_date.strftime('%A, %d %b')})"
+    else:
+        day_intro = f"For {target_date.strftime('%A, %d %b %Y')}"
+
+    upcoming_phrases = []
+    if counts["focus_pending"] > 0:
+        ov_note = f" ({counts['focus_overdue']} overdue)" if counts["focus_overdue"] > 0 else ""
+        n = counts["focus_pending"]
+        upcoming_phrases.append(f"{n} focus task{'s' if n != 1 else ''}{ov_note}")
+    if counts["trivial_pending"] > 0:
+        n = counts["trivial_pending"]
+        upcoming_phrases.append(f"{n} trivial errand{'s' if n != 1 else ''}")
+    if counts["events_pending"] > 0:
+        n = counts["events_pending"]
+        upcoming_phrases.append(f"{n} scheduled event{'s' if n != 1 else ''}")
+    if counts["projects_total"] > 0:
+        n = counts["projects_total"]
+        upcoming_phrases.append(f"{n} active project{'s' if n != 1 else ''}")
+    if counts["reminders_active"] > 0:
+        n = counts["reminders_active"]
+        upcoming_phrases.append(f"{n} reminder{'s' if n != 1 else ''}")
+
+    sentences = []
+    if upcoming_phrases:
+        sentences.append(f"{day_intro}, you have {_join_natural_phrases(upcoming_phrases)} lined up.")
+    elif counts["total_completed"] > 0:
+        done_n = counts["total_completed"]
+        sentences.append(f"{day_intro}, all {done_n} scheduled item{'s are' if done_n != 1 else ' is'} completed cleanly.")
+    else:
+        sentences.append(f"{day_intro}, your slate is currently open with no pending tasks, events, or reminders scheduled.")
+
+    if events_pending:
+        first_ev = events_pending[0]
+        if len(events_pending) == 1:
+            sentences.append(f"Your scheduled commitment is \"{first_ev['title']}\" ({first_ev['time_label']}).")
+        else:
+            sentences.append(f"First on the calendar is \"{first_ev['title']}\" ({first_ev['time_label']}), with {len(events_pending) - 1} more later.")
+
+    if queued_items:
+        q_rem = len(queued_pending)
+        if q_rem > 0:
+            head_title = queued_pending[0]["title"]
+            sentences.append(
+                f"Tasking Priority has {q_rem} pending item{'s' if q_rem != 1 else ''} locked in sequence, starting with #{1:02d} \"{head_title}\"."
+            )
+        else:
+            sentences.append(f"All {len(queued_items)} item{'s' if len(queued_items) != 1 else ''} in your Tasking Priority sequence are ticked off.")
+    elif counts["total_pending"] > 0:
+        sentences.append("No tasks are currently pinned into Tasking Priority, so items remain ordered by category priority.")
+
+    if counts["time_sensitive_count"] > 0:
+        ts_n = counts["time_sensitive_count"]
+        sentences.append(f"{ts_n} item{'s carry' if ts_n != 1 else ' carries'} an urgent Time Sensitive flag.")
+
+    summary_narrative = " ".join(sentences)
+    briefing = {
+        "date_iso": date_str,
+        "date_display": target_date.strftime("%A, %d %B %Y"),
+        "day_intro": day_intro,
+        "summary_narrative": summary_narrative,
+        "counts": counts,
+        "priority_queue": queued_items,
+        "focus_items": focus_items,
+        "trivial_items": trivial_items,
+        "events": events_items,
+        "projects": projects_items,
+        "reminders": reminders_items,
+    }
+    briefing["copy_text"] = format_locked_snapshot_copy_text(briefing)
+    return briefing
+
+def format_locked_snapshot_copy_text(briefing: Dict[str, Any], remark_text: Optional[str] = None) -> str:
+    """Renders clean plain-text / markdown copy output from a procedural Snapshot briefing."""
+    counts = briefing.get("counts") or {}
+    lines = [
+        f"PETTR SNAPSHOT — {briefing.get('date_display', briefing.get('date_iso', ''))}",
+        "=" * 52,
+        briefing.get("summary_narrative", ""),
+    ]
+    if remark_text:
+        lines.extend(["", f"Outlook Note: \"{remark_text}\""])
+
+    queue = briefing.get("priority_queue") or []
+    if queue:
+        lines.append(f"\nTASKING PRIORITY ({counts.get('queued_pending', 0)} remaining / {len(queue)} total)")
+        for idx, it in enumerate(queue, 1):
+            box = "[x]" if it.get("completed") else "[ ]"
+            meta = []
+            if it.get("is_overdue") and not it.get("completed"):
+                meta.append("OVERDUE")
+            if it.get("time"):
+                meta.append(it["time"])
+            suffix = f" ({' · '.join(meta)})" if meta else ""
+            lines.append(f"  {idx:02d}. {box} {it.get('title')}{suffix}")
+
+    focus = [x for x in (briefing.get("focus_items") or []) if not x.get("completed")]
+    if focus:
+        lines.append(f"\nFOCUS TASKS ({len(focus)} upcoming)")
+        for it in focus:
+            meta = [x for x in [it.get("project_name"), it.get("time_label")] if x]
+            suffix = f" ({' · '.join(meta)})" if meta else ""
+            lines.append(f"  - {it['title']}{suffix}")
+
+    events = [x for x in (briefing.get("events") or []) if not x.get("completed")]
+    if events:
+        lines.append(f"\nSCHEDULED EVENTS ({len(events)})")
+        for it in events:
+            proj = f" [{it['project_name']}]" if it.get("project_name") else ""
+            lines.append(f"  - {it['time_label']} : {it['title']}{proj}")
+
+    errands = [x for x in (briefing.get("trivial_items") or []) if not x.get("completed")]
+    if errands:
+        lines.append(f"\nTRIVIAL ERRANDS ({len(errands)} upcoming)")
+        for it in errands:
+            lines.append(f"  - {it['title']}" + (f" ({it['time_label']})" if it.get("time_label") else ""))
+
+    reminders = [x for x in (briefing.get("reminders") or []) if not x.get("dismissed")]
+    if reminders:
+        lines.append(f"\nREMINDERS ({len(reminders)})")
+        for r in reminders:
+            detail = f" — {r['details']}" if r.get("details") else ""
+            lines.append(f"  • {r['title']}{detail}")
+
+    return "\n".join(lines)
 
 def get_daily_typewriter_cache(date_str: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     conn = get_connection(db_path)
