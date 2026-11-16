@@ -2112,6 +2112,7 @@ const Dashboard = {
   applySnapshotLockUI() {
     const showcase = document.getElementById("briefingShowcaseWindow");
     const lockedPill = document.getElementById("snapshotLockedPill");
+    const headerRemark = document.getElementById("snapshotHeaderRemark");
     const lockBtn = document.getElementById("snapshotLockInBtn");
     const unlockBtn = document.getElementById("snapshotUnlockBtn");
     const focusBtn = document.getElementById("snapshotFocusBtn");
@@ -2121,6 +2122,7 @@ const Dashboard = {
     const locked = Boolean(this.isSnapshotLocked);
     if (showcase) showcase.classList.toggle("is-locked-in", locked);
     if (lockedPill) lockedPill.style.display = locked ? "inline-flex" : "none";
+    if (headerRemark) headerRemark.style.display = locked ? "flex" : "none";
     if (lockBtn) lockBtn.style.display = locked ? "none" : "inline-flex";
     if (unlockBtn) unlockBtn.style.display = locked ? "inline-flex" : "none";
     if (focusBtn) focusBtn.style.display = locked ? "inline-flex" : "none";
@@ -2271,6 +2273,55 @@ const Dashboard = {
     };
   },
 
+  buildHighlightedNarrativeHtml(b) {
+    const raw = (b && b.summary_narrative) ? String(b.summary_narrative) : "";
+    if (!raw) return "";
+
+    const tokenRegex = new RegExp(
+      [
+        // 1: Opening day/date phrase
+        "(^(?:Today|Tomorrow|Yesterday|For)\\s+(?:\\([^)]+\\)|[A-Za-z]+,\\s+\\d+\\s+[A-Za-z]+\\s+\\d{4}))",
+        // 2: Quoted item title (with optional #NN rank prefix)
+        "((?:#\\d+\\s+)?\"[^\"]+\")",
+        // 3: Overdue / Time Sensitive urgent markers
+        "(\\(\\d+\\s+overdue\\)|\\b\\d+\\s+items?\\s+(?:carry|carries)\\s+an?\\s+urgent\\s+Time\\s+Sensitive\\s+flag\\b|\\bTime\\s+Sensitive\\b)",
+        // 4: Key numerical category counts & completion statements
+        "(\\b\\d+\\s+(?:focus\\s+tasks?|trivial\\s+errands?|scheduled\\s+events?|active\\s+projects?|reminders?|pending\\s+items?|scheduled\\s+items?|items?\\s+in\\s+your\\s+Tasking\\s+Priority\\s+sequence)\\b|\\bcompleted\\s+cleanly\\b|\\bcurrently\\s+open\\b)",
+        // 5: Parenthesized 24h event times
+        "(\\(\\d{2}:\\d{2}(?:\\s*[-\\u2013\\u2014]\\s*\\d{2}:\\d{2})?\\))"
+      ].join("|"),
+      "g"
+    );
+
+    let out = "";
+    let lastIdx = 0;
+    let match;
+    while ((match = tokenRegex.exec(raw)) !== null) {
+      if (match.index > lastIdx) {
+        out += this.escapeHtml(raw.slice(lastIdx, match.index));
+      }
+      const esc = this.escapeHtml(match[0]);
+      if (match[1]) {
+        out += `<span class="snapshot-hl-day">${esc}</span>`;
+      } else if (match[2]) {
+        out += `<strong class="snapshot-hl-title">${esc}</strong>`;
+      } else if (match[3]) {
+        out += `<span class="snapshot-hl-alert">${esc}</span>`;
+      } else if (match[4]) {
+        out += `<span class="snapshot-hl-count">${esc}</span>`;
+      } else if (match[5]) {
+        out += `<span class="snapshot-hl-time font-mono">${esc}</span>`;
+      } else {
+        out += esc;
+      }
+      lastIdx = tokenRegex.lastIndex;
+    }
+    if (lastIdx < raw.length) {
+      out += this.escapeHtml(raw.slice(lastIdx));
+    }
+    return out;
+  },
+
   renderLockedSnapshotView() {
     const container = document.getElementById("snapshotLockedBriefingView");
     if (!container) return;
@@ -2281,16 +2332,35 @@ const Dashboard = {
     const remarkText = this.isSnapshotRemarkLoading
       ? "Horace is sizing up your schedule..."
       : (remarkObj.text || "One deliberate step at a time.");
-    const remarkBadgeLabel = remarkObj.source === "llm" ? "Horace · Local LLM" : "Horace";
     const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
 
-    const metricParts = [];
-    metricParts.push(`${counts.focus_pending || 0} Focus`);
-    if ((counts.overdue_total || 0) > 0) metricParts.push(`${counts.overdue_total} Overdue`);
-    metricParts.push(`${counts.trivial_pending || 0} Errand${(counts.trivial_pending || 0) === 1 ? "" : "s"}`);
-    metricParts.push(`${counts.events_pending || 0} Event${(counts.events_pending || 0) === 1 ? "" : "s"}`);
-    if ((counts.projects_total || 0) > 0) metricParts.push(`${counts.projects_total} Project${counts.projects_total === 1 ? "" : "s"}`);
-    if ((counts.reminders_active || 0) > 0) metricParts.push(`${counts.reminders_active} Reminder${counts.reminders_active === 1 ? "" : "s"}`);
+    // Populate Horace remark smoothly inside the briefing window header
+    const headerRemarkEl = document.getElementById("snapshotHeaderRemark");
+    const headerRemarkTextEl = document.getElementById("snapshotHeaderRemarkText");
+    if (headerRemarkTextEl) {
+      headerRemarkTextEl.textContent = `"${remarkText}"`;
+      headerRemarkTextEl.classList.toggle("is-loading", Boolean(this.isSnapshotRemarkLoading));
+      headerRemarkTextEl.title = remarkObj.source === "llm" ? "Horace · Local LLM" : "Horace";
+    }
+    if (headerRemarkEl) {
+      const refreshBtn = headerRemarkEl.querySelector(".snapshot-header-remark-refresh");
+      if (refreshBtn) refreshBtn.disabled = Boolean(this.isSnapshotRemarkLoading);
+    }
+
+    const tallyItems = [
+      { label: "Focus", value: counts.focus_pending || 0, tone: "accent" },
+      { label: "Errands", value: counts.trivial_pending || 0, tone: "neutral" },
+      { label: "Events", value: counts.events_pending || 0, tone: "neutral" }
+    ];
+    if ((counts.overdue_total || 0) > 0) {
+      tallyItems.push({ label: "Overdue", value: counts.overdue_total, tone: "alert" });
+    } else if ((counts.queued_pending || 0) > 0) {
+      tallyItems.push({ label: "Queued", value: counts.queued_pending, tone: "accent" });
+    } else if ((counts.projects_total || 0) > 0) {
+      tallyItems.push({ label: "Projects", value: counts.projects_total, tone: "neutral" });
+    } else {
+      tallyItems.push({ label: "Done", value: counts.total_completed || 0, tone: "done" });
+    }
 
     const renderTaskOrQueueRow = (it, idx, isQueueRow) => {
       const isDone = Boolean(it.completed);
@@ -2334,116 +2404,160 @@ const Dashboard = {
     const errandsList = b.trivial_items || [];
     const remindersList = b.reminders || [];
 
+    const secondaryCount = [eventsList, focusList, projectsList, errandsList, remindersList].filter(arr => arr.length > 0).length;
+    const singleSecondaryClass = secondaryCount === 1 ? " snapshot-stream-wide" : "";
+
+    const totalItems = counts.total_items !== undefined
+      ? counts.total_items
+      : (focusList.length + errandsList.length + eventsList.length);
+    const completedItems = counts.total_completed !== undefined
+      ? counts.total_completed
+      : (focusList.filter(x => x.completed).length + errandsList.filter(x => x.completed).length + eventsList.filter(x => x.completed).length);
+    const endNotice = this.getBriefingEndNotice(this.selectedDate);
     const dateEyebrow = b.date_display || this.selectedDate;
+    const debBtn = document.getElementById("eveningDebriefDashBtn");
+    const showDebriefTail = debBtn && debBtn.style.display !== "none";
 
     container.innerHTML = `
       <div class="snapshot-unified-doc">
-        <header class="snapshot-unified-lead">
-          <div class="snapshot-unified-eyebrow">${this.escapeHtml(dateEyebrow)}</div>
-          <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.escapeHtml(b.summary_narrative || "")}</p>
-          <div class="snapshot-unified-metrics">${metricParts.map(p => `<span>${this.escapeHtml(p)}</span>`).join('<span class="snapshot-meta-dot">·</span>')}</div>
-          <blockquote class="snapshot-unified-aside" id="snapshotRemarkBanner">
-            <span class="snapshot-remark-text ${this.isSnapshotRemarkLoading ? 'is-loading' : ''}" id="snapshotRemarkText">
-              "${this.escapeHtml(remarkText)}"
-            </span>
-            <footer class="snapshot-unified-aside-meta">
-              <span>${this.escapeHtml(remarkBadgeLabel)}</span>
-              <button type="button" class="snapshot-unified-refresh-btn" onclick="Dashboard.refreshSnapshotRemark()" title="Fresh outlook remark" ${this.isSnapshotRemarkLoading ? 'disabled' : ''}>
-                <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i>
-              </button>
-            </footer>
-          </blockquote>
+        <header class="snapshot-unified-hero-spread">
+          <div class="snapshot-unified-hero-copy">
+            <div class="snapshot-unified-eyebrow">${this.escapeHtml(dateEyebrow)}</div>
+            <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.buildHighlightedNarrativeHtml(b)}</p>
+          </div>
+          <div class="snapshot-unified-tally" aria-label="Briefing summary counters">
+            ${tallyItems.map(t => `
+              <div class="snapshot-tally-cell is-${t.tone}">
+                <span class="snapshot-tally-num">${t.value}</span>
+                <span class="snapshot-tally-label">${this.escapeHtml(t.label)}</span>
+              </div>
+            `).join("")}
+          </div>
         </header>
 
-        ${queue.length > 0 ? `
-          <section class="snapshot-unified-section">
-            <div class="snapshot-unified-section-header">
-              <span>Priority Execution Sequence</span>
-              <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
-            </div>
-            <div class="snapshot-unified-list">
-              ${queue.map((it, idx) => renderTaskOrQueueRow(it, idx, true)).join("")}
-            </div>
-          </section>
-        ` : ""}
-
-        ${eventsList.length > 0 ? `
-          <section class="snapshot-unified-section">
-            <div class="snapshot-unified-section-header">
-              <span>Scheduled Events</span>
-              <span class="snapshot-unified-section-count">${counts.events_pending || 0} upcoming</span>
-            </div>
-            <div class="snapshot-unified-list">
-              ${eventsList.map((e, idx) => renderTaskOrQueueRow({ ...e, type: "event" }, idx, false)).join("")}
-            </div>
-          </section>
-        ` : ""}
-
-        ${focusList.length > 0 ? `
-          <section class="snapshot-unified-section">
-            <div class="snapshot-unified-section-header">
-              <span>Focus Tasks</span>
-              <span class="snapshot-unified-section-count">${counts.focus_pending || 0} pending</span>
-            </div>
-            <div class="snapshot-unified-list">
-              ${focusList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
-            </div>
-          </section>
-        ` : ""}
-
-        ${projectsList.length > 0 ? `
-          <section class="snapshot-unified-section">
-            <div class="snapshot-unified-section-header">
-              <span>Active Projects</span>
-              <span class="snapshot-unified-section-count">${projectsList.length} in motion</span>
-            </div>
-            <div class="snapshot-unified-list">
-              ${projectsList.map(p => `
-                <div class="snapshot-unified-row">
-                  <div class="snapshot-unified-row-main">
-                    <div class="snapshot-unified-row-copy">
-                      <div class="snapshot-unified-item-title">${this.escapeHtml(p.name)}</div>
-                      <div class="snapshot-unified-item-meta">${p.pending_count} remaining · ${p.completed_count}/${p.total_count} completed</div>
-                    </div>
-                  </div>
+        ${(queue.length > 0 || secondaryCount > 0) ? `
+          <div class="snapshot-unified-streams">
+            ${queue.length > 0 ? `
+              <section class="snapshot-unified-section snapshot-stream-wide">
+                <div class="snapshot-unified-section-header">
+                  <span>Priority Execution Sequence</span>
+                  <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
                 </div>
-              `).join("")}
-            </div>
-          </section>
-        ` : ""}
-
-        ${errandsList.length > 0 ? `
-          <section class="snapshot-unified-section">
-            <div class="snapshot-unified-section-header">
-              <span>Trivial Errands</span>
-              <span class="snapshot-unified-section-count">${counts.trivial_pending || 0} remaining</span>
-            </div>
-            <div class="snapshot-unified-list">
-              ${errandsList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
-            </div>
-          </section>
-        ` : ""}
-
-        ${remindersList.length > 0 ? `
-          <section class="snapshot-unified-section">
-            <div class="snapshot-unified-section-header">
-              <span>Reminders</span>
-              <span class="snapshot-unified-section-count">${counts.reminders_active || 0} active</span>
-            </div>
-            <div class="snapshot-unified-list">
-              ${remindersList.map(r => `
-                <div class="snapshot-unified-row ${r.dismissed ? 'completed' : ''}">
-                  <div class="snapshot-unified-row-main">
-                    <div class="snapshot-unified-row-copy">
-                      <div class="snapshot-unified-item-title">${this.escapeHtml(r.title)}</div>
-                      ${r.details ? `<div class="snapshot-unified-item-meta">${this.escapeHtml(r.details)}</div>` : ''}
-                    </div>
-                  </div>
+                <div class="snapshot-unified-list ${queue.length >= 3 ? 'snapshot-unified-list--grid' : ''}">
+                  ${queue.map((it, idx) => renderTaskOrQueueRow(it, idx, true)).join("")}
                 </div>
-              `).join("")}
-            </div>
-          </section>
+              </section>
+            ` : ""}
+
+            ${eventsList.length > 0 ? `
+              <section class="snapshot-unified-section${singleSecondaryClass}">
+                <div class="snapshot-unified-section-header">
+                  <span>Scheduled Events</span>
+                  <span class="snapshot-unified-section-count">${counts.events_pending || 0} upcoming</span>
+                </div>
+                <div class="snapshot-unified-list">
+                  ${eventsList.map((e, idx) => renderTaskOrQueueRow({ ...e, type: "event" }, idx, false)).join("")}
+                </div>
+              </section>
+            ` : ""}
+
+            ${focusList.length > 0 ? `
+              <section class="snapshot-unified-section${singleSecondaryClass}">
+                <div class="snapshot-unified-section-header">
+                  <span>Focus Tasks</span>
+                  <span class="snapshot-unified-section-count">${counts.focus_pending || 0} pending</span>
+                </div>
+                <div class="snapshot-unified-list">
+                  ${focusList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
+                </div>
+              </section>
+            ` : ""}
+
+            ${projectsList.length > 0 ? `
+              <section class="snapshot-unified-section${singleSecondaryClass}">
+                <div class="snapshot-unified-section-header">
+                  <span>Active Projects</span>
+                  <span class="snapshot-unified-section-count">${projectsList.length} in motion</span>
+                </div>
+                <div class="snapshot-unified-list">
+                  ${projectsList.map(p => `
+                    <div class="snapshot-unified-row">
+                      <div class="snapshot-unified-row-main">
+                        <div class="snapshot-unified-row-copy">
+                          <div class="snapshot-unified-item-title">${this.escapeHtml(p.name)}</div>
+                          <div class="snapshot-unified-item-meta">${p.pending_count} remaining · ${p.completed_count}/${p.total_count} completed</div>
+                        </div>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              </section>
+            ` : ""}
+
+            ${errandsList.length > 0 ? `
+              <section class="snapshot-unified-section${singleSecondaryClass}">
+                <div class="snapshot-unified-section-header">
+                  <span>Trivial Errands</span>
+                  <span class="snapshot-unified-section-count">${counts.trivial_pending || 0} remaining</span>
+                </div>
+                <div class="snapshot-unified-list">
+                  ${errandsList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
+                </div>
+              </section>
+            ` : ""}
+
+            ${remindersList.length > 0 ? `
+              <section class="snapshot-unified-section${singleSecondaryClass}">
+                <div class="snapshot-unified-section-header">
+                  <span>Reminders</span>
+                  <span class="snapshot-unified-section-count">${counts.reminders_active || 0} active</span>
+                </div>
+                <div class="snapshot-unified-list">
+                  ${remindersList.map(r => `
+                    <div class="snapshot-unified-row ${r.dismissed ? 'completed' : ''}">
+                      <div class="snapshot-unified-row-main">
+                        <div class="snapshot-unified-row-copy">
+                          <div class="snapshot-unified-item-title">${this.escapeHtml(r.title)}</div>
+                          ${r.details ? `<div class="snapshot-unified-item-meta">${this.escapeHtml(r.details)}</div>` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              </section>
+            ` : ""}
+          </div>
         ` : ""}
+
+        <footer class="snapshot-unified-tail">
+          <div class="snapshot-tail-left">
+            <div class="snapshot-tail-specs">
+              <span class="snapshot-tail-spec">LOCKED IN</span>
+              <span class="snapshot-tail-spec font-mono">${completedItems}/${totalItems} DONE</span>
+            </div>
+            <div class="snapshot-tail-caption">// ${this.escapeHtml(endNotice)} //</div>
+          </div>
+          <div class="snapshot-tail-actions">
+            ${!isLockedDay ? `
+              <button type="button" class="snapshot-tail-icon-btn" onclick="FocusCockpit.launchTopTask()" title="Launch Focus Cockpit">
+                <i data-lucide="zap" style="width:15px;height:15px;"></i>
+              </button>
+            ` : ""}
+            ${showDebriefTail ? `
+              <button type="button" class="snapshot-tail-icon-btn" onclick="EveningDebrief.open()" title="Evening Debrief">
+                <i data-lucide="moon-star" style="width:15px;height:15px;"></i>
+              </button>
+            ` : ""}
+            <button type="button" class="snapshot-tail-icon-btn" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Snapshot brief">
+              <i data-lucide="copy" style="width:15px;height:15px;"></i>
+            </button>
+            ${!isLockedDay ? `
+              <button type="button" class="snapshot-tail-icon-btn" onclick="Dashboard.unlockSnapshot()" title="Unlock to edit">
+                <i data-lucide="unlock" style="width:15px;height:15px;"></i>
+              </button>
+            ` : ""}
+          </div>
+        </footer>
       </div>
     `;
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();

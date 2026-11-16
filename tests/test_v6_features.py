@@ -3791,7 +3791,7 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "unlockSnapshot()" in dash_js
     assert "modal-form-grid-2col" in index_html and ".modal-form-grid-2col" in css
 
-    # Unified panel-free large-type editorial briefing (no nested sub-cards inside locked snapshot)
+    # Unified panel-free frosted glassmorphism editorial briefing (no nested sub-cards inside locked snapshot)
     assert "snapshot-unified-doc" in dash_js and ".snapshot-unified-doc" in css
     assert "snapshot-unified-prose" in dash_js and ".snapshot-unified-prose" in css
     assert "snapshot-unified-section" in dash_js and ".snapshot-unified-section" in css
@@ -3799,12 +3799,23 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "snapshot-section-card" not in dash_js and "snapshot-section-card" not in css
     assert "snapshot-narrative-card" not in dash_js and "snapshot-narrative-card" not in css
     assert "snapshot-details-grid" not in dash_js and "snapshot-details-grid" not in css
+    assert "snapshot-unified-aside" not in dash_js and ".snapshot-unified-aside" not in css
 
-    # Static cache-busters bumped to v10.1
-    assert "pettr.css?v=10.1" in index_html
-    assert "dashboard.js?v=10.1" in index_html
-    assert "entity_modal.js?v=10.1" in index_html
-    assert "app.js?v=10.1" in index_html
+    # Frosted glassmorphism aurora orbs, highlighted editorial lead, integrated header remark, wide layout & tail footer
+    assert 'id="snapshotHeaderRemark"' in index_html and ".snapshot-header-remark" in css
+    assert "snapshot-glass-aurora" in index_html and ".snapshot-glass-aurora" in css
+    assert "backdrop-filter: blur(" in css
+    assert "buildHighlightedNarrativeHtml(" in dash_js
+    assert "snapshot-hl-count" in dash_js and ".snapshot-hl-count" in css
+    assert "snapshot-unified-hero-spread" in dash_js and ".snapshot-unified-hero-spread" in css
+    assert "snapshot-unified-streams" in dash_js and ".snapshot-unified-streams" in css
+    assert "snapshot-unified-tail" in dash_js and ".snapshot-unified-tail" in css
+
+    # Static cache-busters bumped to v10.2
+    assert "pettr.css?v=10.2" in index_html
+    assert "dashboard.js?v=10.2" in index_html
+    assert "entity_modal.js?v=10.2" in index_html
+    assert "app.js?v=10.2" in index_html
 
 
 
