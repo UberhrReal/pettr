@@ -3801,8 +3801,8 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "snapshot-details-grid" not in dash_js and "snapshot-details-grid" not in css
     assert "snapshot-unified-aside" not in dash_js and ".snapshot-unified-aside" not in css
 
-    # Frosted glassmorphism aurora orbs, highlighted editorial lead, integrated header remark, wide layout & tail footer
-    assert 'id="snapshotHeaderRemark"' in index_html and ".snapshot-header-remark" in css
+    # App-wide translucent frosted glassmorphism language & transparent master frame over WaveCanvas
+    assert "--glass-sheet:" in css and "--glass-backdrop:" in css
     assert "snapshot-glass-aurora" in index_html and ".snapshot-glass-aurora" in css
     assert "backdrop-filter: blur(" in css
     assert "buildHighlightedNarrativeHtml(" in dash_js
@@ -3811,11 +3811,34 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "snapshot-unified-streams" in dash_js and ".snapshot-unified-streams" in css
     assert "snapshot-unified-tail" in dash_js and ".snapshot-unified-tail" in css
 
-    # Static cache-busters bumped to v10.2
-    assert "pettr.css?v=10.2" in index_html
-    assert "dashboard.js?v=10.2" in index_html
-    assert "entity_modal.js?v=10.2" in index_html
-    assert "app.js?v=10.2" in index_html
+    # Horace remark seamlessly inside editorial lead (not a separate header banner or quote box)
+    assert 'id="snapshotHeaderRemark"' not in index_html and ".snapshot-header-remark" not in css
+    assert 'id="snapshotInlineRemark"' in dash_js and ".snapshot-lead-remark-inline" in css
+
+    # Finalised snapshot exclusively shows Priority Execution Sequence + bottom modal for remaining unqueued tasks
+    assert 'id="snapshotUnqueuedModal"' in index_html
+    assert "snapshot-unqueued-bottom-modal" in dash_js and ".snapshot-unqueued-bottom-modal" in css
+    assert "openSnapshotUnqueuedModal(" in dash_js
+
+    # Scroll-triggered kinetic particle-coalesce reveal for Snapshot text
+    assert "initSnapshotScrollParticles(" in dash_js
+    assert "tokenizeParticleText(" in dash_js
+    assert ".snapshot-particle-word" in css and ".snapshot-coalesce" in dash_js
+
+    # Deduplicated date indicators at top of dashboard
+    assert 'id="missionClockDateStr"' not in index_html
+    assert 'id="briefingDate"' not in index_html
+
+    # Distinct 'In sequence' marker vs '.project-tag', and 'Trivial' marker replacing 'Errand'
+    assert "in-seq-rank" in dash_js and ".in-seq-rank" in css
+    assert "</i> Trivial</button>" in index_html
+    assert 'it.tier === "trivial" ? "Trivial"' in dash_js
+
+    # Static cache-busters bumped to v10.3
+    assert "pettr.css?v=10.3" in index_html
+    assert "dashboard.js?v=10.3" in index_html
+    assert "entity_modal.js?v=10.3" in index_html
+    assert "app.js?v=10.3" in index_html
 
 
 

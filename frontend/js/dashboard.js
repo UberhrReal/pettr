@@ -174,7 +174,7 @@ const Dashboard = {
       { id: "manualAddEventBtn", defaultTitle: "Directly add scheduled event" },
       { id: "manualAddProjectBtn", defaultTitle: "Create new project" },
       { id: "manualAddFocusBtn", defaultTitle: "Directly add deep work focus task" },
-      { id: "manualAddTrivialBtn", defaultTitle: "Directly add quick errand" },
+      { id: "manualAddTrivialBtn", defaultTitle: "Directly add quick trivial task" },
       { id: "manualAddReminderBtn", defaultTitle: "Directly add reminder" }
     ];
 
@@ -523,7 +523,8 @@ const Dashboard = {
     }
 
     if (subtextEl) {
-      subtextEl.textContent = sub;
+      const cleanSub = String(sub).replace(/^[A-Za-z]+,\s+[A-Za-z]+\s+\d{1,2}\s*·\s*/, '');
+      subtextEl.textContent = cleanSub;
       subtextEl.style.cursor = "pointer";
       subtextEl.title = "Click to refresh daily intel";
       if (!subtextEl.dataset.hasIntelListener) {
@@ -728,7 +729,7 @@ const Dashboard = {
 
     const names = {
       focus: "Focus Tasks (Deep Work)",
-      trivial: "Trivial Errands",
+      trivial: "Trivial Tasks",
       events: "Scheduled Events",
       projects: "Projects Today",
       reminders: "Reminders"
@@ -806,7 +807,7 @@ const Dashboard = {
 
     if (badgeProjects) badgeProjects.textContent = `${countProjects} project${countProjects === 1 ? '' : 's'}`;
     if (badgeFocus) badgeFocus.textContent = `${countFocus} task${countFocus === 1 ? '' : 's'}`;
-    if (badgeTrivial) badgeTrivial.textContent = `${countTrivial} errand${countTrivial === 1 ? '' : 's'}`;
+    if (badgeTrivial) badgeTrivial.textContent = `${countTrivial} trivial`;
     if (badgeReminders) badgeReminders.textContent = `${countReminders} note${countReminders === 1 ? '' : 's'}`;
 
     // Panels elements
@@ -1225,7 +1226,8 @@ const Dashboard = {
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMarker = this.formatSnapshotTimeMarker(t, this.selectedDate);
         const timeMil = timeMarker.timeBadge;
-        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(t.id) && (d.type === 'task' || !d.type));
+        const seqIdx = (this.dailyOrder || []).findIndex(d => String(d.id) === String(t.id) && (d.type === 'task' || !d.type));
+        const inSeq = seqIdx !== -1;
         const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isDone
           ? ''
@@ -1241,10 +1243,10 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
             </div>
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+              ${inSeq ? `<span class="in-sequence-badge" title="Slot #${seqIdx + 1} in Tasking Priority"><span class="in-seq-rank">#${String(seqIdx + 1).padStart(2, '0')}</span><span>In sequence</span></span>` : ''}
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
               ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
@@ -1256,27 +1258,28 @@ const Dashboard = {
     }
     html += `</div></div>`;
 
-    // 2. Trivial Errands
+    // 2. Trivial Tasks
     html += `
       <div class="briefing-section-block">
         <div class="briefing-section-header">
           <span style="display:flex; align-items:center; gap:6px;">
             <i data-lucide="check-square" style="width:14px;height:14px;color:var(--normal-green);"></i>
-            Trivial Errands
+            Trivial Tasks
           </span>
         </div>
         <div class="briefing-items-pills">
     `;
     const trivialTasks = data.trivial_tasks || (this.tasks && this.tasks.trivial) || [];
     if (trivialTasks.length === 0) {
-      html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No quick errands scheduled today.</div>`;
+      html += `<div style="font-size:12.5px; color:var(--text-muted); font-style:italic;">No trivial tasks scheduled today.</div>`;
     } else {
       trivialTasks.forEach((t, i) => {
         const isDone = t.status === "completed";
         const cleanTitle = (t.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMarker = this.formatSnapshotTimeMarker(t, this.selectedDate);
         const timeMil = timeMarker.timeBadge;
-        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(t.id) && (d.type === 'task' || !d.type));
+        const seqIdx = (this.dailyOrder || []).findIndex(d => String(d.id) === String(t.id) && (d.type === 'task' || !d.type));
+        const inSeq = seqIdx !== -1;
         const isTimeSensitive = Boolean(t.is_time_sensitive);
         const badgeHtml = isDone
           ? ''
@@ -1292,11 +1295,11 @@ const Dashboard = {
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
               ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
             </div>
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+              ${inSeq ? `<span class="in-sequence-badge" title="Slot #${seqIdx + 1} in Tasking Priority"><span class="in-seq-rank">#${String(seqIdx + 1).padStart(2, '0')}</span><span>In sequence</span></span>` : ''}
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
               ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
@@ -1327,17 +1330,18 @@ const Dashboard = {
         const isDone = e.status === "completed";
         const cleanTitle = (e.title || "").replace(/^\s*\[.*?\]\s*/, '');
         const timeMil = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : 'Today';
-        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(e.id) && d.type === 'event');
+        const seqIdx = (this.dailyOrder || []).findIndex(d => String(d.id) === String(e.id) && d.type === 'event');
+        const inSeq = seqIdx !== -1;
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')`}">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${inSeq ? `<span class="in-sequence-badge" title="Queued in Tasking Priority"><i data-lucide="list-ordered" style="width:11px;height:11px;flex-shrink:0;"></i><span>In sequence</span></span>` : ''}
               ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
-            <div style="display:flex; align-items:center; gap:6px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+              ${inSeq ? `<span class="in-sequence-badge" title="Slot #${seqIdx + 1} in Tasking Priority"><span class="in-seq-rank">#${String(seqIdx + 1).padStart(2, '0')}</span><span>In sequence</span></span>` : ''}
               ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('event', ${e.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
@@ -1619,7 +1623,7 @@ const Dashboard = {
           <i data-lucide="list-ordered" style="width:28px;height:28px;color:var(--focus-indigo);opacity:0.6;margin-bottom:4px;"></i>
           <div style="font-weight:700; color:var(--text-main);">Tasking Priority is Empty</div>
           <div style="font-size:12px; max-width:240px; line-height:1.5;">
-            Drag any focus task, errand, project, or event from the left into this space to lock in your exact execution order.
+            Drag any focus task, trivial task, project, or event from the left into this space to lock in your exact execution order.
           </div>
         </div>
       `;
@@ -2112,7 +2116,6 @@ const Dashboard = {
   applySnapshotLockUI() {
     const showcase = document.getElementById("briefingShowcaseWindow");
     const lockedPill = document.getElementById("snapshotLockedPill");
-    const headerRemark = document.getElementById("snapshotHeaderRemark");
     const lockBtn = document.getElementById("snapshotLockInBtn");
     const unlockBtn = document.getElementById("snapshotUnlockBtn");
     const focusBtn = document.getElementById("snapshotFocusBtn");
@@ -2122,7 +2125,6 @@ const Dashboard = {
     const locked = Boolean(this.isSnapshotLocked);
     if (showcase) showcase.classList.toggle("is-locked-in", locked);
     if (lockedPill) lockedPill.style.display = locked ? "inline-flex" : "none";
-    if (headerRemark) headerRemark.style.display = locked ? "flex" : "none";
     if (lockBtn) lockBtn.style.display = locked ? "none" : "inline-flex";
     if (unlockBtn) unlockBtn.style.display = locked ? "inline-flex" : "none";
     if (focusBtn) focusBtn.style.display = locked ? "inline-flex" : "none";
@@ -2231,7 +2233,7 @@ const Dashboard = {
 
     const parts = [];
     if (focusPending.length) parts.push(`${focusPending.length} focus task${focusPending.length === 1 ? '' : 's'}`);
-    if (trivialPending.length) parts.push(`${trivialPending.length} trivial errand${trivialPending.length === 1 ? '' : 's'}`);
+    if (trivialPending.length) parts.push(`${trivialPending.length} trivial task${trivialPending.length === 1 ? '' : 's'}`);
     if (eventsPending.length) parts.push(`${eventsPending.length} scheduled event${eventsPending.length === 1 ? '' : 's'}`);
     if (projects.length) parts.push(`${projects.length} active project${projects.length === 1 ? '' : 's'}`);
     if (remindersActive.length) parts.push(`${remindersActive.length} reminder${remindersActive.length === 1 ? '' : 's'}`);
@@ -2273,20 +2275,41 @@ const Dashboard = {
     };
   },
 
+  tokenizeParticleText(text, extraClass = "", delayStep = 0) {
+    const str = String(text || "");
+    if (!str) return "";
+    // Split into word + trailing whitespace tokens so line wrapping stays natural while words coalesce like particles
+    const tokens = str.match(/\S+\s*/g) || [str];
+    let out = "";
+    tokens.forEach((tok, i) => {
+      const hash = ((i * 37) + tok.length * 13) % 100;
+      const px = ((hash % 17) - 8) * 1.4; // -11.2px to +11.2px horizontal particle scatter
+      const py = 8 + ((hash % 9) * 1.3);   // 8px to 19px vertical drift
+      const pd = Math.min(480, (delayStep + i) * 18);
+      out += `<span class="snapshot-particle-word ${extraClass}" style="--px:${px.toFixed(1)}px;--py:${py.toFixed(1)}px;--pd:${pd}ms">${this.escapeHtml(tok)}</span>`;
+    });
+    return out;
+  },
+
   buildHighlightedNarrativeHtml(b) {
-    const raw = (b && b.summary_narrative) ? String(b.summary_narrative) : "";
+    let raw = (b && b.summary_narrative) ? String(b.summary_narrative) : "";
     if (!raw) return "";
+
+    // Deduplicate date display: strip "(Weekday, DD Mon)" when already on Today/Tomorrow/Yesterday
+    raw = raw
+      .replace(/^((?:Today|Tomorrow|Yesterday))\s*\([^)]+\)/, "$1")
+      .replace(/\btrivial errand(s?)\b/gi, "trivial task$1");
 
     const tokenRegex = new RegExp(
       [
         // 1: Opening day/date phrase
-        "(^(?:Today|Tomorrow|Yesterday|For)\\s+(?:\\([^)]+\\)|[A-Za-z]+,\\s+\\d+\\s+[A-Za-z]+\\s+\\d{4}))",
+        "(^(?:Today|Tomorrow|Yesterday|For\\s+[A-Za-z]+,\\s+\\d+\\s+[A-Za-z]+\\s+\\d{4}))",
         // 2: Quoted item title (with optional #NN rank prefix)
         "((?:#\\d+\\s+)?\"[^\"]+\")",
         // 3: Overdue / Time Sensitive urgent markers
         "(\\(\\d+\\s+overdue\\)|\\b\\d+\\s+items?\\s+(?:carry|carries)\\s+an?\\s+urgent\\s+Time\\s+Sensitive\\s+flag\\b|\\bTime\\s+Sensitive\\b)",
         // 4: Key numerical category counts & completion statements
-        "(\\b\\d+\\s+(?:focus\\s+tasks?|trivial\\s+errands?|scheduled\\s+events?|active\\s+projects?|reminders?|pending\\s+items?|scheduled\\s+items?|items?\\s+in\\s+your\\s+Tasking\\s+Priority\\s+sequence)\\b|\\bcompleted\\s+cleanly\\b|\\bcurrently\\s+open\\b)",
+        "(\\b\\d+\\s+(?:focus\\s+tasks?|trivial\\s+tasks?|trivial\\s+errands?|scheduled\\s+events?|active\\s+projects?|reminders?|pending\\s+items?|scheduled\\s+items?|items?\\s+in\\s+your\\s+Tasking\\s+Priority\\s+sequence)\\b|\\bcompleted\\s+cleanly\\b|\\bcurrently\\s+open\\b)",
         // 5: Parenthesized 24h event times
         "(\\(\\d{2}:\\d{2}(?:\\s*[-\\u2013\\u2014]\\s*\\d{2}:\\d{2})?\\))"
       ].join("|"),
@@ -2295,31 +2318,174 @@ const Dashboard = {
 
     let out = "";
     let lastIdx = 0;
+    let wordOffset = 0;
     let match;
     while ((match = tokenRegex.exec(raw)) !== null) {
       if (match.index > lastIdx) {
-        out += this.escapeHtml(raw.slice(lastIdx, match.index));
+        const plain = raw.slice(lastIdx, match.index);
+        out += this.tokenizeParticleText(plain, "", wordOffset);
+        wordOffset += (plain.match(/\S+/g) || []).length;
       }
-      const esc = this.escapeHtml(match[0]);
+      const matched = match[0];
+      const countWords = (matched.match(/\S+/g) || []).length;
       if (match[1]) {
-        out += `<span class="snapshot-hl-day">${esc}</span>`;
+        out += `<span class="snapshot-hl-day">${this.tokenizeParticleText(matched, "", wordOffset)}</span>`;
       } else if (match[2]) {
-        out += `<strong class="snapshot-hl-title">${esc}</strong>`;
+        out += `<strong class="snapshot-hl-title">${this.tokenizeParticleText(matched, "", wordOffset)}</strong>`;
       } else if (match[3]) {
-        out += `<span class="snapshot-hl-alert">${esc}</span>`;
+        out += `<span class="snapshot-hl-alert">${this.tokenizeParticleText(matched, "", wordOffset)}</span>`;
       } else if (match[4]) {
-        out += `<span class="snapshot-hl-count">${esc}</span>`;
+        out += `<span class="snapshot-hl-count">${this.tokenizeParticleText(matched, "", wordOffset)}</span>`;
       } else if (match[5]) {
-        out += `<span class="snapshot-hl-time font-mono">${esc}</span>`;
+        out += `<span class="snapshot-hl-time font-mono">${this.tokenizeParticleText(matched, "", wordOffset)}</span>`;
       } else {
-        out += esc;
+        out += this.tokenizeParticleText(matched, "", wordOffset);
       }
+      wordOffset += countWords;
       lastIdx = tokenRegex.lastIndex;
     }
     if (lastIdx < raw.length) {
-      out += this.escapeHtml(raw.slice(lastIdx));
+      out += this.tokenizeParticleText(raw.slice(lastIdx), "", wordOffset);
     }
     return out;
+  },
+
+  initSnapshotScrollParticles(container) {
+    if (!container) return;
+    if (this._snapshotParticleObserver) {
+      this._snapshotParticleObserver.disconnect();
+      this._snapshotParticleObserver = null;
+    }
+
+    const targets = Array.from(container.querySelectorAll(".snapshot-coalesce"));
+    if (targets.length === 0) return;
+
+    const revealEl = (el) => {
+      if (!el.classList.contains("is-coalesced")) {
+        el.classList.add("is-coalesced");
+      }
+    };
+
+    if (typeof IntersectionObserver === "undefined") {
+      targets.forEach(revealEl);
+      return;
+    }
+
+    this._snapshotParticleObserver = new IntersectionObserver(
+      (entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            revealEl(entry.target);
+            obs.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.06, rootMargin: "0px 0px -16px 0px" }
+    );
+
+    targets.forEach((el, idx) => {
+      el.style.setProperty("--row-delay", `${Math.min(idx * 45, 360)}ms`);
+      this._snapshotParticleObserver.observe(el);
+    });
+
+    // Guarantee elements already inside viewport coalesce immediately on first frame
+    requestAnimationFrame(() => {
+      const vh = window.innerHeight || document.documentElement.clientHeight || 900;
+      targets.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < vh * 0.96 && rect.bottom > 0) {
+          revealEl(el);
+          if (this._snapshotParticleObserver) this._snapshotParticleObserver.unobserve(el);
+        }
+      });
+    });
+  },
+
+  openSnapshotUnqueuedModal() {
+    const modal = document.getElementById("snapshotUnqueuedModal");
+    if (!modal) return;
+    const state = this._snapshotUnqueuedState || { tasks: [], events: [], isLockedDay: false };
+    const tasks = state.tasks || [];
+    const events = state.events || [];
+    const isLockedDay = Boolean(state.isLockedDay);
+
+    const titleEl = document.getElementById("snapshotUnqueuedModalTitle");
+    const subEl = document.getElementById("snapshotUnqueuedModalSub");
+    const listEl = document.getElementById("snapshotUnqueuedModalList");
+
+    if (titleEl) {
+      titleEl.textContent = `Today's Unqueued Tasks (${tasks.length})`;
+    }
+    if (subEl) {
+      if (tasks.length === 0 && events.length === 0) {
+        subEl.textContent = "Every active item for today is already scheduled inside Priority Tasking.";
+      } else if (tasks.length === 0) {
+        subEl.textContent = `All tasks are in sequence (${events.length} scheduled event${events.length === 1 ? "" : "s"} remain outside the queue).`;
+      } else {
+        subEl.textContent = "These active items from today have not been added into Priority Tasking yet. Launch Focus, check them off, or slot them directly into the queue.";
+      }
+    }
+
+    if (listEl) {
+      const combined = [
+        ...tasks.map(t => ({ ...t, itemType: "task" })),
+        ...events.map(e => ({ ...e, tier: "event", itemType: "event" }))
+      ];
+      if (combined.length === 0) {
+        listEl.innerHTML = `<div class="snapshot-unqueued-empty">Clean coverage — nothing left unqueued for today.</div>`;
+      } else {
+        listEl.innerHTML = combined.map(it => {
+          const tierLabel = it.itemType === "event" ? "Event" : (it.tier === "trivial" ? "Trivial" : "Focus");
+          const isOverdue = Boolean(it.is_overdue && !it.completed);
+          return `
+            <div class="snapshot-unqueued-row">
+              <div class="snapshot-unqueued-row-left">
+                <input type="checkbox" class="snapshot-unified-checkbox" ${it.completed ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
+                       onchange="Dashboard.toggleSnapshotItemStatus('${it.itemType}', ${it.id}, this.checked); Dashboard.openSnapshotUnqueuedModal();">
+                <div class="snapshot-unqueued-row-info">
+                  <div class="snapshot-unqueued-row-title">${this.escapeHtml(it.title)}</div>
+                  <div class="snapshot-unqueued-row-meta">
+                    <span class="snapshot-tier-tag is-${tierLabel.toLowerCase()}">${tierLabel}</span>
+                    ${isOverdue ? `<span class="snapshot-meta-alert">Overdue</span>` : ""}
+                    ${(it.time || it.time_label) ? `<span class="font-mono">${this.escapeHtml(it.time || it.time_label)}</span>` : ""}
+                    ${it.project_name ? `<span>${this.escapeHtml(it.project_name)}</span>` : ""}
+                  </div>
+                </div>
+              </div>
+              ${!isLockedDay ? `
+                <div class="snapshot-unqueued-row-actions">
+                  ${it.itemType === "task" ? `
+                    <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.closeSnapshotUnqueuedModal(); Dashboard.launchLockedFocusTask(${it.id})" title="Start Focus Sprint">
+                      <i data-lucide="play" style="width:12px;height:12px;"></i> Focus
+                    </button>
+                  ` : ""}
+                  <button type="button" class="snapshot-quick-queue-btn" onclick="Dashboard.queueUnqueuedFromModal('${it.itemType}', ${it.id})" title="Add to Priority Sequence">
+                    <i data-lucide="plus" style="width:12px;height:12px;"></i> Sequence
+                  </button>
+                </div>
+              ` : ""}
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    modal.style.display = "flex";
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+  },
+
+  closeSnapshotUnqueuedModal() {
+    const modal = document.getElementById("snapshotUnqueuedModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  async queueUnqueuedFromModal(entityType, entityId) {
+    await this.toggleQueueFromSnapshot(entityType, entityId);
+    // Rebuild local fallback or refresh locked briefing immediately so modal + queue reflect change
+    if (this.isSnapshotLocked) {
+      await this.fetchSnapshotBriefing(this.selectedDate);
+      this.openSnapshotUnqueuedModal();
+    }
   },
 
   renderLockedSnapshotView() {
@@ -2334,22 +2500,9 @@ const Dashboard = {
       : (remarkObj.text || "One deliberate step at a time.");
     const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
 
-    // Populate Horace remark smoothly inside the briefing window header
-    const headerRemarkEl = document.getElementById("snapshotHeaderRemark");
-    const headerRemarkTextEl = document.getElementById("snapshotHeaderRemarkText");
-    if (headerRemarkTextEl) {
-      headerRemarkTextEl.textContent = `"${remarkText}"`;
-      headerRemarkTextEl.classList.toggle("is-loading", Boolean(this.isSnapshotRemarkLoading));
-      headerRemarkTextEl.title = remarkObj.source === "llm" ? "Horace · Local LLM" : "Horace";
-    }
-    if (headerRemarkEl) {
-      const refreshBtn = headerRemarkEl.querySelector(".snapshot-header-remark-refresh");
-      if (refreshBtn) refreshBtn.disabled = Boolean(this.isSnapshotRemarkLoading);
-    }
-
     const tallyItems = [
       { label: "Focus", value: counts.focus_pending || 0, tone: "accent" },
-      { label: "Errands", value: counts.trivial_pending || 0, tone: "neutral" },
+      { label: "Trivial", value: counts.trivial_pending || 0, tone: "neutral" },
       { label: "Events", value: counts.events_pending || 0, tone: "neutral" }
     ];
     if ((counts.overdue_total || 0) > 0) {
@@ -2362,29 +2515,30 @@ const Dashboard = {
       tallyItems.push({ label: "Done", value: counts.total_completed || 0, tone: "done" });
     }
 
-    const renderTaskOrQueueRow = (it, idx, isQueueRow) => {
+    const renderQueueRow = (it, idx) => {
       const isDone = Boolean(it.completed);
       const itype = it.type || "task";
       const isOverdue = Boolean(it.is_overdue && !isDone);
-      const rankHtml = isQueueRow ? `<span class="snapshot-unified-rank">${String(idx + 1).padStart(2, "0")}</span>` : "";
+      const rankHtml = `<span class="snapshot-unified-rank">${String(idx + 1).padStart(2, "0")}</span>`;
 
       const metaBits = [];
       if (isOverdue) metaBits.push(`<span class="snapshot-meta-alert">Overdue</span>`);
       if (it.time || it.time_label) metaBits.push(`<span class="font-mono">${this.escapeHtml(it.time || it.time_label)}</span>`);
       if (it.project_name) metaBits.push(`<span>${this.escapeHtml(it.project_name)}</span>`);
-      if (isQueueRow && it.tier) metaBits.push(`<span>${it.tier === "focus" ? "Focus" : (it.tier === "trivial" ? "Errand" : "Event")}</span>`);
-      if (!isQueueRow && it.in_sequence) metaBits.push(`<span class="snapshot-meta-accent">In sequence</span>`);
-      if (!isQueueRow && it.is_time_sensitive && !isDone) metaBits.push(`<span class="snapshot-meta-alert">Time Sensitive</span>`);
+      if (it.tier) {
+        const tierLabel = it.tier === "focus" ? "Focus" : (it.tier === "trivial" ? "Trivial" : "Event");
+        metaBits.push(`<span class="snapshot-tier-tag is-${tierLabel.toLowerCase()}">${tierLabel}</span>`);
+      }
 
       return `
-        <div class="snapshot-unified-row ${isDone ? 'completed' : ''}">
+        <div class="snapshot-unified-row snapshot-coalesce ${isDone ? 'completed' : ''}">
           <div class="snapshot-unified-row-main">
             ${rankHtml}
             <input type="checkbox" class="snapshot-unified-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
                    onclick="event.stopPropagation()" onchange="Dashboard.toggleSnapshotItemStatus('${itype}', ${it.id}, this.checked)"
                    title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
             <div class="snapshot-unified-row-copy">
-              <div class="snapshot-unified-item-title">${this.escapeHtml(it.title)}</div>
+              <div class="snapshot-unified-item-title">${this.tokenizeParticleText(it.title || "")}</div>
               ${metaBits.length > 0 ? `<div class="snapshot-unified-item-meta">${metaBits.join('<span class="snapshot-meta-dot">·</span>')}</div>` : ''}
             </div>
           </div>
@@ -2400,32 +2554,49 @@ const Dashboard = {
     const queue = b.priority_queue || [];
     const focusList = b.focus_items || [];
     const eventsList = b.events || [];
-    const projectsList = b.projects || [];
-    const errandsList = b.trivial_items || [];
-    const remindersList = b.reminders || [];
+    const trivialList = b.trivial_items || [];
 
-    const secondaryCount = [eventsList, focusList, projectsList, errandsList, remindersList].filter(arr => arr.length > 0).length;
-    const singleSecondaryClass = secondaryCount === 1 ? " snapshot-stream-wide" : "";
+    // Compute today's active tasks & events not yet added to Priority Sequence
+    const queuedTaskIds = new Set(queue.filter(q => !q.type || q.type === "task").map(q => String(q.id)));
+    const queuedEventIds = new Set(queue.filter(q => q.type === "event").map(q => String(q.id)));
+    const unqueuedTasks = [...focusList, ...trivialList].filter(t => !t.completed && !queuedTaskIds.has(String(t.id)));
+    const unqueuedEvents = eventsList.filter(e => !e.completed && !queuedEventIds.has(String(e.id)));
+    const totalPendingToday = (counts.total_pending !== undefined)
+      ? counts.total_pending
+      : ([...focusList, ...trivialList, ...eventsList].filter(x => !x.completed).length);
+    this._snapshotUnqueuedState = {
+      tasks: unqueuedTasks,
+      events: unqueuedEvents,
+      isLockedDay
+    };
 
     const totalItems = counts.total_items !== undefined
       ? counts.total_items
-      : (focusList.length + errandsList.length + eventsList.length);
+      : (focusList.length + trivialList.length + eventsList.length);
     const completedItems = counts.total_completed !== undefined
       ? counts.total_completed
-      : (focusList.filter(x => x.completed).length + errandsList.filter(x => x.completed).length + eventsList.filter(x => x.completed).length);
+      : (focusList.filter(x => x.completed).length + trivialList.filter(x => x.completed).length + eventsList.filter(x => x.completed).length);
     const endNotice = this.getBriefingEndNotice(this.selectedDate);
-    const dateEyebrow = b.date_display || this.selectedDate;
+    const eyebrowText = isLockedDay
+      ? "Archived Briefing"
+      : (this.isFutureDay() ? "Preview Briefing" : "Executive Briefing");
     const debBtn = document.getElementById("eveningDebriefDashBtn");
     const showDebriefTail = debBtn && debBtn.style.display !== "none";
+
+    const unqueuedLabel = unqueuedTasks.length > 0
+      ? `${unqueuedTasks.length} of today's task${unqueuedTasks.length === 1 ? " hasn't" : "s haven't"} been added to the sequence yet`
+      : (totalPendingToday === 0
+        ? "All of today's tasks are ticked off"
+        : "Every pending task for today is lined up in your sequence");
 
     container.innerHTML = `
       <div class="snapshot-unified-doc">
         <header class="snapshot-unified-hero-spread">
-          <div class="snapshot-unified-hero-copy">
-            <div class="snapshot-unified-eyebrow">${this.escapeHtml(dateEyebrow)}</div>
-            <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.buildHighlightedNarrativeHtml(b)}</p>
+          <div class="snapshot-unified-hero-copy snapshot-coalesce">
+            <div class="snapshot-unified-eyebrow">${this.escapeHtml(eyebrowText)}</div>
+            <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.buildHighlightedNarrativeHtml(b)} <span class="snapshot-lead-remark-inline ${this.isSnapshotRemarkLoading ? 'is-loading' : ''}" id="snapshotInlineRemark" title="${remarkObj.source === 'llm' ? 'Horace · Local LLM' : 'Horace'}">${this.tokenizeParticleText(remarkText, "is-remark", 8)}</span><button type="button" class="snapshot-inline-refresh-btn" onclick="Dashboard.refreshSnapshotRemark()" title="Refresh Horace's remark" ${this.isSnapshotRemarkLoading ? 'disabled' : ''}><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></button></p>
           </div>
-          <div class="snapshot-unified-tally" aria-label="Briefing summary counters">
+          <div class="snapshot-unified-tally snapshot-coalesce" aria-label="Briefing summary counters">
             ${tallyItems.map(t => `
               <div class="snapshot-tally-cell is-${t.tone}">
                 <span class="snapshot-tally-num">${t.value}</span>
@@ -2435,101 +2606,40 @@ const Dashboard = {
           </div>
         </header>
 
-        ${(queue.length > 0 || secondaryCount > 0) ? `
-          <div class="snapshot-unified-streams">
+        <div class="snapshot-unified-streams">
+          <section class="snapshot-unified-section snapshot-stream-wide">
+            <div class="snapshot-unified-section-header snapshot-coalesce">
+              <span>Priority Execution Sequence</span>
+              <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
+            </div>
             ${queue.length > 0 ? `
-              <section class="snapshot-unified-section snapshot-stream-wide">
-                <div class="snapshot-unified-section-header">
-                  <span>Priority Execution Sequence</span>
-                  <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
-                </div>
-                <div class="snapshot-unified-list ${queue.length >= 3 ? 'snapshot-unified-list--grid' : ''}">
-                  ${queue.map((it, idx) => renderTaskOrQueueRow(it, idx, true)).join("")}
-                </div>
-              </section>
-            ` : ""}
+              <div class="snapshot-unified-list ${queue.length >= 3 ? 'snapshot-unified-list--grid' : ''}">
+                ${queue.map((it, idx) => renderQueueRow(it, idx)).join("")}
+              </div>
+            ` : `
+              <div class="snapshot-queue-empty-note snapshot-coalesce">
+                No tasks have been pinned into Priority Execution Sequence yet. Open remaining items below or unlock to curate your order.
+              </div>
+            `}
+          </section>
+        </div>
 
-            ${eventsList.length > 0 ? `
-              <section class="snapshot-unified-section${singleSecondaryClass}">
-                <div class="snapshot-unified-section-header">
-                  <span>Scheduled Events</span>
-                  <span class="snapshot-unified-section-count">${counts.events_pending || 0} upcoming</span>
-                </div>
-                <div class="snapshot-unified-list">
-                  ${eventsList.map((e, idx) => renderTaskOrQueueRow({ ...e, type: "event" }, idx, false)).join("")}
-                </div>
-              </section>
-            ` : ""}
-
-            ${focusList.length > 0 ? `
-              <section class="snapshot-unified-section${singleSecondaryClass}">
-                <div class="snapshot-unified-section-header">
-                  <span>Focus Tasks</span>
-                  <span class="snapshot-unified-section-count">${counts.focus_pending || 0} pending</span>
-                </div>
-                <div class="snapshot-unified-list">
-                  ${focusList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
-                </div>
-              </section>
-            ` : ""}
-
-            ${projectsList.length > 0 ? `
-              <section class="snapshot-unified-section${singleSecondaryClass}">
-                <div class="snapshot-unified-section-header">
-                  <span>Active Projects</span>
-                  <span class="snapshot-unified-section-count">${projectsList.length} in motion</span>
-                </div>
-                <div class="snapshot-unified-list">
-                  ${projectsList.map(p => `
-                    <div class="snapshot-unified-row">
-                      <div class="snapshot-unified-row-main">
-                        <div class="snapshot-unified-row-copy">
-                          <div class="snapshot-unified-item-title">${this.escapeHtml(p.name)}</div>
-                          <div class="snapshot-unified-item-meta">${p.pending_count} remaining · ${p.completed_count}/${p.total_count} completed</div>
-                        </div>
-                      </div>
-                    </div>
-                  `).join("")}
-                </div>
-              </section>
-            ` : ""}
-
-            ${errandsList.length > 0 ? `
-              <section class="snapshot-unified-section${singleSecondaryClass}">
-                <div class="snapshot-unified-section-header">
-                  <span>Trivial Errands</span>
-                  <span class="snapshot-unified-section-count">${counts.trivial_pending || 0} remaining</span>
-                </div>
-                <div class="snapshot-unified-list">
-                  ${errandsList.map((t, idx) => renderTaskOrQueueRow({ ...t, type: "task" }, idx, false)).join("")}
-                </div>
-              </section>
-            ` : ""}
-
-            ${remindersList.length > 0 ? `
-              <section class="snapshot-unified-section${singleSecondaryClass}">
-                <div class="snapshot-unified-section-header">
-                  <span>Reminders</span>
-                  <span class="snapshot-unified-section-count">${counts.reminders_active || 0} active</span>
-                </div>
-                <div class="snapshot-unified-list">
-                  ${remindersList.map(r => `
-                    <div class="snapshot-unified-row ${r.dismissed ? 'completed' : ''}">
-                      <div class="snapshot-unified-row-main">
-                        <div class="snapshot-unified-row-copy">
-                          <div class="snapshot-unified-item-title">${this.escapeHtml(r.title)}</div>
-                          ${r.details ? `<div class="snapshot-unified-item-meta">${this.escapeHtml(r.details)}</div>` : ''}
-                        </div>
-                      </div>
-                    </div>
-                  `).join("")}
-                </div>
-              </section>
-            ` : ""}
+        <!-- Bottom Unqueued Modal Strip -->
+        <div class="snapshot-unqueued-bottom-modal snapshot-coalesce" role="button" tabindex="0" onclick="Dashboard.openSnapshotUnqueuedModal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();Dashboard.openSnapshotUnqueuedModal();}" title="Click to view remaining tasks not yet in sequence">
+          <div class="snapshot-unqueued-bottom-left">
+            <span class="snapshot-unqueued-count-badge font-mono">${unqueuedTasks.length}</span>
+            <div class="snapshot-unqueued-copy">
+              <div class="snapshot-unqueued-title">${this.escapeHtml(unqueuedLabel)}</div>
+              ${unqueuedEvents.length > 0 ? `<div class="snapshot-unqueued-sub">+ ${unqueuedEvents.length} scheduled event${unqueuedEvents.length === 1 ? "" : "s"} outside sequence</div>` : ""}
+            </div>
           </div>
-        ` : ""}
+          <span class="snapshot-unqueued-cta">
+            <span>View list</span>
+            <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+          </span>
+        </div>
 
-        <footer class="snapshot-unified-tail">
+        <footer class="snapshot-unified-tail snapshot-coalesce">
           <div class="snapshot-tail-left">
             <div class="snapshot-tail-specs">
               <span class="snapshot-tail-spec">LOCKED IN</span>
@@ -2561,6 +2671,7 @@ const Dashboard = {
       </div>
     `;
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+    this.initSnapshotScrollParticles(container);
   },
 
   async copyBriefingMarkdown() {
@@ -2614,7 +2725,7 @@ const Dashboard = {
         this.briefingData.focus_tasks.forEach(t => parts.push(`- [ ] ${t.title}${t.due_time ? ' (' + t.due_time + ')' : ''}`));
       }
       if (this.briefingData.trivial_tasks && this.briefingData.trivial_tasks.length > 0) {
-        parts.push("\n## Errand Tasks");
+        parts.push("\n## Trivial Tasks");
         this.briefingData.trivial_tasks.forEach(t => parts.push(`- [ ] ${t.title}`));
       }
       if (this.briefingData.appointments && this.briefingData.appointments.length > 0) {
@@ -3772,7 +3883,7 @@ const Dashboard = {
           })
         });
         if (res.ok) {
-          App.showToast(`✓ ${tier === "focus" ? "Focus task" : "Errand"} "${title}" added!`);
+          App.showToast(`✓ ${tier === "focus" ? "Focus task" : "Trivial task"} "${title}" added!`);
         } else {
           App.showToast("Error creating task", true);
           return;

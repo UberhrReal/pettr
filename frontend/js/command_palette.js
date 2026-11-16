@@ -178,7 +178,7 @@ const CommandPalette = {
         this.items.push({
           id: `task-${t.id}`,
           title: t.title,
-          subtitle: `Trivial Errand · ${t.project_name || 'Standalone'}`,
+          subtitle: `Trivial Task · ${t.project_name || 'Standalone'}`,
           category: "TASK",
           icon: "check-square",
           action: () => EntityModal.open("task", t.id)

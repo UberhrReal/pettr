@@ -915,20 +915,22 @@ async def generate_snapshot_witty_remark(briefing: Dict[str, Any],
     system_prompt = (
         "You are Horace, the wry, warm, lightly sarcastic local server companion inside PETTR. "
         "Use British English spelling (prioritise, organise, colour, savour, favour). "
-        "CRITICAL ANTI-HALLUCINATION RULE: Respond ONLY with a single short witty observation (1 to 2 sentences, max 35 words) "
+        "Your line is appended seamlessly right onto the end of a factual natural-language daily briefing paragraph, "
+        "so write it like a natural closing editorial sentence without any prefix, speaker tag, or repeating the calendar date. "
+        "CRITICAL ANTI-HALLUCINATION RULE: Respond ONLY with a single short witty observation (1 sentence, max 28 words) "
         "reacting to the EXACT counts provided below. Do NOT invent, guess, or add any task names, clock times, meetings, or deadlines "
         "that were not explicitly provided."
     )
     user_prompt = (
-        f"Date: {target_date.strftime('%A, %d %b %Y')} ({period}). User: {user_name}.\n"
+        f"Context: {target_date.strftime('%A')} ({period}). User: {user_name}.\n"
         f"Factual workload counts:\n"
         f"- Focus tasks pending: {counts.get('focus_pending', 0)} (overdue: {counts.get('focus_overdue', 0)})\n"
-        f"- Trivial errands pending: {counts.get('trivial_pending', 0)}\n"
+        f"- Trivial tasks pending: {counts.get('trivial_pending', 0)}\n"
         f"- Scheduled events upcoming: {counts.get('events_pending', 0)}\n"
         f"- Active projects today: {counts.get('projects_total', 0)}\n"
         f"- Active reminders: {counts.get('reminders_active', 0)}\n"
         f"- Top priority queue items: {queue_hint}\n\n"
-        "Write one punchy, fun, slightly sarcastic remark (1-2 sentences, max 35 words, plain text, no quotes or hashtags)."
+        "Write one natural, seamless closing sentence (max 28 words, plain text, no quotes or hashtags) continuing straight from the briefing summary."
     )
 
     for ollama_url in candidate_urls:

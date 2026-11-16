@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=10.2">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=10.3">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -209,10 +209,6 @@
                 <span class="mission-clock-meridiem" id="missionClockMeridiem">--</span>
               </div>
               <div class="mission-clock-subbar">
-                <div class="mission-clock-calendar">
-                  <i data-lucide="calendar" style="width:11px;height:11px;opacity:0.7;"></i>
-                  <span id="missionClockDateStr">LIVE</span>
-                </div>
                 <div class="mission-clock-track">
                   <div class="mission-clock-progress-bar" id="missionClockProgressBar"></div>
                 </div>
@@ -311,12 +307,6 @@
               <span>Locked in</span>
             </span>
           </div>
-          <div class="snapshot-header-remark" id="snapshotHeaderRemark" style="display:none;">
-            <span class="snapshot-header-remark-text" id="snapshotHeaderRemarkText"></span>
-            <button type="button" class="snapshot-header-remark-refresh" onclick="Dashboard.refreshSnapshotRemark()" title="Refresh outlook remark">
-              <i data-lucide="refresh-cw" style="width:11px;height:11px;"></i>
-            </button>
-          </div>
           <div class="snapshot-action-group briefing-showcase-actions" id="snapshotShowcaseActions">
             <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" id="snapshotFocusBtn" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit" style="display:none;">
               <i data-lucide="zap" style="width:13px;height:13px;"></i> <span>Focus</span>
@@ -411,7 +401,6 @@
                   <i data-lucide="bar-chart-2" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Your Stats &rarr;
                 </button>
               </div>
-              <span id="briefingDate" style="font-size: 12px; font-weight: 500; color: var(--text-muted);">Today</span>
             </div>
             <div class="overview-mode-switcher">
               <button type="button" class="overview-mode-btn active" id="ovBtnToday" onclick="Dashboard.switchOverviewMode('today')">Today</button>
@@ -457,7 +446,7 @@
               </div>
             </div>
 
-            <div class="tomorrow-blurb" id="tomorrowBlurb" style="margin-top: 14px; font-size: 12px; color: var(--text-muted); padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--card-border); line-height: 1.5;">
+            <div class="tomorrow-blurb overview-sub-box" id="tomorrowBlurb" style="margin-top: 14px; font-size: 12px; color: var(--text-muted); padding: 10px 14px; border-radius: var(--radius-sm); line-height: 1.5;">
               Tomorrow: Clear slate ahead.
             </div>
           </div>
@@ -474,7 +463,7 @@
             <div class="productivity-week-grid" id="productivityWeekGrid">
               <!-- Injected by Dashboard.renderProductivityWeek() -->
             </div>
-            <div id="weekProductivitySummary" style="font-size: 11.5px; color: var(--text-muted); padding: 8px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+            <div id="weekProductivitySummary" class="overview-sub-box" style="font-size: 11.5px; color: var(--text-muted); padding: 8px 12px; border-radius: var(--radius-sm);">
               Loading weekly productivity...
             </div>
           </div>
@@ -491,7 +480,7 @@
             <div class="project-progress-bar" style="height: 7px; margin-bottom: 12px;">
               <div class="project-progress-fill" id="monthProgressFill" style="width: 0%;"></div>
             </div>
-            <div id="monthProductivityDetails" style="font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--card-border);">
+            <div id="monthProductivityDetails" class="overview-sub-box" style="font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 10px 14px; border-radius: var(--radius-sm);">
               Loading monthly overview...
             </div>
           </div>
@@ -552,7 +541,7 @@
           <div class="column-header">
             <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Errands</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn manual-create-btn" id="manualAddTrivialBtn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick errand"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Errand</button>
+              <button class="action-icon-btn manual-create-btn" id="manualAddTrivialBtn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick trivial task"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Trivial</button>
               <span class="panel-count-badge" id="badgeCountTrivial">0 tasks</span>
               <span style="font-size: 11px; color: var(--text-muted);" title="Drag items to reorder"><i data-lucide="grip-vertical" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;opacity:0.5;"></i></span>
             </div>
@@ -2317,24 +2306,49 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     </div>
   </div>
 
+  <!-- Locked Snapshot: Unqueued Tasks Inspection Modal -->
+  <div id="snapshotUnqueuedModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) Dashboard.closeSnapshotUnqueuedModal()">
+    <div class="modal-card modal-structured" style="max-width: 600px; width: 94%;">
+      <div class="modal-header">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin: 0;">
+          <i data-lucide="layers" style="width: 16px; height: 16px; color: var(--focus-indigo);"></i>
+          <span id="snapshotUnqueuedModalTitle">Remaining Unqueued Tasks</span>
+        </h3>
+        <button type="button" class="action-icon-btn" onclick="Dashboard.closeSnapshotUnqueuedModal()" aria-label="Close"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px;">
+        <p id="snapshotUnqueuedModalSub" style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.5;"></p>
+        <div id="snapshotUnqueuedModalList" class="snapshot-unqueued-modal-list">
+          <!-- Injected dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="action-icon-btn" onclick="Dashboard.closeSnapshotUnqueuedModal(); Dashboard.unlockSnapshot();" style="padding: 7px 14px; font-weight: 600;">
+          <i data-lucide="unlock" style="width:13px;height:13px;margin-right:4px;"></i> Unlock &amp; Curate
+        </button>
+        <button type="button" class="action-icon-btn" onclick="Dashboard.closeSnapshotUnqueuedModal()" style="padding: 7px 16px;">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=10.2"></script>
-  <script src="/static/js/app.js?v=10.2"></script>
-  <script src="/static/js/drag_drop.js?v=10.2"></script>
-  <script src="/static/js/wave_canvas.js?v=10.2"></script>
-  <script src="/static/js/entity_modal.js?v=10.2"></script>
-  <script src="/static/js/timeline.js?v=10.2"></script>
-  <script src="/static/js/mindmap.js?v=10.2"></script>
-  <script src="/static/js/dashboard.js?v=10.2"></script>
-  <script src="/static/js/exploded.js?v=10.2"></script>
-  <script src="/static/js/notes.js?v=10.2"></script>
-  <script src="/static/js/history.js?v=10.2"></script>
-  <script src="/static/js/command_palette.js?v=10.2"></script>
-  <script src="/static/js/focus_cockpit.js?v=10.2"></script>
-  <script src="/static/js/evening_debrief.js?v=10.2"></script>
-  <script src="/static/js/horace_chat.js?v=10.2"></script>
+  <script src="/static/js/pin_lock.js?v=10.3"></script>
+  <script src="/static/js/app.js?v=10.3"></script>
+  <script src="/static/js/drag_drop.js?v=10.3"></script>
+  <script src="/static/js/wave_canvas.js?v=10.3"></script>
+  <script src="/static/js/entity_modal.js?v=10.3"></script>
+  <script src="/static/js/timeline.js?v=10.3"></script>
+  <script src="/static/js/mindmap.js?v=10.3"></script>
+  <script src="/static/js/dashboard.js?v=10.3"></script>
+  <script src="/static/js/exploded.js?v=10.3"></script>
+  <script src="/static/js/notes.js?v=10.3"></script>
+  <script src="/static/js/history.js?v=10.3"></script>
+  <script src="/static/js/command_palette.js?v=10.3"></script>
+  <script src="/static/js/focus_cockpit.js?v=10.3"></script>
+  <script src="/static/js/evening_debrief.js?v=10.3"></script>
+  <script src="/static/js/horace_chat.js?v=10.3"></script>
 </body>
 </html>

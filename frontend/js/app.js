@@ -1129,6 +1129,12 @@ const App = {
       return dismiss();
     }
 
+    const unqueuedModal = document.getElementById("snapshotUnqueuedModal");
+    if (unqueuedModal && unqueuedModal.style.display !== "none" && typeof Dashboard !== "undefined") {
+      Dashboard.closeSnapshotUnqueuedModal();
+      return dismiss();
+    }
+
     const debriefModal = document.getElementById("eveningDebriefModal");
     if (debriefModal && debriefModal.style.display !== "none" && typeof EveningDebrief !== "undefined") {
       EveningDebrief.close();
