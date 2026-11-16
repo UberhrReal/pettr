@@ -3615,9 +3615,9 @@ def test_v9_5_in_sequence_priority_queue_edits_checkoff_and_filtering(temp_db, m
     entity_js = Path("frontend/js/entity_modal.js").read_text(encoding="utf-8")
     app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
 
-    # Colour-based "In sequence" indication in Snapshot & Dashboard cards (no redundant badge text)
+    # Colour-based "In sequence" indication restricted to Snapshot panel (not outside task panels)
     assert ".briefing-item-row.in-sequence" in css
-    assert ".task-item.in-sequence" in css
+    assert ".task-item.in-sequence" not in css
     assert 'in-sequence' in dash_js
     assert 'in-sequence-badge' not in dash_js
 
@@ -3837,11 +3837,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.6
-    assert "pettr.css?v=10.6" in index_html
-    assert "dashboard.js?v=10.6" in index_html
-    assert "entity_modal.js?v=10.6" in index_html
-    assert "app.js?v=10.6" in index_html
+    # Static cache-busters bumped to v10.7
+    assert "pettr.css?v=10.7" in index_html
+    assert "dashboard.js?v=10.7" in index_html
+    assert "entity_modal.js?v=10.7" in index_html
+    assert "app.js?v=10.7" in index_html
 
 
 def test_v10_5_refinements():
@@ -3859,9 +3859,10 @@ def test_v10_5_refinements():
     assert "Priority Execution Sequence" not in dash_js
     assert "Priority Execution Sequence" not in index_html
 
-    # 2. Remove both 'IN SEQUENCE' and 'QUEUED' pill markers; indicate via row colour
+    # 2. Remove both 'IN SEQUENCE' and 'QUEUED' pill markers; indicate via row colour inside Snapshot only
     assert "in-sequence-badge" not in dash_js and ".in-sequence-badge" not in css
     assert "in-seq-rank" not in dash_js and ".in-seq-rank" not in css
+    assert ".task-item.in-sequence" not in css
     assert 'data-lucide="minus"' in dash_js
     assert ">Queued<" not in dash_js
     assert "0 queued" not in index_html
@@ -3895,10 +3896,10 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=10.6" in index_html
-    assert "timeline.js?v=10.6" in index_html
+    assert "history.js?v=10.7" in index_html
+    assert "timeline.js?v=10.7" in index_html
 
-    # 8. Deeper smoked glass shading (no pale white sheen washout) & mobile-only Snapshot + Queue button
+    # 8. Deeper smoked glass shading, mobile-only Snapshot + Queue button, bold numeric ranks, 'Items' count, and Unorganised spacing
     assert "rgba(9, 10, 14, 0.70)" in css
     assert "rgba(22, 14, 10, 0.68)" in css
     assert "rgba(232, 238, 247, 0.50)" in css
@@ -3906,6 +3907,11 @@ def test_v10_5_refinements():
     assert ".briefing-item-row .snapshot-quick-queue-btn" in css
     assert "@media (max-width: 768px), (hover: none) and (pointer: coarse)" in css
     assert "Drag tasks here to lock execution order." in index_html
+    assert "0 items" in index_html and "0 slots" not in index_html
+    assert 'item${count === 1 ? "" : "s"}' in dash_js
+    assert '<span class="slot-rank">${rank}</span>' in dash_js
+    assert '<span class="snapshot-unified-rank">${idx + 1}</span>' in dash_js
+    assert "#unorgPermanentList" in css
 
 
 

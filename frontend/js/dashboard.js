@@ -1642,17 +1642,9 @@ const Dashboard = {
   },
 
   syncInSequenceCardStates() {
-    const queuedTaskIds = new Set(
-      (this.dailyOrder || []).filter(d => !d.type || d.type === "task").map(d => String(d.id))
-    );
-    const queuedEventIds = new Set(
-      (this.dailyOrder || []).filter(d => d.type === "event").map(d => String(d.id))
-    );
-    document.querySelectorAll(".task-item[data-task-id]").forEach(el => {
-      el.classList.toggle("in-sequence", queuedTaskIds.has(String(el.dataset.taskId)));
-    });
-    document.querySelectorAll(".task-item[data-event-id]").forEach(el => {
-      el.classList.toggle("in-sequence", queuedEventIds.has(String(el.dataset.eventId)));
+    // Only highlight queued items inside the Snapshot panel, not dashboard lists outside it
+    document.querySelectorAll(".task-item.in-sequence").forEach(el => {
+      el.classList.remove("in-sequence");
     });
   },
 
@@ -1663,7 +1655,7 @@ const Dashboard = {
     if (!container) return;
 
     const count = this.dailyOrder.length;
-    if (countBadge) countBadge.textContent = `${count} slot${count === 1 ? "" : "s"}`;
+    if (countBadge) countBadge.textContent = `${count} item${count === 1 ? "" : "s"}`;
 
     if (count === 0) {
       container.innerHTML = `
@@ -1680,7 +1672,7 @@ const Dashboard = {
     }
 
     container.innerHTML = this.dailyOrder.map((item, idx) => {
-      const rank = String(idx + 1).padStart(2, "0");
+      const rank = idx + 1;
       let isDone = item.completed || false;
       let isOverdue = Boolean(item.is_overdue || item.is_rolled_over);
       let matchedTask = null;
@@ -1741,7 +1733,7 @@ const Dashboard = {
              ondragover="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDragOver(event, ${idx})`}"
              ondragleave="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDragLeave(event, ${idx})`}"
              ondrop="${isLockedDay ? 'return false;' : `Dashboard.onDailyOrderDrop(event, ${idx})`}">
-          <span class="slot-rank">#${rank}</span>
+          <span class="slot-rank">${rank}</span>
           <input type="checkbox" class="task-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
                  onclick="event.stopPropagation()" onchange="Dashboard.toggleDailyOrderItem(${idx}, this.checked)" title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
           <span class="slot-title">${this.escapeHtml(item.title)}</span>
@@ -2563,7 +2555,7 @@ const Dashboard = {
       const isDone = Boolean(it.completed);
       const itype = it.type || "task";
       const isOverdue = Boolean(it.is_overdue && !isDone);
-      const rankHtml = `<span class="snapshot-unified-rank">${String(idx + 1).padStart(2, "0")}</span>`;
+      const rankHtml = `<span class="snapshot-unified-rank">${idx + 1}</span>`;
 
       const metaBits = [];
       if (isOverdue) metaBits.push(`<span class="snapshot-meta-alert">Overdue</span>`);
@@ -2963,10 +2955,9 @@ const Dashboard = {
 
     list.forEach((task, idx) => {
       const isCompleted = task.status === "completed";
-      const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(task.id) && (d.type === "task" || !d.type));
       const cleanTitle = (task.title || "").replace(/^\s*\[.*?\]\s*/, '');
       const el = document.createElement("div");
-      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""} ${inSeq ? "in-sequence" : ""}`;
+      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
       el.dataset.taskId = task.id;
 
       const rankStr = String(idx + 1).padStart(2, "0");
@@ -3155,10 +3146,9 @@ const Dashboard = {
         const rankStr = String(idx + 1).padStart(2, "0");
         const timePart = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : "Today";
         const isCompleted = e.status === "completed";
-        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(e.id) && d.type === "event");
         const projColor = e.project_name ? this.getProjectColor(e.project_name, e.project_color) : "";
         const div = document.createElement("div");
-        div.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""} ${inSeq ? "in-sequence" : ""}`;
+        div.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
         div.dataset.eventId = e.id;
 
         let cbDisabled = "";

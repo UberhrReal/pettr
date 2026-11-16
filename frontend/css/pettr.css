@@ -1695,19 +1695,16 @@ body {
 }
 
 .daily-order-slot .slot-rank {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--bg-card);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--card-border);
+  font-family: var(--font-family);
+  font-size: 13.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--focus-indigo);
+  min-width: 18px;
+  text-align: center;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .daily-order-slot .slot-title {
@@ -1941,13 +1938,19 @@ body {
 .unorg-panel-body {
   display: grid;
   grid-template-rows: 1fr;
+  margin-top: 14px;
   opacity: 1;
-  transition: grid-template-rows 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+  transition: grid-template-rows 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease, margin-top 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .unorg-panel-inner {
   min-height: 0;
   overflow: hidden;
+}
+
+#unorgPermanentList {
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--glass-edge) 65%, transparent);
 }
 
 .unorg-permanent-panel.collapsed {
@@ -1956,6 +1959,7 @@ body {
 
 .unorg-permanent-panel.collapsed .unorg-panel-body {
   grid-template-rows: 0fr;
+  margin-top: 0;
   opacity: 0;
   pointer-events: none;
 }
@@ -6788,19 +6792,6 @@ body {
   text-transform: uppercase;
 }
 
-/* In-Sequence Queued Tasks (Colour-Shifted Accent Indicator) */
-.task-item.in-sequence:not(.completed) {
-  background: var(--in-seq-bg);
-  border-color: var(--in-seq-border);
-  border-left: 3.5px solid var(--in-seq-accent);
-  box-shadow: 0 3px 12px -4px color-mix(in srgb, var(--in-seq-accent) 26%, transparent);
-}
-
-.task-item.in-sequence:not(.completed):hover {
-  border-color: var(--in-seq-accent);
-  transform: translateY(-1px);
-}
-
 /* Theme Switcher & Collapsible Solar Slider Drawer */
 .theme-switcher-wrapper {
   position: relative;
@@ -10009,12 +10000,15 @@ body {
 }
 
 .snapshot-unified-rank {
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  font-weight: 700;
+  font-family: var(--font-family);
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   color: var(--focus-indigo);
-  padding-top: 5px;
-  min-width: 24px;
+  padding-top: 4px;
+  min-width: 18px;
+  text-align: right;
 }
 
 .snapshot-unified-checkbox {
