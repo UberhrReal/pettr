@@ -3837,11 +3837,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.5
-    assert "pettr.css?v=10.5" in index_html
-    assert "dashboard.js?v=10.5" in index_html
-    assert "entity_modal.js?v=10.5" in index_html
-    assert "app.js?v=10.5" in index_html
+    # Static cache-busters bumped to v10.6
+    assert "pettr.css?v=10.6" in index_html
+    assert "dashboard.js?v=10.6" in index_html
+    assert "entity_modal.js?v=10.6" in index_html
+    assert "app.js?v=10.6" in index_html
 
 
 def test_v10_5_refinements():
@@ -3895,8 +3895,17 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=10.5" in index_html
-    assert "timeline.js?v=10.5" in index_html
+    assert "history.js?v=10.6" in index_html
+    assert "timeline.js?v=10.6" in index_html
+
+    # 8. Deeper smoked glass shading (no pale white sheen washout) & mobile-only Snapshot + Queue button
+    assert "rgba(9, 10, 14, 0.70)" in css
+    assert "rgba(22, 14, 10, 0.68)" in css
+    assert "rgba(232, 238, 247, 0.50)" in css
+    assert "rgba(238, 224, 212, 0.52)" in css
+    assert ".briefing-item-row .snapshot-quick-queue-btn" in css
+    assert "@media (max-width: 768px), (hover: none) and (pointer: coarse)" in css
+    assert "Drag tasks here to lock execution order." in index_html
 
 
 
