@@ -336,6 +336,39 @@ const App = {
     }
   },
 
+  getAccessibleAccentColor(rawColor, fallback = "#3b82f6") {
+    const hexStr = String(rawColor || fallback || "#3b82f6").trim();
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hexStr);
+    if (!m) return fallback;
+    let h = m[1];
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    let r = parseInt(h.slice(0, 2), 16);
+    let g = parseInt(h.slice(2, 4), 16);
+    let b = parseInt(h.slice(4, 6), 16);
+
+    const theme = document.documentElement.getAttribute("data-theme") || "light";
+    const isDark = theme === "dark" || theme === "evening";
+    const toLin = (c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    const lum = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+
+    if (!isDark && lum > 0.40) {
+      // Darken very light/white/pastel markers toward deep slate so they stay sharp on light glass cards
+      const t = Math.min(0.68, 0.34 + (lum - 0.40) * 0.56);
+      r = Math.round(r * (1 - t) + 15 * t);
+      g = Math.round(g * (1 - t) + 23 * t);
+      b = Math.round(b * (1 - t) + 42 * t);
+    } else if (isDark && lum < 0.14) {
+      const t = 0.48;
+      r = Math.round(r * (1 - t) + 226 * t);
+      g = Math.round(g * (1 - t) + 232 * t);
+      b = Math.round(b * (1 - t) + 240 * t);
+    }
+    return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
+  },
+
   applyEffectiveTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     if (document.body) {
@@ -350,6 +383,10 @@ const App = {
           WaveCanvas.draw();
         }
       } catch (e) {}
+    }
+
+    if (typeof requestAnimationFrame !== "undefined") {
+      requestAnimationFrame(() => this.updateTabIndicator(true));
     }
   },
 

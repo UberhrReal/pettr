@@ -198,8 +198,10 @@ const FocusCockpit = {
         projEl.style.display = "inline-flex";
         if (typeof Dashboard !== "undefined" && Dashboard.getProjectColor) {
           const color = Dashboard.getProjectColor(rawProj);
-          projEl.style.color = color;
-          projEl.style.borderColor = color;
+          const safeColor = (typeof App !== "undefined" && App.getAccessibleAccentColor) ? App.getAccessibleAccentColor(color) : color;
+          projEl.style.setProperty("--tag-color", safeColor);
+          projEl.style.color = "";
+          projEl.style.borderColor = "";
         }
       } else {
         projEl.textContent = "";

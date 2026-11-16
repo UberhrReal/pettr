@@ -372,7 +372,7 @@ const Timeline = {
               <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
               <span class="ut-time-tag">📅 ${timePart}</span>
             </div>
-            ${e.project_name ? `<span class="project-tag" style="font-size:9.5px; padding:1px 6px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+            ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(e.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(e.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 6px;">${this.escapeHtml(e.project_name)}</span>` : ''}
           </div>
           <div class="ut-card-title">${this.escapeHtml(e.title)}</div>
         `;
@@ -419,7 +419,7 @@ const Timeline = {
               ${this.escapeHtml(t.title)}
             </div>
           </div>
-          ${t.project_name ? `<div class="ut-card-footer"><span class="project-tag" style="font-size:9.5px; padding:1px 5px;">📁 ${this.escapeHtml(t.project_name)}</span></div>` : ''}
+          ${t.project_name ? `<div class="ut-card-footer"><span class="project-tag" style="--tag-color:${this.escapeHtml(t.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(t.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 5px;">📁 ${this.escapeHtml(t.project_name)}</span></div>` : ''}
         `;
 
         card.addEventListener("click", (evt) => {
@@ -725,7 +725,7 @@ const Timeline = {
                 <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
                 <span class="ut-time-tag">📅 ${timePart}</span>
               </div>
-              ${e.project_name ? `<span class="project-tag" style="font-size:9.5px; padding:1px 6px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+              ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(e.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(e.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 6px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
             <div class="ut-card-title">${this.escapeHtml(e.title)}</div>
           `;
@@ -764,7 +764,7 @@ const Timeline = {
                 ${this.escapeHtml(t.title)}
               </div>
             </div>
-            ${t.project_name ? `<div class="ut-card-footer"><span class="project-tag" style="font-size:9.5px; padding:1px 5px;">📁 ${this.escapeHtml(t.project_name)}</span></div>` : ''}
+            ${t.project_name ? `<div class="ut-card-footer"><span class="project-tag" style="--tag-color:${this.escapeHtml(t.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(t.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 5px;">📁 ${this.escapeHtml(t.project_name)}</span></div>` : ''}
           `;
           card.addEventListener("click", (evt) => {
             if (evt.target.type !== "checkbox" && !isPast) {
@@ -905,18 +905,18 @@ const Timeline = {
         itemsHtml = `
           <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
             ${slot.events.map(e => `
-              <div onclick="EntityModal.open('event', ${e.id})" style="cursor: pointer; background: var(--bg-primary); border-left: 3px solid var(--accent-cyan); border: 1px solid var(--card-border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 13px;">📅 ${this.escapeHtml(e.title)}</span>
-                ${e.project_name ? `<span class="project-tag">${e.project_name}</span>` : ''}
+              <div onclick="EntityModal.open('event', ${e.id})" style="cursor: pointer; background: var(--glass-sheet-subtle); border: 1px solid var(--card-border); border-left: 3px solid var(--accent-cyan); padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <span style="font-weight: 600; font-size: 13px; min-width: 0; overflow-wrap: anywhere;">📅 ${this.escapeHtml(e.title)}</span>
+                ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(e.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(e.project_name) : '#3b82f6'))};">${this.escapeHtml(e.project_name)}</span>` : ''}
               </div>
             `).join('')}
             ${slot.tasks.map(t => `
-              <div onclick="EntityModal.open('task', ${t.id})" style="cursor: pointer; background: var(--bg-primary); border: 1px solid var(--card-border); padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 13px; ${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
+              <div onclick="EntityModal.open('task', ${t.id})" style="cursor: pointer; background: var(--glass-sheet-subtle); border: 1px solid var(--card-border); padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <span style="font-weight: 600; font-size: 13px; min-width: 0; overflow-wrap: anywhere; ${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
                   ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
                 </span>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  ${t.project_name ? `<span class="project-tag">${t.project_name}</span>` : ''}
+                <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+                  ${t.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(t.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(t.project_name) : '#3b82f6'))};">${this.escapeHtml(t.project_name)}</span>` : ''}
                   ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="font-size:9px; padding:1px 5px; background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.is_time_sensitive ? `<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡ TIME SENSITIVE</span>` : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue" style="font-size:9px; padding:1px 5px;">Overdue</span>` : ''))}
                 </div>
               </div>

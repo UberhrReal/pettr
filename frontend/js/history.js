@@ -41,7 +41,7 @@ const History = {
 
     if (projects.length === 0) {
       container.innerHTML = `
-        <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px dashed var(--card-border);">
+        <div class="history-empty-box">
           No completed projects yet. When you wrap up a project, it will be safely archived here.
         </div>
       `;
@@ -49,14 +49,14 @@ const History = {
     }
 
     container.innerHTML = projects.map(proj => `
-      <div class="history-item-card" style="background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <div>
+      <div class="history-item-card">
+        <div style="min-width: 0; flex: 1;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
-            <span class="project-tag" style="background: ${proj.color || '#3b82f6'}22; color: ${proj.color || '#3b82f6'}; border-color: ${proj.color || '#3b82f6'}55; font-size: 13px; font-weight: 700;">
+            <span class="project-tag" style="--tag-color: ${this.escapeHtml(proj.color || '#3b82f6')}; font-size: 12.5px; font-weight: 700;">
               📁 ${this.escapeHtml(proj.name)}
             </span>
-            <span style="font-size: 12px; color: var(--text-muted);">
-              Completed: ${proj.completed_at_military || 'Archived'}
+            <span style="font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono);">
+              ${proj.completed_at_military || 'Archived'}
             </span>
           </div>
           <div style="font-size: 12px; color: var(--text-muted);">
@@ -64,8 +64,8 @@ const History = {
             ${proj.description ? ` · <span style="color: var(--text-dim);">${this.escapeHtml(proj.description)}</span>` : ''}
           </div>
         </div>
-        <button class="action-icon-btn" onclick="History.reopenProject(${proj.id}, '${this.escapeHtml(proj.name)}')" title="Restore project back to active tracking" style="font-size: 12px; font-weight: 600;">
-          ↩ Reopen Project
+        <button class="action-icon-btn" onclick="History.reopenProject(${proj.id}, '${this.escapeHtml(proj.name)}')" title="Restore project back to active tracking" style="font-size: 12px; font-weight: 600; flex-shrink: 0;">
+          ↩ Reopen
         </button>
       </div>
     `).join("");
@@ -116,7 +116,7 @@ const History = {
 
     if (tasks.length === 0) {
       container.innerHTML = `
-        <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px dashed var(--card-border);">
+        <div class="history-empty-box">
           No finished tasks in the 30-day archive window. Tasks completed within the last 30 days appear here organised by day of completion.
         </div>
       `;
@@ -154,37 +154,40 @@ const History = {
       // Default first 2 most recent days to open, older days collapsed
       const isOpen = index < 2 ? "open" : "";
 
-      const tasksCardsHtml = dayTasks.map(task => `
-        <div class="task-card completed-task-card" style="opacity: 0.9; border-color: var(--card-border); background: var(--bg-card);">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-            <div style="flex: 1;">
-              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
-                <span class="tier-badge ${task.tier}">${task.tier === 'focus' ? '🎯 Focus' : '⚡ Trivial'}</span>
-                ${task.project_name ? `<span class="project-tag" style="background: ${task.project_color || '#3b82f6'}22; color: ${task.project_color || '#3b82f6'}; border-color: ${task.project_color || '#3b82f6'}55;">📁 ${this.escapeHtml(task.project_name)}</span>` : ''}
-                <span style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono);">Done: ${task.completed_at_military || 'Earlier'}</span>
+      const tasksCardsHtml = dayTasks.map(task => {
+        const pColor = task.project_color || (typeof Dashboard !== "undefined" && Dashboard.getProjectColor ? Dashboard.getProjectColor(task.project_name) : "#3b82f6");
+        return `
+          <div class="task-card completed-task-card">
+            <div class="completed-task-row">
+              <div class="completed-task-info">
+                <div class="completed-task-meta">
+                  <span class="tier-badge ${task.tier}">${task.tier === 'focus' ? '🎯 Focus' : '⚡ Trivial'}</span>
+                  ${task.project_name ? `<span class="project-tag" style="--tag-color: ${this.escapeHtml(pColor)};">📁 ${this.escapeHtml(task.project_name)}</span>` : ''}
+                  <span class="completed-task-time font-mono">Done ${task.completed_at_military || 'Earlier'}</span>
+                </div>
+                <div class="completed-strike-title">
+                  ${this.escapeHtml(task.title)}
+                </div>
+                ${task.description ? `<div class="completed-task-desc">${this.escapeHtml(task.description)}</div>` : ''}
               </div>
-              <div class="completed-strike-title" style="text-decoration: line-through; color: var(--text-muted); font-size: 13.5px; font-weight: 600;">
-                ${this.escapeHtml(task.title)}
-              </div>
-              ${task.description ? `<div style="font-size: 11.5px; color: var(--text-dim); margin-top: 4px;">${this.escapeHtml(task.description)}</div>` : ''}
+              <button class="action-icon-btn completed-restore-btn" onclick="History.reopenTask(${task.id}, '${this.escapeHtml(task.title)}')" title="Restore task to pending">
+                <i data-lucide="rotate-ccw" style="width:11px;height:11px;"></i> <span>Restore</span>
+              </button>
             </div>
-            <button class="action-icon-btn" onclick="History.reopenTask(${task.id}, '${this.escapeHtml(task.title)}')" title="Restore task to pending" style="font-size: 11px; font-weight: 600; white-space: nowrap;">
-              ↩ Restore
-            </button>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
 
       return `
-        <details class="history-day-subpanel" ${isOpen} style="background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-sm); overflow: hidden; transition: all 0.2s ease;">
-          <summary style="padding: 10px 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; list-style: none; background: var(--bg-tertiary); border-bottom: 1px solid var(--card-border);">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="history-chevron-indicator" style="font-size: 11px; color: var(--text-muted); transition: transform 0.2s ease; display: inline-block;">▶</span>
-              <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">${this.escapeHtml(dayLabel)}</span>
+        <details class="history-day-subpanel" ${isOpen}>
+          <summary class="history-day-summary">
+            <div class="history-day-summary-left">
+              <span class="history-chevron-indicator"><i data-lucide="chevron-right" style="width:13px;height:13px;"></i></span>
+              <span class="history-day-label">${this.escapeHtml(dayLabel)}</span>
             </div>
             <span class="panel-count-badge" style="font-size: 11px; font-weight: 600;">${dayTasks.length} task${dayTasks.length === 1 ? '' : 's'}</span>
           </summary>
-          <div style="padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">
+          <div class="history-day-tasks-grid">
             ${tasksCardsHtml}
           </div>
         </details>
@@ -204,7 +207,7 @@ const History = {
 
     if (reminders.length === 0) {
       container.innerHTML = `
-        <div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 13px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px dashed var(--card-border);">
+        <div class="history-empty-box">
           No dismissed or inactive reminders in archive.
         </div>
       `;
@@ -212,11 +215,11 @@ const History = {
     }
 
     container.innerHTML = reminders.map(rem => `
-      <div class="reminder-card" style="opacity: 0.85; border-color: var(--card-border); display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px;">
-        <div style="flex: 1;">
+      <div class="history-item-card reminder-archive-card">
+        <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap;">
             <span style="font-size: 13px;">🔔</span>
-            <span style="text-decoration: line-through; color: var(--text-muted); font-size: 13px; font-weight: 500;">
+            <span class="completed-strike-title" style="font-size: 13px; font-weight: 500;">
               ${this.escapeHtml(rem.title)}
             </span>
             ${rem.task_title ? `<span style="font-size: 11px; color: var(--text-dim);">[Attached: ${this.escapeHtml(rem.task_title)}]</span>` : ''}
@@ -225,8 +228,8 @@ const History = {
             Logged: ${rem.created_at_military || 'Earlier'} ${rem.details ? `· ${this.escapeHtml(rem.details)}` : ''}
           </div>
         </div>
-        <button class="action-icon-btn" onclick="History.restoreReminder(${rem.id}, '${this.escapeHtml(rem.title)}')" title="Restore reminder back to active tracking" style="font-size: 11px; font-weight: 600; white-space: nowrap;">
-          ↩ Restore
+        <button class="action-icon-btn" onclick="History.restoreReminder(${rem.id}, '${this.escapeHtml(rem.title)}')" title="Restore reminder back to active tracking" style="font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0;">
+          <i data-lucide="rotate-ccw" style="width:11px;height:11px;"></i> <span>Restore</span>
         </button>
       </div>
     `).join("");
@@ -502,12 +505,15 @@ const History = {
         if (data.project_breakdown.length === 0) {
           projContainer.innerHTML = `<span style="font-size: 12px; color: var(--text-muted);">No focus sessions logged this week yet.</span>`;
         } else {
-          projContainer.innerHTML = data.project_breakdown.map(p => `
+          projContainer.innerHTML = data.project_breakdown.map(p => {
+            const pCol = p.color || (typeof Dashboard !== "undefined" && Dashboard.getProjectColor ? Dashboard.getProjectColor(p.project_name) : "#3b82f6");
+            return `
             <div class="focus-proj-pill" title="${p.percentage}% of weekly focus">
-              <span class="project-tag">${p.project_name}</span>
+              <span class="project-tag" style="--tag-color: ${this.escapeHtml(pCol)};">${this.escapeHtml(p.project_name)}</span>
               <span class="font-mono font-bold" style="font-size: 11.5px; color: var(--text-main);">${p.hours}h (${p.percentage}%)</span>
             </div>
-          `).join("");
+          `;
+          }).join("");
         }
       }
     } catch (err) {
@@ -551,11 +557,12 @@ const History = {
           ? `<span class="urgency-badge normal" style="font-size:10px;"><i data-lucide="check" style="width:10px;height:10px;display:inline-block;vertical-align:-1px;"></i> Completed</span>`
           : `<span class="urgency-badge focus" style="font-size:10px;">Sprint Run</span>`;
 
+        const sColor = s.project_color || (typeof Dashboard !== "undefined" && Dashboard.getProjectColor ? Dashboard.getProjectColor(s.project_name) : "#3b82f6");
         return `
-          <div class="history-item focus-session-row" style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; background:var(--bg-secondary); border:1px solid var(--card-border); border-radius:10px;">
+          <div class="history-item focus-session-row">
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
-                <span class="project-tag">${this.escapeHtml(s.project_name || 'General')}</span>
+                ${s.project_name && s.project_name !== 'General' ? `<span class="project-tag" style="--tag-color: ${this.escapeHtml(sColor)};">${this.escapeHtml(s.project_name)}</span>` : ''}
                 ${completedBadge}
                 <span style="font-size:11px; color:var(--text-dim);">${s.completed_at || s.started_at}</span>
               </div>

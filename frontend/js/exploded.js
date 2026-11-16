@@ -318,7 +318,8 @@ const Exploded = {
     const isSchool = (p.category || "External").toLowerCase() === "school";
     const categoryBadgeClass = isSchool ? "category-badge-school" : "category-badge-external";
     const categoryLabel = isSchool ? "🎓 School" : "🌐 External";
-    const pColor = p.color || (isSchool ? "#ec4899" : "#3b82f6");
+    const rawColor = p.color || (isSchool ? "#ec4899" : "#3b82f6");
+    const pColor = (typeof App !== "undefined" && App.getAccessibleAccentColor) ? App.getAccessibleAccentColor(rawColor) : rawColor;
 
     const card = document.createElement("div");
     card.className = "project-card";
@@ -350,8 +351,8 @@ const Exploded = {
       <div style="display: flex; flex-direction: column; gap: 8px;">
         ${p.tasks.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); font-style: italic;">No tasks in this project yet.</div>' : ''}
         ${p.tasks.map(t => `
-          <div onclick="EntityModal.open('task', ${t.id})" title="Click to view details or re-sort" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-size: 13px; background: var(--bg-primary); border: 1px solid var(--card-border); padding: 8px 10px; border-radius: 6px; transition: border-color 0.15s ease;">
-            <span style="${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
+          <div class="exploded-subtask-row" onclick="EntityModal.open('task', ${t.id})" title="Click to view details or re-sort">
+            <span style="min-width:0; overflow-wrap:anywhere; ${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
               ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
             </span>
             ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.is_time_sensitive ? `<span class="time-sensitive-badge" style="font-size:9.5px; padding:1px 6px;">⚡ TIME SENSITIVE</span>` : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue">${t.urgency.label}</span>` : ''))}

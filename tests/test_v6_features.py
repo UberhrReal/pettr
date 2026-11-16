@@ -3615,10 +3615,11 @@ def test_v9_5_in_sequence_priority_queue_edits_checkoff_and_filtering(temp_db, m
     entity_js = Path("frontend/js/entity_modal.js").read_text(encoding="utf-8")
     app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
 
-    # Clear "In sequence" badge in Snapshot & non-conflicting CSS
-    assert '<span>In sequence</span>' in dash_js
+    # Colour-based "In sequence" indication in Snapshot & Dashboard cards (no redundant badge text)
     assert ".briefing-item-row.in-sequence" in css
-    assert css.count(".in-sequence-badge {") == 1
+    assert ".task-item.in-sequence" in css
+    assert 'in-sequence' in dash_js
+    assert 'in-sequence-badge' not in dash_js
 
     # EntityModal preserves queue order on title edits & awaits saveDailyOrder before refresh
     assert "newDay !== origDay" in entity_js
@@ -3817,10 +3818,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'id="snapshotHeaderRemark"' not in index_html and ".snapshot-header-remark" not in css
     assert 'id="snapshotInlineRemark"' not in dash_js and ".snapshot-lead-remark-inline" not in css
 
-    # Finalised snapshot exclusively shows Priority Execution Sequence + bottom modal for remaining unqueued tasks
+    # Finalised snapshot exclusively shows Tasking Priority + bottom modal for remaining unqueued tasks
     assert 'id="snapshotUnqueuedModal"' in index_html
     assert "snapshot-unqueued-bottom-modal" in dash_js and ".snapshot-unqueued-bottom-modal" in css
     assert "openSnapshotUnqueuedModal(" in dash_js
+    assert "Tasking Priority" in dash_js and "Tasking Priority" in index_html
 
     # Scroll-triggered kinetic particle-coalesce reveal for Snapshot text
     assert "initSnapshotScrollParticles(" in dash_js
@@ -3831,16 +3833,71 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'id="missionClockDateStr"' not in index_html
     assert 'id="briefingDate"' not in index_html
 
-    # Distinct 'In sequence' marker vs '.project-tag', and 'Trivial' marker replacing 'Errand'
-    assert "in-seq-rank" in dash_js and ".in-seq-rank" in css
+    # 'Trivial' marker replacing 'Errand', and colour-shifted row state replacing badge noise
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.4
-    assert "pettr.css?v=10.4" in index_html
-    assert "dashboard.js?v=10.4" in index_html
-    assert "entity_modal.js?v=10.4" in index_html
-    assert "app.js?v=10.4" in index_html
+    # Static cache-busters bumped to v10.5
+    assert "pettr.css?v=10.5" in index_html
+    assert "dashboard.js?v=10.5" in index_html
+    assert "entity_modal.js?v=10.5" in index_html
+    assert "app.js?v=10.5" in index_html
+
+
+def test_v10_5_refinements():
+    """Verify Tasking Priority rename, colour-only in-sequence state, mobile streamlining, swipe/accordion animations, Dawn/Afternoon tab contrast, History glassmorphism, and light-theme project marker contrast."""
+    index_html = Path("frontend/index.html").read_text(encoding="utf-8")
+    dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
+    hist_js = Path("frontend/js/history.js").read_text(encoding="utf-8")
+    app_js = Path("frontend/js/app.js").read_text(encoding="utf-8")
+    exploded_js = Path("frontend/js/exploded.js").read_text(encoding="utf-8")
+    cockpit_js = Path("frontend/js/focus_cockpit.js").read_text(encoding="utf-8")
+    css = Path("frontend/css/pettr.css").read_text(encoding="utf-8")
+
+    # 1. Rename "Priority Execution Sequence" -> "Tasking Priority"
+    assert "Tasking Priority" in dash_js and "Tasking Priority" in index_html
+    assert "Priority Execution Sequence" not in dash_js
+    assert "Priority Execution Sequence" not in index_html
+
+    # 2. Remove both 'IN SEQUENCE' and 'QUEUED' pill markers; indicate via row colour
+    assert "in-sequence-badge" not in dash_js and ".in-sequence-badge" not in css
+    assert "in-seq-rank" not in dash_js and ".in-seq-rank" not in css
+    assert 'data-lucide="minus"' in dash_js
+    assert ">Queued<" not in dash_js
+    assert "0 queued" not in index_html
+    assert "--in-seq-bg:" in css
+    assert "syncInSequenceCardStates(" in dash_js
+
+    # 3. Mobile streamlining & safe text wrapping
+    assert "overflow-wrap: anywhere" in css
+    assert ".daily-order-subtitle" in css and ".history-day-tasks-grid" in css
+
+    # 4. Smoother day swipe & Unorganised accordion animations
+    assert 'id="dashboardDayStage"' in index_html
+    assert "triggerDaySwipe(" in dash_js
+    assert "day-stage-swipe-next" in css and "day-stage-swipe-prev" in css
+    assert "unorg-panel-body" in index_html and "unorg-panel-inner" in index_html
+    assert "grid-template-rows: 0fr;" in css
+
+    # 5. High-contrast tab selector in Dawn (morning) & Afternoon (light) themes
+    assert '[data-theme="morning"] .nav-tabs' in css
+    assert '[data-theme="morning"] .nav-tab-indicator' in css
+    assert '[data-theme="morning"] .nav-tabs.nav-tabs--animated .tab-btn.active' in css
+
+    # 6. History Completed Tasks & Archives brought in line with frosted glassmorphism
+    assert "completed-task-card" in hist_js and ".completed-task-card" in css
+    assert "history-day-subpanel" in hist_js and ".history-day-subpanel" in css
+    assert "reminder-archive-card" in hist_js and "focus-session-row" in hist_js
+
+    # 7. Accessible light/white project marker contrast on light & morning backgrounds
+    assert "getAccessibleAccentColor(" in app_js
+    assert "getProjectColor(" in dash_js
+    assert "getAccessibleAccentColor(" in exploded_js
+    assert "getAccessibleAccentColor(" in cockpit_js
+    assert "color-mix(in srgb, var(--tag-color" in css
+    assert "history.js?v=10.5" in index_html
+    assert "timeline.js?v=10.5" in index_html
+
 
 
 

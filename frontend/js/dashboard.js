@@ -68,13 +68,44 @@ const Dashboard = {
     return false;
   },
 
+  getProjectColor(projectName, explicitColor = null) {
+    if (explicitColor) return explicitColor;
+    const raw = (projectName || "").trim();
+    if (!raw) return "#3b82f6";
+    const projects = (this.tasks && this.tasks.projects) || [];
+    const match = projects.find(p => p && p.name && p.name.trim().toLowerCase() === raw.toLowerCase());
+    if (match && match.color) return match.color;
+    const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#e11d48", "#6366f1"];
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
+    return palette[hash % palette.length];
+  },
+
+  triggerDaySwipe(direction) {
+    const stage = document.getElementById("dashboardDayStage");
+    if (!stage) return;
+    stage.classList.remove("day-stage-swipe-next", "day-stage-swipe-prev", "day-stage-fade");
+    void stage.offsetWidth; // Force clean reflow for repeated rapid day stepping
+    if (direction === "next") {
+      stage.classList.add("day-stage-swipe-next");
+    } else if (direction === "prev") {
+      stage.classList.add("day-stage-swipe-prev");
+    } else {
+      stage.classList.add("day-stage-fade");
+    }
+  },
+
   switchSelectedDate(newDate) {
     if (!newDate) return;
+    const prevDate = this.selectedDate;
     this.selectedDate = newDate;
     this.dailyOrderDate = newDate;
     this.briefingData = null;
     this.snapshotBriefing = null;
     this.snapshotLockDate = newDate;
+    if (prevDate && prevDate !== newDate) {
+      this.triggerDaySwipe(newDate > prevDate ? "next" : "prev");
+    }
     try {
       this.isSnapshotLocked = localStorage.getItem("pettr_snapshot_lock_" + newDate) === "true";
     } catch (_) {
@@ -1237,19 +1268,20 @@ const Dashboard = {
               ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
               : ''));
 
+        const projColor = t.project_name ? this.getProjectColor(t.project_name, t.project_color) : "";
+
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}" 
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${this.escapeHtml(timeMil)}')`}">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
+              ${t.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-              ${inSeq ? `<span class="in-sequence-badge" title="Slot #${seqIdx + 1} in Tasking Priority"><span class="in-seq-rank">#${String(seqIdx + 1).padStart(2, '0')}</span><span>In sequence</span></span>` : ''}
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
-              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
+              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}" aria-label="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="minus" style="width:12px;height:12px;"></i>' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
@@ -1288,21 +1320,21 @@ const Dashboard = {
             : (isTimeSensitive
               ? `<span class="time-sensitive-badge">⚡ TIME SENSITIVE</span>`
               : ''));
+        const projColor = t.project_name ? this.getProjectColor(t.project_name, t.project_color) : "";
 
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${this.escapeHtml(timeMil)}')`}">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${t.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
+              ${t.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
               ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-              ${inSeq ? `<span class="in-sequence-badge" title="Slot #${seqIdx + 1} in Tasking Priority"><span class="in-seq-rank">#${String(seqIdx + 1).padStart(2, '0')}</span><span>In sequence</span></span>` : ''}
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
-              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
+              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}" aria-label="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="minus" style="width:12px;height:12px;"></i>' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
@@ -1332,17 +1364,17 @@ const Dashboard = {
         const timeMil = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : 'Today';
         const seqIdx = (this.dailyOrder || []).findIndex(d => String(d.id) === String(e.id) && d.type === 'event');
         const inSeq = seqIdx !== -1;
+        const projColor = e.project_name ? this.getProjectColor(e.project_name, e.project_color) : "";
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
                ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')`}">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${e.project_name ? `<span class="project-tag" style="padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+              ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-              ${inSeq ? `<span class="in-sequence-badge" title="Slot #${seqIdx + 1} in Tasking Priority"><span class="in-seq-rank">#${String(seqIdx + 1).padStart(2, '0')}</span><span>In sequence</span></span>` : ''}
-              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('event', ${e.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="check" style="width:11px;height:11px;"></i> Queued' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
+              ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('event', ${e.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}" aria-label="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="minus" style="width:12px;height:12px;"></i>' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
           </div>
@@ -1609,13 +1641,29 @@ const Dashboard = {
     }
   },
 
+  syncInSequenceCardStates() {
+    const queuedTaskIds = new Set(
+      (this.dailyOrder || []).filter(d => !d.type || d.type === "task").map(d => String(d.id))
+    );
+    const queuedEventIds = new Set(
+      (this.dailyOrder || []).filter(d => d.type === "event").map(d => String(d.id))
+    );
+    document.querySelectorAll(".task-item[data-task-id]").forEach(el => {
+      el.classList.toggle("in-sequence", queuedTaskIds.has(String(el.dataset.taskId)));
+    });
+    document.querySelectorAll(".task-item[data-event-id]").forEach(el => {
+      el.classList.toggle("in-sequence", queuedEventIds.has(String(el.dataset.eventId)));
+    });
+  },
+
   renderDailyOrder() {
+    this.syncInSequenceCardStates();
     const container = document.getElementById("dailyOrderSlotsList");
     const countBadge = document.getElementById("dailyOrderCountBadge");
     if (!container) return;
 
     const count = this.dailyOrder.length;
-    if (countBadge) countBadge.textContent = `${count} queued`;
+    if (countBadge) countBadge.textContent = `${count} slot${count === 1 ? "" : "s"}`;
 
     if (count === 0) {
       container.innerHTML = `
@@ -2504,7 +2552,7 @@ const Dashboard = {
     if ((counts.overdue_total || 0) > 0) {
       tallyItems.push({ label: "Overdue", value: counts.overdue_total, tone: "alert" });
     } else if ((counts.queued_pending || 0) > 0) {
-      tallyItems.push({ label: "Queued", value: counts.queued_pending, tone: "accent" });
+      tallyItems.push({ label: "Priority", value: counts.queued_pending, tone: "accent" });
     } else if ((counts.projects_total || 0) > 0) {
       tallyItems.push({ label: "Projects", value: counts.projects_total, tone: "neutral" });
     } else {
@@ -2520,7 +2568,10 @@ const Dashboard = {
       const metaBits = [];
       if (isOverdue) metaBits.push(`<span class="snapshot-meta-alert">Overdue</span>`);
       if (it.time || it.time_label) metaBits.push(`<span class="font-mono">${this.escapeHtml(it.time || it.time_label)}</span>`);
-      if (it.project_name) metaBits.push(`<span>${this.escapeHtml(it.project_name)}</span>`);
+      if (it.project_name) {
+        const projColor = this.getProjectColor(it.project_name, it.project_color);
+        metaBits.push(`<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(it.project_name)}</span>`);
+      }
       if (it.tier) {
         const tierLabel = it.tier === "focus" ? "Focus" : (it.tier === "trivial" ? "Trivial" : "Event");
         metaBits.push(`<span class="snapshot-tier-tag is-${tierLabel.toLowerCase()}">${tierLabel}</span>`);
@@ -2605,7 +2656,7 @@ const Dashboard = {
         <div class="snapshot-unified-streams">
           <section class="snapshot-unified-section snapshot-stream-wide">
             <div class="snapshot-unified-section-header snapshot-coalesce">
-              <span>Priority Execution Sequence</span>
+              <span>Tasking Priority</span>
               <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
             </div>
             ${queue.length > 0 ? `
@@ -2614,7 +2665,7 @@ const Dashboard = {
               </div>
             ` : `
               <div class="snapshot-queue-empty-note snapshot-coalesce">
-                No tasks have been pinned into Priority Execution Sequence yet. Open remaining items below or unlock to curate your order.
+                No tasks have been pinned into Tasking Priority yet. Open remaining items below or unlock to curate your order.
               </div>
             `}
           </section>
@@ -2912,9 +2963,10 @@ const Dashboard = {
 
     list.forEach((task, idx) => {
       const isCompleted = task.status === "completed";
+      const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(task.id) && (d.type === "task" || !d.type));
       const cleanTitle = (task.title || "").replace(/^\s*\[.*?\]\s*/, '');
       const el = document.createElement("div");
-      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
+      el.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""} ${inSeq ? "in-sequence" : ""}`;
       el.dataset.taskId = task.id;
 
       const rankStr = String(idx + 1).padStart(2, "0");
@@ -2939,7 +2991,8 @@ const Dashboard = {
 
       let projectHtml = "";
       if (task.project_name) {
-        projectHtml = `<span class="project-tag">${this.escapeHtml(task.project_name)}</span>`;
+        const projColor = this.getProjectColor(task.project_name, task.project_color);
+        projectHtml = `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)};">${this.escapeHtml(task.project_name)}</span>`;
       }
 
       let remindersHtml = "";
@@ -3102,8 +3155,11 @@ const Dashboard = {
         const rankStr = String(idx + 1).padStart(2, "0");
         const timePart = e.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(e.start_time, e.end_time) : App.formatMilitaryTime(e.start_time)) : "Today";
         const isCompleted = e.status === "completed";
+        const inSeq = (this.dailyOrder || []).some(d => String(d.id) === String(e.id) && d.type === "event");
+        const projColor = e.project_name ? this.getProjectColor(e.project_name, e.project_color) : "";
         const div = document.createElement("div");
-        div.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""}`;
+        div.className = `task-item ${isCompleted ? "completed" : ""} ${isPast ? "is-locked" : ""} ${inSeq ? "in-sequence" : ""}`;
+        div.dataset.eventId = e.id;
 
         let cbDisabled = "";
         let cbTitle = "Check off appointment";
@@ -3119,12 +3175,12 @@ const Dashboard = {
           <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
           <input type="checkbox" class="task-checkbox" ${isCompleted ? "checked" : ""} ${cbDisabled}
                  onchange="event.stopPropagation(); Dashboard.toggleEventStatus(${e.id}, this.checked)" title="${cbTitle}">
-          <div style="background: var(--bg-tertiary); color: var(--text-main); border: 1px solid var(--card-border); padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; font-family: var(--font-mono);">
+          <div style="background: var(--glass-sheet-subtle); color: var(--text-main); border: 1px solid var(--glass-edge); padding: 4px 8px; border-radius: 5px; font-weight: 700; font-size: 11px; font-family: var(--font-mono);">
             ${timePart || 'Today'}
           </div>
           <div class="task-body" onclick="${isPast ? '' : `EntityModal.open('event', ${e.id})`}">
             <div class="task-title" style="${isCompleted ? 'text-decoration: line-through; color: var(--text-dim);' : ''}">${this.escapeHtml(e.title)}</div>
-            ${e.project_name ? `<span class="project-tag">${e.project_name}</span>` : ''}
+            ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)};">${this.escapeHtml(e.project_name)}</span>` : ''}
           </div>
           ${isPast ? '<span style="font-size:11px; color:var(--text-dim);"><i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Locked</span>' : ''}
         `;
