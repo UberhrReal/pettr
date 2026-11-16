@@ -3811,9 +3811,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "snapshot-unified-streams" in dash_js and ".snapshot-unified-streams" in css
     assert "snapshot-unified-tail" in dash_js and ".snapshot-unified-tail" in css
 
-    # Horace remark seamlessly inside editorial lead (not a separate header banner or quote box)
+    # Richer frosted glass sheen, single glassmorphism control cluster when locked in & no distracting Horace quip
+    assert "--glass-frost-sheen:" in css
+    assert ".briefing-showcase-window.is-locked-in .briefing-showcase-actions" in css
     assert 'id="snapshotHeaderRemark"' not in index_html and ".snapshot-header-remark" not in css
-    assert 'id="snapshotInlineRemark"' in dash_js and ".snapshot-lead-remark-inline" in css
+    assert 'id="snapshotInlineRemark"' not in dash_js and ".snapshot-lead-remark-inline" not in css
 
     # Finalised snapshot exclusively shows Priority Execution Sequence + bottom modal for remaining unqueued tasks
     assert 'id="snapshotUnqueuedModal"' in index_html
@@ -3834,11 +3836,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.3
-    assert "pettr.css?v=10.3" in index_html
-    assert "dashboard.js?v=10.3" in index_html
-    assert "entity_modal.js?v=10.3" in index_html
-    assert "app.js?v=10.3" in index_html
+    # Static cache-busters bumped to v10.4
+    assert "pettr.css?v=10.4" in index_html
+    assert "dashboard.js?v=10.4" in index_html
+    assert "entity_modal.js?v=10.4" in index_html
+    assert "app.js?v=10.4" in index_html
 
 
 

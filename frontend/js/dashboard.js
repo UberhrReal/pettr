@@ -2010,13 +2010,13 @@ const Dashboard = {
     const targetDate = this.selectedDate;
     const clientHour = new Date().getHours();
     this.isSnapshotLocked = true;
-    this.isSnapshotRemarkLoading = true;
+    this.isSnapshotRemarkLoading = false;
     this.snapshotLockDate = targetDate;
     try {
       localStorage.setItem("pettr_snapshot_lock_" + targetDate, "true");
     } catch (_) {}
 
-    // Transition immediately to keep UI responsive while saving & generating witty outlook
+    // Transition immediately to keep UI responsive while persisting snapshot lock
     this.applySnapshotLockUI();
     if (typeof App !== "undefined" && App.haptic) App.haptic("medium");
 
@@ -2029,7 +2029,7 @@ const Dashboard = {
           date: targetDate,
           locked: true,
           hour: clientHour,
-          refresh_remark: true
+          refresh_remark: false
         })
       });
       if (res.ok && this.selectedDate === targetDate) {
@@ -2494,10 +2494,6 @@ const Dashboard = {
 
     const b = this.snapshotBriefing || this.buildLocalSnapshotFallback();
     const counts = b.counts || {};
-    const remarkObj = b.remark || {};
-    const remarkText = this.isSnapshotRemarkLoading
-      ? "Horace is sizing up your schedule..."
-      : (remarkObj.text || "One deliberate step at a time.");
     const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
 
     const tallyItems = [
@@ -2594,7 +2590,7 @@ const Dashboard = {
         <header class="snapshot-unified-hero-spread">
           <div class="snapshot-unified-hero-copy snapshot-coalesce">
             <div class="snapshot-unified-eyebrow">${this.escapeHtml(eyebrowText)}</div>
-            <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.buildHighlightedNarrativeHtml(b)} <span class="snapshot-lead-remark-inline ${this.isSnapshotRemarkLoading ? 'is-loading' : ''}" id="snapshotInlineRemark" title="${remarkObj.source === 'llm' ? 'Horace · Local LLM' : 'Horace'}">${this.tokenizeParticleText(remarkText, "is-remark", 8)}</span><button type="button" class="snapshot-inline-refresh-btn" onclick="Dashboard.refreshSnapshotRemark()" title="Refresh Horace's remark" ${this.isSnapshotRemarkLoading ? 'disabled' : ''}><i data-lucide="refresh-cw" style="width:13px;height:13px;"></i></button></p>
+            <p class="snapshot-unified-prose" id="snapshotNarrativeProse">${this.buildHighlightedNarrativeHtml(b)}</p>
           </div>
           <div class="snapshot-unified-tally snapshot-coalesce" aria-label="Briefing summary counters">
             ${tallyItems.map(t => `
@@ -2649,20 +2645,20 @@ const Dashboard = {
           </div>
           <div class="snapshot-tail-actions">
             ${!isLockedDay ? `
-              <button type="button" class="snapshot-tail-icon-btn" onclick="FocusCockpit.launchTopTask()" title="Launch Focus Cockpit">
+              <button type="button" class="snapshot-tail-icon-btn is-focus" onclick="FocusCockpit.launchTopTask()" title="Launch Focus Cockpit" aria-label="Launch Focus Cockpit">
                 <i data-lucide="zap" style="width:15px;height:15px;"></i>
               </button>
             ` : ""}
             ${showDebriefTail ? `
-              <button type="button" class="snapshot-tail-icon-btn" onclick="EveningDebrief.open()" title="Evening Debrief">
+              <button type="button" class="snapshot-tail-icon-btn is-debrief" onclick="EveningDebrief.open()" title="Evening Debrief" aria-label="Evening Debrief">
                 <i data-lucide="moon-star" style="width:15px;height:15px;"></i>
               </button>
             ` : ""}
-            <button type="button" class="snapshot-tail-icon-btn" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Snapshot brief">
+            <button type="button" class="snapshot-tail-icon-btn is-copy" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Snapshot brief" aria-label="Copy Snapshot brief">
               <i data-lucide="copy" style="width:15px;height:15px;"></i>
             </button>
             ${!isLockedDay ? `
-              <button type="button" class="snapshot-tail-icon-btn" onclick="Dashboard.unlockSnapshot()" title="Unlock to edit">
+              <button type="button" class="snapshot-tail-icon-btn is-unlock" onclick="Dashboard.unlockSnapshot()" title="Unlock to edit" aria-label="Unlock Snapshot">
                 <i data-lucide="unlock" style="width:15px;height:15px;"></i>
               </button>
             ` : ""}
@@ -2677,7 +2673,7 @@ const Dashboard = {
   async copyBriefingMarkdown() {
     if (this.isSnapshotLocked && this.snapshotBriefing && this.snapshotBriefing.copy_text) {
       let ok = false;
-      const lockedText = this.snapshotBriefing.copy_text;
+      const lockedText = String(this.snapshotBriefing.copy_text).replace(/\r?\n\r?\nOutlook Note: "[^"]*"/g, "");
       if (navigator.clipboard && navigator.clipboard.writeText) {
         try {
           await navigator.clipboard.writeText(lockedText);
