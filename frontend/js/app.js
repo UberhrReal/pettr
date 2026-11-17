@@ -369,6 +369,16 @@ const App = {
     return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
   },
 
+  escapeJsAttr(value) {
+    return JSON.stringify(String(value ?? ""))
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+  },
+
   applyEffectiveTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     if (document.body) {

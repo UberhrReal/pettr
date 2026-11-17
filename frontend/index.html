@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=10.8">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=10.9">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -227,7 +227,7 @@
                 Inputs need your manual confirmation to route into Tasks, Events, or Reminders.
               </div>
             </div>
-            <button class="quick-submit-btn" style="position: static; transform: none; background: #ea580c;" onclick="Dashboard.openUnorganizedModal()">
+            <button type="button" class="quick-submit-btn" style="position: static; transform: none; background: #ea580c;" onclick="Dashboard.openUnorganizedModal()">
               Triage Now →
             </button>
           </div>
@@ -362,8 +362,8 @@
 
       <!-- Permanent Collapsible Unorganised Queue Panel -->
       <div class="unorg-permanent-panel" id="unorgPermanentPanel">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 8px;">
+        <div class="unorg-panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <i data-lucide="alert-triangle" style="width:15px;height:15px;color:var(--urgent-orange);"></i>
             <span style="font-weight: 700; font-size: 14px; color: var(--text-main);">Unorganised Queue</span>
             <span class="stat-pill" style="padding: 2px 8px; font-size: 11px; background: var(--urgent-orange-bg); color: var(--urgent-orange); border-color: #fed7aa;">
@@ -371,10 +371,10 @@
             </span>
           </div>
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="action-icon-btn" onclick="Dashboard.openUnorganizedModal(true)" style="font-size: 11.5px; font-weight: 600; color: var(--urgent-orange);" title="Direct manual entry into unorganised queue">
+            <button type="button" class="action-icon-btn" onclick="Dashboard.openUnorganizedModal(true)" style="font-size: 11.5px; font-weight: 600; color: var(--urgent-orange);" title="Direct manual entry into unorganised queue">
               <i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Manual
             </button>
-            <button class="action-icon-btn" id="unorgCollapseBtn" onclick="Dashboard.toggleUnorgCollapse()" style="font-size: 11.5px; font-weight: 600;" title="Toggle panel position">
+            <button type="button" class="action-icon-btn" id="unorgCollapseBtn" onclick="Dashboard.toggleUnorgCollapse()" style="font-size: 11.5px; font-weight: 600;" title="Toggle panel position">
               <i data-lucide="panel-right-close" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Hide
             </button>
           </div>
@@ -1840,7 +1840,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   </div>
 
   <!-- Unorganised Queue Modal -->
-  <div id="unorganizedModal" class="modal-overlay" style="display: none;">
+  <div id="unorganizedModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) Dashboard.closeUnorganizedModal()">
     <div class="modal-card" style="max-width: 550px;">
       <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganised Queue Triaging</h3>
       <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
@@ -1855,7 +1855,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <!-- Injected pending items -->
       </div>
       <div style="margin-top: 16px; text-align: right;">
-        <button class="action-icon-btn" onclick="Dashboard.closeUnorganizedModal()" style="padding: 8px 16px;">Close</button>
+        <button type="button" class="action-icon-btn" onclick="Dashboard.closeUnorganizedModal()" style="padding: 8px 16px;">Close</button>
       </div>
     </div>
   </div>
@@ -2335,20 +2335,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=10.8"></script>
-  <script src="/static/js/app.js?v=10.8"></script>
-  <script src="/static/js/drag_drop.js?v=10.8"></script>
-  <script src="/static/js/wave_canvas.js?v=10.8"></script>
-  <script src="/static/js/entity_modal.js?v=10.8"></script>
-  <script src="/static/js/timeline.js?v=10.8"></script>
-  <script src="/static/js/mindmap.js?v=10.8"></script>
-  <script src="/static/js/dashboard.js?v=10.8"></script>
-  <script src="/static/js/exploded.js?v=10.8"></script>
-  <script src="/static/js/notes.js?v=10.8"></script>
-  <script src="/static/js/history.js?v=10.8"></script>
-  <script src="/static/js/command_palette.js?v=10.8"></script>
-  <script src="/static/js/focus_cockpit.js?v=10.8"></script>
-  <script src="/static/js/evening_debrief.js?v=10.8"></script>
-  <script src="/static/js/horace_chat.js?v=10.8"></script>
+  <script src="/static/js/pin_lock.js?v=10.9"></script>
+  <script src="/static/js/app.js?v=10.9"></script>
+  <script src="/static/js/drag_drop.js?v=10.9"></script>
+  <script src="/static/js/wave_canvas.js?v=10.9"></script>
+  <script src="/static/js/entity_modal.js?v=10.9"></script>
+  <script src="/static/js/timeline.js?v=10.9"></script>
+  <script src="/static/js/mindmap.js?v=10.9"></script>
+  <script src="/static/js/dashboard.js?v=10.9"></script>
+  <script src="/static/js/exploded.js?v=10.9"></script>
+  <script src="/static/js/notes.js?v=10.9"></script>
+  <script src="/static/js/history.js?v=10.9"></script>
+  <script src="/static/js/command_palette.js?v=10.9"></script>
+  <script src="/static/js/focus_cockpit.js?v=10.9"></script>
+  <script src="/static/js/evening_debrief.js?v=10.9"></script>
+  <script src="/static/js/horace_chat.js?v=10.9"></script>
 </body>
 </html>

@@ -1920,7 +1920,7 @@ def test_typewriter_and_mobile_layout_enhancements():
     dash_js = Path("frontend/js/dashboard.js").read_text(encoding="utf-8")
     assert "scrollGreetingToEnd" in dash_js
     assert "scrollLeft = maxScroll" in dash_js
-    assert "openManualCreateModal('focus', '${this.escapeHtml(p.name)}')" in dash_js
+    assert "openManualCreateModal('focus', ${App.escapeJsAttr(p.name)})" in dash_js
     assert "Previous day priority tasking queues are locked." in dash_js
 
 
@@ -3837,11 +3837,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.8
-    assert "pettr.css?v=10.8" in index_html
-    assert "dashboard.js?v=10.8" in index_html
-    assert "entity_modal.js?v=10.8" in index_html
-    assert "app.js?v=10.8" in index_html
+    # Static cache-busters bumped to v10.9
+    assert "pettr.css?v=10.9" in index_html
+    assert "dashboard.js?v=10.9" in index_html
+    assert "entity_modal.js?v=10.9" in index_html
+    assert "app.js?v=10.9" in index_html
 
 
 def test_v10_5_refinements():
@@ -3896,10 +3896,10 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=10.8" in index_html
-    assert "timeline.js?v=10.8" in index_html
+    assert "history.js?v=10.9" in index_html
+    assert "timeline.js?v=10.9" in index_html
 
-    # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, and Unorganised spacing
+    # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
     assert "rgba(255, 249, 243, 0.46)" in css
     assert "rgba(38, 25, 18, 0.44)" in css
@@ -3913,6 +3913,10 @@ def test_v10_5_refinements():
     assert '<span class="slot-rank">${rank}</span>' in dash_js
     assert '<span class="snapshot-unified-rank">${idx + 1}</span>' in dash_js
     assert "#unorgPermanentList" in css
+    assert "createUnorgItemCard(" in dash_js
+    assert "escapeJsAttr(" in app_js
+    assert "escapeHtml(item.raw_input)}')" not in dash_js
+    assert ".action-icon-btn svg" in css
 
 
 

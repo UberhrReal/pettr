@@ -362,12 +362,12 @@ const Exploded = {
 
       <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 10px;">
         <div style="display: flex; gap: 6px;">
-          <button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', '${this.escapeHtml(p.name)}')">+ Add Task</button>
-          <button class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, '${this.escapeHtml(p.name)}')" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete</button>
+          <button type="button" class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', ${App.escapeJsAttr(p.name)})">+ Add Task</button>
+          <button type="button" class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, ${App.escapeJsAttr(p.name)})" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete</button>
         </div>
         <div style="display: flex; gap: 6px; align-items: center;">
-          <button class="action-icon-btn" onclick="EntityModal.open('project', ${p.id})" title="Edit project">Settings →</button>
-          <button class="action-icon-btn" onclick="Exploded.deleteProject(${p.id}, '${this.escapeHtml(p.name)}')" style="color: var(--urgent-orange);" title="Delete Project">
+          <button type="button" class="action-icon-btn" onclick="EntityModal.open('project', ${p.id})" title="Edit project">Settings →</button>
+          <button type="button" class="action-icon-btn" onclick="Exploded.deleteProject(${p.id}, ${App.escapeJsAttr(p.name)})" style="color: var(--urgent-orange);" title="Delete Project">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-1px;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
           </button>
         </div>

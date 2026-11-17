@@ -2465,6 +2465,10 @@ body {
   gap: 5px;
 }
 
+.action-icon-btn svg {
+  pointer-events: none;
+}
+
 .action-icon-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-main);
@@ -6123,7 +6127,6 @@ body {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
   }
 
   /* --- Settings Tab Responsive --- */
@@ -10506,6 +10509,12 @@ body {
    ========================================================================== */
 
 .dashboard-day-stage {
+  position: relative;
+}
+
+.dashboard-day-stage.day-stage-swipe-next,
+.dashboard-day-stage.day-stage-swipe-prev,
+.dashboard-day-stage.day-stage-fade {
   will-change: transform, opacity;
 }
 

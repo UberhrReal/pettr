@@ -11,6 +11,7 @@ const Dashboard = {
   userName: "User",
   activeFilter: null,
   isUnorgCollapsed: false,
+  _unorgItemsById: {},
   isSnapshotLocked: false,
   snapshotBriefing: null,
   snapshotLockDate: null,
@@ -81,18 +82,26 @@ const Dashboard = {
     return palette[hash % palette.length];
   },
 
+  _daySwipeTimer: null,
+
   triggerDaySwipe(direction) {
     const stage = document.getElementById("dashboardDayStage");
     if (!stage) return;
+    if (this._daySwipeTimer) {
+      clearTimeout(this._daySwipeTimer);
+      this._daySwipeTimer = null;
+    }
     stage.classList.remove("day-stage-swipe-next", "day-stage-swipe-prev", "day-stage-fade");
     void stage.offsetWidth; // Force clean reflow for repeated rapid day stepping
-    if (direction === "next") {
-      stage.classList.add("day-stage-swipe-next");
-    } else if (direction === "prev") {
-      stage.classList.add("day-stage-swipe-prev");
-    } else {
-      stage.classList.add("day-stage-fade");
-    }
+    const animClass = direction === "next"
+      ? "day-stage-swipe-next"
+      : (direction === "prev" ? "day-stage-swipe-prev" : "day-stage-fade");
+    stage.classList.add(animClass);
+    const cleanup = () => {
+      stage.classList.remove("day-stage-swipe-next", "day-stage-swipe-prev", "day-stage-fade");
+    };
+    stage.addEventListener("animationend", cleanup, { once: true });
+    this._daySwipeTimer = setTimeout(cleanup, 400);
   },
 
   switchSelectedDate(newDate) {
@@ -2925,8 +2934,8 @@ const Dashboard = {
 
         <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <div style="display: flex; gap: 6px;">
-            ${isPast ? '' : `<button class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', '${this.escapeHtml(p.name)}')">+ Add Task</button>`}
-            ${isPast ? '<span style="font-size:12px; color:var(--text-dim); font-weight:600;">🔒 Project Log Locked</span>' : `<button class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, '${this.escapeHtml(p.name)}')" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete Project</button>`}
+            ${isPast ? '' : `<button type="button" class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', ${App.escapeJsAttr(p.name)})">+ Add Task</button>`}
+            ${isPast ? '<span style="font-size:12px; color:var(--text-dim); font-weight:600;">🔒 Project Log Locked</span>' : `<button type="button" class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, ${App.escapeJsAttr(p.name)})" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete Project</button>`}
           </div>
           <button class="action-icon-btn" onclick="EntityModal.open('project', ${p.id})">Project Settings →</button>
         </div>
@@ -3272,11 +3281,63 @@ const Dashboard = {
     }
   },
 
+  createUnorgItemCard(item, isModal = false) {
+    const div = document.createElement("div");
+    div.style.background = "var(--bg-secondary)";
+    div.style.padding = isModal ? "14px" : "12px 14px";
+    div.style.borderRadius = "8px";
+    div.style.border = "1px solid var(--card-border)";
+    if (!isModal) div.style.marginBottom = "8px";
+    div.style.cursor = "pointer";
+    div.title = "Click/tap to inspect and edit in modal";
+
+    const openEdit = () => {
+      if (isModal) {
+        const um = document.getElementById("unorganizedModal");
+        if (um) um.dataset.wasOpen = "true";
+        Dashboard.closeUnorganizedModal();
+      }
+      EntityModal.open("unorganized", item.id);
+    };
+
+    div.onclick = (e) => {
+      if (e.target.closest("button")) return;
+      openEdit();
+    };
+
+    const focusLabel = isModal ? "🎯 Focus Task" : "🎯 Focus";
+    const trivialLabel = isModal ? "⚡ Trivial Errands" : "⚡ Trivial";
+    const editLabel = isModal ? "✏️ Edit Details" : "✏️ Edit";
+    const editOnclick = isModal
+      ? `event.stopPropagation(); const um = document.getElementById('unorganizedModal'); if (um) um.dataset.wasOpen = 'true'; Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});`
+      : `event.stopPropagation(); EntityModal.open('unorganized', ${item.id})`;
+
+    div.innerHTML = `
+      <div style="font-weight: 700; margin-bottom: ${isModal ? "6px" : "4px"}; font-size: ${isModal ? "14px" : "13.5px"}; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+        <span style="min-width: 0; overflow-wrap: anywhere;">"${this.escapeHtml(item.raw_input)}"</span>
+        <span style="font-size: ${isModal ? "11px" : "10px"}; color: var(--text-muted); font-weight: 400; flex-shrink: 0;">Tap to edit ↗</span>
+      </div>
+      <div style="font-size: ${isModal ? "12px" : "11px"}; color: var(--text-muted); margin-bottom: ${isModal ? "12px" : "10px"};">
+        Routing note: ${this.escapeHtml(item.reasoning || "Uncertain routing")}
+      </div>
+      <div style="display: flex; gap: ${isModal ? "8px" : "6px"}; flex-wrap: wrap;">
+        <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.resolveUnorg(${item.id}, 'task', 'focus')">${focusLabel}</button>
+        <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.resolveUnorg(${item.id}, 'task', 'trivial')">${trivialLabel}</button>
+        <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.resolveUnorg(${item.id}, 'event', null)">📅 Event</button>
+        <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.resolveUnorg(${item.id}, 'reminder', null)">🔔 Reminder</button>
+        <button type="button" class="action-icon-btn" onclick="${editOnclick}" style="color: var(--focus-indigo); font-weight: 600;">${editLabel}</button>
+        <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Dashboard.deleteUnorg(${item.id})" style="color: var(--urgent-orange); font-weight: 600;" title="Delete this item">🗑️ Delete</button>
+      </div>
+    `;
+    return div;
+  },
+
   async checkUnorganized() {
     try {
       const res = await fetch("/api/unorganized");
       if (!res.ok) return;
       const items = await res.json();
+      items.forEach(item => { this._unorgItemsById[item.id] = item; });
       
       const permanentList = document.getElementById("unorgPermanentList");
       const unorgBadgeCount = document.getElementById("unorgPermanentCount");
@@ -3303,37 +3364,7 @@ const Dashboard = {
           `;
         } else {
           items.forEach(item => {
-            const div = document.createElement("div");
-            div.style.background = "var(--bg-secondary)";
-            div.style.padding = "12px 14px";
-            div.style.borderRadius = "8px";
-            div.style.border = "1px solid var(--card-border)";
-            div.style.marginBottom = "8px";
-            div.style.cursor = "pointer";
-            div.title = "Click/tap to inspect and edit in modal";
-            div.onclick = (e) => {
-              if (e.target.closest("button")) return;
-              EntityModal.open("unorganized", item.id);
-            };
-
-            div.innerHTML = `
-              <div style="font-weight: 700; margin-bottom: 4px; font-size: 13.5px; display: flex; justify-content: space-between; align-items: flex-start;">
-                <span>"${this.escapeHtml(item.raw_input)}"</span>
-                <span style="font-size: 10px; color: var(--text-muted); font-weight: 400;">Tap to edit ↗</span>
-              </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
-                Routing note: ${item.reasoning || 'Uncertain routing'}
-              </div>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'focus', '${this.escapeHtml(item.raw_input)}')">🎯 Focus</button>
-                <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'trivial', '${this.escapeHtml(item.raw_input)}')">⚡ Trivial</button>
-                <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
-                <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
-                <button class="action-icon-btn" onclick="EntityModal.open('unorganized', ${item.id})" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit</button>
-                <button class="action-icon-btn" onclick="Dashboard.deleteUnorg(${item.id})" style="color: var(--urgent-orange); font-weight: 600;" title="Delete this item">🗑️ Delete</button>
-              </div>
-            `;
-            permanentList.appendChild(div);
+            permanentList.appendChild(this.createUnorgItemCard(item, false));
           });
         }
       }
@@ -3345,7 +3376,12 @@ const Dashboard = {
   async openUnorganizedModal(focusDirectInput = false) {
     try {
       const res = await fetch("/api/unorganized");
+      if (!res.ok) {
+        App.showToast("Could not load unorganised queue.", true);
+        return;
+      }
       const items = await res.json();
+      items.forEach(item => { this._unorgItemsById[item.id] = item; });
       const listContainer = document.getElementById("unorganizedModalList");
       if (!listContainer) return;
       listContainer.innerHTML = "";
@@ -3354,39 +3390,7 @@ const Dashboard = {
         listContainer.innerHTML = "<p style='color: var(--text-muted); text-align: center; padding: 20px 0;'>All caught up! The unorganised queue is clear.</p>";
       } else {
         items.forEach(item => {
-          const div = document.createElement("div");
-          div.style.background = "var(--bg-secondary)";
-          div.style.padding = "14px";
-          div.style.borderRadius = "8px";
-          div.style.border = "1px solid var(--card-border)";
-          div.style.cursor = "pointer";
-          div.title = "Click/tap to inspect and edit in modal";
-          div.onclick = (e) => {
-            if (e.target.closest("button")) return;
-            const um = document.getElementById("unorganizedModal");
-            if (um) um.dataset.wasOpen = "true";
-            Dashboard.closeUnorganizedModal();
-            EntityModal.open("unorganized", item.id);
-          };
-
-          div.innerHTML = `
-            <div style="font-weight: 700; margin-bottom: 6px; font-size: 14px; display: flex; justify-content: space-between; align-items: flex-start;">
-              <span>"${this.escapeHtml(item.raw_input)}"</span>
-              <span style="font-size: 11px; color: var(--text-muted); font-weight: 400;">Tap to edit ↗</span>
-            </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
-              Routing note: ${item.reasoning || 'Uncertain routing'}
-            </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'focus', '${this.escapeHtml(item.raw_input)}')">🎯 Focus Task</button>
-              <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'task', 'trivial', '${this.escapeHtml(item.raw_input)}')">⚡ Trivial Errands</button>
-              <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'event', null, '${this.escapeHtml(item.raw_input)}')">📅 Event</button>
-              <button class="action-icon-btn" onclick="Dashboard.resolveUnorg(${item.id}, 'reminder', null, '${this.escapeHtml(item.raw_input)}')">🔔 Reminder</button>
-              <button class="action-icon-btn" onclick="const um = document.getElementById('unorganizedModal'); if (um) um.dataset.wasOpen = 'true'; Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});" style="color: var(--focus-indigo); font-weight: 600;">✏️ Edit Details</button>
-              <button class="action-icon-btn" onclick="Dashboard.deleteUnorg(${item.id})" style="color: var(--urgent-orange); font-weight: 600;" title="Delete this item">🗑️ Delete</button>
-            </div>
-          `;
-          listContainer.appendChild(div);
+          listContainer.appendChild(this.createUnorgItemCard(item, true));
         });
       }
       document.getElementById("unorganizedModal").style.display = "flex";
@@ -3398,6 +3402,7 @@ const Dashboard = {
       }
     } catch (err) {
       console.error(err);
+      App.showToast("Network error loading unorganised queue.", true);
     }
   },
 
@@ -3453,24 +3458,38 @@ const Dashboard = {
     }
   },
 
-  async resolveUnorg(id, entityType, tier, title) {
+  async resolveUnorg(id, entityType, tier, title = null) {
     try {
+      const cached = this._unorgItemsById ? this._unorgItemsById[id] : null;
+      const effectiveTitle = (title !== null && title !== undefined)
+        ? String(title)
+        : String((cached && cached.raw_input) || "Untitled Item");
+
       const d = new Date();
       const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       // Never route triage into locked historical past days
       const targetDate = this.isPastDay() ? todayStr : (this.selectedDate || todayStr);
       const targetDueDate = `${targetDate} 23:59:00`;
 
-      await fetch(`/api/unorganized/${id}/resolve`, {
+      const res = await fetch(`/api/unorganized/${id}/resolve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           entity_type: entityType,
           tier: tier,
-          title: title,
+          title: effectiveTitle,
           due_date: targetDueDate
         })
       });
+      if (!res.ok) {
+        let errMsg = "Failed to sort unorganised item.";
+        try {
+          const errData = await res.json();
+          if (errData && errData.detail) errMsg = errData.detail;
+        } catch (_) {}
+        App.showToast(errMsg, true);
+        return;
+      }
       App.showToast("Item sorted successfully!");
       this.closeUnorganizedModal();
       await this.refresh();
@@ -3478,6 +3497,7 @@ const Dashboard = {
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
       console.error(err);
+      App.showToast("Network error sorting unorganised item.", true);
     }
   },
 

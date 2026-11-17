@@ -64,7 +64,7 @@ const History = {
             ${proj.description ? ` · <span style="color: var(--text-dim);">${this.escapeHtml(proj.description)}</span>` : ''}
           </div>
         </div>
-        <button class="action-icon-btn" onclick="History.reopenProject(${proj.id}, '${this.escapeHtml(proj.name)}')" title="Restore project back to active tracking" style="font-size: 12px; font-weight: 600; flex-shrink: 0;">
+        <button type="button" class="action-icon-btn" onclick="History.reopenProject(${proj.id}, ${App.escapeJsAttr(proj.name)})" title="Restore project back to active tracking" style="font-size: 12px; font-weight: 600; flex-shrink: 0;">
           ↩ Reopen
         </button>
       </div>
@@ -170,7 +170,7 @@ const History = {
                 </div>
                 ${task.description ? `<div class="completed-task-desc">${this.escapeHtml(task.description)}</div>` : ''}
               </div>
-              <button class="action-icon-btn completed-restore-btn" onclick="History.reopenTask(${task.id}, '${this.escapeHtml(task.title)}')" title="Restore task to pending">
+              <button type="button" class="action-icon-btn completed-restore-btn" onclick="History.reopenTask(${task.id}, ${App.escapeJsAttr(task.title)})" title="Restore task to pending">
                 <i data-lucide="rotate-ccw" style="width:11px;height:11px;"></i> <span>Restore</span>
               </button>
             </div>
@@ -228,7 +228,7 @@ const History = {
             Logged: ${rem.created_at_military || 'Earlier'} ${rem.details ? `· ${this.escapeHtml(rem.details)}` : ''}
           </div>
         </div>
-        <button class="action-icon-btn" onclick="History.restoreReminder(${rem.id}, '${this.escapeHtml(rem.title)}')" title="Restore reminder back to active tracking" style="font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0;">
+        <button type="button" class="action-icon-btn" onclick="History.restoreReminder(${rem.id}, ${App.escapeJsAttr(rem.title)})" title="Restore reminder back to active tracking" style="font-size: 11px; font-weight: 600; white-space: nowrap; flex-shrink: 0;">
           <i data-lucide="rotate-ccw" style="width:11px;height:11px;"></i> <span>Restore</span>
         </button>
       </div>

@@ -672,30 +672,31 @@ const Notes = {
       const isVid = item.media_type === "video";
       const isAud = item.media_type === "audio";
 
+      const fnArg = App.escapeJsAttr(item.filename);
       let previewHtml = "";
       if (isImg) {
         previewHtml = `
-          <div class="media-card-preview image-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+          <div class="media-card-preview image-preview" onclick="Notes.openMediaLightbox(${fnArg})">
             <img src="${item.url}" alt="${this.escapeHtml(item.display_name)}" loading="lazy" />
             <div class="media-card-zoom-hint"><i data-lucide="zoom-in" style="width:16px;height:16px;"></i></div>
           </div>`;
       } else if (isVid) {
         previewHtml = `
-          <div class="media-card-preview video-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+          <div class="media-card-preview video-preview" onclick="Notes.openMediaLightbox(${fnArg})">
             <i data-lucide="video" style="width:36px;height:36px;color:var(--focus-indigo);"></i>
             <span class="media-type-tag">VIDEO</span>
             <div class="media-card-zoom-hint"><i data-lucide="play" style="width:16px;height:16px;"></i></div>
           </div>`;
       } else if (isAud) {
         previewHtml = `
-          <div class="media-card-preview audio-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+          <div class="media-card-preview audio-preview" onclick="Notes.openMediaLightbox(${fnArg})">
             <i data-lucide="volume-2" style="width:36px;height:36px;color:var(--recurrence-purple);"></i>
             <span class="media-type-tag">AUDIO</span>
             <div class="media-card-zoom-hint"><i data-lucide="play" style="width:16px;height:16px;"></i></div>
           </div>`;
       } else {
         previewHtml = `
-          <div class="media-card-preview doc-preview" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')">
+          <div class="media-card-preview doc-preview" onclick="Notes.openMediaLightbox(${fnArg})">
             <i data-lucide="file-text" style="width:36px;height:36px;color:var(--text-muted);"></i>
             <span class="media-type-tag">${(item.media_type || "FILE").toUpperCase()}</span>
             <div class="media-card-zoom-hint"><i data-lucide="external-link" style="width:16px;height:16px;"></i></div>
@@ -716,13 +717,13 @@ const Notes = {
             </div>
           </div>
           <div class="media-card-actions">
-            <button type="button" class="media-card-action-btn select-btn" onclick="Notes.selectMediaForNote('${this.escapeHtml(item.filename)}')" title="Insert this media into your current scratchpad note">
+            <button type="button" class="media-card-action-btn select-btn" onclick="Notes.selectMediaForNote(${fnArg})" title="Insert this media into your current scratchpad note">
               <i data-lucide="plus" style="width:12px;height:12px;"></i> Insert
             </button>
-            <button type="button" class="media-card-action-btn view-btn" onclick="Notes.openMediaLightbox('${this.escapeHtml(item.filename)}')" title="View / Preview">
+            <button type="button" class="media-card-action-btn view-btn" onclick="Notes.openMediaLightbox(${fnArg})" title="View / Preview">
               <i data-lucide="eye" style="width:12px;height:12px;"></i> View
             </button>
-            <button type="button" class="media-card-action-btn delete-btn" onclick="Notes.confirmDeleteMedia('${this.escapeHtml(item.filename)}')" title="Delete permanently">
+            <button type="button" class="media-card-action-btn delete-btn" onclick="Notes.confirmDeleteMedia(${fnArg})" title="Delete permanently">
               <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
             </button>
           </div>
@@ -806,14 +807,15 @@ const Notes = {
     }
 
     if (actions) {
+      const fnArg = App.escapeJsAttr(item.filename);
       actions.innerHTML = `
-        <button type="button" class="action-icon-btn" onclick="Notes.selectMediaForNote('${this.escapeHtml(item.filename)}'); Notes.closeMediaLightbox();" style="background:var(--focus-indigo);color:#fff;font-weight:600;border:none;">
+        <button type="button" class="action-icon-btn" onclick="Notes.selectMediaForNote(${fnArg}); Notes.closeMediaLightbox();" style="background:var(--focus-indigo);color:#fff;font-weight:600;border:none;">
           <i data-lucide="plus" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Insert into Note
         </button>
         <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="action-icon-btn" style="color:var(--text-main);">
           <i data-lucide="external-link" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Open URL
         </a>
-        <button type="button" class="action-icon-btn" onclick="Notes.confirmDeleteMedia('${this.escapeHtml(item.filename)}')" style="color:var(--urgent-orange);">
+        <button type="button" class="action-icon-btn" onclick="Notes.confirmDeleteMedia(${fnArg})" style="color:var(--urgent-orange);">
           <i data-lucide="trash-2" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Delete
         </button>
       `;
