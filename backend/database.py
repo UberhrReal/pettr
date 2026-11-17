@@ -15,6 +15,20 @@ DEFAULT_DB_PATH = DEFAULT_DATA_DIR / "pettr.sqlite"
 def resolve_db_path(db_path: Optional[Path] = None) -> Path:
     return Path(db_path) if db_path is not None else Path(DEFAULT_DB_PATH)
 
+def _ensure_notes_folder_columns(conn: sqlite3.Connection) -> None:
+    """Adds hierarchical project/event folder metadata columns onto notes."""
+    for ddl in (
+        "ALTER TABLE notes ADD COLUMN project_name TEXT",
+        "ALTER TABLE notes ADD COLUMN event_id INTEGER REFERENCES events(id) ON DELETE SET NULL",
+        "ALTER TABLE notes ADD COLUMN event_title TEXT",
+        "CREATE INDEX IF NOT EXISTS idx_notes_project ON notes(project_name)",
+        "CREATE INDEX IF NOT EXISTS idx_notes_event ON notes(event_id)",
+    ):
+        try:
+            conn.execute(ddl)
+        except Exception:
+            pass
+
 def run_migrations(conn: sqlite3.Connection) -> None:
     """Safely applies non-breaking schema migrations to existing databases."""
     try:
@@ -77,6 +91,7 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_focus_task_id ON focus_sessions(task_id);")
     except Exception:
         pass
+    _ensure_notes_folder_columns(conn)
 
 def get_connection(db_path: Optional[Path] = None, auto_init: bool = True) -> sqlite3.Connection:
     """Creates a connection with WAL mode, normal synchronous durability, and row factory enabled."""
@@ -269,6 +284,7 @@ def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
             conn.execute("ALTER TABLE day_seals ADD COLUMN is_sealed INTEGER DEFAULT 0")
         except Exception:
             pass
+        _ensure_notes_folder_columns(conn)
         try:
             conn.execute("UPDATE events SET status = 'scheduled' WHERE status = 'pending'")
         except Exception:
@@ -915,21 +931,105 @@ def delete_unorganized_item(item_id: int, db_path: Optional[Path] = None) -> boo
 
 # --- Notes Operations ---
 
+def _enrich_note_row(row_dict: Dict[str, Any], proj_colors: Dict[str, str]) -> Dict[str, Any]:
+    resolved_proj = row_dict.pop("resolved_project_name", None)
+    resolved_ev = row_dict.pop("resolved_event_title", None)
+    if resolved_proj:
+        row_dict["project_name"] = resolved_proj
+    elif row_dict.get("project_name"):
+        row_dict["project_name"] = str(row_dict["project_name"]).strip() or None
+    if resolved_ev:
+        row_dict["event_title"] = resolved_ev
+    elif row_dict.get("event_title"):
+        row_dict["event_title"] = str(row_dict["event_title"]).strip() or None
+    pname = row_dict.get("project_name")
+    if not row_dict.get("project_color") and pname and pname in proj_colors:
+        row_dict["project_color"] = proj_colors[pname]
+    return row_dict
+
 def get_notes(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     conn = get_connection(db_path)
-    rows = conn.execute("SELECT * FROM notes ORDER BY updated_at DESC").fetchall()
-    return [dict(r) for r in rows]
+    proj_colors = {
+        r["name"]: r["color"]
+        for r in conn.execute("SELECT name, color FROM projects WHERE name IS NOT NULL").fetchall()
+        if r["color"]
+    }
+    rows = conn.execute("""
+        SELECT n.*,
+               COALESCE(NULLIF(TRIM(ep.name), ''), NULLIF(TRIM(n.project_name), '')) AS resolved_project_name,
+               COALESCE(ep.color, np.color) AS project_color,
+               COALESCE(NULLIF(TRIM(e.title), ''), NULLIF(TRIM(n.event_title), '')) AS resolved_event_title,
+               e.start_time AS event_start_time
+        FROM notes n
+        LEFT JOIN events e ON n.event_id = e.id
+        LEFT JOIN projects ep ON e.project_id = ep.id
+        LEFT JOIN projects np ON LOWER(TRIM(n.project_name)) = LOWER(TRIM(np.name))
+        ORDER BY n.updated_at DESC, n.id DESC
+    """).fetchall()
+    return [_enrich_note_row(dict(r), proj_colors) for r in rows]
 
-def save_note(content: str, title: str = "Quick Note", note_id: Optional[int] = None, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def save_note(content: str,
+              title: str = "Quick Note",
+              note_id: Optional[int] = None,
+              project_name: Optional[str] = None,
+              event_id: Optional[int] = None,
+              event_title: Optional[str] = None,
+              update_links: bool = False,
+              db_path: Optional[Path] = None) -> Dict[str, Any]:
     conn = get_connection(db_path)
+    clean_proj = (project_name or "").strip() or None if project_name is not None else None
+    clean_ev_title = (event_title or "").strip() or None if event_title is not None else None
+    clean_ev_id = int(event_id) if event_id is not None else None
+
+    if clean_ev_id is not None:
+        ev_row = conn.execute("""
+            SELECT e.title, p.name AS project_name
+            FROM events e
+            LEFT JOIN projects p ON e.project_id = p.id
+            WHERE e.id = ?
+        """, (clean_ev_id,)).fetchone()
+        if ev_row:
+            if not clean_ev_title and ev_row["title"]:
+                clean_ev_title = ev_row["title"]
+            if not clean_proj and ev_row["project_name"]:
+                clean_proj = ev_row["project_name"]
+
     with conn:
         if note_id:
-            conn.execute("UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (title, content, note_id))
-            row = conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
+            if update_links or clean_proj is not None or clean_ev_id is not None or clean_ev_title is not None:
+                conn.execute("""
+                    UPDATE notes
+                    SET title = ?, content = ?, project_name = ?, event_id = ?, event_title = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (title, content, clean_proj, clean_ev_id, clean_ev_title, note_id))
+            else:
+                conn.execute("UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (title, content, note_id))
+            target_id = note_id
         else:
-            cursor = conn.execute("INSERT INTO notes (title, content) VALUES (?, ?)", (title, content))
-            row = conn.execute("SELECT * FROM notes WHERE id = ?", (cursor.lastrowid,)).fetchone()
-        return dict(row)
+            cursor = conn.execute(
+                "INSERT INTO notes (title, content, project_name, event_id, event_title) VALUES (?, ?, ?, ?, ?)",
+                (title, content, clean_proj, clean_ev_id, clean_ev_title)
+            )
+            target_id = cursor.lastrowid
+
+        row = conn.execute("""
+            SELECT n.*,
+                   COALESCE(NULLIF(TRIM(ep.name), ''), NULLIF(TRIM(n.project_name), '')) AS resolved_project_name,
+                   COALESCE(ep.color, np.color) AS project_color,
+                   COALESCE(NULLIF(TRIM(e.title), ''), NULLIF(TRIM(n.event_title), '')) AS resolved_event_title,
+                   e.start_time AS event_start_time
+            FROM notes n
+            LEFT JOIN events e ON n.event_id = e.id
+            LEFT JOIN projects ep ON e.project_id = ep.id
+            LEFT JOIN projects np ON LOWER(TRIM(n.project_name)) = LOWER(TRIM(np.name))
+            WHERE n.id = ?
+        """, (target_id,)).fetchone()
+        proj_colors = {
+            r["name"]: r["color"]
+            for r in conn.execute("SELECT name, color FROM projects WHERE name IS NOT NULL").fetchall()
+            if r["color"]
+        }
+        return _enrich_note_row(dict(row), proj_colors)
 
 # --- History Log Operations ---
 
@@ -2222,7 +2322,13 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None, today_date: O
             continue
 
         if itype == "task":
-            t_row = conn.execute("SELECT id, title, due_date, status, tier, completed_at FROM tasks WHERE id = ?", (iid,)).fetchone()
+            t_row = conn.execute("""
+                SELECT t.id, t.title, t.due_date, t.status, t.tier, t.completed_at,
+                       p.name AS project_name, p.color AS project_color
+                FROM tasks t
+                LEFT JOIN projects p ON t.project_id = p.id
+                WHERE t.id = ?
+            """, (iid,)).fetchone()
             if t_row:
                 due_d = t_row["due_date"]
                 t_status = t_row["status"]
@@ -2272,9 +2378,19 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None, today_date: O
                 if t_tier and it.get("tier") != t_tier:
                     it["tier"] = t_tier
                     has_changes = True
+                if t_row["project_name"] != it.get("project_name"):
+                    it["project_name"] = t_row["project_name"]
+                if t_row["project_color"] != it.get("project_color"):
+                    it["project_color"] = t_row["project_color"]
             valid_items.append(it)
         elif itype == "event":
-            e_row = conn.execute("SELECT id, title, start_time, end_time FROM events WHERE id = ?", (iid,)).fetchone()
+            e_row = conn.execute("""
+                SELECT e.id, e.title, e.start_time, e.end_time,
+                       p.name AS project_name, p.color AS project_color
+                FROM events e
+                LEFT JOIN projects p ON e.project_id = p.id
+                WHERE e.id = ?
+            """, (iid,)).fetchone()
             if e_row:
                 ev_start = e_row["start_time"]
                 ev_end = e_row["end_time"]
@@ -2295,6 +2411,10 @@ def get_daily_order(date_str: str, db_path: Optional[Path] = None, today_date: O
                 if e_row["title"] and it.get("title") != e_row["title"]:
                     it["title"] = e_row["title"]
                     has_changes = True
+                if e_row["project_name"] != it.get("project_name"):
+                    it["project_name"] = e_row["project_name"]
+                if e_row["project_color"] != it.get("project_color"):
+                    it["project_color"] = e_row["project_color"]
             valid_items.append(it)
         else:
             valid_items.append(it)
@@ -2496,6 +2616,8 @@ def build_procedural_snapshot_briefing(target_date: Optional[datetime.date] = No
             "time": it.get("time") or "",
             "completed": bool(it.get("completed")),
             "is_overdue": bool(it.get("is_overdue") or it.get("is_rolled_over")),
+            "project_name": it.get("project_name"),
+            "project_color": it.get("project_color"),
         })
 
     # Attach queued marker onto lists cleanly

@@ -361,8 +361,11 @@ const Exploded = {
       </div>
 
       <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 10px;">
-        <div style="display: flex; gap: 6px;">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
           <button type="button" class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', ${App.escapeJsAttr(p.name)})">+ Add Task</button>
+          <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Notes.openProjectFolder(${App.escapeJsAttr(p.name)})" title="Open Notes folder for this project">
+            <i data-lucide="folder-open" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Notes
+          </button>
           <button type="button" class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, ${App.escapeJsAttr(p.name)})" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete</button>
         </div>
         <div style="display: flex; gap: 6px; align-items: center;">

@@ -1930,8 +1930,9 @@ def test_timeline_scroll_snapping_and_wheel_setup():
     assert "initialScroll = targetPosition - (scrollContainer.clientWidth / 2);" in timeline_js
     assert "initialScroll = initialDayIdx * DAY_WIDTH;" in timeline_js
     assert "const initialCenter = Math.max(0, initialScroll);" in timeline_js
+    assert "attachWheelPanHandler(scrollContainer)" in timeline_js
     assert "scrollContainer.addEventListener(\"wheel\"" in timeline_js
-    assert "Math.abs(e.deltaX) > Math.abs(e.deltaY)" in timeline_js
+    assert "Math.abs(dx) >= Math.abs(dy) * 0.5" in timeline_js
 
 
 def test_constellation_cloud_dark_theme_adaptation():
@@ -3837,11 +3838,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v10.9
-    assert "pettr.css?v=10.9" in index_html
-    assert "dashboard.js?v=10.9" in index_html
-    assert "entity_modal.js?v=10.9" in index_html
-    assert "app.js?v=10.9" in index_html
+    # Static cache-busters bumped to v11.0
+    assert "pettr.css?v=11.0" in index_html
+    assert "dashboard.js?v=11.0" in index_html
+    assert "entity_modal.js?v=11.0" in index_html
+    assert "app.js?v=11.0" in index_html
 
 
 def test_v10_5_refinements():
@@ -3896,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=10.9" in index_html
-    assert "timeline.js?v=10.9" in index_html
+    assert "history.js?v=11.0" in index_html
+    assert "timeline.js?v=11.0" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -3917,6 +3918,183 @@ def test_v10_5_refinements():
     assert "escapeJsAttr(" in app_js
     assert "escapeHtml(item.raw_input)}')" not in dash_js
     assert ".action-icon-btn svg" in css
+
+
+def test_v11_notes_folders_and_ui_refinements(tmp_path):
+    """Verify v11.0 Notes project/event auto-foldering API, snapshot drag/badge/button fixes, timeline trackpad scroll, voice fix, mobile lock-in fix & split Guide."""
+    from fastapi.testclient import TestClient
+    from backend import app as backend_app
+    from backend import database, auth
+
+    db_file = tmp_path / "test_v11.sqlite"
+    orig_db = database.DEFAULT_DB_PATH
+    database.DEFAULT_DB_PATH = db_file
+    database.init_db(db_file)
+    try:
+        # 1. Create a project and a linked event, then verify Notes auto-inherit project metadata
+        proj = database.get_or_create_project("Orbital Lab", db_path=db_file)
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        ev = database.create_event(
+            title="Wind Tunnel Sync",
+            start_time=f"{today_str} 14:00:00",
+            end_time=f"{today_str} 15:00:00",
+            project_name="Orbital Lab",
+            db_path=db_file
+        )
+        assert ev and ev.get("id")
+
+        # Save an event-linked note without explicitly passing project_name -> must resolve Orbital Lab
+        saved_ev_note = database.save_note(
+            title="Wind Tunnel Sync — Notes",
+            content="<p>Telemetry check</p>",
+            event_id=ev["id"],
+            db_path=db_file
+        )
+        assert saved_ev_note["event_id"] == ev["id"]
+        assert saved_ev_note["event_title"] == "Wind Tunnel Sync"
+        assert saved_ev_note["project_name"] == "Orbital Lab"
+
+        # Save a direct project note (no event) & general note
+        saved_proj_note = database.save_note(
+            title="Lab Overview",
+            content="<p>Project spec</p>",
+            project_name="Orbital Lab",
+            db_path=db_file
+        )
+        assert saved_proj_note["project_name"] == "Orbital Lab"
+        assert saved_proj_note["event_id"] is None
+
+        all_notes = database.get_notes(db_path=db_file)
+        assert any(n["id"] == saved_ev_note["id"] and n["project_name"] == "Orbital Lab" for n in all_notes)
+
+        # Updating auto-saved content preserves project/event links, and update_links=True clears when unlinked
+        resaved = database.save_note(
+            title="Wind Tunnel Sync — Notes",
+            content="<p>Updated note</p>",
+            note_id=saved_ev_note["id"],
+            db_path=db_file
+        )
+        assert resaved["project_name"] == "Orbital Lab"
+        assert resaved["event_id"] == ev["id"]
+
+        unlinked = database.save_note(
+            title="Standalone Draft",
+            content="<p>Moved to general</p>",
+            note_id=saved_proj_note["id"],
+            project_name=None,
+            event_id=None,
+            update_links=True,
+            db_path=db_file
+        )
+        assert unlinked["project_name"] is None
+
+        # Verify daily_order + procedural snapshot briefing enrich project_name onto priority_queue events
+        database.save_daily_order(today_str, [{
+            "id": ev["id"],
+            "type": "event",
+            "title": "Wind Tunnel Sync",
+            "tier": "event",
+            "time": "14:00 - 15:00"
+        }], db_path=db_file)
+        briefing = database.build_procedural_snapshot_briefing(datetime.date.today(), db_path=db_file)
+        assert briefing["priority_queue"]
+        assert briefing["priority_queue"][0]["project_name"] == "Orbital Lab"
+
+        # Verify FastAPI /api/notes route accepts project_name & event_id & update_links
+        client = TestClient(backend_app.app)
+        backend_app.app.dependency_overrides[auth.require_auth] = lambda: {"authenticated": True}
+        resp = client.post("/api/notes", json={
+            "title": "API Event Note",
+            "content": "<p>From button</p>",
+            "event_id": ev["id"],
+            "event_title": "Wind Tunnel Sync",
+            "update_links": True
+        })
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["note"]["project_name"] == "Orbital Lab"
+        assert body["note"]["event_title"] == "Wind Tunnel Sync"
+    finally:
+        backend_app.app.dependency_overrides.clear()
+        database.DEFAULT_DB_PATH = orig_db
+
+    # 2. Frontend v11.0 structural & UX assertions across all 11 items
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    dash_js = (root_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    notes_js = (root_dir / "frontend" / "js" / "notes.js").read_text(encoding="utf-8")
+    timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
+    exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
+
+    # Cache busters bumped to v11.0
+    assert "pettr.css?v=11.0" in index_html
+    assert "dashboard.js?v=11.0" in index_html
+    assert "notes.js?v=11.0" in index_html
+
+    # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
+    assert "onBriefingRowDragStart(" in dash_js
+    assert "ensureDailyOrderDropHandlers(" in dash_js
+    assert "extractBriefingDropItem(" in dash_js
+    assert "pettr-briefing:" in dash_js
+
+    # Item 2: Finalised tally grid vertically centered
+    assert ".snapshot-unified-hero-spread" in css
+    idx_hero = css.index(".snapshot-unified-hero-spread {")
+    assert "align-items: center;" in css[idx_hero:idx_hero + 220]
+    assert ".snapshot-tally-cell:nth-last-child(-n+2)" in css
+
+    # Item 3: Finalised top-right badge & no bottom LOCKED IN spec
+    assert "<span>Finalised</span>" in index_html
+    assert 'snapshot-tail-spec">LOCKED IN<' not in dash_js
+    assert "margin-left: auto;" in css[css.index(".snapshot-locked-pill {"):css.index(".snapshot-locked-pill {") + 220]
+
+    # Item 4: Redesigned School / External pool headers (no loud pulsing keyframes)
+    assert "Frosted Architectural Bar Design" in css
+    assert "schoolPillPulse" not in css
+
+    # Item 5: Icon-only animated Focus play button in finalised snapshot
+    assert "snapshotFocusGlow" in css
+    assert "snapshot-focus-play-icon" in dash_js
+    assert 'snapshot-unified-focus-btn" onclick="Dashboard.launchLockedFocusTask(${it.id})"' in dash_js
+    focus_btn_snippet = dash_js[dash_js.index("Dashboard.launchLockedFocusTask(${it.id})"):dash_js.index("Dashboard.launchLockedFocusTask(${it.id})") + 260]
+    assert "<span>Focus</span>" not in focus_btn_snippet
+
+    # Item 6: Remove leading n number from unqueued bottom modal copy
+    assert "`of today's task" in dash_js
+
+    # Item 7: Timeline trackpad horizontal two-finger scrolling without scroll-behavior smooth conflict
+    assert "attachWheelPanHandler(" in timeline_js
+    assert "scrollContainer.scrollLeft += dx;" in timeline_js
+    idx_tl_css = css.index(".unified-timeline-container, .horizontal-ruler-container {")
+    assert "scroll-behavior: auto;" in css[idx_tl_css:idx_tl_css + 320]
+    assert "overscroll-behavior-x: contain;" in css[idx_tl_css:idx_tl_css + 320]
+
+    # Item 8: Event Notes button, Project Card Notes buttons, collapsible folder hierarchy
+    assert "Notes.openEventNote(" in dash_js
+    assert "Notes.openProjectFolder(" in dash_js
+    assert "Notes.openProjectFolder(" in exploded_js
+    assert "buildFolderTreeData(" in notes_js
+    assert "buildEventFolderElement(" in notes_js
+    assert 'id="noteFolderContextBar"' in index_html
+
+    # Item 9: Synchronous SpeechRecognition without pre-opening getUserMedia + continuous listening
+    toggle_voice_src = app_js[app_js.index("toggleVoiceInput()"):app_js.index("openVoiceTroubleshootModal(reason")]
+    assert "navigator.mediaDevices.getUserMedia" not in toggle_voice_src
+    assert "recognition.continuous = true;" in toggle_voice_src
+
+    # Item 10: Mobile Lock-In hides dual layout lists cleanly
+    assert ".briefing-showcase-window.is-locked-in .briefing-dual-layout" in css
+
+    # Item 11: Split Guide into User Guide & For Development + comprehensive Style Guide with all fonts
+    assert "switchGuideTrack(" in app_js
+    assert 'data-guide-track="user"' in index_html
+    assert 'data-guide-track="dev"' in index_html
+    assert 'id="guideSection_styleguide"' in index_html
+    for font_name in ["Geist", "Inter", "Urbanist", "Outfit", "Space Grotesk", "Syne", "Newsreader", "Instrument Serif", "JetBrains Mono"]:
+        assert font_name in index_html
+
 
 
 

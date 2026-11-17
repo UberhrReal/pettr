@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=10.9">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=11.0">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -299,11 +299,12 @@
         <div class="briefing-showcase-header">
           <div class="briefing-showcase-title">
             <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="compass" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Snapshot</span>
-            <span class="snapshot-locked-pill" id="snapshotLockedPill" style="display:none;">
-              <i data-lucide="lock" style="width:11px;height:11px;"></i>
-              <span>Locked in</span>
-            </span>
           </div>
+          <span class="snapshot-locked-pill" id="snapshotLockedPill" style="display:none;">
+            <span class="snapshot-locked-dot" aria-hidden="true"></span>
+            <i data-lucide="sparkles" style="width:11.5px;height:11.5px;"></i>
+            <span>Finalised</span>
+          </span>
           <div class="snapshot-action-group briefing-showcase-actions" id="snapshotShowcaseActions">
             <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" id="snapshotFocusBtn" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit" style="display:none;">
               <i data-lucide="zap" style="width:13px;height:13px;"></i> <span>Focus</span>
@@ -693,11 +694,14 @@
           <!-- Notes List View Section (active in 'notes' mode) -->
           <div id="notesListViewSection">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; margin-top: 10px;">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Notes</span>
-              <button class="action-icon-btn" onclick="Notes.createNewNote()" style="font-weight: 700; color: var(--text-main); font-size: 11px;">+ New</button>
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Folders &amp; Notes</span>
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <button type="button" class="action-icon-btn" onclick="Notes.toggleAllFolders()" id="notesCollapseToggleBtn" title="Expand or collapse all folders" style="padding: 3px 6px; font-size: 11px;"><i data-lucide="chevrons-up-down" style="width:11px;height:11px;"></i></button>
+                <button type="button" class="action-icon-btn" onclick="Notes.createNewNote()" style="font-weight: 700; color: var(--text-main); font-size: 11px;">+ New</button>
+              </div>
             </div>
-            <div id="notesListSidebar" style="display: flex; flex-direction: column; gap: 6px;">
-              <!-- Notes list injected here -->
+            <div id="notesListSidebar" class="notes-folder-tree" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Auto-organised collapsible folders & notes injected here -->
             </div>
           </div>
 
@@ -723,6 +727,7 @@
 
         <!-- Note Editor Card (active in 'notes' mode) -->
         <div class="notes-editor-card" id="notesEditorCard">
+          <div id="noteFolderContextBar" class="notes-folder-context-bar" style="display: none;"></div>
           <div class="notes-editor-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px;">
             <input type="text" id="noteTitleInput" class="notes-title-input" placeholder="Note Title..." style="flex: 1;">
           </div>
@@ -1131,39 +1136,59 @@
       </div>
     </section>
 
-    <!-- Tab 7: User Guide -->
+    <!-- Tab 7: Documentation & Guides (User Guide & For Development) -->
     <section id="tabGuide" class="tab-pane">
       <div class="guide-header-block" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">User Guide</h2>
+        <div>
+          <h2 id="guideHeaderTitle" style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0;">User Guide</h2>
+          <p id="guideHeaderSubtitle" style="font-size: 12.5px; color: var(--text-muted); margin: 3px 0 0 0;">Workflows, focus systems, notes organisation, and daily rituals.</p>
+        </div>
+        <div class="scale-switch-group guide-track-switcher" role="tablist" aria-label="Documentation section track">
+          <button type="button" class="guide-track-btn active" data-guide-track="user" onclick="App.switchGuideTrack('user', this)">
+            <i data-lucide="book-open" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:4px;"></i> User Guide
+          </button>
+          <button type="button" class="guide-track-btn" data-guide-track="dev" onclick="App.switchGuideTrack('dev', this)">
+            <i data-lucide="code-2" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:4px;"></i> For Development
+          </button>
+        </div>
       </div>
       <div class="guide-container">
-        <!-- Sticky Sidebar Navigation -->
-        <aside class="guide-sidebar">
-          <button class="guide-nav-link active" onclick="App.switchGuideSection('quickstart', this)">
+        <!-- Sticky Sidebar Navigation (Filtered per Track) -->
+        <aside class="guide-sidebar" id="guideSidebarNav">
+          <!-- User Guide Links -->
+          <button type="button" class="guide-nav-link active" data-guide-track="user" data-guide-section="quickstart" onclick="App.switchGuideSection('quickstart', this)">
             <i data-lucide="rocket"></i> <span>Quick Start &amp; Ingestion</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('cockpit', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="user" data-guide-section="cockpit" onclick="App.switchGuideSection('cockpit', this)">
             <i data-lucide="clock"></i> <span>Mission Clock &amp; Focus</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('snapshot', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="user" data-guide-section="snapshot" onclick="App.switchGuideSection('snapshot', this)">
             <i data-lucide="list-ordered"></i> <span>Snapshot &amp; Priority</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('command', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="user" data-guide-section="notesguide" onclick="App.switchGuideSection('notesguide', this)">
+            <i data-lucide="folder-tree"></i> <span>Notes &amp; Auto-Folders</span>
+          </button>
+          <button type="button" class="guide-nav-link" data-guide-track="user" data-guide-section="command" onclick="App.switchGuideSection('command', this)">
             <i data-lucide="terminal"></i> <span>Command Palette</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('debrief', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="user" data-guide-section="debrief" onclick="App.switchGuideSection('debrief', this)">
             <i data-lucide="moon-star"></i> <span>Evening Debrief</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('deployment', this)">
+
+          <!-- For Development Links -->
+          <button type="button" class="guide-nav-link" data-guide-track="dev" data-guide-section="styleguide" style="display: none;" onclick="App.switchGuideSection('styleguide', this)">
+            <i data-lucide="palette"></i> <span>Style Guide &amp; Typography</span>
+          </button>
+          <button type="button" class="guide-nav-link" data-guide-track="dev" data-guide-section="deployment" style="display: none;" onclick="App.switchGuideSection('deployment', this)">
             <i data-lucide="server"></i> <span>Ubuntu &amp; Docker Setup</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('ai-voice', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="dev" data-guide-section="ai-voice" style="display: none;" onclick="App.switchGuideSection('ai-voice', this)">
             <i data-lucide="bot"></i> <span>Local AI &amp; Voice Input</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('hardware', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="dev" data-guide-section="hardware" style="display: none;" onclick="App.switchGuideSection('hardware', this)">
             <i data-lucide="cpu"></i> <span>Shuttle DH610 Optimisation</span>
           </button>
-          <button class="guide-nav-link" onclick="App.switchGuideSection('persistence', this)">
+          <button type="button" class="guide-nav-link" data-guide-track="dev" data-guide-section="persistence" style="display: none;" onclick="App.switchGuideSection('persistence', this)">
             <i data-lucide="shield-check"></i> <span>Zero Data Loss &amp; Backup</span>
           </button>
         </aside>
@@ -1418,8 +1443,160 @@ Ctrl+P    • Quick-open hotkey (familiar to VS Code / Sublime users)
             </div>
           </div>
 
-          <!-- Section 2: Deployment Guide -->
-          <div id="guideSection_deployment" class="guide-section-card" style="display: none;">
+          <!-- User Section: Notes & Auto-Organised Folders -->
+          <div id="guideSection_notesguide" class="guide-section-card" data-guide-track="user" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="folder-tree"></i> Notes &amp; Hierarchical Project/Event Folders</h2>
+            <p class="guide-lead">
+              Keep lecture notes, meeting agendas, and project logs neatly structured automatically—without manual folder wrangling.
+            </p>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">1</span> Instant Event Notes from Finalised Snapshot
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                In the Finalised Snapshot view, scheduled events display a <strong>Notes</strong> action instead of a Focus play button. Clicking it immediately creates a pre-titled note linked to that event and opens the Notes editor inside its matching folder.
+              </p>
+            </div>
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+                <span class="guide-step-num">2</span> Automatic Project &rarr; Event Nesting
+              </h4>
+              <p style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                If an event belongs to a Project, its collapsible event folder nests automatically underneath that parent Project's broader folder. Project cards on both the Dashboard and the Global Project Pool also include a direct <strong>Notes</strong> shortcut to jump straight to that project's folder.
+              </p>
+            </div>
+          </div>
+
+          <!-- Dev Section: Style Guide & Design System -->
+          <div id="guideSection_styleguide" class="guide-section-card" data-guide-track="dev" style="display: none;">
+            <h2 class="guide-editorial-title"><i data-lucide="palette"></i> PETTR Design System &amp; Style Guide</h2>
+            <p class="guide-lead">
+              Reference specification for fonts, diurnal color tokens, translucent frosted glassmorphism surfaces, squircle geometry, and badge hierarchy.
+            </p>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 10px;">
+                <span class="guide-step-num">1</span> Typography &amp; Complete Font Stack
+              </h4>
+              <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 12px;">
+                All nine Google Fonts imported by PETTR (via <code>frontend/index.html</code> &amp; <code>frontend/css/pettr.css</code>) and their designated interface roles:
+              </p>
+              <div class="styleguide-font-grid">
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta"><code>--font-family</code> · Primary UI</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Geist', sans-serif;">Geist — High-legibility interface body, controls, and queue rows</div>
+                  <div class="styleguide-font-sub">Weights: 200–800 · Primary font in <code>--font-family</code></div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta"><code>--font-family</code> · Secondary Sans</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Inter', sans-serif;">Inter — Clean neutral fallback for dense cards &amp; system labels</div>
+                  <div class="styleguide-font-sub">Weights: 200–800 · Paired in <code>--font-family</code> &amp; <code>--font-logo</code></div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta"><code>--font-logo</code> · Brand Wordmark</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Urbanist', sans-serif; font-weight: 700; letter-spacing: 0.04em;">Urbanist — PETTR Brand Header, PIN Lock &amp; Hero Headings</div>
+                  <div class="styleguide-font-sub">Weights: 100–700 (Regular &amp; Italic) · Primary display wordmark</div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta"><code>--font-logo</code> · Geometric Display</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Outfit', sans-serif; font-weight: 600;">Outfit — Soft geometric partner face for headers &amp; capsules</div>
+                  <div class="styleguide-font-sub">Weights: 100–700 · Wordmark &amp; pool header fallback</div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta">Display Extended · Geometric Sans</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Space Grotesk', sans-serif; font-weight: 600;">Space Grotesk — Technical neo-grotesque display accent</div>
+                  <div class="styleguide-font-sub">Weights: 300–900 · Available for architectural titles</div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta">Display Expressive · Wide Headline</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Syne', sans-serif; font-weight: 700;">Syne — Wide editorial display lettering for high-contrast promos</div>
+                  <div class="styleguide-font-sub">Weights: 700–900 · High-impact statement headings</div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta"><code>--font-serif</code> · Snapshot Editorial</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Newsreader', Georgia, serif; font-size: 16px;">Newsreader — Calm editorial serif for Finalised Snapshot briefings</div>
+                  <div class="styleguide-font-sub">Weights: 400–700 (opsz 6..72, Regular &amp; Italic) · Used in <code>.snapshot-unified-prose</code> &amp; <code>.snapshot-unified-item-title</code></div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta">Editorial Accent · Condensed Serif</div>
+                  <div class="styleguide-font-sample" style="font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 18px;">Instrument Serif — Refined italic contrast phrases &amp; pull quotes</div>
+                  <div class="styleguide-font-sub">Styles: Normal &amp; Italic · Editorial emphasis serif</div>
+                </div>
+                <div class="styleguide-font-card">
+                  <div class="styleguide-font-meta"><code>--font-mono</code> · Telemetry &amp; Code</div>
+                  <div class="styleguide-font-sample" style="font-family: 'JetBrains Mono', monospace;">JetBrains Mono — 08:30–17:45 · Timestamps, counts &amp; code blocks</div>
+                  <div class="styleguide-font-sub">Weights: 400, 500, 700 · Used for military times, counters &amp; <code>&lt;code&gt;</code></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 10px;">
+                <span class="guide-step-num">2</span> Diurnal Solar Theme Tokens
+              </h4>
+              <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin-bottom: 12px;">
+                PETTR adapts continuously across four solar themes driven by the live <code>data-theme</code> attribute over the interactive wave canvas (<code>#bgWaveCanvas</code>):
+              </p>
+              <div class="styleguide-theme-grid">
+                <div class="styleguide-theme-card">
+                  <div class="styleguide-theme-title">Morning Dawn (<code>[data-theme="morning"]</code>)</div>
+                  <div class="styleguide-swatches">
+                    <span class="styleguide-swatch"><i style="background:#FCF8F5"></i>#FCF8F5 Base</span>
+                    <span class="styleguide-swatch"><i style="background:#EA580C"></i>#EA580C Ember</span>
+                    <span class="styleguide-swatch"><i style="background:#E11D48"></i>#E11D48 Rose</span>
+                    <span class="styleguide-swatch"><i style="background:#D97706"></i>#D97706 Gold</span>
+                  </div>
+                </div>
+                <div class="styleguide-theme-card">
+                  <div class="styleguide-theme-title">Daylight Clean (<code>[data-theme="light"]</code>)</div>
+                  <div class="styleguide-swatches">
+                    <span class="styleguide-swatch"><i style="background:#FBFBFD"></i>#FBFBFD Base</span>
+                    <span class="styleguide-swatch"><i style="background:#6366F1"></i>#6366F1 Indigo</span>
+                    <span class="styleguide-swatch"><i style="background:#0284C7"></i>#0284C7 Sky</span>
+                    <span class="styleguide-swatch"><i style="background:#FF4500"></i>#FF4500 Urgent</span>
+                  </div>
+                </div>
+                <div class="styleguide-theme-card">
+                  <div class="styleguide-theme-title">Golden Sunset (<code>[data-theme="evening"]</code>)</div>
+                  <div class="styleguide-swatches">
+                    <span class="styleguide-swatch"><i style="background:#1A130E"></i>#1A130E Base</span>
+                    <span class="styleguide-swatch"><i style="background:#FBBF24"></i>#FBBF24 Honey</span>
+                    <span class="styleguide-swatch"><i style="background:#FB7185"></i>#FB7185 Blush</span>
+                    <span class="styleguide-swatch"><i style="background:#34D399"></i>#34D399 Emerald</span>
+                  </div>
+                </div>
+                <div class="styleguide-theme-card">
+                  <div class="styleguide-theme-title">Obsidian Night (<code>[data-theme="dark"]</code>)</div>
+                  <div class="styleguide-swatches">
+                    <span class="styleguide-swatch"><i style="background:#08080A"></i>#08080A Base</span>
+                    <span class="styleguide-swatch"><i style="background:#6366F1"></i>#6366F1 Indigo</span>
+                    <span class="styleguide-swatch"><i style="background:#38BDF8"></i>#38BDF8 Cyan</span>
+                    <span class="styleguide-swatch"><i style="background:#10B981"></i>#10B981 Mint</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="guide-step-card">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
+                <span class="guide-step-num">3</span> Frosted Glassmorphism &amp; Surface Tokens
+              </h4>
+              <div class="guide-code-block">
+--glass-sheet:          translucent panel layer over #bgWaveCanvas (blur 22px, saturate 155-160%)
+--glass-sheet-subtle:   inner subcards, task rows, and timeline panels
+--glass-sheet-elevated: modals, Focus Cockpit, Horace drawer, command palette
+--glass-edge:           1px crisp specular perimeter highlight
+--glass-inset-gleam:    inset 0 1px 0 subtle top glass rim highlight
+--radius-squircle:      20px continuous panel corners (16px cards, 10px controls, 6px chips)
+              </div>
+              <p style="font-size: 12.5px; color: var(--text-muted); line-height: 1.55;">
+                Keep animated canvas visibility authentic: avoid opaque panel backgrounds when extending cards, keep accent highlights high-contrast against light/dawn themes via <code>App.getAccessibleAccentColor()</code>, and reuse <code>.action-icon-btn</code> and <code>.project-tag</code> utility classes.
+              </p>
+            </div>
+          </div>
+
+          <!-- Dev Section: Deployment Guide -->
+          <div id="guideSection_deployment" class="guide-section-card" data-guide-track="dev" style="display: none;">
             <h2 class="guide-editorial-title"><i data-lucide="server"></i> Shuttle DH610 &amp; Ubuntu 26.04.1 LTS Deployment</h2>
             <p class="guide-lead">
               Step-by-step deployment guide for running PETTR in a Docker container on Ubuntu Server with native Tailscale and host Ollama AI integration.
@@ -2335,20 +2512,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=10.9"></script>
-  <script src="/static/js/app.js?v=10.9"></script>
-  <script src="/static/js/drag_drop.js?v=10.9"></script>
-  <script src="/static/js/wave_canvas.js?v=10.9"></script>
-  <script src="/static/js/entity_modal.js?v=10.9"></script>
-  <script src="/static/js/timeline.js?v=10.9"></script>
-  <script src="/static/js/mindmap.js?v=10.9"></script>
-  <script src="/static/js/dashboard.js?v=10.9"></script>
-  <script src="/static/js/exploded.js?v=10.9"></script>
-  <script src="/static/js/notes.js?v=10.9"></script>
-  <script src="/static/js/history.js?v=10.9"></script>
-  <script src="/static/js/command_palette.js?v=10.9"></script>
-  <script src="/static/js/focus_cockpit.js?v=10.9"></script>
-  <script src="/static/js/evening_debrief.js?v=10.9"></script>
-  <script src="/static/js/horace_chat.js?v=10.9"></script>
+  <script src="/static/js/pin_lock.js?v=11.0"></script>
+  <script src="/static/js/app.js?v=11.0"></script>
+  <script src="/static/js/drag_drop.js?v=11.0"></script>
+  <script src="/static/js/wave_canvas.js?v=11.0"></script>
+  <script src="/static/js/entity_modal.js?v=11.0"></script>
+  <script src="/static/js/timeline.js?v=11.0"></script>
+  <script src="/static/js/mindmap.js?v=11.0"></script>
+  <script src="/static/js/dashboard.js?v=11.0"></script>
+  <script src="/static/js/exploded.js?v=11.0"></script>
+  <script src="/static/js/notes.js?v=11.0"></script>
+  <script src="/static/js/history.js?v=11.0"></script>
+  <script src="/static/js/command_palette.js?v=11.0"></script>
+  <script src="/static/js/focus_cockpit.js?v=11.0"></script>
+  <script src="/static/js/evening_debrief.js?v=11.0"></script>
+  <script src="/static/js/horace_chat.js?v=11.0"></script>
 </body>
 </html>

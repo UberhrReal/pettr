@@ -518,6 +518,27 @@ const App = {
 
   voiceRecognition: null,
   isRecordingVoice: false,
+  _voiceSession: null,
+
+  stopVoiceInput(manual = true) {
+    if (this._voiceSession) {
+      this._voiceSession.manualStop = manual;
+    }
+    if (this.voiceRecognition) {
+      try {
+        this.voiceRecognition.stop();
+      } catch (_) {
+        try { this.voiceRecognition.abort(); } catch (__) {}
+      }
+    }
+    this.isRecordingVoice = false;
+    const btn = document.getElementById("voiceInputBtn");
+    if (btn) btn.classList.remove("recording");
+    const input = document.getElementById("quickInput");
+    if (input && this._voiceSession && this._voiceSession.origPlaceholder !== undefined) {
+      input.placeholder = this._voiceSession.origPlaceholder;
+    }
+  },
 
   toggleVoiceInput() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -530,11 +551,7 @@ const App = {
     const input = document.getElementById("quickInput");
 
     if (this.isRecordingVoice && this.voiceRecognition) {
-      try {
-        this.voiceRecognition.stop();
-      } catch (e) {}
-      this.isRecordingVoice = false;
-      if (btn) btn.classList.remove("recording");
+      this.stopVoiceInput(true);
       this.haptic("light");
       return;
     }
@@ -543,102 +560,130 @@ const App = {
     const isSecure = window.isSecureContext || isLocalhost;
 
     // Check Secure Context requirement:
-    // Web Speech API is strictly blocked by browsers on unencrypted HTTP connections (other than localhost)
+    // Web Speech API is blocked by browsers on unencrypted HTTP connections (other than localhost)
     if (!isSecure) {
       this.haptic("warning");
-      this.showToast("Voice input requires HTTPS or localhost. Tap to troubleshoot.", 5000, true);
+      this.showToast("Voice input requires HTTPS or localhost. Opening troubleshooting.", 5000, true);
       this.openVoiceTroubleshootModal("insecure");
       return;
     }
 
-    const startRecognition = () => {
-      try {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
+    // Ensure no stale recognition instance is holding the OS microphone handle
+    if (this.voiceRecognition) {
+      try { this.voiceRecognition.abort(); } catch (_) {}
+      this.voiceRecognition = null;
+    }
 
-        recognition.onstart = () => {
-          this.isRecordingVoice = true;
-          if (btn) btn.classList.add("recording");
-          this.haptic("medium");
-          this.showToast("🎙️ Listening... Speak your task or thought");
-        };
+    const existingPrefix = input && input.value.trim() ? `${input.value.trim()} ` : "";
+    const origPlaceholder = input ? input.placeholder : "";
+    const session = {
+      gotResult: false,
+      manualStop: false,
+      errorCode: null,
+      origPlaceholder
+    };
+    this._voiceSession = session;
 
-        recognition.onresult = (event) => {
-          const transcript = Array.from(event.results)
-            .map(result => result[0].transcript)
-            .join("");
-          if (input) {
-            input.value = transcript;
+    // Start SpeechRecognition synchronously inside the click gesture without
+    // pre-opening/closing getUserMedia (which races the audio hardware lock and
+    // breaks synchronous user activation in Chromium/Edge/Safari).
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.lang = navigator.language || "en-US";
+
+      recognition.onstart = () => {
+        if (this._voiceSession !== session) return;
+        this.isRecordingVoice = true;
+        if (btn) btn.classList.add("recording");
+        if (input) input.placeholder = "Listening... speak clearly, tap mic again when done";
+        this.haptic("medium");
+        this.showToast("🎙️ Listening... Speak now (tap mic again to stop)", 3200);
+      };
+
+      recognition.onresult = (event) => {
+        if (this._voiceSession !== session) return;
+        let finalText = "";
+        let interimText = "";
+        for (let i = 0; i < event.results.length; i++) {
+          const chunk = event.results[i][0] ? event.results[i][0].transcript : "";
+          if (event.results[i].isFinal) {
+            finalText += chunk;
+          } else {
+            interimText += chunk;
           }
-        };
+        }
+        const combined = `${existingPrefix}${finalText}${interimText}`.trimStart();
+        if (combined.length > 0) {
+          session.gotResult = true;
+        }
+        if (input) {
+          input.value = combined;
+        }
+      };
 
-        recognition.onerror = (event) => {
-          console.warn("Speech recognition error:", event.error);
-          this.isRecordingVoice = false;
-          if (btn) btn.classList.remove("recording");
+      recognition.onerror = (event) => {
+        if (this._voiceSession !== session) return;
+        const errCode = event.error || "unknown";
+        session.errorCode = errCode;
+        console.warn("Speech recognition error:", errCode);
 
-          if (event.error === "no-speech") {
-            return;
-          }
-
-          this.haptic("warning");
-          if (event.error === "not-allowed") {
-            this.showToast("Microphone access blocked. Tap to view troubleshooting steps.", 5000, true);
-            this.openVoiceTroubleshootModal("denied");
-          } else if (event.error === "service-not-allowed") {
-            this.showToast("Speech service is disabled by your browser or operating system.", 4500, true);
-          } else if (event.error === "audio-capture") {
-            this.showToast("No microphone detected on your device.", 4000, true);
-          } else if (event.error === "network") {
-            this.showToast("Network error: Voice dictation requires an internet connection.", 4500, true);
-          } else if (event.error !== "aborted") {
-            this.showToast(`Voice input: ${event.error}`, 3500, true);
-          }
-        };
-
-        recognition.onend = () => {
-          this.isRecordingVoice = false;
-          if (btn) btn.classList.remove("recording");
-          this.haptic("success");
-          if (input && input.value.trim()) {
-            input.focus();
-          }
-        };
-
-        this.voiceRecognition = recognition;
-        recognition.start();
-      } catch (err) {
-        console.error("SpeechRecognition startup error:", err);
         this.isRecordingVoice = false;
         if (btn) btn.classList.remove("recording");
-        this.showToast("Could not start voice recognition.", 3500, true);
-      }
-    };
+        if (input && session.origPlaceholder !== undefined) {
+          input.placeholder = session.origPlaceholder;
+        }
 
-    // Pre-request getUserMedia if available to trigger native browser prompt if not yet granted
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(stream => {
-          stream.getTracks().forEach(track => track.stop());
-          startRecognition();
-        })
-        .catch(err => {
-          console.warn("Microphone getUserMedia check:", err);
-          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-            this.haptic("warning");
-            this.showToast("Microphone permission denied. Tap to view fix instructions.", 5000, true);
-            this.openVoiceTroubleshootModal("denied");
-          } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-            this.haptic("warning");
-            this.showToast("No microphone was detected on this device.", 4000, true);
-          } else {
-            startRecognition();
-          }
-        });
-    } else {
-      startRecognition();
+        if (session.manualStop || errCode === "aborted") {
+          return;
+        }
+
+        this.haptic("warning");
+        if (errCode === "not-allowed" || errCode === "permission-denied") {
+          this.showToast("Microphone access blocked. Check site & OS permissions.", 5000, true);
+          this.openVoiceTroubleshootModal("denied");
+        } else if (errCode === "no-speech") {
+          this.showToast("No speech heard — verify your active input mic in system Sound settings.", 4500, true);
+        } else if (errCode === "audio-capture") {
+          this.showToast("Microphone unavailable or busy in another app.", 4500, true);
+          this.openVoiceTroubleshootModal("audio-capture");
+        } else if (errCode === "network") {
+          this.showToast("Speech service network error: browser speech backend could not be reached.", 5000, true);
+          this.openVoiceTroubleshootModal("network");
+        } else if (errCode === "service-not-allowed") {
+          this.showToast("Browser disabled speech recognition service.", 5000, true);
+          this.openVoiceTroubleshootModal("service");
+        } else {
+          this.showToast(`Voice input error: ${errCode}`, 3500, true);
+        }
+      };
+
+      recognition.onend = () => {
+        if (this._voiceSession !== session) return;
+        this.isRecordingVoice = false;
+        if (btn) btn.classList.remove("recording");
+        if (input && session.origPlaceholder !== undefined) {
+          input.placeholder = session.origPlaceholder;
+        }
+        if (session.gotResult) {
+          this.haptic("success");
+          if (input && input.value.trim()) input.focus();
+        } else if (!session.manualStop && !session.errorCode) {
+          this.haptic("warning");
+          this.showToast("Voice dictation ended with no speech registered — tap mic to retry or check system mic.", 4500, true);
+        }
+      };
+
+      this.voiceRecognition = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error("SpeechRecognition startup error:", err);
+      this.isRecordingVoice = false;
+      if (btn) btn.classList.remove("recording");
+      if (input && origPlaceholder !== undefined) input.placeholder = origPlaceholder;
+      this.showToast("Could not start voice recognition.", 3500, true);
     }
   },
 
@@ -707,6 +752,39 @@ const App = {
           </div>
         `;
       }
+    } else if (reason === "network" || reason === "service" || reason === "audio-capture") {
+      const diagTitle = reason === "network"
+        ? "Speech Service Unreachable (Network / Browser Engine)"
+        : (reason === "service"
+          ? "Browser Speech Service Disabled"
+          : "Microphone Audio Capture Unavailable");
+      const diagDesc = reason === "network"
+        ? "Your microphone permission is enabled, but the browser's built-in Speech Recognition backend could not reach its transcription service (common in Brave, offline LANs, or firewall-filtered browsers)."
+        : (reason === "service"
+          ? "The browser blocked the Web Speech API service even though microphone permission is granted (check privacy shields or Chrome/Edge speech settings)."
+          : "No active audio signal reached the browser. Another app may hold exclusive access, or the OS default input device is muted.");
+      if (noticeEl) {
+        noticeEl.innerHTML = `
+          <div style="font-weight:700; color:var(--urgent-orange); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <i data-lucide="alert-circle" style="width:15px;height:15px;"></i> ${diagTitle}
+          </div>
+          <div style="color:var(--text-muted); line-height:1.5;">${diagDesc}</div>
+        `;
+      }
+      if (instructionsEl) {
+        instructionsEl.innerHTML = `
+          <div style="background:var(--bg-card); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:12px;">
+            <div style="font-weight:700; font-size:13px; color:var(--text-main); margin-bottom:6px;">
+              🛠️ Checklist When Permissions Are Already Enabled:
+            </div>
+            <ul style="margin:0; padding-left:18px; font-size:12.5px; color:var(--text-muted); line-height:1.65;">
+              <li>Use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on desktop/mobile — privacy browsers like Brave/Firefox block Chromium Web Speech servers even with mic permission enabled.</li>
+              <li>Verify your OS <strong>Default Input Device</strong> in Sound Settings (click <em>Test Microphone Access</em> below to see which hardware mic responds and verify live signal).</li>
+              <li>Ensure your browser can reach its speech endpoint (or disable strict shields / VPN split-tunneling on this origin).</li>
+            </ul>
+          </div>
+        `;
+      }
     } else {
       if (noticeEl) {
         noticeEl.innerHTML = `
@@ -768,15 +846,49 @@ const App = {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const track = stream.getAudioTracks()[0];
+      const deviceLabel = (track && track.label) ? track.label : "Default system microphone";
+
+      let peakLevel = null;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          const buf = new Uint8Array(analyser.frequencyBinCount);
+          let maxVal = 0;
+          await new Promise(resolve => {
+            const sampleEnd = Date.now() + 550;
+            const step = () => {
+              analyser.getByteTimeDomainData(buf);
+              for (let i = 0; i < buf.length; i++) {
+                const deviation = Math.abs(buf[i] - 128);
+                if (deviation > maxVal) maxVal = deviation;
+              }
+              if (Date.now() < sampleEnd) requestAnimationFrame(step);
+              else resolve();
+            };
+            step();
+          });
+          peakLevel = maxVal;
+          try { source.disconnect(); } catch (_) {}
+          try { await ctx.close(); } catch (_) {}
+        }
+      } catch (_) {}
+
       stream.getTracks().forEach(t => t.stop());
 
       if (noticeEl) {
         noticeEl.innerHTML = `
           <div style="font-weight:700; color:var(--normal-green); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-            <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Microphone Access Verified Successfully!
+            <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Microphone Access Verified
           </div>
           <div style="color:var(--text-main); font-size:12px; line-height:1.5;">
-            Your browser granted audio access to PETTR. You can now close this window and use the microphone button on the dashboard.
+            Active input: <strong>${deviceLabel.replace(/</g, "&lt;")}</strong>
+            ${peakLevel !== null ? `<br>Live signal check: ${peakLevel > 1 ? `<span style="color:var(--normal-green);font-weight:600;">Audio detected (peak ${peakLevel}/128)</span>` : `<span style="color:var(--urgent-orange);font-weight:600;">Near-silent (${peakLevel}/128) — verify input is not muted</span>`}` : ''}
           </div>
         `;
         this.renderIcons();
@@ -800,6 +912,46 @@ const App = {
     }
   },
 
+  activeGuideTrack: "user",
+  lastGuideSectionByTrack: { user: "quickstart", dev: "styleguide" },
+
+  switchGuideTrack(track, btnEl) {
+    const cleanTrack = track === "dev" ? "dev" : "user";
+    this.activeGuideTrack = cleanTrack;
+
+    document.querySelectorAll(".guide-track-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.guideTrack === cleanTrack);
+    });
+    if (btnEl) btnEl.classList.add("active");
+
+    const titleEl = document.getElementById("guideHeaderTitle");
+    const subEl = document.getElementById("guideHeaderSubtitle");
+    if (cleanTrack === "dev") {
+      if (titleEl) titleEl.textContent = "For Development";
+      if (subEl) subEl.textContent = "Style guide, typography, Docker deployment, hardware tuning & SQLite backup internals.";
+    } else {
+      if (titleEl) titleEl.textContent = "User Guide";
+      if (subEl) subEl.textContent = "Workflows, focus systems, notes organisation, and daily rituals.";
+    }
+
+    const navLinks = Array.from(document.querySelectorAll("#guideSidebarNav .guide-nav-link"));
+    navLinks.forEach(link => {
+      const matches = (link.dataset.guideTrack || "user") === cleanTrack;
+      link.style.display = matches ? "" : "none";
+    });
+
+    const preferredKey = (this.lastGuideSectionByTrack && this.lastGuideSectionByTrack[cleanTrack])
+      || (cleanTrack === "dev" ? "styleguide" : "quickstart");
+    const targetBtn = navLinks.find(l => (l.dataset.guideTrack || "user") === cleanTrack && l.dataset.guideSection === preferredKey)
+      || navLinks.find(l => (l.dataset.guideTrack || "user") === cleanTrack);
+
+    if (targetBtn) {
+      this.switchGuideSection(targetBtn.dataset.guideSection || preferredKey, targetBtn);
+    } else {
+      this.renderIcons();
+    }
+  },
+
   switchGuideSection(sectionKey, btnEl) {
     document.querySelectorAll(".guide-section-card").forEach(card => {
       card.style.display = "none";
@@ -807,6 +959,10 @@ const App = {
     const target = document.getElementById(`guideSection_${sectionKey}`);
     if (target) {
       target.style.display = "block";
+    }
+
+    if (this.lastGuideSectionByTrack && this.activeGuideTrack) {
+      this.lastGuideSectionByTrack[this.activeGuideTrack] = sectionKey;
     }
 
     document.querySelectorAll(".guide-nav-link").forEach(link => {
@@ -1339,6 +1495,9 @@ const App = {
   },
 
   async submitLog() {
+    if (this.isRecordingVoice) {
+      this.stopVoiceInput(true);
+    }
     const input = document.getElementById("quickInput");
     const submitBtn = document.getElementById("quickSubmitBtn");
     const text = input.value.trim();

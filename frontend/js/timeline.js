@@ -17,6 +17,27 @@ const Timeline = {
     await this.refresh();
   },
 
+  attachWheelPanHandler(scrollContainer) {
+    if (!scrollContainer) return;
+    scrollContainer.style.scrollBehavior = "auto";
+    scrollContainer.addEventListener("wheel", (e) => {
+      if (e.ctrlKey || scrollContainer.scrollWidth <= scrollContainer.clientWidth) return;
+      const unitScale = e.deltaMode === 1 ? 32 : (e.deltaMode === 2 ? scrollContainer.clientWidth : 1);
+      const dx = e.deltaX * unitScale;
+      const dy = e.deltaY * unitScale;
+
+      if (Math.abs(dx) > 0 && Math.abs(dx) >= Math.abs(dy) * 0.5) {
+        // Two-finger trackpad horizontal slide: exact 1:1 deltaX tracking + OS momentum
+        e.preventDefault();
+        scrollContainer.scrollLeft += dx;
+      } else if (dy !== 0) {
+        // Vertical mouse wheel / steep swipe: translate smoothly to horizontal pan
+        e.preventDefault();
+        scrollContainer.scrollLeft += (dy * 1.45) + dx;
+      }
+    }, { passive: false });
+  },
+
   bindControls() {
     // Scale switcher (Day, Month, Year)
     document.querySelectorAll(".timeline-scale-btn").forEach(btn => {
@@ -461,13 +482,8 @@ const Timeline = {
       scrollContainer.scrollLeft = scrollStart - walk;
     });
 
-    // Translate vertical wheel scroll to horizontal scrolling (amplified sensitivity)
-    scrollContainer.addEventListener("wheel", (e) => {
-      if (e.deltaY !== 0) {
-        e.preventDefault();
-        scrollContainer.scrollLeft += e.deltaY * 2.5;
-      }
-    }, { passive: false });
+    // Support smooth two-finger trackpad horizontal slides and mouse-wheel horizontal panning
+    this.attachWheelPanHandler(scrollContainer);
 
     // Ratchet haptic vibration on scrolling across hour slots
     scrollContainer.addEventListener("scroll", () => {
@@ -805,9 +821,6 @@ const Timeline = {
     scrollContainer.scrollLeft = initialCenter;
     requestAnimationFrame(() => {
       scrollContainer.scrollLeft = initialCenter;
-      setTimeout(() => {
-        scrollContainer.style.scrollBehavior = "";
-      }, 50);
     });
 
     // Scroll listener for dynamic title
@@ -850,14 +863,8 @@ const Timeline = {
       scrollContainer.scrollLeft = scrollStart - walk;
     });
 
-    // Mouse wheel horizontal scrolling (amplified sensitivity, supporting vertical wheel and horizontal trackpad)
-    scrollContainer.addEventListener("wheel", (e) => {
-      if (e.deltaY !== 0 || e.deltaX !== 0) {
-        e.preventDefault();
-        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-        scrollContainer.scrollLeft += delta * 2.5;
-      }
-    }, { passive: false });
+    // Smooth trackpad two-finger horizontal panning and mouse-wheel horizontal navigation
+    this.attachWheelPanHandler(scrollContainer);
   },
 
   async checkIntoTask(taskId, isCompleted) {

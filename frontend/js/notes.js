@@ -4,6 +4,12 @@
  */
 const Notes = {
   currentNoteId: null,
+  currentProjectName: null,
+  currentEventId: null,
+  currentEventTitle: null,
+  allNotes: [],
+  expandedFolders: new Set(["general"]),
+  focusedProjectName: null,
   saveTimeout: null,
   viewMode: "notes", // "notes" | "media"
   mediaItems: [],
@@ -108,21 +114,214 @@ const Notes = {
     this.saveTimeout = setTimeout(() => this.saveCurrentNote(), 600);
   },
 
-  async loadNotes() {
+  async loadNotes(preferredNoteId = null) {
     try {
       const res = await fetch("/api/notes");
-      if (!res.ok) return;
+      if (!res.ok) return [];
       const notes = await res.json();
-      this.renderSidebar(notes);
+      this.allNotes = Array.isArray(notes) ? notes : [];
+      this.renderSidebar(this.allNotes);
 
-      if (notes.length > 0 && !this.currentNoteId) {
-        this.selectNote(notes[0]);
-      } else if (notes.length === 0) {
+      const targetId = preferredNoteId !== null ? preferredNoteId : this.currentNoteId;
+      if (targetId) {
+        const match = this.allNotes.find(n => String(n.id) === String(targetId));
+        if (match) {
+          this.selectNote(match);
+          return this.allNotes;
+        }
+      }
+
+      if (this.allNotes.length > 0 && !this.currentNoteId && !this.currentProjectName && !this.currentEventId) {
+        this.selectNote(this.allNotes[0]);
+      } else if (this.allNotes.length === 0 && !this.currentProjectName && !this.currentEventId) {
         this.createNewNote();
       }
+      return this.allNotes;
     } catch (err) {
       console.error("Error loading notes:", err);
+      return [];
     }
+  },
+
+  normalizeFolderKey(value) {
+    return String(value || "").trim().toLowerCase();
+  },
+
+  getEventFolderKey(noteOrEvent) {
+    const eid = noteOrEvent.event_id || noteOrEvent.eventId;
+    if (eid) return `event:id:${eid}`;
+    const title = (noteOrEvent.event_title || noteOrEvent.eventTitle || "").trim().toLowerCase();
+    return title ? `event:title:${title}` : "";
+  },
+
+  getProjectAccent(projectName, rawColor) {
+    if (typeof Dashboard !== "undefined" && Dashboard.getProjectColor) {
+      return Dashboard.getProjectColor(projectName, rawColor);
+    }
+    if (rawColor && typeof App !== "undefined" && App.getAccessibleAccentColor) {
+      return App.getAccessibleAccentColor(rawColor);
+    }
+    return rawColor || "var(--focus-indigo)";
+  },
+
+  buildFolderTreeData(notes) {
+    const projectMap = new Map();
+    const standaloneEventMap = new Map();
+    const generalNotes = [];
+
+    const ensureProject = (projName, projColor) => {
+      const key = `project:${this.normalizeFolderKey(projName)}`;
+      if (!projectMap.has(key)) {
+        projectMap.set(key, {
+          key,
+          projectName: String(projName).trim(),
+          projectColor: this.getProjectAccent(projName, projColor),
+          directNotes: [],
+          eventsMap: new Map()
+        });
+      } else if (projColor) {
+        projectMap.get(key).projectColor = this.getProjectAccent(projName, projColor);
+      }
+      return projectMap.get(key);
+    };
+
+    (notes || []).forEach(n => {
+      const pName = (n.project_name || "").trim();
+      const evTitle = (n.event_title || "").trim();
+      const evId = n.event_id || null;
+      const hasEvent = Boolean(evId || evTitle);
+
+      if (pName) {
+        const projGroup = ensureProject(pName, n.project_color);
+        if (hasEvent) {
+          const evSubKey = `${projGroup.key}::${this.getEventFolderKey(n)}`;
+          if (!projGroup.eventsMap.has(evSubKey)) {
+            projGroup.eventsMap.set(evSubKey, {
+              key: evSubKey,
+              eventId: evId,
+              eventTitle: evTitle || `Event #${evId}`,
+              projectName: projGroup.projectName,
+              notes: []
+            });
+          }
+          projGroup.eventsMap.get(evSubKey).notes.push(n);
+        } else {
+          projGroup.directNotes.push(n);
+        }
+      } else if (hasEvent) {
+        const evKey = this.getEventFolderKey(n);
+        if (!standaloneEventMap.has(evKey)) {
+          standaloneEventMap.set(evKey, {
+            key: evKey,
+            eventId: evId,
+            eventTitle: evTitle || `Event #${evId}`,
+            projectName: null,
+            notes: []
+          });
+        }
+        standaloneEventMap.get(evKey).notes.push(n);
+      } else {
+        generalNotes.push(n);
+      }
+    });
+
+    if (this.focusedProjectName) {
+      ensureProject(this.focusedProjectName, null);
+    }
+    if (this.currentProjectName) {
+      ensureProject(this.currentProjectName, null);
+    }
+
+    const projects = Array.from(projectMap.values()).sort((a, b) => a.projectName.localeCompare(b.projectName));
+    projects.forEach(p => {
+      p.events = Array.from(p.eventsMap.values()).sort((a, b) => a.eventTitle.localeCompare(b.eventTitle));
+      p.totalNotes = p.directNotes.length + p.events.reduce((acc, ev) => acc + ev.notes.length, 0);
+    });
+    const standaloneEvents = Array.from(standaloneEventMap.values()).sort((a, b) => a.eventTitle.localeCompare(b.eventTitle));
+
+    return { projects, standaloneEvents, generalNotes };
+  },
+
+  toggleFolder(folderKey) {
+    if (!folderKey) return;
+    if (this.expandedFolders.has(folderKey)) {
+      this.expandedFolders.delete(folderKey);
+    } else {
+      this.expandedFolders.add(folderKey);
+    }
+    this.renderSidebar(this.allNotes);
+  },
+
+  toggleAllFolders() {
+    const tree = this.buildFolderTreeData(this.allNotes);
+    const allKeys = ["general"];
+    tree.projects.forEach(p => {
+      allKeys.push(p.key);
+      p.events.forEach(ev => allKeys.push(ev.key));
+    });
+    tree.standaloneEvents.forEach(ev => allKeys.push(ev.key));
+
+    const anyOpen = allKeys.some(k => this.expandedFolders.has(k));
+    if (anyOpen && this.expandedFolders.size > 1) {
+      this.expandedFolders.clear();
+    } else {
+      allKeys.forEach(k => this.expandedFolders.add(k));
+    }
+    this.renderSidebar(this.allNotes);
+  },
+
+  buildNoteSidebarRow(n, isNested = false) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const isActive = String(n.id) === String(this.currentNoteId);
+    btn.className = `tab-btn notes-tree-note-btn ${isNested ? 'is-nested' : ''} ${isActive ? 'active' : ''}`;
+    btn.dataset.noteId = n.id;
+    btn.innerHTML = `
+      <i data-lucide="file-text" class="notes-tree-note-icon"></i>
+      <span class="notes-tree-note-title">${this.escapeHtml(n.title || "Untitled Note")}</span>
+    `;
+    btn.onclick = () => this.selectNote(n);
+    return btn;
+  },
+
+  buildEventFolderElement(evGroup, isSubfolder = false) {
+    const isExpanded = this.expandedFolders.has(evGroup.key);
+    const wrap = document.createElement("div");
+    wrap.className = `notes-folder-node ${isSubfolder ? 'notes-subfolder-node' : 'notes-standalone-event-node'}`;
+    wrap.dataset.folderKey = evGroup.key;
+
+    const header = document.createElement("div");
+    header.className = `notes-folder-header ${isExpanded ? 'is-open' : ''}`;
+    header.innerHTML = `
+      <button type="button" class="notes-folder-toggle-btn" aria-expanded="${isExpanded ? 'true' : 'false'}">
+        <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="notes-folder-chevron"></i>
+        <i data-lucide="${isExpanded ? 'folder-open' : 'calendar-check'}" class="notes-folder-icon is-event"></i>
+        <span class="notes-folder-name">${this.escapeHtml(evGroup.eventTitle)}</span>
+        <span class="notes-folder-count">${evGroup.notes.length}</span>
+      </button>
+      <button type="button" class="notes-folder-add-btn" title="New note in ${this.escapeHtml(evGroup.eventTitle)}" aria-label="New note in event folder">
+        <i data-lucide="plus" style="width:12px;height:12px;"></i>
+      </button>
+    `;
+    header.querySelector(".notes-folder-toggle-btn").onclick = () => this.toggleFolder(evGroup.key);
+    header.querySelector(".notes-folder-add-btn").onclick = (e) => {
+      e.stopPropagation();
+      this.createNewNoteInContext({
+        projectName: evGroup.projectName || null,
+        eventId: evGroup.eventId || null,
+        eventTitle: evGroup.eventTitle || null,
+        defaultTitle: `${evGroup.eventTitle} — Notes`
+      });
+    };
+    wrap.appendChild(header);
+
+    if (isExpanded) {
+      const body = document.createElement("div");
+      body.className = "notes-folder-children";
+      evGroup.notes.forEach(n => body.appendChild(this.buildNoteSidebarRow(n, true)));
+      wrap.appendChild(body);
+    }
+    return wrap;
   },
 
   renderSidebar(notes) {
@@ -132,29 +331,204 @@ const Notes = {
     if (!sidebar) return;
     sidebar.innerHTML = "";
 
-    notes.forEach(n => {
-      const btn = document.createElement("button");
-      btn.className = `tab-btn ${n.id === this.currentNoteId ? 'active' : ''}`;
-      btn.dataset.noteId = n.id;
-      btn.style.width = "100%";
-      btn.style.justifyContent = "flex-start";
-      btn.style.textAlign = "left";
-      btn.innerHTML = `<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📄 ${this.escapeHtml(n.title)}</span>`;
-      btn.onclick = () => this.selectNote(n);
-      sidebar.appendChild(btn);
-    });
+    const tree = this.buildFolderTreeData(notes || []);
+
+    // 1. Project Folders (broad folders containing direct notes & collapsible Event subfolders)
+    if (tree.projects.length > 0) {
+      const sectionLabel = document.createElement("div");
+      sectionLabel.className = "notes-tree-section-label";
+      sectionLabel.textContent = "Projects";
+      sidebar.appendChild(sectionLabel);
+
+      tree.projects.forEach(pGroup => {
+        const isExpanded = this.expandedFolders.has(pGroup.key);
+        const wrap = document.createElement("div");
+        wrap.className = "notes-folder-node notes-project-folder-node";
+        wrap.dataset.folderKey = pGroup.key;
+
+        const header = document.createElement("div");
+        header.className = `notes-folder-header ${isExpanded ? 'is-open' : ''}`;
+        header.innerHTML = `
+          <button type="button" class="notes-folder-toggle-btn" aria-expanded="${isExpanded ? 'true' : 'false'}">
+            <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="notes-folder-chevron"></i>
+            <span class="notes-folder-color-dot" style="background:${this.escapeHtml(pGroup.projectColor)};"></span>
+            <span class="notes-folder-name">${this.escapeHtml(pGroup.projectName)}</span>
+            <span class="notes-folder-count">${pGroup.totalNotes}</span>
+          </button>
+          <button type="button" class="notes-folder-add-btn" title="New note in ${this.escapeHtml(pGroup.projectName)}" aria-label="New note in project">
+            <i data-lucide="plus" style="width:12px;height:12px;"></i>
+          </button>
+        `;
+        header.querySelector(".notes-folder-toggle-btn").onclick = () => this.toggleFolder(pGroup.key);
+        header.querySelector(".notes-folder-add-btn").onclick = (e) => {
+          e.stopPropagation();
+          this.createNewNoteInContext({
+            projectName: pGroup.projectName,
+            defaultTitle: `${pGroup.projectName} — Notes`
+          });
+        };
+        wrap.appendChild(header);
+
+        if (isExpanded) {
+          const body = document.createElement("div");
+          body.className = "notes-folder-children";
+          if (pGroup.totalNotes === 0) {
+            const emptyHint = document.createElement("div");
+            emptyHint.className = "notes-folder-empty-hint";
+            emptyHint.textContent = "No notes in this project yet — click + to start one.";
+            body.appendChild(emptyHint);
+          } else {
+            pGroup.directNotes.forEach(n => body.appendChild(this.buildNoteSidebarRow(n, false)));
+            pGroup.events.forEach(evGroup => body.appendChild(this.buildEventFolderElement(evGroup, true)));
+          }
+          wrap.appendChild(body);
+        }
+
+        sidebar.appendChild(wrap);
+      });
+    }
+
+    // 2. Standalone Events (not linked to any project)
+    if (tree.standaloneEvents.length > 0) {
+      const sectionLabel = document.createElement("div");
+      sectionLabel.className = "notes-tree-section-label";
+      sectionLabel.textContent = "Events";
+      sidebar.appendChild(sectionLabel);
+
+      tree.standaloneEvents.forEach(evGroup => {
+        sidebar.appendChild(this.buildEventFolderElement(evGroup, false));
+      });
+    }
+
+    // 3. General / Unfiled Scratchpad Notes
+    const genOpen = this.expandedFolders.has("general");
+    const genWrap = document.createElement("div");
+    genWrap.className = "notes-folder-node notes-general-folder-node";
+    genWrap.dataset.folderKey = "general";
+
+    const genHeader = document.createElement("div");
+    genHeader.className = `notes-folder-header ${genOpen ? 'is-open' : ''}`;
+    genHeader.innerHTML = `
+      <button type="button" class="notes-folder-toggle-btn" aria-expanded="${genOpen ? 'true' : 'false'}">
+        <i data-lucide="${genOpen ? 'chevron-down' : 'chevron-right'}" class="notes-folder-chevron"></i>
+        <i data-lucide="notebook" class="notes-folder-icon"></i>
+        <span class="notes-folder-name">General Scratchpad</span>
+        <span class="notes-folder-count">${tree.generalNotes.length}</span>
+      </button>
+      <button type="button" class="notes-folder-add-btn" title="New unfiled scratchpad note" aria-label="New general note">
+        <i data-lucide="plus" style="width:12px;height:12px;"></i>
+      </button>
+    `;
+    genHeader.querySelector(".notes-folder-toggle-btn").onclick = () => this.toggleFolder("general");
+    genHeader.querySelector(".notes-folder-add-btn").onclick = (e) => {
+      e.stopPropagation();
+      this.createNewNote();
+    };
+    genWrap.appendChild(genHeader);
+
+    if (genOpen) {
+      const genBody = document.createElement("div");
+      genBody.className = "notes-folder-children";
+      if (tree.generalNotes.length === 0) {
+        const emptyHint = document.createElement("div");
+        emptyHint.className = "notes-folder-empty-hint";
+        emptyHint.textContent = "No general scratchpad notes.";
+        genBody.appendChild(emptyHint);
+      } else {
+        tree.generalNotes.forEach(n => genBody.appendChild(this.buildNoteSidebarRow(n, false)));
+      }
+      genWrap.appendChild(genBody);
+    }
+    sidebar.appendChild(genWrap);
+
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+  },
+
+  renderFolderContextBar() {
+    const bar = document.getElementById("noteFolderContextBar");
+    if (!bar) return;
+
+    const projOptions = new Set();
+    if (typeof Dashboard !== "undefined" && Dashboard.tasks && Array.isArray(Dashboard.tasks.projects)) {
+      Dashboard.tasks.projects.forEach(p => { if (p && p.name) projOptions.add(p.name); });
+    }
+    (this.allNotes || []).forEach(n => { if (n.project_name) projOptions.add(n.project_name); });
+    if (this.currentProjectName) projOptions.add(this.currentProjectName);
+
+    const sortedProjects = Array.from(projOptions).sort((a, b) => a.localeCompare(b));
+    const hasLink = Boolean(this.currentProjectName || this.currentEventId || this.currentEventTitle);
+    bar.style.display = "flex";
+
+    const crumbs = [];
+    if (this.currentProjectName) {
+      const pColor = this.getProjectAccent(this.currentProjectName, null);
+      crumbs.push(`<span class="notes-context-chip is-project"><span class="notes-folder-color-dot" style="background:${this.escapeHtml(pColor)};"></span> ${this.escapeHtml(this.currentProjectName)}</span>`);
+    }
+    if (this.currentEventId || this.currentEventTitle) {
+      crumbs.push(`<span class="notes-context-chip is-event"><i data-lucide="calendar-check" style="width:11px;height:11px;"></i> ${this.escapeHtml(this.currentEventTitle || `Event #${this.currentEventId}`)}</span>`);
+    }
+    if (!hasLink) {
+      crumbs.push(`<span class="notes-context-chip is-general"><i data-lucide="notebook" style="width:11px;height:11px;"></i> General Scratchpad</span>`);
+    }
+
+    bar.innerHTML = `
+      <div class="notes-context-crumbs">${crumbs.join('<span class="notes-context-sep">&rsaquo;</span>')}</div>
+      <div class="notes-context-actions">
+        <select class="notes-folder-assign-select" aria-label="Assign note to project folder" onchange="Notes.assignCurrentNoteProject(this.value)">
+          <option value="">Move to folder: General</option>
+          ${sortedProjects.map(pname => `<option value="${this.escapeHtml(pname)}" ${this.currentProjectName === pname ? 'selected' : ''}>📁 ${this.escapeHtml(pname)}</option>`).join("")}
+        </select>
+        ${hasLink ? `<button type="button" class="action-icon-btn notes-context-unlink-btn" onclick="Notes.unlinkCurrentNoteFolder()" title="Move back to General Scratchpad"><i data-lucide="folder-minus" style="width:11px;height:11px;"></i> Unfile</button>` : ''}
+      </div>
+    `;
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+  },
+
+  async assignCurrentNoteProject(projectName) {
+    const clean = (projectName || "").trim() || null;
+    this.currentProjectName = clean;
+    if (clean) {
+      this.expandedFolders.add(`project:${this.normalizeFolderKey(clean)}`);
+    } else {
+      this.expandedFolders.add("general");
+    }
+    this.renderFolderContextBar();
+    await this.saveCurrentNote();
+  },
+
+  async unlinkCurrentNoteFolder() {
+    this.currentProjectName = null;
+    this.currentEventId = null;
+    this.currentEventTitle = null;
+    this.expandedFolders.add("general");
+    this.renderFolderContextBar();
+    await this.saveCurrentNote();
   },
 
   selectNote(note) {
     this.currentNoteId = note.id;
+    this.currentProjectName = (note.project_name || "").trim() || null;
+    this.currentEventId = note.event_id || null;
+    this.currentEventTitle = (note.event_title || "").trim() || null;
+
+    if (this.currentProjectName) {
+      this.expandedFolders.add(`project:${this.normalizeFolderKey(this.currentProjectName)}`);
+      if (this.currentEventId || this.currentEventTitle) {
+        this.expandedFolders.add(`project:${this.normalizeFolderKey(this.currentProjectName)}::${this.getEventFolderKey(note)}`);
+      }
+    } else if (this.currentEventId || this.currentEventTitle) {
+      this.expandedFolders.add(this.getEventFolderKey(note));
+    } else {
+      this.expandedFolders.add("general");
+    }
+
     const titleInput = document.getElementById("noteTitleInput");
     const editor = document.getElementById("noteContentArea");
     const activeNoteTitle = document.getElementById("notesMediaActiveNoteTitle");
-    if (titleInput) titleInput.value = note.title;
+    if (titleInput) titleInput.value = note.title || "";
     if (activeNoteTitle) activeNoteTitle.textContent = note.title || "Untitled";
     if (editor) {
       let content = note.content || "";
-      // If legacy content has markdown and does not have HTML block tags, convert so it displays styled immediately
       if (content && !/<(p|div|h[1-6]|ul|ol|table|blockquote|pre)[^>]*>/i.test(content)) {
         content = this.simpleMarkdownToHtml(content);
       }
@@ -163,26 +537,134 @@ const Notes = {
     const statusEl = document.getElementById("noteSaveStatus");
     if (statusEl) statusEl.textContent = "Saved";
 
-    // Highlight sidebar item
-    const buttons = document.querySelectorAll("#notesListSidebar .tab-btn");
-    buttons.forEach(btn => {
-      if (btn.dataset.noteId == this.currentNoteId) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
-    });
+    this.renderSidebar(this.allNotes);
+    this.renderFolderContextBar();
   },
 
-  createNewNote() {
+  createNewNoteInContext({ projectName = null, eventId = null, eventTitle = null, defaultTitle = "Quick Scratchpad" } = {}) {
     this.currentNoteId = null;
+    this.currentProjectName = (projectName || "").trim() || null;
+    this.currentEventId = eventId || null;
+    this.currentEventTitle = (eventTitle || "").trim() || null;
+
+    if (this.currentProjectName) {
+      const pKey = `project:${this.normalizeFolderKey(this.currentProjectName)}`;
+      this.expandedFolders.add(pKey);
+      if (this.currentEventId || this.currentEventTitle) {
+        this.expandedFolders.add(`${pKey}::${this.getEventFolderKey({ event_id: this.currentEventId, event_title: this.currentEventTitle })}`);
+      }
+    } else if (this.currentEventId || this.currentEventTitle) {
+      this.expandedFolders.add(this.getEventFolderKey({ event_id: this.currentEventId, event_title: this.currentEventTitle }));
+    } else {
+      this.expandedFolders.add("general");
+    }
+
     const titleInput = document.getElementById("noteTitleInput");
     const editor = document.getElementById("noteContentArea");
-    if (titleInput) titleInput.value = "Quick Scratchpad";
+    if (titleInput) titleInput.value = defaultTitle;
     if (editor) editor.innerHTML = "";
     const statusEl = document.getElementById("noteSaveStatus");
     if (statusEl) statusEl.textContent = "Unsaved draft";
+
+    this.renderSidebar(this.allNotes);
+    this.renderFolderContextBar();
     if (editor) editor.focus();
+  },
+
+  createNewNote() {
+    this.focusedProjectName = null;
+    this.createNewNoteInContext({ projectName: null, eventId: null, eventTitle: null, defaultTitle: "Quick Scratchpad" });
+  },
+
+  async openEventNote(eventId, eventTitle, projectName = "") {
+    let resolvedProj = (projectName || "").trim();
+    if (!resolvedProj && typeof Dashboard !== "undefined") {
+      const evList = [...(Dashboard.events || []), ...((Dashboard.briefingData && Dashboard.briefingData.events_today) || [])];
+      const match = evList.find(e => String(e.id) === String(eventId));
+      if (match && match.project_name) resolvedProj = String(match.project_name).trim();
+    }
+
+    const cleanTitle = (eventTitle || "Event").trim() || "Event";
+    const noteTitle = `${cleanTitle} — Notes`;
+    if (this.viewMode !== "notes") this.switchView("notes");
+
+    try {
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: noteTitle,
+          content: "",
+          event_id: eventId || null,
+          event_title: cleanTitle,
+          project_name: resolvedProj || null,
+          update_links: true
+        })
+      });
+      if (!res.ok) throw new Error("Failed creating event note");
+      const data = await res.json();
+      const created = data.note;
+
+      if (created) {
+        if (created.project_name) {
+          const pKey = `project:${this.normalizeFolderKey(created.project_name)}`;
+          this.expandedFolders.add(pKey);
+          this.expandedFolders.add(`${pKey}::${this.getEventFolderKey(created)}`);
+        } else {
+          this.expandedFolders.add(this.getEventFolderKey(created));
+        }
+        await this.loadNotes(created.id);
+      }
+      if (typeof App !== "undefined") {
+        App.switchTab("notes");
+        App.showToast(`Created note for "${cleanTitle}"`);
+      }
+      setTimeout(() => {
+        const editor = document.getElementById("noteContentArea");
+        if (editor) editor.focus();
+      }, 120);
+    } catch (err) {
+      console.error("Failed opening event note:", err);
+      if (typeof App !== "undefined") App.showToast("Could not create event note.", true);
+    }
+  },
+
+  async openProjectFolder(projectName) {
+    const cleanName = (projectName || "").trim();
+    if (!cleanName) return;
+
+    this.focusedProjectName = cleanName;
+    const projKey = `project:${this.normalizeFolderKey(cleanName)}`;
+    this.expandedFolders.add(projKey);
+
+    if (this.viewMode !== "notes") this.switchView("notes");
+    if (typeof App !== "undefined") App.switchTab("notes");
+
+    await this.loadNotes();
+
+    const tree = this.buildFolderTreeData(this.allNotes);
+    const group = tree.projects.find(p => p.key === projKey);
+    if (group) {
+      group.events.forEach(ev => this.expandedFolders.add(ev.key));
+      this.renderSidebar(this.allNotes);
+
+      const firstNote = group.directNotes[0] || (group.events[0] && group.events[0].notes[0]);
+      if (firstNote) {
+        this.selectNote(firstNote);
+      } else {
+        this.createNewNoteInContext({
+          projectName: cleanName,
+          defaultTitle: `${cleanName} — Notes`
+        });
+      }
+    }
+
+    setTimeout(() => {
+      const folderEl = document.querySelector(`[data-folder-key="${CSS.escape(projKey)}"]`);
+      if (folderEl && folderEl.scrollIntoView) {
+        folderEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 100);
   },
 
   async saveCurrentNote() {
@@ -197,19 +679,22 @@ const Notes = {
         body: JSON.stringify({
           id: this.currentNoteId,
           title: title,
-          content: content
+          content: content,
+          project_name: this.currentProjectName,
+          event_id: this.currentEventId,
+          event_title: this.currentEventTitle,
+          update_links: true
         })
       });
       const data = await res.json();
       if (data.note) {
         this.currentNoteId = data.note.id;
+        this.currentProjectName = data.note.project_name || null;
+        this.currentEventId = data.note.event_id || null;
+        this.currentEventTitle = data.note.event_title || null;
         const statusEl = document.getElementById("noteSaveStatus");
         if (statusEl) statusEl.textContent = `Auto-saved at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        const listRes = await fetch("/api/notes");
-        if (listRes.ok) {
-          const notes = await listRes.json();
-          this.renderSidebar(notes);
-        }
+        await this.loadNotes(this.currentNoteId);
       }
     } catch (err) {
       const statusEl = document.getElementById("noteSaveStatus");
@@ -223,7 +708,11 @@ const Notes = {
     try {
       await fetch(`/api/notes/${this.currentNoteId}`, { method: "DELETE" });
       this.currentNoteId = null;
+      this.currentProjectName = null;
+      this.currentEventId = null;
+      this.currentEventTitle = null;
       await this.loadNotes();
+      this.renderFolderContextBar();
       App.showToast("Note deleted");
     } catch (err) {
       console.error(err);

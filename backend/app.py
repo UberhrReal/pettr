@@ -87,6 +87,10 @@ class SaveNoteRequest(BaseModel):
     title: str = "Quick Note"
     content: str
     id: Optional[int] = None
+    project_name: Optional[str] = None
+    event_id: Optional[int] = None
+    event_title: Optional[str] = None
+    update_links: bool = False
 
 class CreateUnorganizedRequest(BaseModel):
     raw_input: Optional[str] = None
@@ -631,7 +635,15 @@ async def list_notes():
 
 @app.post("/api/notes", dependencies=[Depends(auth.require_auth)])
 async def save_note_endpoint(req: SaveNoteRequest):
-    saved = database.save_note(title=req.title, content=req.content, note_id=req.id)
+    saved = database.save_note(
+        title=req.title,
+        content=req.content,
+        note_id=req.id,
+        project_name=req.project_name,
+        event_id=req.event_id,
+        event_title=req.event_title,
+        update_links=req.update_links,
+    )
     return {"status": "success", "note": saved}
 
 @app.delete("/api/notes/{note_id}", dependencies=[Depends(auth.require_auth)])

@@ -273,6 +273,7 @@ const Dashboard = {
     } catch (_) {}
     DragDrop.initContainer(document.getElementById("focusTasksList"));
     DragDrop.initContainer(document.getElementById("trivialTasksList"));
+    this.ensureDailyOrderDropHandlers();
     this.bindSummaryPills();
     this.initTaglineRotation();
     this.initUnorgPanelState();
@@ -1280,8 +1281,10 @@ const Dashboard = {
         const projColor = t.project_name ? this.getProjectColor(t.project_name, t.project_color) : "";
 
         html += `
-          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}" 
-               ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'focus', '${this.escapeHtml(timeMil)}')`}">
+          <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
+               data-drag-id="${t.id}" data-drag-type="task" data-drag-tier="focus"
+               ondragstart="${isLockedDay ? 'return false;' : 'Dashboard.onBriefingRowDragStart(event, this)'}"
+               ondragend="Dashboard.onBriefingRowDragEnd(event, this)">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -1333,7 +1336,9 @@ const Dashboard = {
 
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
-               ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${t.id}, 'task', '${this.escapeHtml(cleanTitle)}', 'trivial', '${this.escapeHtml(timeMil)}')`}">
+               data-drag-id="${t.id}" data-drag-type="task" data-drag-tier="trivial"
+               ondragstart="${isLockedDay ? 'return false;' : 'Dashboard.onBriefingRowDragStart(event, this)'}"
+               ondragend="Dashboard.onBriefingRowDragEnd(event, this)">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
               <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
               <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -1376,7 +1381,9 @@ const Dashboard = {
         const projColor = e.project_name ? this.getProjectColor(e.project_name, e.project_color) : "";
         html += `
           <div class="briefing-item-row ${inSeq ? 'in-sequence' : ''}" draggable="${isLockedDay ? 'false' : 'true'}"
-               ondragstart="${isLockedDay ? 'return false;' : `Dashboard.onBriefingDragStart(event, ${e.id}, 'event', '${this.escapeHtml(cleanTitle)}', 'event', '${timeMil}')`}">
+               data-drag-id="${e.id}" data-drag-type="event" data-drag-tier="event"
+               ondragstart="${isLockedDay ? 'return false;' : 'Dashboard.onBriefingRowDragStart(event, this)'}"
+               ondragend="Dashboard.onBriefingRowDragEnd(event, this)">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
               <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
               <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
@@ -1463,10 +1470,180 @@ const Dashboard = {
     return variations[idx];
   },
 
+  _activeBriefingDragPayload: null,
+
+  buildDailyOrderEntryFromLookup(entityType, entityId, fallbackTitle = "", fallbackTier = "focus", fallbackTime = "") {
+    if (entityType === "event") {
+      const evList = [...(this.events || []), ...((this.briefingData && this.briefingData.events_today) || [])];
+      const ev = evList.find(e => String(e.id) === String(entityId));
+      const cleanTitle = ev ? (ev.title || "").replace(/^\s*\[.*?\]\s*/, '') : (fallbackTitle || "Event");
+      const timePart = ev && ev.start_time
+        ? (App.formatEventPeriod ? App.formatEventPeriod(ev.start_time, ev.end_time) : App.formatMilitaryTime(ev.start_time))
+        : (fallbackTime || "");
+      return {
+        id: ev ? ev.id : entityId,
+        type: "event",
+        title: cleanTitle,
+        tier: "event",
+        time: timePart,
+        completed: ev ? ev.status === "completed" : false,
+        project_name: (ev && ev.project_name) || null,
+        project_color: (ev && ev.project_color) || null
+      };
+    }
+
+    const projTasks = (this.tasks && this.tasks.projects || []).flatMap(p => p.tasks || []);
+    const allTasks = [
+      ...((this.tasks && this.tasks.focus) || []),
+      ...((this.tasks && this.tasks.trivial) || []),
+      ...((this.briefingData && this.briefingData.focus_tasks) || []),
+      ...((this.briefingData && this.briefingData.trivial_tasks) || []),
+      ...projTasks
+    ];
+    const t = allTasks.find(x => String(x.id) === String(entityId));
+    const cleanTitle = t ? (t.title || "").replace(/^\s*\[.*?\]\s*/, '') : (fallbackTitle || "Task");
+    const tm = t ? this.formatSnapshotTimeMarker(t, this.selectedDate) : null;
+    return {
+      id: t ? t.id : entityId,
+      type: "task",
+      title: cleanTitle,
+      tier: (t && t.tier) || fallbackTier || "focus",
+      time: (tm && tm.timeBadge) || fallbackTime || "",
+      completed: t ? t.status === "completed" : false,
+      is_overdue: Boolean(tm && tm.isOverdue),
+      project_name: (t && t.project_name) || null,
+      project_color: (t && t.project_color) || null
+    };
+  },
+
+  onBriefingRowDragStart(event, rowEl) {
+    if (!rowEl) return;
+    const entityId = rowEl.dataset.dragId;
+    const entityType = rowEl.dataset.dragType || "task";
+    const tier = rowEl.dataset.dragTier || "focus";
+    const entry = this.buildDailyOrderEntryFromLookup(entityType, entityId, "", tier, "");
+    this.onBriefingDragStart(event, entry.id, entry.type, entry.title, entry.tier, entry.time);
+    rowEl.classList.add("is-dragging-source");
+  },
+
+  onBriefingRowDragEnd(event, rowEl) {
+    if (rowEl && rowEl.classList) rowEl.classList.remove("is-dragging-source");
+    const listEl = document.getElementById("dailyOrderSlotsList");
+    const containerEl = document.getElementById("dailyOrderContainer");
+    if (listEl) listEl.classList.remove("drag-over-active");
+    if (containerEl) containerEl.classList.remove("drag-over-active");
+    setTimeout(() => {
+      this._activeBriefingDragPayload = null;
+    }, 80);
+  },
+
   onBriefingDragStart(event, entityId, entityType, title, tier, timeBadge) {
-    const payload = JSON.stringify({ id: entityId, type: entityType, title: title, tier: tier, time: timeBadge });
-    event.dataTransfer.setData("application/json", payload);
-    event.dataTransfer.effectAllowed = "copyMove";
+    this.draggedSlotIdx = null;
+    const entry = this.buildDailyOrderEntryFromLookup(entityType, entityId, title, tier, timeBadge);
+    this._activeBriefingDragPayload = entry;
+    const payload = JSON.stringify(entry);
+    if (event && event.dataTransfer) {
+      try { event.dataTransfer.setData("application/json", payload); } catch (_) {}
+      try { event.dataTransfer.setData("text/plain", `pettr-briefing:${entry.type}:${entry.id}`); } catch (_) {}
+      event.dataTransfer.effectAllowed = "copyMove";
+    }
+  },
+
+  extractBriefingDropItem(e) {
+    const dt = e && e.dataTransfer;
+    if (dt) {
+      const rawJson = dt.getData("application/json");
+      if (rawJson) {
+        try {
+          const parsed = JSON.parse(rawJson);
+          if (parsed && parsed.id !== undefined) return parsed;
+        } catch (_) {}
+      }
+      const rawText = dt.getData("text/plain") || "";
+      if (rawText.startsWith("pettr-briefing:")) {
+        const parts = rawText.split(":");
+        const pType = parts[1] || "task";
+        const pId = parts.slice(2).join(":");
+        return this.buildDailyOrderEntryFromLookup(pType, pId);
+      }
+    }
+    return this._activeBriefingDragPayload ? { ...this._activeBriefingDragPayload } : null;
+  },
+
+  ensureDailyOrderDropHandlers() {
+    const containerEl = document.getElementById("dailyOrderContainer");
+    const listEl = document.getElementById("dailyOrderSlotsList");
+    if (!containerEl || containerEl.dataset.externalDropBound === "1") return;
+    containerEl.dataset.externalDropBound = "1";
+
+    containerEl.addEventListener("dragover", (e) => {
+      if (this.isPastDay() || this.isDaySealed(this.selectedDate)) return;
+      const isInternalSlot = this.draggedSlotIdx !== null && this.draggedSlotIdx !== undefined;
+      const types = e.dataTransfer && e.dataTransfer.types ? Array.from(e.dataTransfer.types) : [];
+      const hasExternal = Boolean(this._activeBriefingDragPayload) || types.includes("application/json") || types.includes("text/plain");
+      if (!isInternalSlot && !hasExternal) return;
+
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = isInternalSlot ? "move" : "copy";
+      }
+      if (listEl) listEl.classList.add("drag-over-active");
+      containerEl.classList.add("drag-over-active");
+    }, true);
+
+    containerEl.addEventListener("dragleave", (e) => {
+      if (!containerEl.contains(e.relatedTarget)) {
+        containerEl.classList.remove("drag-over-active");
+        if (listEl) listEl.classList.remove("drag-over-active");
+      }
+    });
+
+    containerEl.addEventListener("drop", async (e) => {
+      containerEl.classList.remove("drag-over-active");
+      if (listEl) listEl.classList.remove("drag-over-active");
+
+      const isInternalSlot = this.draggedSlotIdx !== null && this.draggedSlotIdx !== undefined;
+      const rawText = e.dataTransfer ? (e.dataTransfer.getData("text/plain") || "") : "";
+      if (isInternalSlot || rawText.startsWith("daily-order:")) return;
+
+      const droppedItem = this.extractBriefingDropItem(e);
+      if (!droppedItem || droppedItem.id === undefined) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      this._activeBriefingDragPayload = null;
+      this.draggedSlotIdx = null;
+
+      if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
+        App.showToast("Cannot add items to locked past days.", true);
+        return;
+      }
+
+      if (!Array.isArray(this.dailyOrder)) this.dailyOrder = [];
+      const droppedType = droppedItem.type || "task";
+      const alreadyExists = this.dailyOrder.some(
+        d => String(d.id) === String(droppedItem.id) && (d.type || "task") === droppedType
+      );
+      if (alreadyExists) {
+        App.showToast(`"${droppedItem.title}" is already in Tasking Priority.`);
+        return;
+      }
+
+      const targetSlot = e.target && e.target.closest ? e.target.closest(".daily-order-slot[data-index]") : null;
+      if (targetSlot) {
+        const rect = targetSlot.getBoundingClientRect();
+        const isBelow = (e.clientY - rect.top) > (rect.height / 2);
+        const slotIdx = parseInt(targetSlot.dataset.index, 10);
+        const insertIdx = isNaN(slotIdx) ? this.dailyOrder.length : (isBelow ? slotIdx + 1 : slotIdx);
+        this.dailyOrder.splice(insertIdx, 0, droppedItem);
+      } else {
+        this.dailyOrder.push(droppedItem);
+      }
+
+      await this.saveDailyOrder();
+      if (typeof App !== "undefined" && App.haptic) App.haptic("light");
+      App.showToast(`Queued in Tasking Priority: ${droppedItem.title}`);
+    }, true);
   },
 
   /* --- Ultimate Daily Order Queue Management --- */
@@ -1658,6 +1835,7 @@ const Dashboard = {
   },
 
   renderDailyOrder() {
+    this.ensureDailyOrderDropHandlers();
     this.syncInSequenceCardStates();
     const container = document.getElementById("dailyOrderSlotsList");
     const countBadge = document.getElementById("dailyOrderCountBadge");
@@ -1999,7 +2177,16 @@ const Dashboard = {
       if (!ev) return;
       const cleanTitle = (ev.title || "").replace(/^\s*\[.*?\]\s*/, '');
       const timePart = ev.start_time ? (App.formatEventPeriod ? App.formatEventPeriod(ev.start_time, ev.end_time) : App.formatMilitaryTime(ev.start_time)) : "";
-      entry = { id: ev.id, type: "event", title: cleanTitle, tier: "event", time: timePart, completed: ev.status === "completed" };
+      entry = {
+        id: ev.id,
+        type: "event",
+        title: cleanTitle,
+        tier: "event",
+        time: timePart,
+        completed: ev.status === "completed",
+        project_name: ev.project_name || null,
+        project_color: ev.project_color || null
+      };
     } else {
       const projTasks = (this.tasks && this.tasks.projects || []).flatMap(p => p.tasks || []);
       const allTasks = [...((this.tasks && this.tasks.focus) || []), ...((this.tasks && this.tasks.trivial) || []), ...projTasks];
@@ -2014,7 +2201,9 @@ const Dashboard = {
         tier: t.tier || "focus",
         time: tm.timeBadge || "",
         completed: t.status === "completed",
-        is_overdue: Boolean(tm.isOverdue)
+        is_overdue: Boolean(tm.isOverdue),
+        project_name: t.project_name || null,
+        project_color: t.project_color || null
       };
     }
 
@@ -2307,15 +2496,21 @@ const Dashboard = {
         queued_pending: queue.filter(x => !x.completed).length,
         overdue_total: focusPending.filter(x => x.is_overdue).length + trivialPending.filter(x => x.is_overdue).length
       },
-      priority_queue: queue.map(q => ({
-        id: q.id,
-        type: q.type || "task",
-        title: (q.title || "").replace(/^\s*\[.*?\]\s*/, ''),
-        tier: q.tier || "focus",
-        time: q.time || "",
-        completed: Boolean(q.completed),
-        is_overdue: Boolean(q.is_overdue || q.is_rolled_over)
-      })),
+      priority_queue: queue.map(q => {
+        const qType = q.type || "task";
+        const enriched = this.buildDailyOrderEntryFromLookup(qType, q.id, q.title, q.tier, q.time);
+        return {
+          id: q.id,
+          type: qType,
+          title: (q.title || enriched.title || "").replace(/^\s*\[.*?\]\s*/, ''),
+          tier: q.tier || enriched.tier || "focus",
+          time: q.time || enriched.time || "",
+          completed: Boolean(q.completed),
+          is_overdue: Boolean(q.is_overdue || q.is_rolled_over),
+          project_name: q.project_name || enriched.project_name || null,
+          project_color: q.project_color || enriched.project_color || null
+        };
+      }),
       focus_items,
       trivial_items,
       events,
@@ -2504,10 +2699,14 @@ const Dashboard = {
               ${!isLockedDay ? `
                 <div class="snapshot-unqueued-row-actions">
                   ${it.itemType === "task" ? `
-                    <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.closeSnapshotUnqueuedModal(); Dashboard.launchLockedFocusTask(${it.id})" title="Start Focus Sprint">
-                      <i data-lucide="play" style="width:12px;height:12px;"></i> Focus
+                    <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.closeSnapshotUnqueuedModal(); Dashboard.launchLockedFocusTask(${it.id})" title="Start Deep Work Focus Sprint" aria-label="Start Focus Sprint">
+                      <i data-lucide="play" class="snapshot-focus-play-icon" style="width:13px;height:13px;"></i>
                     </button>
-                  ` : ""}
+                  ` : `
+                    <button type="button" class="action-icon-btn snapshot-unified-notes-btn" onclick="Dashboard.closeSnapshotUnqueuedModal(); Notes.openEventNote(${it.id}, ${App.escapeJsAttr(it.title || 'Event')}, ${App.escapeJsAttr(it.project_name || '')})" title="Create & open Notes linked to this event" aria-label="Create note for event">
+                      <i data-lucide="notebook-pen" style="width:12px;height:12px;"></i> <span>Notes</span>
+                    </button>
+                  `}
                   <button type="button" class="snapshot-quick-queue-btn" onclick="Dashboard.queueUnqueuedFromModal('${it.itemType}', ${it.id})" title="Add to Priority Sequence">
                     <i data-lucide="plus" style="width:12px;height:12px;"></i> Sequence
                   </button>
@@ -2566,12 +2765,31 @@ const Dashboard = {
       const isOverdue = Boolean(it.is_overdue && !isDone);
       const rankHtml = `<span class="snapshot-unified-rank">${idx + 1}</span>`;
 
+      let resolvedProjName = it.project_name || null;
+      let resolvedProjColor = it.project_color || null;
+      if (!resolvedProjName && it.id !== undefined) {
+        if (itype === "event") {
+          const evMatch = [...(this.events || []), ...((this.briefingData && this.briefingData.events_today) || [])].find(e => String(e.id) === String(it.id));
+          if (evMatch) {
+            resolvedProjName = evMatch.project_name || resolvedProjName;
+            resolvedProjColor = evMatch.project_color || resolvedProjColor;
+          }
+        } else if (this.tasks) {
+          const projTasks = (this.tasks.projects || []).flatMap(p => p.tasks || []);
+          const tMatch = [...(this.tasks.focus || []), ...(this.tasks.trivial || []), ...projTasks].find(t => String(t.id) === String(it.id));
+          if (tMatch) {
+            resolvedProjName = tMatch.project_name || resolvedProjName;
+            resolvedProjColor = tMatch.project_color || resolvedProjColor;
+          }
+        }
+      }
+
       const metaBits = [];
       if (isOverdue) metaBits.push(`<span class="snapshot-meta-alert">Overdue</span>`);
       if (it.time || it.time_label) metaBits.push(`<span class="font-mono">${this.escapeHtml(it.time || it.time_label)}</span>`);
-      if (it.project_name) {
-        const projColor = this.getProjectColor(it.project_name, it.project_color);
-        metaBits.push(`<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(it.project_name)}</span>`);
+      if (resolvedProjName) {
+        const projColor = this.getProjectColor(resolvedProjName, resolvedProjColor);
+        metaBits.push(`<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(resolvedProjName)}</span>`);
       }
       if (it.tier) {
         const tierLabel = it.tier === "focus" ? "Focus" : (it.tier === "trivial" ? "Trivial" : "Event");
@@ -2590,11 +2808,15 @@ const Dashboard = {
               ${metaBits.length > 0 ? `<div class="snapshot-unified-item-meta">${metaBits.join('<span class="snapshot-meta-dot">·</span>')}</div>` : ''}
             </div>
           </div>
-          ${(!isDone && itype === "task" && !isLockedDay) ? `
-            <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Focus Sprint">
-              <i data-lucide="play" style="width:13px;height:13px;"></i> <span>Focus</span>
+          ${itype === "event" ? `
+            <button type="button" class="action-icon-btn snapshot-unified-notes-btn" onclick="event.stopPropagation(); Notes.openEventNote(${it.id}, ${App.escapeJsAttr(it.title || 'Event')}, ${App.escapeJsAttr(resolvedProjName || '')})" title="Create & open Notes linked to this event" aria-label="Create note for event">
+              <i data-lucide="notebook-pen" style="width:13px;height:13px;"></i> <span>Notes</span>
             </button>
-          ` : ''}
+          ` : ((!isDone && itype === "task" && !isLockedDay) ? `
+            <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Deep Work Focus Sprint" aria-label="Start Focus Sprint">
+              <i data-lucide="play" class="snapshot-focus-play-icon" style="width:14px;height:14px;"></i>
+            </button>
+          ` : '')}
         </div>
       `;
     };
@@ -2632,7 +2854,7 @@ const Dashboard = {
     const showDebriefTail = debBtn && debBtn.style.display !== "none";
 
     const unqueuedLabel = unqueuedTasks.length > 0
-      ? `${unqueuedTasks.length} of today's task${unqueuedTasks.length === 1 ? " hasn't" : "s haven't"} been added to the sequence yet`
+      ? `of today's task${unqueuedTasks.length === 1 ? " hasn't" : "s haven't"} been added to the sequence yet`
       : (totalPendingToday === 0
         ? "All of today's tasks are ticked off"
         : "Every pending task for today is lined up in your sequence");
@@ -2690,7 +2912,6 @@ const Dashboard = {
         <footer class="snapshot-unified-tail snapshot-coalesce">
           <div class="snapshot-tail-left">
             <div class="snapshot-tail-specs">
-              <span class="snapshot-tail-spec">LOCKED IN</span>
               <span class="snapshot-tail-spec font-mono">${completedItems}/${totalItems} DONE</span>
             </div>
             <div class="snapshot-tail-caption">// ${this.escapeHtml(endNotice)} //</div>
@@ -2933,8 +3154,11 @@ const Dashboard = {
         </div>
 
         <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; gap: 6px;">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             ${isPast ? '' : `<button type="button" class="action-icon-btn" onclick="Dashboard.openManualCreateModal('focus', ${App.escapeJsAttr(p.name)})">+ Add Task</button>`}
+            <button type="button" class="action-icon-btn" onclick="event.stopPropagation(); Notes.openProjectFolder(${App.escapeJsAttr(p.name)})" title="Open Notes folder for this project">
+              <i data-lucide="folder-open" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Notes
+            </button>
             ${isPast ? '<span style="font-size:12px; color:var(--text-dim); font-weight:600;">🔒 Project Log Locked</span>' : `<button type="button" class="action-icon-btn" onclick="Dashboard.completeProject(${p.id}, ${App.escapeJsAttr(p.name)})" style="color: var(--accent-green); font-weight: 600;" title="Wrap up and mark project complete">✓ Complete Project</button>`}
           </div>
           <button class="action-icon-btn" onclick="EntityModal.open('project', ${p.id})">Project Settings →</button>
