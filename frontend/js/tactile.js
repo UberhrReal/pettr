@@ -38,14 +38,40 @@ const TactileFX = {
     this.syncToggleUI();
     this.initSwipeGestures();
 
-    // Unlock Web Audio context softly on the first pointer/key interaction
-    const unlockOnce = () => {
-      if (this.enabled) this.getAudioContext();
-      document.removeEventListener("pointerdown", unlockOnce, true);
-      document.removeEventListener("keydown", unlockOnce, true);
+    // Unlock Web Audio context reliably across Chrome, Edge, Firefox & Safari/iOS
+    const unlockEvents = ["pointerdown", "click", "touchstart", "keydown"];
+    const unlockHandler = () => {
+      if (!this.enabled) return;
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const finalizeIfRunning = () => {
+        if (this.audioCtx && this.audioCtx.state === "running") {
+          unlockEvents.forEach(evt => document.removeEventListener(evt, unlockHandler, true));
+        }
+      };
+      if (ctx.state === "suspended") {
+        ctx.resume().then(() => {
+          this._primeSilentBuffer(ctx);
+          finalizeIfRunning();
+        }).catch(() => {});
+      } else {
+        this._primeSilentBuffer(ctx);
+        finalizeIfRunning();
+      }
     };
-    document.addEventListener("pointerdown", unlockOnce, true);
-    document.addEventListener("keydown", unlockOnce, true);
+    unlockEvents.forEach(evt => document.addEventListener(evt, unlockHandler, true));
+  },
+
+  _primeSilentBuffer(ctx) {
+    if (!ctx || this._audioPrimed) return;
+    try {
+      const buf = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      this._audioPrimed = true;
+    } catch (_) {}
   },
 
   isEnabled() {
@@ -59,7 +85,7 @@ const TactileFX = {
     } catch (_) {}
     this.syncToggleUI();
     if (this.enabled) {
-      this.playTick();
+      this.playDrop();
       if (typeof App !== "undefined" && App.showToast) {
         App.showToast("Tactile audio enabled", 1400);
       }
@@ -83,11 +109,9 @@ const TactileFX = {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
     try {
-      if (!this.audioCtx) {
+      if (!this.audioCtx || this.audioCtx.state === "closed") {
         this.audioCtx = new Ctx();
-      }
-      if (this.audioCtx.state === "suspended") {
-        this.audioCtx.resume().catch(() => {});
+        this._audioPrimed = false;
       }
       return this.audioCtx;
     } catch (_) {
@@ -97,47 +121,61 @@ const TactileFX = {
 
   // --- Procedural Web Audio Micro-Soundscape ---
 
-  _playTone({ freq, endFreq = null, type = "sine", duration = 0.14, gain = 0.045, delay = 0, filterFreq = 3200 }) {
+  _playTone({ freq, endFreq = null, type = "sine", duration = 0.16, gain = 0.18, delay = 0, filterFreq = 3600 }) {
     const ctx = this.getAudioContext();
     if (!ctx) return;
-    try {
-      const now = ctx.currentTime + delay;
-      const osc = ctx.createOscillator();
-      const filter = ctx.createBiquadFilter();
-      const amp = ctx.createGain();
 
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, now);
-      if (endFreq !== null && endFreq !== freq) {
-        osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), now + duration);
-      }
+    const schedule = () => {
+      if (!this.enabled || !ctx || ctx.state === "closed") return;
+      try {
+        const now = ctx.currentTime + Math.max(0.004, delay);
+        const osc = ctx.createOscillator();
+        const filter = ctx.createBiquadFilter();
+        const amp = ctx.createGain();
 
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(filterFreq, now);
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq !== null && endFreq !== freq) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), now + duration);
+        }
 
-      amp.gain.setValueAtTime(0.0001, now);
-      amp.gain.linearRampToValueAtTime(gain, now + 0.008);
-      amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(filterFreq, now);
 
-      osc.connect(filter);
-      filter.connect(amp);
-      amp.connect(ctx.destination);
+        const attack = Math.min(0.014, duration * 0.2);
+        amp.gain.setValueAtTime(0.0001, now);
+        amp.gain.linearRampToValueAtTime(gain, now + attack);
+        amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-      osc.start(now);
-      osc.stop(now + duration + 0.02);
-    } catch (_) {}
+        osc.connect(filter);
+        filter.connect(amp);
+        amp.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration + 0.03);
+      } catch (_) {}
+    };
+
+    if (ctx.state === "running") {
+      schedule();
+    } else {
+      ctx.resume().then(() => {
+        this._primeSilentBuffer(ctx);
+        schedule();
+      }).catch(() => {});
+    }
   },
 
   playTick() {
     if (!this.enabled) return;
-    this._playTone({ freq: 720, endFreq: 480, type: "triangle", duration: 0.045, gain: 0.028, filterFreq: 2100 });
+    this._playTone({ freq: 820, endFreq: 520, type: "triangle", duration: 0.065, gain: 0.13, filterFreq: 2600 });
   },
 
   playDrop() {
     if (!this.enabled) return;
-    // Soft frosted glass clink
-    this._playTone({ freq: 587.33, endFreq: 659.25, type: "sine", duration: 0.11, gain: 0.036, filterFreq: 2600 });
-    this._playTone({ freq: 1174.66, type: "sine", duration: 0.09, gain: 0.016, delay: 0.018, filterFreq: 3400 });
+    // Crisp frosted glass clink
+    this._playTone({ freq: 587.33, endFreq: 659.25, type: "sine", duration: 0.16, gain: 0.17, filterFreq: 3200 });
+    this._playTone({ freq: 1174.66, type: "sine", duration: 0.14, gain: 0.09, delay: 0.022, filterFreq: 4200 });
   },
 
   playComplete() {
@@ -150,29 +188,29 @@ const TactileFX = {
     }
     this._lastCompleteTs = now;
 
-    // Gentle ascending pentatonic marimba/glass chime
+    // Warm ascending pentatonic marimba/glass chime
     const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
     const base = pentatonic[this._completeStreak] || 523.25;
-    this._playTone({ freq: base, type: "sine", duration: 0.24, gain: 0.042, filterFreq: 2800 });
-    this._playTone({ freq: base * 1.5, type: "triangle", duration: 0.19, gain: 0.018, delay: 0.035, filterFreq: 3200 });
+    this._playTone({ freq: base, type: "sine", duration: 0.34, gain: 0.21, filterFreq: 3400 });
+    this._playTone({ freq: base * 1.5, type: "triangle", duration: 0.26, gain: 0.10, delay: 0.04, filterFreq: 3800 });
   },
 
   playUncomplete() {
     if (!this.enabled) return;
-    this._playTone({ freq: 340, endFreq: 245, type: "sine", duration: 0.11, gain: 0.024, filterFreq: 1400 });
+    this._playTone({ freq: 392.0, endFreq: 261.63, type: "sine", duration: 0.15, gain: 0.13, filterFreq: 1800 });
   },
 
   playFinalise() {
     if (!this.enabled) return;
     // Sleek crystalline seal: soft fifth + octave shimmer
-    this._playTone({ freq: 440, type: "sine", duration: 0.28, gain: 0.034, delay: 0, filterFreq: 2400 });
-    this._playTone({ freq: 659.25, type: "sine", duration: 0.30, gain: 0.030, delay: 0.055, filterFreq: 2800 });
-    this._playTone({ freq: 880, type: "triangle", duration: 0.36, gain: 0.020, delay: 0.11, filterFreq: 3400 });
+    this._playTone({ freq: 440, type: "sine", duration: 0.38, gain: 0.16, delay: 0, filterFreq: 2800 });
+    this._playTone({ freq: 659.25, type: "sine", duration: 0.40, gain: 0.15, delay: 0.06, filterFreq: 3400 });
+    this._playTone({ freq: 880, type: "triangle", duration: 0.48, gain: 0.11, delay: 0.12, filterFreq: 4000 });
   },
 
   playUnlock() {
     if (!this.enabled) return;
-    this._playTone({ freq: 523.25, endFreq: 392.0, type: "sine", duration: 0.12, gain: 0.026, filterFreq: 2000 });
+    this._playTone({ freq: 587.33, endFreq: 440.0, type: "sine", duration: 0.16, gain: 0.14, filterFreq: 2400 });
   },
 
   playQueueClear() {
@@ -183,10 +221,10 @@ const TactileFX = {
       this._playTone({
         freq: n,
         type: idx >= 3 ? "triangle" : "sine",
-        duration: 0.42 + idx * 0.05,
-        gain: Math.max(0.014, 0.034 - idx * 0.004),
-        delay: idx * 0.055,
-        filterFreq: 3600
+        duration: 0.56 + idx * 0.06,
+        gain: Math.max(0.09, 0.18 - idx * 0.018),
+        delay: idx * 0.06,
+        filterFreq: 4200
       });
     });
   },

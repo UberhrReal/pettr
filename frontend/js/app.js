@@ -1225,6 +1225,7 @@ const App = {
     tabButtons.forEach(btn => {
       btn.addEventListener("click", () => {
         const tab = btn.dataset.tab;
+        if (typeof TactileFX !== "undefined") TactileFX.playTick();
         this.switchTab(tab);
       });
     });

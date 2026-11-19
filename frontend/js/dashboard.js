@@ -1666,6 +1666,7 @@ const Dashboard = {
       }
 
       await this.saveDailyOrder();
+      if (typeof TactileFX !== "undefined") TactileFX.playDrop();
       if (typeof App !== "undefined" && App.haptic) App.haptic("light");
       App.showToast(`Queued in Tasking Priority: ${droppedItem.title}`);
     }, true);
@@ -2196,6 +2197,7 @@ const Dashboard = {
     if (existingIdx !== -1) {
       this.dailyOrder.splice(existingIdx, 1);
       await this.saveDailyOrder();
+      if (typeof TactileFX !== "undefined") TactileFX.playTick();
       App.showToast("Removed from Tasking Priority.");
       return;
     }
@@ -2238,6 +2240,7 @@ const Dashboard = {
 
     this.dailyOrder.push(entry);
     await this.saveDailyOrder();
+    if (typeof TactileFX !== "undefined") TactileFX.playDrop();
     if (typeof App !== "undefined" && App.haptic) App.haptic("light");
     App.showToast(`Queued in Tasking Priority: ${entry.title}`);
   },
