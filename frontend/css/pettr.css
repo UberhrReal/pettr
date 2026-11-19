@@ -11577,12 +11577,12 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 3.5px;
+  height: 4px;
   z-index: 6 !important;
   pointer-events: none;
-  background: color-mix(in srgb, var(--glass-edge) 50%, transparent);
+  background: transparent;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-end;
   overflow: visible;
 }
 
@@ -11595,41 +11595,98 @@ body {
   height: 100%;
   width: 0%;
   margin: 0 auto;
-  border-radius: 999px 999px 0 0;
-  transition: width 560ms cubic-bezier(0.22, 1, 0.36, 1), background 480ms ease, box-shadow 480ms ease, opacity 320ms ease, border-radius 320ms ease;
+  transition: width 580ms cubic-bezier(0.22, 1, 0.36, 1), opacity 360ms ease, filter 420ms ease;
   opacity: 0;
 }
 
+/* Core luminous hairline with smooth physical taper & feathered opacity at both ends */
+.snapshot-flow-progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  clip-path: polygon(0% 100%, 18% 0%, 82% 0%, 100% 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 14%, #000 30%, #000 70%, rgba(0, 0, 0, 0.55) 86%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 14%, #000 30%, #000 70%, rgba(0, 0, 0, 0.55) 86%, transparent 100%);
+  transition: background 480ms ease, clip-path 520ms cubic-bezier(0.22, 1, 0.36, 1), opacity 360ms ease;
+}
+
+/* Soft upward diffused glass glow halo that tapers smoothly into zero at both tips */
+.snapshot-flow-progress-fill::before {
+  content: "";
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  bottom: 0;
+  height: 22px;
+  pointer-events: none;
+  filter: blur(9px);
+  opacity: 0;
+  transition: opacity 480ms ease, background 480ms ease;
+}
+
 .snapshot-flow-progress-fill[data-flow-stage="start"] {
-  opacity: 0.90;
-  color: var(--flow-mid);
+  opacity: 0.92;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="start"]::after {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--flow-base) 65%, transparent) 0%,
+    transparent 0%,
+    color-mix(in srgb, var(--flow-base) 55%, transparent) 18%,
     var(--flow-mid) 50%,
-    color-mix(in srgb, var(--flow-base) 65%, transparent) 100%
+    color-mix(in srgb, var(--flow-base) 55%, transparent) 82%,
+    transparent 100%
   );
-  box-shadow: 0 0 11px color-mix(in srgb, var(--flow-glow) 75%, transparent), 0 -2px 14px color-mix(in srgb, var(--flow-glow) 48%, transparent);
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="start"]::before {
+  opacity: 0.62;
+  background: radial-gradient(
+    ellipse 50% 90% at 50% 100%,
+    var(--flow-glow) 0%,
+    color-mix(in srgb, var(--flow-glow) 36%, transparent) 55%,
+    transparent 100%
+  );
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="momentum"] {
-  opacity: 0.97;
-  color: var(--flow-bright);
+  opacity: 0.98;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="momentum"]::after {
+  clip-path: polygon(0% 100%, 14% 0%, 86% 0%, 100% 100%);
   background: linear-gradient(
     90deg,
-    var(--flow-base) 0%,
-    var(--flow-mid) 25%,
+    transparent 0%,
+    var(--flow-base) 18%,
+    var(--flow-mid) 34%,
     var(--flow-bright) 50%,
-    var(--flow-mid) 75%,
-    var(--flow-base) 100%
+    var(--flow-mid) 66%,
+    var(--flow-base) 82%,
+    transparent 100%
   );
-  box-shadow: 0 0 14px color-mix(in srgb, var(--flow-glow) 94%, transparent), 0 -3px 18px color-mix(in srgb, var(--flow-glow) 64%, transparent);
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="momentum"]::before {
+  opacity: 0.84;
+  background: radial-gradient(
+    ellipse 52% 95% at 50% 100%,
+    var(--flow-glow) 0%,
+    color-mix(in srgb, var(--flow-glow) 46%, transparent) 58%,
+    transparent 100%
+  );
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="complete"] {
   opacity: 1;
-  color: var(--flow-bright);
-  border-radius: 0;
+}
+
+/* At 100%, taper opens smoothly to consume the entire bottom edge corner-to-corner */
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.78) 0%, #000 8%, #000 92%, rgba(0, 0, 0, 0.78) 100%);
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.78) 0%, #000 8%, #000 92%, rgba(0, 0, 0, 0.78) 100%);
   background: linear-gradient(
     90deg,
     var(--flow-base) 0%,
@@ -11639,43 +11696,20 @@ body {
     var(--flow-base) 100%
   );
   background-size: 200% 100%;
-  box-shadow: 0 0 18px var(--flow-glow), 0 -4px 26px color-mix(in srgb, var(--flow-glow) 78%, transparent);
   animation: flowGlowComplete 3.4s ease-in-out infinite;
 }
 
-.snapshot-flow-progress-fill[data-flow-stage="start"]::before,
-.snapshot-flow-progress-fill[data-flow-stage="momentum"]::before,
-.snapshot-flow-progress-fill[data-flow-stage="complete"]::before,
-.snapshot-flow-progress-fill[data-flow-stage="start"]::after,
-.snapshot-flow-progress-fill[data-flow-stage="momentum"]::after,
-.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
-  content: "";
-  position: absolute;
-  bottom: -2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 10px 2px currentColor;
-  opacity: 0.80;
-  transition: opacity 0.3s ease;
-}
-
-.snapshot-flow-progress-fill[data-flow-stage="start"]::before,
-.snapshot-flow-progress-fill[data-flow-stage="momentum"]::before,
 .snapshot-flow-progress-fill[data-flow-stage="complete"]::before {
-  left: -3px;
-}
-
-.snapshot-flow-progress-fill[data-flow-stage="start"]::after,
-.snapshot-flow-progress-fill[data-flow-stage="momentum"]::after,
-.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
-  right: -3px;
-}
-
-.snapshot-flow-progress-fill[data-flow-stage="complete"]::before,
-.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
-  opacity: 0;
+  opacity: 0.96;
+  left: 0;
+  right: 0;
+  height: 26px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--flow-glow) 65%, transparent) 0%,
+    var(--flow-glow) 50%,
+    color-mix(in srgb, var(--flow-glow) 65%, transparent) 100%
+  );
 }
 
 @keyframes flowGlowComplete {
@@ -11788,7 +11822,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .snapshot-flow-progress-fill[data-flow-stage="complete"] {
+  .snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
     animation: none;
   }
   .briefing-showcase-window.is-lock-shimmering > .snapshot-lock-shimmer::before {
