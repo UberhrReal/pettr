@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=11.1">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=11.2">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -127,6 +127,7 @@
             </div>
           </div>
         </div>
+        <button class="action-icon-btn sound-fx-toggle-btn" id="soundFxToggleBtn" onclick="TactileFX.toggleSound()" title="Tactile Sound Effects: On (Click to mute)" aria-label="Toggle tactile sound effects" aria-pressed="true"><i data-lucide="volume-2" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
         <button class="action-icon-btn lock-btn" onclick="App.logout()" title="Lock Session (Logout)" aria-label="Lock Session"><i data-lucide="lock" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
       </div>
     </div>
@@ -296,6 +297,11 @@
 
       <!-- Full-Width Snapshot Window & Tasking Priority -->
       <div class="briefing-showcase-window" id="briefingShowcaseWindow">
+        <!-- v11.2 Queue Flow Progress Glow & Finalise Glass Refraction Sheen -->
+        <div class="snapshot-flow-progress-track" id="snapshotFlowProgressTrack" role="progressbar" aria-label="Tasking Priority completion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="snapshot-flow-progress-fill" id="snapshotFlowProgressFill" data-flow-stage="idle" style="width: 0%;"></div>
+        </div>
+        <div class="snapshot-lock-shimmer" id="snapshotLockShimmer" aria-hidden="true"></div>
         <div class="briefing-showcase-header">
           <div class="briefing-showcase-title">
             <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="compass" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Snapshot</span>
@@ -2529,20 +2535,21 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=11.1"></script>
-  <script src="/static/js/app.js?v=11.1"></script>
-  <script src="/static/js/drag_drop.js?v=11.1"></script>
-  <script src="/static/js/wave_canvas.js?v=11.1"></script>
-  <script src="/static/js/entity_modal.js?v=11.1"></script>
-  <script src="/static/js/timeline.js?v=11.1"></script>
-  <script src="/static/js/mindmap.js?v=11.1"></script>
-  <script src="/static/js/dashboard.js?v=11.1"></script>
-  <script src="/static/js/exploded.js?v=11.1"></script>
-  <script src="/static/js/notes.js?v=11.1"></script>
-  <script src="/static/js/history.js?v=11.1"></script>
-  <script src="/static/js/command_palette.js?v=11.1"></script>
-  <script src="/static/js/focus_cockpit.js?v=11.1"></script>
-  <script src="/static/js/evening_debrief.js?v=11.1"></script>
-  <script src="/static/js/horace_chat.js?v=11.1"></script>
+  <script src="/static/js/pin_lock.js?v=11.2"></script>
+  <script src="/static/js/app.js?v=11.2"></script>
+  <script src="/static/js/drag_drop.js?v=11.2"></script>
+  <script src="/static/js/wave_canvas.js?v=11.2"></script>
+  <script src="/static/js/tactile.js?v=11.2"></script>
+  <script src="/static/js/entity_modal.js?v=11.2"></script>
+  <script src="/static/js/timeline.js?v=11.2"></script>
+  <script src="/static/js/mindmap.js?v=11.2"></script>
+  <script src="/static/js/dashboard.js?v=11.2"></script>
+  <script src="/static/js/exploded.js?v=11.2"></script>
+  <script src="/static/js/notes.js?v=11.2"></script>
+  <script src="/static/js/history.js?v=11.2"></script>
+  <script src="/static/js/command_palette.js?v=11.2"></script>
+  <script src="/static/js/focus_cockpit.js?v=11.2"></script>
+  <script src="/static/js/evening_debrief.js?v=11.2"></script>
+  <script src="/static/js/horace_chat.js?v=11.2"></script>
 </body>
 </html>

@@ -1976,11 +1976,11 @@ const Dashboard = {
       }
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
-      listEl.style.background = "var(--bg-tertiary)";
+      listEl.classList.add("is-drop-active");
     };
 
     listEl.ondragleave = () => {
-      listEl.style.background = "";
+      listEl.classList.remove("is-drop-active");
     };
 
     listEl.ondrop = (e) => {
@@ -1990,7 +1990,7 @@ const Dashboard = {
         return;
       }
       e.preventDefault();
-      listEl.style.background = "";
+      listEl.classList.remove("is-drop-active");
 
       // If an internal item was dropped on the container empty space
       if (this.draggedSlotIdx !== null && this.draggedSlotIdx !== undefined) {
@@ -1998,6 +1998,7 @@ const Dashboard = {
         this.dailyOrder.push(moved);
         this.draggedSlotIdx = null;
         this.saveDailyOrder();
+        if (typeof TactileFX !== "undefined") TactileFX.playDrop();
         return;
       }
 
@@ -2008,6 +2009,7 @@ const Dashboard = {
         if (!this.dailyOrder.some(d => d.id === item.id && d.type === item.type)) {
           this.dailyOrder.push({ ...item, completed: false });
           this.saveDailyOrder();
+          if (typeof TactileFX !== "undefined") TactileFX.playDrop();
           App.showToast(`Added to Daily Order: ${item.title}`);
         } else {
           App.showToast("Item is already in your daily sequence.");
@@ -2100,6 +2102,7 @@ const Dashboard = {
       this.dailyOrder.splice(finalIdx, 0, moved);
       this.draggedSlotIdx = null;
       this.saveDailyOrder();
+      if (typeof TactileFX !== "undefined") TactileFX.playDrop();
       return;
     }
 
@@ -2112,6 +2115,7 @@ const Dashboard = {
           const insertIdx = isBelow ? targetIdx + 1 : targetIdx;
           this.dailyOrder.splice(insertIdx, 0, { ...item, completed: false });
           this.saveDailyOrder();
+          if (typeof TactileFX !== "undefined") TactileFX.playDrop();
           App.showToast(`Added to Daily Order: ${item.title}`);
         } else {
           App.showToast("Item is already in your daily sequence.");
@@ -2284,6 +2288,7 @@ const Dashboard = {
     // Transition immediately to keep UI responsive while persisting snapshot lock
     this.applySnapshotLockUI();
     if (typeof App !== "undefined" && App.haptic) App.haptic("medium");
+    if (typeof TactileFX !== "undefined") TactileFX.triggerLockShimmer();
 
     try {
       await this.saveDailyOrder();
@@ -2323,6 +2328,7 @@ const Dashboard = {
     } catch (_) {}
     this.applySnapshotLockUI();
     if (typeof App !== "undefined" && App.haptic) App.haptic("light");
+    if (typeof TactileFX !== "undefined") TactileFX.playUnlock();
 
     try {
       await fetch("/api/snapshot/lock", {
@@ -2550,7 +2556,98 @@ const Dashboard = {
     }
 
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+    this.updateSnapshotFlowProgress({ celebrateIfCleared: Boolean(isCompleted) });
     return true;
+  },
+
+  resolveEntityAccentColor(entityType, entityId) {
+    const idStr = String(entityId);
+    if (entityType === "event") {
+      const ev = [...(this.events || []), ...((this.briefingData && this.briefingData.events_today) || [])]
+        .find(e => String(e.id) === idStr);
+      if (ev && (ev.project_color || ev.project_name)) {
+        return this.getRawProjectColor(ev.project_name, ev.project_color);
+      }
+    } else if (this.tasks) {
+      const projTasks = (this.tasks.projects || []).flatMap(p => p.tasks || []);
+      const tk = [...(this.tasks.focus || []), ...(this.tasks.trivial || []), ...projTasks]
+        .find(t => String(t.id) === idStr);
+      if (tk && (tk.project_color || tk.project_name)) {
+        return this.getRawProjectColor(tk.project_name, tk.project_color);
+      }
+    }
+    if (this.snapshotBriefing && Array.isArray(this.snapshotBriefing.priority_queue)) {
+      const q = this.snapshotBriefing.priority_queue.find(it => String(it.id) === idStr && (!it.type || it.type === entityType));
+      if (q && (q.project_color || q.project_name)) {
+        return this.getRawProjectColor(q.project_name, q.project_color);
+      }
+    }
+    return null;
+  },
+
+  getEntityFeedbackOrigin(entityType, entityId) {
+    const selectors = entityType === "event"
+      ? [
+          `.snapshot-unified-row[data-snap-type="event"][data-snap-id="${entityId}"] .snapshot-unified-checkbox`,
+          `.snapshot-unified-row[data-snap-type="event"][data-snap-id="${entityId}"]`,
+          `.task-item[data-event-id="${entityId}"] .task-checkbox`,
+          `.task-item[data-event-id="${entityId}"]`
+        ]
+      : [
+          `.snapshot-unified-row[data-snap-type="task"][data-snap-id="${entityId}"] .snapshot-unified-checkbox`,
+          `.snapshot-unified-row[data-snap-type="task"][data-snap-id="${entityId}"]`,
+          `.task-item[data-task-id="${entityId}"] .task-checkbox`,
+          `.task-item[data-task-id="${entityId}"]`
+        ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 || rect.height > 0) {
+          return { x: rect.left + rect.width * 0.5, y: rect.top + rect.height * 0.5 };
+        }
+      }
+    }
+    return { x: window.innerWidth * 0.5, y: window.innerHeight * 0.38 };
+  },
+
+  updateSnapshotFlowProgress({ celebrateIfCleared = false } = {}) {
+    const track = document.getElementById("snapshotFlowProgressTrack");
+    const fill = document.getElementById("snapshotFlowProgressFill");
+    if (!track || !fill) return;
+
+    const b = this.snapshotBriefing || this.buildLocalSnapshotFallback();
+    const queue = (b && Array.isArray(b.priority_queue)) ? b.priority_queue : [];
+    const counts = (b && b.counts) || {};
+
+    let total = queue.length;
+    let completed = queue.filter(q => Boolean(q.completed)).length;
+    if (total === 0 && (counts.total_items || 0) > 0) {
+      total = counts.total_items;
+      completed = counts.total_completed || 0;
+    }
+
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    let stage = "idle";
+    if (pct >= 100 && total > 0) stage = "complete";
+    else if (pct >= 50) stage = "momentum";
+    else if (pct > 0) stage = "start";
+
+    fill.style.width = `${pct}%`;
+    fill.setAttribute("data-flow-stage", stage);
+    track.setAttribute("aria-valuenow", String(pct));
+    track.classList.toggle("is-complete", stage === "complete");
+
+    const prevKey = this._lastFlowDateKey;
+    const prevPct = prevKey === this.selectedDate ? (this._lastFlowPct || 0) : 0;
+    this._lastFlowDateKey = this.selectedDate;
+    this._lastFlowPct = pct;
+
+    if (celebrateIfCleared && total > 0 && pct === 100 && prevPct < 100 && this.isSnapshotLocked) {
+      if (typeof TactileFX !== "undefined" && TactileFX.celebrateQueueClear) {
+        TactileFX.celebrateQueueClear(document.getElementById("briefingShowcaseWindow"));
+      }
+    }
   },
 
   async toggleSnapshotItemStatus(entityType, entityId, isCompleted) {
@@ -2559,6 +2656,14 @@ const Dashboard = {
       this.renderLockedSnapshotView();
       return;
     }
+
+    // Capture checkbox viewport origin BEFORE FLIP slides the row away
+    const origin = this.getEntityFeedbackOrigin(entityType, entityId);
+    const accentColor = this.resolveEntityAccentColor(entityType, entityId);
+    if (typeof TactileFX !== "undefined") {
+      TactileFX.onItemToggle({ completed: Boolean(isCompleted), x: origin.x, y: origin.y, color: accentColor });
+    }
+
     this.syncLocalEntityStatus(entityType, entityId, isCompleted);
     if (this.snapshotBriefing) {
       const updateBucket = (arr) => {
@@ -2594,12 +2699,13 @@ const Dashboard = {
     const animatedInPlace = this.isSnapshotLocked && this.animateSnapshotRowCompletion(entityType, entityId, isCompleted);
     if (!animatedInPlace) {
       this.renderLockedSnapshotView();
+      this.updateSnapshotFlowProgress({ celebrateIfCleared: Boolean(isCompleted) });
     }
 
     if (entityType === "event") {
-      await this.toggleEventStatus(entityId, isCompleted, { silentSnapshot: animatedInPlace });
+      await this.toggleEventStatus(entityId, isCompleted, { silentSnapshot: animatedInPlace, skipTactile: true });
     } else {
-      await this.toggleTaskStatus(entityId, isCompleted, { silentSnapshot: animatedInPlace });
+      await this.toggleTaskStatus(entityId, isCompleted, { silentSnapshot: animatedInPlace, skipTactile: true });
     }
   },
 
@@ -3140,6 +3246,7 @@ const Dashboard = {
     `;
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
     this.initSnapshotScrollParticles(container);
+    this.updateSnapshotFlowProgress({ celebrateIfCleared: false });
   },
 
   async copyBriefingMarkdown() {
@@ -3479,6 +3586,7 @@ const Dashboard = {
 
   async toggleTaskStatus(taskId, isCompleted, options = {}) {
     const silentSnapshot = Boolean(options && options.silentSnapshot);
+    const skipTactile = Boolean(options && options.skipTactile);
     if (this.isPastDay()) {
       App.showToast("Cannot modify locked historical records.", true);
       return;
@@ -3486,6 +3594,11 @@ const Dashboard = {
     if (this.isFutureDay()) {
       App.showToast("Cannot complete future tasks before their date arrives.", true);
       return;
+    }
+    if (!skipTactile && typeof TactileFX !== "undefined") {
+      const origin = this.getEntityFeedbackOrigin("task", taskId);
+      const accentColor = this.resolveEntityAccentColor("task", taskId);
+      TactileFX.onItemToggle({ completed: Boolean(isCompleted), x: origin.x, y: origin.y, color: accentColor });
     }
     this.syncLocalEntityStatus("task", taskId, isCompleted);
     this.renderDailyOrder();
@@ -3615,6 +3728,7 @@ const Dashboard = {
 
   async toggleEventStatus(eventId, isCompleted, options = {}) {
     const silentSnapshot = Boolean(options && options.silentSnapshot);
+    const skipTactile = Boolean(options && options.skipTactile);
     if (this.isPastDay()) {
       App.showToast("Cannot modify locked historical records.", true);
       return;
@@ -3622,6 +3736,11 @@ const Dashboard = {
     if (this.isFutureDay()) {
       App.showToast("Cannot complete future appointments before their date arrives.", true);
       return;
+    }
+    if (!skipTactile && typeof TactileFX !== "undefined") {
+      const origin = this.getEntityFeedbackOrigin("event", eventId);
+      const accentColor = this.resolveEntityAccentColor("event", eventId);
+      TactileFX.onItemToggle({ completed: Boolean(isCompleted), x: origin.x, y: origin.y, color: accentColor });
     }
     this.syncLocalEntityStatus("event", eventId, isCompleted);
     this.renderDailyOrder();
@@ -3914,6 +4033,7 @@ const Dashboard = {
         App.showToast(errMsg, true);
         return;
       }
+      if (typeof TactileFX !== "undefined") TactileFX.playTick();
       App.showToast("Item sorted successfully!");
       this.closeUnorganizedModal();
       await this.refresh();

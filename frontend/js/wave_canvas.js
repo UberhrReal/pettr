@@ -35,6 +35,9 @@ const WaveCanvas = {
   stars: [],
   meteors: [],
   nextMeteorTime: 0,
+  // v11.2 Activity-Reactive Atmospheric Ripples & Glow Boost
+  ripples: [],
+  auroraBoost: 0,
 
   getThemeMode() {
     const docTheme = document.documentElement.getAttribute("data-theme");
@@ -223,6 +226,20 @@ const WaveCanvas = {
           elevation += Math.sin(proximity * Math.PI) * 38;
         }
 
+        // Subtle topographic contour lift along active activity-ripple wavefronts
+        if (this.ripples.length > 0) {
+          for (let rp = 0; rp < this.ripples.length; rp++) {
+            const rip = this.ripples[rp];
+            const distToCenter = Math.hypot(x - rip.x, baseY - rip.y);
+            const band = Math.abs(distToCenter - rip.radius);
+            if (band < 72) {
+              const crest = Math.cos((band / 72) * (Math.PI * 0.5));
+              const fade = 1 - (rip.life / rip.maxLife);
+              elevation += crest * crest * 18 * rip.strength * fade;
+            }
+          }
+        }
+
         const y = baseY - elevation;
 
         if (first) {
@@ -259,11 +276,13 @@ const WaveCanvas = {
       ctx.globalCompositeOperation = "screen";
 
       const auroraTime = this.step * 0.7;
+      const boostFactor = 1 + this.auroraBoost * 0.65;
+      this.auroraBoost = Math.max(0, this.auroraBoost * 0.965 - 0.002);
       const auroraCurtains = [
-        { r: 16, g: 185, b: 129, baseH: 260, speed: 0.8, amp: 55, alpha: 0.22 },
-        { r: 6, g: 182, b: 212, baseH: 310, speed: 0.6, amp: 45, alpha: 0.18 },
-        { r: 139, g: 92, b: 246, baseH: 360, speed: 0.5, amp: 65, alpha: 0.20 },
-        { r: 236, g: 72, b: 153, baseH: 220, speed: 0.9, amp: 35, alpha: 0.14 }
+        { r: 16, g: 185, b: 129, baseH: 260, speed: 0.8, amp: 55, alpha: 0.22 * boostFactor },
+        { r: 6, g: 182, b: 212, baseH: 310, speed: 0.6, amp: 45, alpha: 0.18 * boostFactor },
+        { r: 139, g: 92, b: 246, baseH: 360, speed: 0.5, amp: 65, alpha: 0.20 * boostFactor },
+        { r: 236, g: 72, b: 153, baseH: 220, speed: 0.9, amp: 35, alpha: 0.14 * boostFactor }
       ];
 
       auroraCurtains.forEach((c, idx) => {
@@ -562,6 +581,9 @@ const WaveCanvas = {
       // 5. Daytime Celestial Wildlife: Soaring Distant Swallow Silhouettes
       this.updateAndDrawDayBirds(ctx, w, h);
     }
+
+    // 6. Activity-Reactive Atmospheric Light Ripples (all themes)
+    this.updateAndDrawActivityRipples(ctx, w, h, mode);
   },
 
   triggerLeafGust(now, w, h) {
@@ -900,7 +922,7 @@ const WaveCanvas = {
     }
   },
 
-  spawnMeteor(w, h) {
+  spawnMeteor(w, h, customColor = null) {
     const startX = w * (0.15 + Math.random() * 0.70);
     const startY = 15 + Math.random() * Math.min(180, h * 0.24);
     const dir = startX > w * 0.5 ? -1 : 1;
@@ -915,7 +937,7 @@ const WaveCanvas = {
       len: 75 + Math.random() * 65,
       life: 0,
       maxLife: 38 + Math.floor(Math.random() * 20),
-      color: isEmerald ? "110, 231, 183" : "125, 211, 252"
+      color: customColor || (isEmerald ? "110, 231, 183" : "125, 211, 252")
     });
   },
 
@@ -994,6 +1016,156 @@ const WaveCanvas = {
       this.meteors = alive;
     }
     ctx.restore();
+  },
+
+  // --- v11.2 Activity-Reactive Background Canvas ---
+  _parseActivityColor(colorStr, mode) {
+    const defaults = {
+      dark: "125, 211, 252",
+      evening: "251, 191, 36",
+      morning: "245, 158, 11",
+      light: "59, 130, 246"
+    };
+    if (!colorStr || typeof colorStr !== "string") return defaults[mode] || defaults.light;
+    const s = colorStr.trim();
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) {
+      let hex = s.slice(1);
+      if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+      let r = parseInt(hex.slice(0, 2), 16);
+      let g = parseInt(hex.slice(2, 4), 16);
+      let b = parseInt(hex.slice(4, 6), 16);
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      if ((mode === "dark" || mode === "evening") && lum < 0.28) {
+        return defaults[mode] || "165, 243, 252";
+      }
+      if ((mode === "light" || mode === "morning") && lum > 0.88) {
+        return defaults[mode] || "59, 130, 246";
+      }
+      return `${r}, ${g}, ${b}`;
+    }
+    return defaults[mode] || defaults.light;
+  },
+
+  pulseActivity({ kind = "complete", x = null, y = null, color = null } = {}) {
+    const w = this.width || window.innerWidth;
+    const h = this.height || window.innerHeight;
+    const mode = this.getThemeMode();
+    const rx = (typeof x === "number" && isFinite(x)) ? x : w * 0.5;
+    const ry = (typeof y === "number" && isFinite(y)) ? y : h * 0.34;
+    const rgb = this._parseActivityColor(color, mode);
+    const isMajor = (kind === "queue_clear" || kind === "finalise");
+
+    // 1. Expanding atmospheric light & topographic contour ripple
+    this.ripples.push({
+      x: rx,
+      y: ry,
+      radius: 18,
+      maxRadius: isMajor ? Math.max(w, h) * 0.65 : Math.min(w, h) * 0.48,
+      life: 0,
+      maxLife: isMajor ? 78 : 54,
+      color: rgb,
+      strength: isMajor ? 1.35 : 0.9
+    });
+    if (this.ripples.length > 6) {
+      this.ripples.shift();
+    }
+
+    const reducedMotion = Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (reducedMotion) return;
+
+    // 2. Theme-authentic reactive atmospheric phenomenon
+    if (mode === "dark") {
+      this.auroraBoost = Math.min(1.4, this.auroraBoost + (isMajor ? 0.95 : 0.55));
+      const meteorCount = kind === "queue_clear" ? 3 : (kind === "finalise" ? 2 : 1);
+      for (let i = 0; i < meteorCount; i++) {
+        setTimeout(() => {
+          if (this.getThemeMode() === "dark") {
+            this.spawnMeteor(this.width || w, this.height || h, rgb);
+          }
+        }, i * 190);
+      }
+    } else if (mode === "morning") {
+      const seedCount = isMajor ? 10 : 5;
+      for (let i = 0; i < seedCount; i++) {
+        this.dandelions.push({
+          isMote: i % 2 === 0,
+          x: Math.max(10, Math.min(w - 10, rx + (Math.random() - 0.5) * 140)),
+          y: Math.max(30, Math.min(h - 20, ry + (Math.random() - 0.5) * 90)),
+          vx: 0.9 + Math.random() * 1.5,
+          vy: -(0.45 + Math.random() * 0.75),
+          size: (i % 2 === 0) ? (2.2 + Math.random() * 2.4) : (6.5 + Math.random() * 4.5),
+          sway: Math.random() * Math.PI * 2,
+          swaySpeed: 0.025 + Math.random() * 0.025,
+          tilt: (Math.random() - 0.5) * 0.45,
+          alpha: 0.62 + Math.random() * 0.25
+        });
+      }
+    } else if (mode === "evening") {
+      const leafCount = isMajor ? 10 : 5;
+      for (let i = 0; i < leafCount; i++) {
+        this.spawnLeaf(w, h, true);
+      }
+    } else {
+      // Light / Afternoon: dispatch soaring swallows gliding across the cloud deck
+      const birdCount = isMajor ? 6 : 3;
+      const fromLeft = rx < w * 0.6;
+      const baseY = Math.max(55, Math.min(h * 0.34, ry * 0.65));
+      const baseSpeed = 2.0 + Math.random() * 0.9;
+      for (let i = 0; i < birdCount; i++) {
+        const depth = 0.72 + Math.random() * 0.45;
+        const lag = i * (22 + Math.random() * 16);
+        this.birds.push({
+          dir: fromLeft ? 1 : -1,
+          x: fromLeft ? (-25 - lag) : (w + 25 + lag),
+          y: baseY + (i - birdCount / 2) * 14 + (Math.random() - 0.5) * 14,
+          vx: (fromLeft ? 1 : -1) * baseSpeed * (0.9 + depth * 0.35),
+          vy: (Math.random() - 0.55) * 0.28,
+          span: (9.5 + Math.random() * 4.5) * depth,
+          flapPhase: Math.random() * Math.PI * 2,
+          flapSpeed: 0.16 + Math.random() * 0.05,
+          glideClock: Math.random() * 140,
+          alpha: 0.28 + depth * 0.18
+        });
+      }
+    }
+  },
+
+  updateAndDrawActivityRipples(ctx, w, h, mode) {
+    if (!this.ripples || this.ripples.length === 0) return;
+    const isDark = (mode === "dark" || mode === "evening");
+    const alive = [];
+
+    ctx.save();
+    if (isDark) ctx.globalCompositeOperation = "screen";
+
+    for (let i = 0; i < this.ripples.length; i++) {
+      const rp = this.ripples[i];
+      rp.life++;
+      if (rp.life >= rp.maxLife) continue;
+      alive.push(rp);
+
+      const t = rp.life / rp.maxLife;
+      const eased = 1 - Math.pow(1 - t, 3);
+      rp.radius = 18 + (rp.maxRadius - 18) * eased;
+      const fade = Math.sin(Math.min(1, t * 4.5) * (Math.PI * 0.5)) * Math.pow(1 - t, 1.35);
+
+      const outerR = rp.radius;
+      const innerR = Math.max(0, outerR - 68);
+      const grad = ctx.createRadialGradient(rp.x, rp.y, innerR, rp.x, rp.y, outerR + 18);
+      const peakAlpha = (isDark ? 0.24 : 0.16) * fade * rp.strength;
+      grad.addColorStop(0, `rgba(${rp.color}, 0)`);
+      grad.addColorStop(0.68, `rgba(${rp.color}, ${(peakAlpha * 0.65).toFixed(3)})`);
+      grad.addColorStop(0.86, `rgba(${rp.color}, ${peakAlpha.toFixed(3)})`);
+      grad.addColorStop(1, `rgba(${rp.color}, 0)`);
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, outerR + 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+    this.ripples = alive;
   }
 };
 

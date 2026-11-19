@@ -11560,3 +11560,215 @@ body {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   v11.2 Tactile Feedback, Glass-Mote Bursts, Lock Shimmer & Queue Flow Glow
+   ========================================================================== */
+
+.tactile-motes-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9500;
+}
+
+.sound-fx-toggle-btn {
+  transition: opacity 0.2s ease, transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+}
+
+.sound-fx-toggle-btn.is-muted {
+  opacity: 0.56;
+  color: var(--text-dim);
+}
+
+.sound-fx-toggle-btn:active {
+  transform: scale(0.92);
+}
+
+/* Queue Flow Progress Glow — flush luminous hairline at the top of Finalised Snapshot */
+.briefing-showcase-window > .snapshot-flow-progress-track {
+  display: none;
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 6 !important;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--glass-edge) 55%, transparent);
+  overflow: visible;
+}
+
+.briefing-showcase-window.is-locked-in > .snapshot-flow-progress-track {
+  display: block;
+}
+
+.snapshot-flow-progress-fill {
+  position: relative;
+  height: 100%;
+  width: 0%;
+  border-radius: 0 999px 999px 0;
+  transition: width 540ms cubic-bezier(0.22, 1, 0.36, 1), background 480ms ease, box-shadow 480ms ease, opacity 320ms ease;
+  opacity: 0;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="start"] {
+  opacity: 1;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.78), rgba(56, 189, 248, 0.96));
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.55), 0 2px 14px rgba(99, 102, 241, 0.34);
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="momentum"] {
+  opacity: 1;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.85), rgba(245, 158, 11, 0.95), rgba(251, 191, 36, 1));
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.62), 0 2px 18px rgba(245, 158, 11, 0.38);
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="complete"] {
+  opacity: 1;
+  border-radius: 0;
+  background: linear-gradient(90deg, #10b981, #34d399, #38bdf8, #34d399);
+  background-size: 220% 100%;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.72), 0 3px 22px rgba(16, 185, 129, 0.42);
+  animation: flowGlowComplete 3.4s ease-in-out infinite;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="start"]::after,
+.snapshot-flow-progress-fill[data-flow-stage="momentum"]::after,
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 10px 2px currentColor;
+  opacity: 0.82;
+  transition: opacity 0.3s ease;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
+  opacity: 0;
+}
+
+@keyframes flowGlowComplete {
+  0%, 100% {
+    background-position: 0% 50%;
+    filter: brightness(1);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: brightness(1.16);
+  }
+}
+
+/* Finalise Lock-In Diagonal Frosted Glass Shimmer */
+.briefing-showcase-window > .snapshot-lock-shimmer {
+  position: absolute !important;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5 !important;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: 0;
+}
+
+.briefing-showcase-window > .snapshot-lock-shimmer::before {
+  content: "";
+  position: absolute;
+  top: -30%;
+  left: -45%;
+  width: 38%;
+  height: 165%;
+  transform: skewX(-24deg) translateX(0);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.24) 48%,
+    rgba(255, 255, 255, 0.04) 72%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+[data-theme="dark"] .briefing-showcase-window > .snapshot-lock-shimmer::before,
+[data-theme="evening"] .briefing-showcase-window > .snapshot-lock-shimmer::before {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.16) 48%,
+    rgba(165, 243, 252, 0.08) 70%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.briefing-showcase-window.is-lock-shimmering > .snapshot-lock-shimmer {
+  opacity: 1;
+}
+
+.briefing-showcase-window.is-lock-shimmering > .snapshot-lock-shimmer::before {
+  animation: snapshotLockSheen 820ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes snapshotLockSheen {
+  0% {
+    transform: skewX(-24deg) translateX(-10%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: skewX(-24deg) translateX(460%);
+    opacity: 0;
+  }
+}
+
+/* Tactile Springy Drag-and-Drop Feel */
+.task-item.dragging,
+.briefing-item-row.dragging,
+.daily-order-slot.dragging {
+  transform: rotate(1.25deg) scale(1.018);
+  opacity: 0.78;
+  box-shadow: 0 14px 32px -8px rgba(15, 23, 42, 0.26), 0 0 0 1px color-mix(in srgb, var(--focus-indigo) 45%, transparent);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.daily-order-slots-list.is-drop-active {
+  background: color-mix(in srgb, var(--focus-indigo) 9%, var(--glass-sheet-subtle)) !important;
+  border-color: color-mix(in srgb, var(--focus-indigo) 52%, var(--glass-edge)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus-indigo) 32%, transparent), 0 0 22px -6px color-mix(in srgb, var(--focus-indigo) 34%, transparent);
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Mobile Horizontal Swipe-to-Complete Tactile Feedback */
+.snapshot-unified-row.is-swiping,
+.task-item.is-swiping {
+  will-change: transform;
+  background: linear-gradient(
+    90deg,
+    rgba(16, 185, 129, calc(0.08 + var(--swipe-progress, 0) * 0.18)) 0%,
+    var(--glass-sheet-subtle) 65%
+  ) !important;
+  border-color: rgba(16, 185, 129, calc(0.22 + var(--swipe-progress, 0) * 0.45)) !important;
+}
+
+.snapshot-unified-row.is-swipe-ready,
+.task-item.is-swipe-ready {
+  box-shadow: inset 3px 0 0 #10b981, 0 6px 20px -6px rgba(16, 185, 129, 0.36);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snapshot-flow-progress-fill[data-flow-stage="complete"] {
+    animation: none;
+  }
+  .briefing-showcase-window.is-lock-shimmering > .snapshot-lock-shimmer::before {
+    animation: none;
+  }
+}
