@@ -198,7 +198,6 @@ const App = {
       const elAmPm = document.getElementById("missionClockMeridiem");
       const elDate = document.getElementById("missionClockDateStr");
       const elTzText = document.getElementById("missionClockTzText");
-      const elProgress = document.getElementById("missionClockProgressBar");
       const elHeaderClock = document.getElementById("headerClockDigits");
 
       if (elH) elH.textContent = hStr;
@@ -212,11 +211,6 @@ const App = {
 
       if (elTzText && elTzText.textContent !== tzDisplay) {
         elTzText.textContent = tzDisplay;
-      }
-
-      if (elProgress) {
-        const pct = (seconds / 60) * 100;
-        elProgress.style.width = `${pct}%`;
       }
 
       if (elHeaderClock) {

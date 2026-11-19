@@ -4250,6 +4250,13 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     assert ".daily-order-slots-list.is-drop-active" in css
     assert ".snapshot-unified-row.is-swiping" in css
 
+    # 6. Mission Clock: seconds progress bar removed and clock digits enlarged
+    assert 'id="missionClockProgressBar"' not in index_html
+    assert "mission-clock-subbar" not in index_html
+    assert ".mission-clock-progress-bar" not in css
+    clock_css = css[css.index(".mission-clock-time-display {"):css.index(".mission-clock-time-display {") + 220]
+    assert "font-size: 34px;" in clock_css
+
 
 
 

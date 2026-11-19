@@ -786,12 +786,13 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-md);
-  padding: 10px 16px;
+  padding: 10px 18px 12px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  min-width: 240px;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 256px;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -910,11 +911,12 @@ body {
   align-items: baseline;
   gap: 2px;
   font-family: var(--font-mono);
-  font-size: 26px;
+  font-size: 34px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--text-main);
-  line-height: 1;
+  line-height: 1.02;
+  padding-top: 2px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -934,18 +936,11 @@ body {
 }
 
 .mission-clock-meridiem {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-muted);
   margin-left: 6px;
   letter-spacing: 0.08em;
-}
-
-.mission-clock-subbar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 2px;
 }
 
 .mission-clock-calendar {
@@ -957,23 +952,6 @@ body {
   font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 0.06em;
-}
-
-.mission-clock-track {
-  width: 100%;
-  height: 2.5px;
-  background: var(--bg-tertiary);
-  border-radius: 9999px;
-  overflow: hidden;
-  position: relative;
-}
-
-.mission-clock-progress-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #6366F1, #06B6D4);
-  border-radius: 9999px;
-  transition: width 0.3s ease;
 }
 
 /* Header clock pill - only visible when scrolled past big mission clock */
@@ -5808,18 +5786,19 @@ body {
 
   .mission-clock-time-display {
     justify-content: center;
+    font-size: 36px;
   }
 
   .mission-clock-digit {
-    font-size: 30px;
+    font-size: 36px;
   }
 
   .mission-clock-sec {
-    font-size: 20px;
+    font-size: 24px;
   }
 
   .mission-clock-pulse-colon {
-    font-size: 26px;
+    font-size: 32px;
   }
 
   /* --- Working Panels & Grid Layout --- */
