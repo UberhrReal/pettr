@@ -11582,73 +11582,111 @@ body {
   transform: scale(0.92);
 }
 
-/* Queue Flow Progress Glow — flush luminous hairline at the top of Finalised Snapshot */
+/* Queue Flow Progress Glow — flush luminous hairline radiating from bottom centre of Finalised Snapshot */
 .briefing-showcase-window > .snapshot-flow-progress-track {
   display: none;
   position: absolute !important;
-  top: 0;
+  top: auto;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 3.5px;
   z-index: 6 !important;
   pointer-events: none;
-  background: color-mix(in srgb, var(--glass-edge) 55%, transparent);
+  background: color-mix(in srgb, var(--glass-edge) 50%, transparent);
+  justify-content: center;
+  align-items: stretch;
   overflow: visible;
 }
 
 .briefing-showcase-window.is-locked-in > .snapshot-flow-progress-track {
-  display: block;
+  display: flex;
 }
 
 .snapshot-flow-progress-fill {
   position: relative;
   height: 100%;
   width: 0%;
-  border-radius: 0 999px 999px 0;
-  transition: width 540ms cubic-bezier(0.22, 1, 0.36, 1), background 480ms ease, box-shadow 480ms ease, opacity 320ms ease;
+  margin: 0 auto;
+  border-radius: 999px 999px 0 0;
+  transition: width 560ms cubic-bezier(0.22, 1, 0.36, 1), background 480ms ease, box-shadow 480ms ease, opacity 320ms ease, border-radius 320ms ease;
   opacity: 0;
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="start"] {
-  opacity: 0.88;
+  opacity: 0.90;
   color: var(--flow-mid);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--flow-base) 72%, transparent), var(--flow-mid));
-  box-shadow: 0 0 10px color-mix(in srgb, var(--flow-glow) 72%, transparent), 0 1px 12px color-mix(in srgb, var(--flow-glow) 45%, transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--flow-base) 65%, transparent) 0%,
+    var(--flow-mid) 50%,
+    color-mix(in srgb, var(--flow-base) 65%, transparent) 100%
+  );
+  box-shadow: 0 0 11px color-mix(in srgb, var(--flow-glow) 75%, transparent), 0 -2px 14px color-mix(in srgb, var(--flow-glow) 48%, transparent);
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="momentum"] {
-  opacity: 0.96;
+  opacity: 0.97;
   color: var(--flow-bright);
-  background: linear-gradient(90deg, var(--flow-base), var(--flow-mid), var(--flow-bright));
-  box-shadow: 0 0 13px color-mix(in srgb, var(--flow-glow) 92%, transparent), 0 2px 16px color-mix(in srgb, var(--flow-glow) 60%, transparent);
+  background: linear-gradient(
+    90deg,
+    var(--flow-base) 0%,
+    var(--flow-mid) 25%,
+    var(--flow-bright) 50%,
+    var(--flow-mid) 75%,
+    var(--flow-base) 100%
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--flow-glow) 94%, transparent), 0 -3px 18px color-mix(in srgb, var(--flow-glow) 64%, transparent);
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="complete"] {
   opacity: 1;
   color: var(--flow-bright);
   border-radius: 0;
-  background: linear-gradient(90deg, var(--flow-base), var(--flow-mid), var(--flow-bright), var(--flow-mid));
-  background-size: 220% 100%;
-  box-shadow: 0 0 16px var(--flow-glow), 0 3px 22px color-mix(in srgb, var(--flow-glow) 75%, transparent);
+  background: linear-gradient(
+    90deg,
+    var(--flow-base) 0%,
+    var(--flow-mid) 25%,
+    var(--flow-bright) 50%,
+    var(--flow-mid) 75%,
+    var(--flow-base) 100%
+  );
+  background-size: 200% 100%;
+  box-shadow: 0 0 18px var(--flow-glow), 0 -4px 26px color-mix(in srgb, var(--flow-glow) 78%, transparent);
   animation: flowGlowComplete 3.4s ease-in-out infinite;
 }
 
+.snapshot-flow-progress-fill[data-flow-stage="start"]::before,
+.snapshot-flow-progress-fill[data-flow-stage="momentum"]::before,
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::before,
 .snapshot-flow-progress-fill[data-flow-stage="start"]::after,
 .snapshot-flow-progress-fill[data-flow-stage="momentum"]::after,
 .snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
   content: "";
   position: absolute;
-  right: -2px;
-  top: -3px;
-  width: 9px;
-  height: 9px;
+  bottom: -2px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 0 10px 2px currentColor;
-  opacity: 0.82;
+  opacity: 0.80;
   transition: opacity 0.3s ease;
 }
 
+.snapshot-flow-progress-fill[data-flow-stage="start"]::before,
+.snapshot-flow-progress-fill[data-flow-stage="momentum"]::before,
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::before {
+  left: -3px;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="start"]::after,
+.snapshot-flow-progress-fill[data-flow-stage="momentum"]::after,
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
+  right: -3px;
+}
+
+.snapshot-flow-progress-fill[data-flow-stage="complete"]::before,
 .snapshot-flow-progress-fill[data-flow-stage="complete"]::after {
   opacity: 0;
 }

@@ -486,23 +486,36 @@ const TactileFX = {
     const palette = themePalettes[mode] || themePalettes.light;
 
     const rect = el ? el.getBoundingClientRect() : null;
+    const bottomY = rect ? Math.min(window.innerHeight - 10, Math.max(24, rect.bottom - 4)) : window.innerHeight * 0.72;
     if (rect && !this.prefersReducedMotion()) {
-      // Sweeping ribbon of theme-cohesive translucent motes along the glowing top progress bar
-      const steps = 4;
-      for (let i = 0; i < steps; i++) {
+      // Symmetrical outward wave of theme-cohesive motes radiating from the bottom-centre edge
+      const centerX = rect.left + rect.width * 0.5;
+      const waves = [
+        { offsets: [0], delay: 0, count: 12 },
+        { offsets: [-0.22, 0.22], delay: 90, count: 9 },
+        { offsets: [-0.42, 0.42], delay: 180, count: 8 }
+      ];
+      waves.forEach((wave, wIdx) => {
         setTimeout(() => {
-          const px = rect.left + rect.width * (0.14 + (i / (steps - 1)) * 0.72);
-          const py = Math.max(12, rect.top + 6);
-          this.burstMotes({ x: px, y: py, color: palette[i % palette.length], count: 10, spread: 0.95 });
-        }, i * 90);
-      }
+          wave.offsets.forEach((off, oIdx) => {
+            const px = centerX + rect.width * off;
+            this.burstMotes({
+              x: px,
+              y: bottomY,
+              color: palette[(wIdx + oIdx) % palette.length],
+              count: wave.count,
+              spread: 0.95
+            });
+          });
+        }, wave.delay);
+      });
     }
 
     if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
       WaveCanvas.pulseActivity({
         kind: "queue_clear",
         x: rect ? rect.left + rect.width * 0.5 : window.innerWidth * 0.5,
-        y: rect ? rect.top + 40 : window.innerHeight * 0.25,
+        y: bottomY,
         color: palette[1]
       });
     }
