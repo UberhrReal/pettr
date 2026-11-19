@@ -1,22 +1,19 @@
 /**
- * PETTR Tactile Feedback, Glass-Mote Completion Bursts & Mobile Swipe Gestures (v11.2)
- * - Toggleable procedural Web Audio micro-soundscape (zero external audio files)
+ * PETTR Visual Tactile Feedback, Glass-Mote Completion Bursts & Mobile Swipe Gestures
  * - Project-coloured translucent glass-mote particle bursts on completion
  * - Finalise lock-in diagonal glass refraction shimmer
+ * - Bottom-centre symmetrical completion celebration wave
  * - Native-feeling horizontal swipe-to-complete on touch devices
+ * (Audio remains exclusively within Focus Cockpit.)
  */
 const TactileFX = {
-  STORAGE_KEY: "pettr_sound_fx",
-  audioCtx: null,
-  enabled: true,
   moteCanvas: null,
   moteCtx: null,
   motes: [],
   moteAnimId: null,
-  _lastCompleteTs: 0,
-  _completeStreak: 0,
   _boundResize: null,
   _swipeBound: false,
+  _shimmerTimer: null,
 
   prefersReducedMotion() {
     try {
@@ -27,206 +24,8 @@ const TactileFX = {
   },
 
   init() {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      this.enabled = stored === null ? true : stored !== "off";
-    } catch (_) {
-      this.enabled = true;
-    }
-
     this.ensureMoteCanvas();
-    this.syncToggleUI();
     this.initSwipeGestures();
-
-    // Unlock Web Audio context reliably across Chrome, Edge, Firefox & Safari/iOS
-    const unlockEvents = ["pointerdown", "click", "touchstart", "keydown"];
-    const unlockHandler = () => {
-      if (!this.enabled) return;
-      const ctx = this.getAudioContext();
-      if (!ctx) return;
-      const finalizeIfRunning = () => {
-        if (this.audioCtx && this.audioCtx.state === "running") {
-          unlockEvents.forEach(evt => document.removeEventListener(evt, unlockHandler, true));
-        }
-      };
-      if (ctx.state === "suspended") {
-        ctx.resume().then(() => {
-          this._primeSilentBuffer(ctx);
-          finalizeIfRunning();
-        }).catch(() => {});
-      } else {
-        this._primeSilentBuffer(ctx);
-        finalizeIfRunning();
-      }
-    };
-    unlockEvents.forEach(evt => document.addEventListener(evt, unlockHandler, true));
-  },
-
-  _primeSilentBuffer(ctx) {
-    if (!ctx || this._audioPrimed) return;
-    try {
-      const buf = ctx.createBuffer(1, 1, 22050);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start(0);
-      this._audioPrimed = true;
-    } catch (_) {}
-  },
-
-  isEnabled() {
-    return Boolean(this.enabled);
-  },
-
-  toggleSound() {
-    this.enabled = !this.enabled;
-    try {
-      localStorage.setItem(this.STORAGE_KEY, this.enabled ? "on" : "off");
-    } catch (_) {}
-    this.syncToggleUI();
-    if (this.enabled) {
-      this.playDrop();
-      if (typeof App !== "undefined" && App.showToast) {
-        App.showToast("Tactile audio enabled", 1400);
-      }
-    } else if (typeof App !== "undefined" && App.showToast) {
-      App.showToast("Tactile audio muted", 1400);
-    }
-  },
-
-  syncToggleUI() {
-    const btn = document.getElementById("soundFxToggleBtn");
-    if (!btn) return;
-    btn.classList.toggle("is-muted", !this.enabled);
-    btn.setAttribute("aria-pressed", this.enabled ? "true" : "false");
-    btn.title = this.enabled ? "Tactile Sound Effects: On (Click to mute)" : "Tactile Sound Effects: Muted (Click to enable)";
-    btn.innerHTML = `<i data-lucide="${this.enabled ? "volume-2" : "volume-x"}" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i>`;
-    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
-  },
-
-  getAudioContext() {
-    if (!this.enabled) return null;
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    try {
-      if (!this.audioCtx || this.audioCtx.state === "closed") {
-        this.audioCtx = new Ctx();
-        this._audioPrimed = false;
-      }
-      return this.audioCtx;
-    } catch (_) {
-      return null;
-    }
-  },
-
-  // --- Procedural Web Audio Micro-Soundscape ---
-
-  _playTone({ freq, endFreq = null, type = "sine", duration = 0.16, gain = 0.18, delay = 0, filterFreq = 3600 }) {
-    const ctx = this.getAudioContext();
-    if (!ctx) return;
-
-    const schedule = () => {
-      if (!this.enabled || !ctx || ctx.state === "closed") return;
-      try {
-        const now = ctx.currentTime + Math.max(0.004, delay);
-        const osc = ctx.createOscillator();
-        const filter = ctx.createBiquadFilter();
-        const amp = ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, now);
-        if (endFreq !== null && endFreq !== freq) {
-          osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), now + duration);
-        }
-
-        filter.type = "lowpass";
-        filter.frequency.setValueAtTime(filterFreq, now);
-
-        const attack = Math.min(0.014, duration * 0.2);
-        amp.gain.setValueAtTime(0.0001, now);
-        amp.gain.linearRampToValueAtTime(gain, now + attack);
-        amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-        osc.connect(filter);
-        filter.connect(amp);
-        amp.connect(ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + duration + 0.03);
-      } catch (_) {}
-    };
-
-    if (ctx.state === "running") {
-      schedule();
-    } else {
-      ctx.resume().then(() => {
-        this._primeSilentBuffer(ctx);
-        schedule();
-      }).catch(() => {});
-    }
-  },
-
-  playTick() {
-    if (!this.enabled) return;
-    this._playTone({ freq: 820, endFreq: 520, type: "triangle", duration: 0.065, gain: 0.13, filterFreq: 2600 });
-  },
-
-  playDrop() {
-    if (!this.enabled) return;
-    // Crisp frosted glass clink
-    this._playTone({ freq: 587.33, endFreq: 659.25, type: "sine", duration: 0.16, gain: 0.17, filterFreq: 3200 });
-    this._playTone({ freq: 1174.66, type: "sine", duration: 0.14, gain: 0.09, delay: 0.022, filterFreq: 4200 });
-  },
-
-  playComplete() {
-    if (!this.enabled) return;
-    const now = performance.now();
-    if (now - this._lastCompleteTs < 6500) {
-      this._completeStreak = Math.min(5, this._completeStreak + 1);
-    } else {
-      this._completeStreak = 0;
-    }
-    this._lastCompleteTs = now;
-
-    // Warm ascending pentatonic marimba/glass chime
-    const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
-    const base = pentatonic[this._completeStreak] || 523.25;
-    this._playTone({ freq: base, type: "sine", duration: 0.34, gain: 0.21, filterFreq: 3400 });
-    this._playTone({ freq: base * 1.5, type: "triangle", duration: 0.26, gain: 0.10, delay: 0.04, filterFreq: 3800 });
-  },
-
-  playUncomplete() {
-    if (!this.enabled) return;
-    this._playTone({ freq: 392.0, endFreq: 261.63, type: "sine", duration: 0.15, gain: 0.13, filterFreq: 1800 });
-  },
-
-  playFinalise() {
-    if (!this.enabled) return;
-    // Sleek crystalline seal: soft fifth + octave shimmer
-    this._playTone({ freq: 440, type: "sine", duration: 0.38, gain: 0.16, delay: 0, filterFreq: 2800 });
-    this._playTone({ freq: 659.25, type: "sine", duration: 0.40, gain: 0.15, delay: 0.06, filterFreq: 3400 });
-    this._playTone({ freq: 880, type: "triangle", duration: 0.48, gain: 0.11, delay: 0.12, filterFreq: 4000 });
-  },
-
-  playUnlock() {
-    if (!this.enabled) return;
-    this._playTone({ freq: 587.33, endFreq: 440.0, type: "sine", duration: 0.16, gain: 0.14, filterFreq: 2400 });
-  },
-
-  playQueueClear() {
-    if (!this.enabled) return;
-    // Warm translucent major-9th bell shimmer when 100% of Tasking Priority is retired
-    const notes = [523.25, 659.25, 783.99, 987.77, 1174.66];
-    notes.forEach((n, idx) => {
-      this._playTone({
-        freq: n,
-        type: idx >= 3 ? "triangle" : "sine",
-        duration: 0.56 + idx * 0.06,
-        gain: Math.max(0.09, 0.18 - idx * 0.018),
-        delay: idx * 0.06,
-        filterFreq: 4200
-      });
-    });
   },
 
   // --- Glass-Mote Completion Bursts ---
@@ -287,7 +86,6 @@ const TactileFX = {
       let r = parseInt(hex.slice(0, 2), 16);
       let g = parseInt(hex.slice(2, 4), 16);
       let b = parseInt(hex.slice(4, 6), 16);
-      // Keep pure black / ultra-dark project tags luminous as silver-pearl glass motes on dark themes
       const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       if ((mode === "dark" || mode === "evening") && lum < 0.24) {
         r = Math.round(r * 0.25 + 218 * 0.75);
@@ -325,7 +123,6 @@ const TactileFX = {
       const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.55;
       const speed = (1.3 + Math.random() * 3.1) * spread;
       const isShard = Math.random() < 0.38;
-      // Blend some motes softly toward crystal white so they read like refracted frosted glass
       const mixWhite = Math.random() < 0.35 ? 0.52 : 0.16;
       const mr = Math.round(r + (255 - r) * mixWhite);
       const mg = Math.round(g + (255 - g) * mixWhite);
@@ -374,7 +171,6 @@ const TactileFX = {
       m.life++;
       if (m.life >= m.maxLife) continue;
 
-      // Smooth viscous air drag + delicate upward glass-mote buoyancy
       m.vx *= 0.945;
       m.vy = m.vy * 0.945 - 0.025;
       m.x += m.vx;
@@ -395,7 +191,6 @@ const TactileFX = {
       ctx.rotate(m.angle);
 
       if (m.isShard) {
-        // Faceted translucent glass diamond shard
         const s = m.size * (0.65 + 0.35 * (1 - t));
         ctx.beginPath();
         ctx.moveTo(0, -s);
@@ -409,7 +204,6 @@ const TactileFX = {
         ctx.lineWidth = 0.7;
         ctx.stroke();
       } else {
-        // Soft luminous frosted orb
         const r = m.size * (0.75 + 0.35 * (1 - t));
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 2.1);
         g.addColorStop(0, `rgba(255, 255, 255, ${(alpha * 0.92).toFixed(3)})`);
@@ -432,24 +226,19 @@ const TactileFX = {
     }
   },
 
-  // --- High-Level Tactile Event Triggers ---
+  // --- High-Level Visual Tactile Event Triggers ---
 
   onItemToggle({ completed, x, y, color = null } = {}) {
-    if (completed) {
-      this.playComplete();
-      this.burstMotes({ x, y, color, count: 16, spread: 1.05 });
-      if (typeof App !== "undefined" && App.haptic) App.haptic("light");
-      if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
-        WaveCanvas.pulseActivity({ kind: "complete", x, y, color });
-      }
-    } else {
-      this.playUncomplete();
+    if (!completed) return;
+    this.burstMotes({ x, y, color, count: 16, spread: 1.05 });
+    if (typeof App !== "undefined" && App.haptic) App.haptic("light");
+    if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+      WaveCanvas.pulseActivity({ kind: "complete", x, y, color });
     }
   },
 
   triggerLockShimmer(showcaseEl = null) {
     const el = showcaseEl || document.getElementById("briefingShowcaseWindow");
-    this.playFinalise();
     if (el) {
       el.classList.remove("is-lock-shimmering");
       void el.offsetWidth;
@@ -471,7 +260,6 @@ const TactileFX = {
 
   celebrateQueueClear(showcaseEl = null) {
     const el = showcaseEl || document.getElementById("briefingShowcaseWindow");
-    this.playQueueClear();
     if (typeof App !== "undefined" && App.haptic) App.haptic("medium");
 
     const mode = (typeof WaveCanvas !== "undefined" && WaveCanvas.getThemeMode)
@@ -537,7 +325,6 @@ const TactileFX = {
 
     const findSwipeableRow = (target) => {
       if (!target || !target.closest) return null;
-      // Do not hijack swipes starting inside inputs, buttons, or the timeline scroll area
       if (target.closest("input, button, a, select, textarea, .unified-timeline-container")) return null;
       const row = target.closest(".snapshot-unified-row[data-snap-id], .task-item[data-task-id], .task-item[data-event-id]");
       if (!row || row.classList.contains("is-locked")) return null;
@@ -576,7 +363,6 @@ const TactileFX = {
 
       if (!lockedHorizontal) {
         if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
-          // User is scrolling vertically; abort swipe tracking
           cancelled = true;
           activeRow = null;
           return;
@@ -590,7 +376,6 @@ const TactileFX = {
         }
       }
 
-      // Soft rubber-band resistance beyond threshold
       const clamped = dx <= 0 ? 0 : (dx <= THRESHOLD ? dx : THRESHOLD + (dx - THRESHOLD) * 0.28);
       currentDx = Math.min(118, clamped);
       const progress = Math.min(1, currentDx / THRESHOLD);

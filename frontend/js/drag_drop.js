@@ -29,7 +29,6 @@ const DragDrop = {
         return;
       }
       e.preventDefault();
-      if (typeof TactileFX !== "undefined") TactileFX.playDrop();
       this.syncOrder(containerEl);
     });
   },

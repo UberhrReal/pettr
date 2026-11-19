@@ -11569,19 +11569,6 @@ body {
   z-index: 9500;
 }
 
-.sound-fx-toggle-btn {
-  transition: opacity 0.2s ease, transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
-}
-
-.sound-fx-toggle-btn.is-muted {
-  opacity: 0.56;
-  color: var(--text-dim);
-}
-
-.sound-fx-toggle-btn:active {
-  transform: scale(0.92);
-}
-
 /* Queue Flow Progress Glow — flush luminous hairline radiating from bottom centre of Finalised Snapshot */
 .briefing-showcase-window > .snapshot-flow-progress-track {
   display: none;

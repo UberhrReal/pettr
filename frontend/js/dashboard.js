@@ -1666,7 +1666,6 @@ const Dashboard = {
       }
 
       await this.saveDailyOrder();
-      if (typeof TactileFX !== "undefined") TactileFX.playDrop();
       if (typeof App !== "undefined" && App.haptic) App.haptic("light");
       App.showToast(`Queued in Tasking Priority: ${droppedItem.title}`);
     }, true);
@@ -1999,7 +1998,6 @@ const Dashboard = {
         this.dailyOrder.push(moved);
         this.draggedSlotIdx = null;
         this.saveDailyOrder();
-        if (typeof TactileFX !== "undefined") TactileFX.playDrop();
         return;
       }
 
@@ -2010,7 +2008,6 @@ const Dashboard = {
         if (!this.dailyOrder.some(d => d.id === item.id && d.type === item.type)) {
           this.dailyOrder.push({ ...item, completed: false });
           this.saveDailyOrder();
-          if (typeof TactileFX !== "undefined") TactileFX.playDrop();
           App.showToast(`Added to Daily Order: ${item.title}`);
         } else {
           App.showToast("Item is already in your daily sequence.");
@@ -2103,7 +2100,6 @@ const Dashboard = {
       this.dailyOrder.splice(finalIdx, 0, moved);
       this.draggedSlotIdx = null;
       this.saveDailyOrder();
-      if (typeof TactileFX !== "undefined") TactileFX.playDrop();
       return;
     }
 
@@ -2116,7 +2112,6 @@ const Dashboard = {
           const insertIdx = isBelow ? targetIdx + 1 : targetIdx;
           this.dailyOrder.splice(insertIdx, 0, { ...item, completed: false });
           this.saveDailyOrder();
-          if (typeof TactileFX !== "undefined") TactileFX.playDrop();
           App.showToast(`Added to Daily Order: ${item.title}`);
         } else {
           App.showToast("Item is already in your daily sequence.");
@@ -2197,7 +2192,6 @@ const Dashboard = {
     if (existingIdx !== -1) {
       this.dailyOrder.splice(existingIdx, 1);
       await this.saveDailyOrder();
-      if (typeof TactileFX !== "undefined") TactileFX.playTick();
       App.showToast("Removed from Tasking Priority.");
       return;
     }
@@ -2240,7 +2234,6 @@ const Dashboard = {
 
     this.dailyOrder.push(entry);
     await this.saveDailyOrder();
-    if (typeof TactileFX !== "undefined") TactileFX.playDrop();
     if (typeof App !== "undefined" && App.haptic) App.haptic("light");
     App.showToast(`Queued in Tasking Priority: ${entry.title}`);
   },
@@ -2331,7 +2324,6 @@ const Dashboard = {
     } catch (_) {}
     this.applySnapshotLockUI();
     if (typeof App !== "undefined" && App.haptic) App.haptic("light");
-    if (typeof TactileFX !== "undefined") TactileFX.playUnlock();
 
     try {
       await fetch("/api/snapshot/lock", {
@@ -4036,7 +4028,6 @@ const Dashboard = {
         App.showToast(errMsg, true);
         return;
       }
-      if (typeof TactileFX !== "undefined") TactileFX.playTick();
       App.showToast("Item sorted successfully!");
       this.closeUnorganizedModal();
       await this.refresh();

@@ -3839,10 +3839,10 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
     # Static cache-busters bumped to v11.2
-    assert "pettr.css?v=11.4" in index_html
-    assert "dashboard.js?v=11.4" in index_html
-    assert "entity_modal.js?v=11.4" in index_html
-    assert "app.js?v=11.4" in index_html
+    assert "pettr.css?v=11.5" in index_html
+    assert "dashboard.js?v=11.5" in index_html
+    assert "entity_modal.js?v=11.5" in index_html
+    assert "app.js?v=11.5" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=11.4" in index_html
-    assert "timeline.js?v=11.4" in index_html
+    assert "history.js?v=11.5" in index_html
+    assert "timeline.js?v=11.5" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4029,9 +4029,9 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
     # Cache busters bumped to v11.2
-    assert "pettr.css?v=11.4" in index_html
-    assert "dashboard.js?v=11.4" in index_html
-    assert "notes.js?v=11.4" in index_html
+    assert "pettr.css?v=11.5" in index_html
+    assert "dashboard.js?v=11.5" in index_html
+    assert "notes.js?v=11.5" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4201,22 +4201,16 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dash_js = (root_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
-    # 1. Script inclusion, sound FX toggle & Snapshot top flow progress + lock shimmer markup
-    assert '<script src="/static/js/tactile.js?v=11.4"></script>' in index_html
-    assert 'id="soundFxToggleBtn"' in index_html
-    assert 'onclick="TactileFX.toggleSound()"' in index_html
+    # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
+    assert '<script src="/static/js/tactile.js?v=11.5"></script>' in index_html
+    assert 'id="soundFxToggleBtn"' not in index_html
+    assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
     assert 'id="snapshotFlowProgressFill"' in index_html
     assert 'id="snapshotLockShimmer"' in index_html
 
-    # 2. TactileFX module: procedural Web Audio, mote particle bursts, lock shimmer, queue clear & mobile swipe
+    # 2. TactileFX module: mote particle bursts, lock shimmer, queue clear & mobile swipe (audio stays in Focus Cockpit only)
     for fn_name in [
-        "toggleSound()",
-        "playTick()",
-        "playDrop()",
-        "playComplete()",
-        "playFinalise()",
-        "playQueueClear()",
         "burstMotes(",
         "onItemToggle(",
         "triggerLockShimmer(",
@@ -4231,15 +4225,15 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     assert "this.auroraBoost" in wave_js
     assert "this.ripples" in wave_js
 
-    # 4. Dashboard & DragDrop wiring
+    # 4. Dashboard visual tactile wiring (no micro-soundscape calls)
     assert "updateSnapshotFlowProgress(" in dash_js
     assert "resolveEntityAccentColor(" in dash_js
     assert "getEntityFeedbackOrigin(" in dash_js
     assert "TactileFX.triggerLockShimmer()" in dash_js
     assert "TactileFX.onItemToggle(" in dash_js
-    assert "TactileFX.playDrop()" in dash_js
-    assert "TactileFX.playDrop()" in dnd_js
-    assert "TactileFX.playTick()" in dash_js
+    assert "TactileFX.playDrop()" not in dash_js
+    assert "TactileFX.playDrop()" not in dnd_js
+    assert "TactileFX.playTick()" not in dash_js
 
     # 5. CSS styling for Flow Progress Glow stages, Lock Shimmer, Tactile Drag, and Swipe Feedback
     assert ".snapshot-flow-progress-track" in css
