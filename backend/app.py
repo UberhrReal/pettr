@@ -90,7 +90,21 @@ class SaveNoteRequest(BaseModel):
     project_name: Optional[str] = None
     event_id: Optional[int] = None
     event_title: Optional[str] = None
+    folder_name: Optional[str] = None
     update_links: bool = False
+
+class CreateNoteFolderRequest(BaseModel):
+    name: str
+
+class BulkMoveNotesRequest(BaseModel):
+    note_ids: List[int]
+    project_name: Optional[str] = None
+    folder_name: Optional[str] = None
+    event_id: Optional[int] = None
+    event_title: Optional[str] = None
+
+class BulkDeleteNotesRequest(BaseModel):
+    note_ids: List[int]
 
 class CreateUnorganizedRequest(BaseModel):
     raw_input: Optional[str] = None
@@ -642,9 +656,43 @@ async def save_note_endpoint(req: SaveNoteRequest):
         project_name=req.project_name,
         event_id=req.event_id,
         event_title=req.event_title,
+        folder_name=req.folder_name,
         update_links=req.update_links,
     )
     return {"status": "success", "note": saved}
+
+@app.get("/api/note-folders", dependencies=[Depends(auth.require_auth)])
+async def list_note_folders():
+    return database.get_note_folders()
+
+@app.post("/api/note-folders", dependencies=[Depends(auth.require_auth)])
+async def create_note_folder_endpoint(req: CreateNoteFolderRequest):
+    clean = (req.name or "").strip()
+    if not clean:
+        raise HTTPException(status_code=400, detail="Folder name is required")
+    folder = database.create_note_folder(clean)
+    return {"status": "success", "folder": folder}
+
+@app.delete("/api/note-folders/{folder_name}", dependencies=[Depends(auth.require_auth)])
+async def delete_note_folder_endpoint(folder_name: str):
+    deleted = database.delete_note_folder(folder_name)
+    return {"status": "success", "deleted": deleted}
+
+@app.post("/api/notes/bulk-move", dependencies=[Depends(auth.require_auth)])
+async def bulk_move_notes_endpoint(req: BulkMoveNotesRequest):
+    moved = database.bulk_move_notes(
+        note_ids=req.note_ids,
+        project_name=req.project_name,
+        folder_name=req.folder_name,
+        event_id=req.event_id,
+        event_title=req.event_title,
+    )
+    return {"status": "success", "moved": moved}
+
+@app.post("/api/notes/bulk-delete", dependencies=[Depends(auth.require_auth)])
+async def bulk_delete_notes_endpoint(req: BulkDeleteNotesRequest):
+    deleted = database.bulk_delete_notes(req.note_ids)
+    return {"status": "success", "deleted": deleted}
 
 @app.delete("/api/notes/{note_id}", dependencies=[Depends(auth.require_auth)])
 async def delete_note(note_id: int):

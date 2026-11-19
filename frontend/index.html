@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=11.0">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=11.1">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -302,7 +302,6 @@
           </div>
           <span class="snapshot-locked-pill" id="snapshotLockedPill" style="display:none;">
             <span class="snapshot-locked-dot" aria-hidden="true"></span>
-            <i data-lucide="sparkles" style="width:11.5px;height:11.5px;"></i>
             <span>Finalised</span>
           </span>
           <div class="snapshot-action-group briefing-showcase-actions" id="snapshotShowcaseActions">
@@ -528,7 +527,6 @@
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="action-icon-btn manual-create-btn" id="manualAddFocusBtn" onclick="Dashboard.openManualCreateModal('focus')" style="font-size: 11px; font-weight: 600;" title="Directly add deep work focus task"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Task</button>
               <span class="panel-count-badge" id="badgeCountFocus">0 tasks</span>
-              <span style="font-size: 11px; color: var(--text-muted);" title="Drag items to reorder"><i data-lucide="grip-vertical" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;opacity:0.5;"></i></span>
             </div>
           </div>
           <div class="task-list dynamic-grid-list" id="focusTasksList" data-tier="focus">
@@ -536,14 +534,13 @@
           </div>
         </div>
 
-        <!-- Panel 3: Trivial Tasks (Quick Errands) -->
+        <!-- Panel 3: Trivial Tasks -->
         <div class="column-card dynamic-panel" id="trivialCardSection">
           <div class="column-header">
-            <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Errands</h3>
+            <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Tasks</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="action-icon-btn manual-create-btn" id="manualAddTrivialBtn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick trivial task"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Trivial</button>
               <span class="panel-count-badge" id="badgeCountTrivial">0 tasks</span>
-              <span style="font-size: 11px; color: var(--text-muted);" title="Drag items to reorder"><i data-lucide="grip-vertical" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;opacity:0.5;"></i></span>
             </div>
           </div>
           <div class="task-list dynamic-grid-list" id="trivialTasksList" data-tier="trivial">
@@ -679,12 +676,12 @@
         <div class="notes-sidebar">
           <!-- Folder Navigation Switcher -->
           <div class="notes-folder-nav">
-            <button type="button" class="notes-folder-nav-btn active" id="notesNavNotesBtn" onclick="Notes.switchView('notes')" title="Scratchpad Notes">
+            <button type="button" class="notes-folder-nav-btn active" id="notesNavNotesBtn" onclick="Notes.switchView('notes')" title="Notes">
               <i data-lucide="file-text" style="width:14px;height:14px;"></i>
-              <span>Scratchpad</span>
+              <span>Notes</span>
               <span class="notes-badge-count" id="notesCountBadge">0</span>
             </button>
-            <button type="button" class="notes-folder-nav-btn" id="notesNavMediaBtn" onclick="Notes.switchView('media')" title="Scratchpad Media Folder">
+            <button type="button" class="notes-folder-nav-btn" id="notesNavMediaBtn" onclick="Notes.switchView('media')" title="Media Folder">
               <i data-lucide="folder-image" style="width:14px;height:14px;"></i>
               <span>Media Folder</span>
               <span class="notes-badge-count" id="notesMediaCountBadge">0</span>
@@ -693,11 +690,31 @@
 
           <!-- Notes List View Section (active in 'notes' mode) -->
           <div id="notesListViewSection">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; margin-top: 10px;">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Folders &amp; Notes</span>
-              <div style="display: flex; gap: 4px; align-items: center;">
+            <div class="notes-sidebar-section-bar">
+              <span class="notes-sidebar-heading">Folders</span>
+              <div class="notes-sidebar-toolbar-actions">
+                <button type="button" class="action-icon-btn" onclick="Notes.toggleMultiSelect()" id="notesSelectModeBtn" title="Select multiple notes to move or delete" style="padding: 3px 7px; font-size: 11px; font-weight: 600;">
+                  <i data-lucide="check-square" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Select
+                </button>
                 <button type="button" class="action-icon-btn" onclick="Notes.toggleAllFolders()" id="notesCollapseToggleBtn" title="Expand or collapse all folders" style="padding: 3px 6px; font-size: 11px;"><i data-lucide="chevrons-up-down" style="width:11px;height:11px;"></i></button>
-                <button type="button" class="action-icon-btn" onclick="Notes.createNewNote()" style="font-weight: 700; color: var(--text-main); font-size: 11px;">+ New</button>
+                <button type="button" class="action-icon-btn" onclick="Notes.promptCreateFolder()" id="notesNewFolderBtn" title="Create a new custom folder" style="font-weight: 700; color: var(--text-main); font-size: 11px;">+ Folder</button>
+              </div>
+            </div>
+            <!-- Multi-Select Bulk Action Bar (shown in selection mode) -->
+            <div id="notesBulkActionBar" class="notes-bulk-action-bar" style="display: none;">
+              <div class="notes-bulk-top-row">
+                <span class="notes-bulk-count" id="notesBulkSelectedCount">0 selected</span>
+                <div style="display:flex; gap:5px;">
+                  <button type="button" class="action-icon-btn" onclick="Notes.selectAllVisibleNotes()" style="padding:2px 7px; font-size:10.5px;">All</button>
+                  <button type="button" class="action-icon-btn" onclick="Notes.toggleMultiSelect(false)" style="padding:2px 7px; font-size:10.5px;">Done</button>
+                </div>
+              </div>
+              <div class="notes-bulk-controls-row">
+                <select id="notesBulkMoveTarget" class="notes-folder-assign-select notes-bulk-select" aria-label="Destination folder for selected notes">
+                  <option value="general">General</option>
+                </select>
+                <button type="button" class="action-icon-btn notes-bulk-move-btn" onclick="Notes.bulkMoveSelectedNotes()" title="Move selected notes">Move</button>
+                <button type="button" class="action-icon-btn notes-bulk-delete-btn" onclick="Notes.bulkDeleteSelectedNotes()" title="Delete selected notes" style="color: var(--urgent-orange);"><i data-lucide="trash-2" style="width:12px;height:12px;"></i></button>
               </div>
             </div>
             <div id="notesListSidebar" class="notes-folder-tree" style="display: flex; flex-direction: column; gap: 6px;">
@@ -759,7 +776,7 @@
               <button type="button" class="notes-tool-btn upload-media-btn" onclick="document.getElementById('noteMediaFileInput').click()" title="Upload Image / Media">
                 <i data-lucide="upload" style="width:13px;height:13px;"></i> <span style="font-size:11px; margin-left:3px;">Upload</span>
               </button>
-              <button type="button" class="notes-tool-btn browse-media-btn" onclick="Notes.switchView('media')" title="Browse Scratchpad Media Folder">
+              <button type="button" class="notes-tool-btn browse-media-btn" onclick="Notes.switchView('media')" title="Browse Media Folder">
                 <i data-lucide="folder-image" style="width:13px;height:13px;"></i> <span style="font-size:11px; margin-left:3px;">Media Folder</span>
               </button>
               <input type="file" id="noteMediaFileInput" accept="image/*,video/*,audio/*,.pdf,.zip" style="display: none;" onchange="Notes.handleFileInput(event)">
@@ -781,14 +798,14 @@
           </div>
         </div>
 
-        <!-- Scratchpad Media Folder View Card (active in 'media' mode) -->
+        <!-- Media Folder View Card (active in 'media' mode) -->
         <div class="notes-editor-card notes-media-folder-card" id="notesMediaFolderCard" style="display: none;">
           <!-- Media Folder Header -->
           <div class="notes-media-folder-header">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h3 style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 8px;">
-                  <i data-lucide="folder-image" style="width:20px;height:20px;color:var(--accent-blue);"></i> Scratchpad Media Folder
+                  <i data-lucide="folder-image" style="width:20px;height:20px;color:var(--accent-blue);"></i> Media Folder
                 </h3>
                 <span class="panel-count-badge" id="notesMediaFolderBadge">0 items</span>
               </div>
@@ -823,7 +840,7 @@
           <div class="notes-media-active-note-bar" id="notesMediaActiveNoteBar">
             <div style="display: flex; align-items: center; gap: 6px;">
               <i data-lucide="file-text" style="width:13px;height:13px;color:var(--focus-indigo);"></i>
-              <span style="font-size: 12px; color: var(--text-muted);">Current Scratchpad: <strong id="notesMediaActiveNoteTitle" style="color: var(--text-main);">Untitled</strong></span>
+              <span style="font-size: 12px; color: var(--text-muted);">Current Note: <strong id="notesMediaActiveNoteTitle" style="color: var(--text-main);">Untitled</strong></span>
             </div>
             <button type="button" class="notes-media-return-btn" onclick="Notes.switchView('notes')">
               Return to Note ➔
@@ -837,7 +854,7 @@
             </div>
             <div class="notes-media-empty-state" id="notesMediaEmptyState" style="display: none;">
               <i data-lucide="image-off" style="width:36px;height:36px;color:var(--text-muted);margin-bottom:8px;"></i>
-              <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No media in the scratchpad folder yet</div>
+              <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No media in the folder yet</div>
               <div style="font-size: 12.5px; color: var(--text-muted); max-width: 340px; margin-top: 4px;">
                 Upload images, audio notes or attachments using the button above or paste them directly into any note.
               </div>
@@ -2512,20 +2529,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=11.0"></script>
-  <script src="/static/js/app.js?v=11.0"></script>
-  <script src="/static/js/drag_drop.js?v=11.0"></script>
-  <script src="/static/js/wave_canvas.js?v=11.0"></script>
-  <script src="/static/js/entity_modal.js?v=11.0"></script>
-  <script src="/static/js/timeline.js?v=11.0"></script>
-  <script src="/static/js/mindmap.js?v=11.0"></script>
-  <script src="/static/js/dashboard.js?v=11.0"></script>
-  <script src="/static/js/exploded.js?v=11.0"></script>
-  <script src="/static/js/notes.js?v=11.0"></script>
-  <script src="/static/js/history.js?v=11.0"></script>
-  <script src="/static/js/command_palette.js?v=11.0"></script>
-  <script src="/static/js/focus_cockpit.js?v=11.0"></script>
-  <script src="/static/js/evening_debrief.js?v=11.0"></script>
-  <script src="/static/js/horace_chat.js?v=11.0"></script>
+  <script src="/static/js/pin_lock.js?v=11.1"></script>
+  <script src="/static/js/app.js?v=11.1"></script>
+  <script src="/static/js/drag_drop.js?v=11.1"></script>
+  <script src="/static/js/wave_canvas.js?v=11.1"></script>
+  <script src="/static/js/entity_modal.js?v=11.1"></script>
+  <script src="/static/js/timeline.js?v=11.1"></script>
+  <script src="/static/js/mindmap.js?v=11.1"></script>
+  <script src="/static/js/dashboard.js?v=11.1"></script>
+  <script src="/static/js/exploded.js?v=11.1"></script>
+  <script src="/static/js/notes.js?v=11.1"></script>
+  <script src="/static/js/history.js?v=11.1"></script>
+  <script src="/static/js/command_palette.js?v=11.1"></script>
+  <script src="/static/js/focus_cockpit.js?v=11.1"></script>
+  <script src="/static/js/evening_debrief.js?v=11.1"></script>
+  <script src="/static/js/horace_chat.js?v=11.1"></script>
 </body>
 </html>

@@ -354,19 +354,32 @@ const App = {
     };
     const lum = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
 
-    if (!isDark && lum > 0.40) {
-      // Darken very light/white/pastel markers toward deep slate so they stay sharp on light glass cards
-      const t = Math.min(0.68, 0.34 + (lum - 0.40) * 0.56);
+    if (!isDark && lum > 0.36) {
+      // Darken very light/white/pastel markers toward deep slate so they stay sharp on light & dawn cards
+      const t = Math.min(0.78, 0.38 + (lum - 0.36) * 0.65);
       r = Math.round(r * (1 - t) + 15 * t);
       g = Math.round(g * (1 - t) + 23 * t);
       b = Math.round(b * (1 - t) + 42 * t);
-    } else if (isDark && lum < 0.14) {
-      const t = 0.48;
-      r = Math.round(r * (1 - t) + 226 * t);
-      g = Math.round(g * (1 - t) + 232 * t);
-      b = Math.round(b * (1 - t) + 240 * t);
+    } else if (isDark && lum < 0.28) {
+      // Lift black, charcoal, and deep dark hues so they remain bright and crisp on dark & evening cards
+      const t = Math.min(0.84, 0.56 + (0.28 - lum) * 1.05);
+      const liftR = theme === "evening" ? 254 : 236;
+      const liftG = theme === "evening" ? 243 : 242;
+      const liftB = theme === "evening" ? 199 : 250;
+      r = Math.round(r * (1 - t) + liftR * t);
+      g = Math.round(g * (1 - t) + liftG * t);
+      b = Math.round(b * (1 - t) + liftB * t);
     }
     return "#" + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("");
+  },
+
+  refreshAccessibleProjectTags() {
+    document.querySelectorAll(".project-tag[data-raw-tag-color]").forEach(el => {
+      const raw = el.getAttribute("data-raw-tag-color");
+      if (raw) {
+        el.style.setProperty("--tag-color", this.getAccessibleAccentColor(raw));
+      }
+    });
   },
 
   escapeJsAttr(value) {
@@ -396,7 +409,12 @@ const App = {
     }
 
     if (typeof requestAnimationFrame !== "undefined") {
-      requestAnimationFrame(() => this.updateTabIndicator(true));
+      requestAnimationFrame(() => {
+        this.updateTabIndicator(true);
+        this.refreshAccessibleProjectTags();
+      });
+    } else {
+      this.refreshAccessibleProjectTags();
     }
   },
 

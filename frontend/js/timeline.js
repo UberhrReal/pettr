@@ -17,6 +17,14 @@ const Timeline = {
     await this.refresh();
   },
 
+  renderProjectTag(projectName, explicitColor = null, extraStyle = "", prefix = "") {
+    if (!projectName) return "";
+    const rawColor = explicitColor || (typeof Dashboard !== "undefined" && Dashboard.getRawProjectColor ? Dashboard.getRawProjectColor(projectName) : "#3b82f6");
+    const safeColor = (typeof App !== "undefined" && App.getAccessibleAccentColor) ? App.getAccessibleAccentColor(rawColor) : rawColor;
+    const styleStr = `--tag-color:${this.escapeHtml(safeColor)};${extraStyle ? " " + extraStyle : ""}`;
+    return `<span class="project-tag" data-raw-tag-color="${this.escapeHtml(rawColor)}" style="${styleStr}">${prefix}${this.escapeHtml(projectName)}</span>`;
+  },
+
   attachWheelPanHandler(scrollContainer) {
     if (!scrollContainer) return;
     scrollContainer.style.scrollBehavior = "auto";
@@ -393,7 +401,7 @@ const Timeline = {
               <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
               <span class="ut-time-tag">📅 ${timePart}</span>
             </div>
-            ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(e.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(e.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 6px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+            ${this.renderProjectTag(e.project_name, e.project_color, "font-size:9.5px; padding:1px 6px;")}
           </div>
           <div class="ut-card-title">${this.escapeHtml(e.title)}</div>
         `;
@@ -440,7 +448,7 @@ const Timeline = {
               ${this.escapeHtml(t.title)}
             </div>
           </div>
-          ${t.project_name ? `<div class="ut-card-footer"><span class="project-tag" style="--tag-color:${this.escapeHtml(t.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(t.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 5px;">📁 ${this.escapeHtml(t.project_name)}</span></div>` : ''}
+          ${t.project_name ? `<div class="ut-card-footer">${this.renderProjectTag(t.project_name, t.project_color, "font-size:9.5px; padding:1px 5px;", "📁 ")}</div>` : ''}
         `;
 
         card.addEventListener("click", (evt) => {
@@ -741,7 +749,7 @@ const Timeline = {
                 <span class="priority-num-badge" title="Priority rank #${idx + 1}">${rankStr}</span>
                 <span class="ut-time-tag">📅 ${timePart}</span>
               </div>
-              ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(e.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(e.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 6px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+              ${this.renderProjectTag(e.project_name, e.project_color, "font-size:9.5px; padding:1px 6px;")}
             </div>
             <div class="ut-card-title">${this.escapeHtml(e.title)}</div>
           `;
@@ -780,7 +788,7 @@ const Timeline = {
                 ${this.escapeHtml(t.title)}
               </div>
             </div>
-            ${t.project_name ? `<div class="ut-card-footer"><span class="project-tag" style="--tag-color:${this.escapeHtml(t.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(t.project_name) : '#3b82f6'))}; font-size:9.5px; padding:1px 5px;">📁 ${this.escapeHtml(t.project_name)}</span></div>` : ''}
+            ${t.project_name ? `<div class="ut-card-footer">${this.renderProjectTag(t.project_name, t.project_color, "font-size:9.5px; padding:1px 5px;", "📁 ")}</div>` : ''}
           `;
           card.addEventListener("click", (evt) => {
             if (evt.target.type !== "checkbox" && !isPast) {
@@ -897,37 +905,50 @@ const Timeline = {
       if (!hasItems && (h < 7 || h > 23)) continue;
 
       const row = document.createElement("div");
-      row.style.display = "flex";
-      row.style.gap = "14px";
-      row.style.alignItems = "flex-start";
-      row.style.padding = "10px 14px";
-      row.style.background = hasItems ? "var(--bg-secondary)" : "var(--bg-card)";
-      row.style.borderRadius = "8px";
-      row.style.border = hasItems ? "1px solid var(--card-border)" : "1px dashed #e4e4e7";
+      row.className = `tl-detail-hour-row ${hasItems ? 'has-items' : 'is-clear'}`;
 
-      const timeLabel = `<span style="font-size: 13px; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); width: 50px;">${hourStr}</span>`;
+      const timeLabel = `<span class="tl-detail-time">${hourStr}</span>`;
       
-      let itemsHtml = '<span style="font-size: 12px; color: var(--text-dim);">Clear</span>';
+      let itemsHtml = '<span class="tl-detail-clear-label">Clear</span>';
       if (hasItems) {
+        const resolveTagColors = (projName, explicitColor) => {
+          const rawColor = explicitColor || (typeof Dashboard !== "undefined" && Dashboard.getRawProjectColor ? Dashboard.getRawProjectColor(projName) : "#3b82f6");
+          const safeColor = (typeof App !== "undefined" && App.getAccessibleAccentColor) ? App.getAccessibleAccentColor(rawColor) : rawColor;
+          return { rawColor, safeColor };
+        };
         itemsHtml = `
-          <div style="display: flex; flex-direction: column; gap: 6px; flex: 1;">
-            ${slot.events.map(e => `
-              <div onclick="EntityModal.open('event', ${e.id})" style="cursor: pointer; background: var(--glass-sheet-subtle); border: 1px solid var(--card-border); border-left: 3px solid var(--accent-cyan); padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <span style="font-weight: 600; font-size: 13px; min-width: 0; overflow-wrap: anywhere;">📅 ${this.escapeHtml(e.title)}</span>
-                ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(e.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(e.project_name) : '#3b82f6'))};">${this.escapeHtml(e.project_name)}</span>` : ''}
-              </div>
-            `).join('')}
-            ${slot.tasks.map(t => `
-              <div onclick="EntityModal.open('task', ${t.id})" style="cursor: pointer; background: var(--glass-sheet-subtle); border: 1px solid var(--card-border); padding: 8px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <span style="font-weight: 600; font-size: 13px; min-width: 0; overflow-wrap: anywhere; ${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
-                  ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
-                </span>
-                <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                  ${t.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(t.project_color || (typeof Dashboard !== 'undefined' && Dashboard.getProjectColor ? Dashboard.getProjectColor(t.project_name) : '#3b82f6'))};">${this.escapeHtml(t.project_name)}</span>` : ''}
-                  ${t.status === 'completed' || t.completed ? `<span class="urgency-badge completed" style="font-size:9px; padding:1px 5px; background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>` : (t.is_time_sensitive ? `<span class="time-sensitive-badge" style="font-size:9px; padding:1px 5px;">⚡ TIME SENSITIVE</span>` : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue" style="font-size:9px; padding:1px 5px;">Overdue</span>` : ''))}
+          <div class="tl-detail-items">
+            ${slot.events.map(e => {
+              const tc = e.project_name ? resolveTagColors(e.project_name, e.project_color) : null;
+              return `
+                <div class="tl-detail-card is-event" onclick="EntityModal.open('event', ${e.id})">
+                  <div class="tl-detail-title">📅 ${this.escapeHtml(e.title)}</div>
+                  ${e.project_name ? `<div class="tl-detail-meta"><span class="project-tag" data-raw-tag-color="${this.escapeHtml(tc.rawColor)}" style="--tag-color:${this.escapeHtml(tc.safeColor)};">${this.escapeHtml(e.project_name)}</span></div>` : ''}
                 </div>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
+            ${slot.tasks.map(t => {
+              const tc = t.project_name ? resolveTagColors(t.project_name, t.project_color) : null;
+              const statusBadge = (t.status === 'completed' || t.completed)
+                ? `<span class="urgency-badge completed" style="font-size:9.5px; padding:1px 6px; background:rgba(52,211,153,0.12);color:var(--accent-green);border-color:rgba(52,211,153,0.3);">✓ Done</span>`
+                : (t.is_time_sensitive
+                  ? `<span class="time-sensitive-badge" style="font-size:9.5px; padding:1px 6px;">⚡ TIME SENSITIVE</span>`
+                  : (t.urgency && t.urgency.label === 'Overdue' ? `<span class="urgency-badge overdue" style="font-size:9.5px; padding:1px 6px;">Overdue</span>` : ''));
+              const hasMeta = Boolean(t.project_name || statusBadge);
+              return `
+                <div class="tl-detail-card is-task ${t.status === 'completed' ? 'completed' : ''}" onclick="EntityModal.open('task', ${t.id})">
+                  <div class="tl-detail-title" style="${t.status === 'completed' ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">
+                    ${t.tier === 'focus' ? '🎯' : '⚡'} ${this.escapeHtml(t.title)}
+                  </div>
+                  ${hasMeta ? `
+                    <div class="tl-detail-meta">
+                      ${t.project_name ? `<span class="project-tag" data-raw-tag-color="${this.escapeHtml(tc.rawColor)}" style="--tag-color:${this.escapeHtml(tc.safeColor)};">${this.escapeHtml(t.project_name)}</span>` : ''}
+                      ${statusBadge}
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
           </div>
         `;
       }

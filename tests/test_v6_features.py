@@ -3372,7 +3372,7 @@ def test_v9_2_tailscale_persistence_and_decluttered_iconography(temp_db, monkeyp
     assert '<button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme(\'auto\')" title="Auto Solar Cycle' in index_html
     assert '<span class="direct-entry-label">Direct</span>' in index_html
     assert '<h3 class="column-title focus-title"><i data-lucide="crosshair" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus Tasks</h3>' in index_html
-    assert '<h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Errands</h3>' in index_html
+    assert '<h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Tasks</h3>' in index_html
     assert '<h3 class="column-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Scheduled Events</h3>' in index_html
     assert '<button type="button" class="cockpit-preset-chip active" data-min="25" onclick="FocusCockpit.setPreset(25)">25m</button>' in index_html
     assert '<button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType(\'none\')" title="Mute ambient sound"><i data-lucide="volume-x"' in index_html
@@ -3838,11 +3838,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v11.0
-    assert "pettr.css?v=11.0" in index_html
-    assert "dashboard.js?v=11.0" in index_html
-    assert "entity_modal.js?v=11.0" in index_html
-    assert "app.js?v=11.0" in index_html
+    # Static cache-busters bumped to v11.1
+    assert "pettr.css?v=11.1" in index_html
+    assert "dashboard.js?v=11.1" in index_html
+    assert "entity_modal.js?v=11.1" in index_html
+    assert "app.js?v=11.1" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=11.0" in index_html
-    assert "timeline.js?v=11.0" in index_html
+    assert "history.js?v=11.1" in index_html
+    assert "timeline.js?v=11.1" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4028,10 +4028,10 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
-    # Cache busters bumped to v11.0
-    assert "pettr.css?v=11.0" in index_html
-    assert "dashboard.js?v=11.0" in index_html
-    assert "notes.js?v=11.0" in index_html
+    # Cache busters bumped to v11.1
+    assert "pettr.css?v=11.1" in index_html
+    assert "dashboard.js?v=11.1" in index_html
+    assert "notes.js?v=11.1" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4057,7 +4057,7 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     # Item 5: Icon-only animated Focus play button in finalised snapshot
     assert "snapshotFocusGlow" in css
     assert "snapshot-focus-play-icon" in dash_js
-    assert 'snapshot-unified-focus-btn" onclick="Dashboard.launchLockedFocusTask(${it.id})"' in dash_js
+    assert 'snapshot-unified-focus-btn"' in dash_js and 'onclick="Dashboard.launchLockedFocusTask(${it.id})"' in dash_js
     focus_btn_snippet = dash_js[dash_js.index("Dashboard.launchLockedFocusTask(${it.id})"):dash_js.index("Dashboard.launchLockedFocusTask(${it.id})") + 260]
     assert "<span>Focus</span>" not in focus_btn_snippet
 
@@ -4094,6 +4094,102 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     assert 'id="guideSection_styleguide"' in index_html
     for font_name in ["Geist", "Inter", "Urbanist", "Outfit", "Space Grotesk", "Syne", "Newsreader", "Instrument Serif", "JetBrains Mono"]:
         assert font_name in index_html
+
+
+def test_v11_1_ui_polish_flip_and_notes_folders(tmp_path):
+    """Verify v11.1 custom Note folders, bulk move/delete APIs, Snapshot wrapping, dark/light project tag contrast, Detailed List mobile layout, FLIP check-off & Notes tab overhaul."""
+    from fastapi.testclient import TestClient
+    from backend import app as backend_app
+    from backend import database, auth
+
+    db_file = tmp_path / "test_v11_1.sqlite"
+    orig_db = database.DEFAULT_DB_PATH
+    database.DEFAULT_DB_PATH = db_file
+    database.init_db(db_file)
+    try:
+        client = TestClient(backend_app.app)
+        backend_app.app.dependency_overrides[auth.require_auth] = lambda: {"authenticated": True}
+
+        # 1. Custom Note Folders CRUD
+        f_res = client.post("/api/note-folders", json={"name": "Research Papers"})
+        assert f_res.status_code == 200
+        assert f_res.json()["folder"]["name"] == "Research Papers"
+
+        f_list = client.get("/api/note-folders").json()
+        assert any(f["name"] == "Research Papers" for f in f_list)
+
+        # 2. Save notes into General & Custom folder, then Bulk Move to Project & Bulk Delete
+        database.get_or_create_project("Avionics E", db_path=db_file)
+        n1 = client.post("/api/notes", json={"title": "Note A", "content": "<p>A</p>", "folder_name": "Research Papers", "update_links": True}).json()["note"]
+        n2 = client.post("/api/notes", json={"title": "Note B", "content": "<p>B</p>"}).json()["note"]
+        assert n1["folder_name"] == "Research Papers"
+        assert n2["folder_name"] is None
+
+        mv = client.post("/api/notes/bulk-move", json={"note_ids": [n1["id"], n2["id"]], "project_name": "Avionics E"})
+        assert mv.status_code == 200 and mv.json()["moved"] == 2
+        all_after_move = client.get("/api/notes").json()
+        moved_map = {n["id"]: n for n in all_after_move}
+        assert moved_map[n1["id"]]["project_name"] == "Avionics E" and moved_map[n1["id"]]["folder_name"] is None
+        assert moved_map[n2["id"]]["project_name"] == "Avionics E"
+
+        # Delete custom folder cleanly
+        del_f = client.delete("/api/note-folders/Research%20Papers")
+        assert del_f.status_code == 200 and del_f.json()["deleted"] is True
+
+        # Bulk delete notes
+        bd = client.post("/api/notes/bulk-delete", json={"note_ids": [n1["id"], n2["id"]]})
+        assert bd.status_code == 200 and bd.json()["deleted"] == 2
+        assert len(client.get("/api/notes").json()) == 0
+    finally:
+        backend_app.app.dependency_overrides.clear()
+        database.DEFAULT_DB_PATH = orig_db
+
+    # 3. Frontend checks for v11.1 items
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    dash_js = (root_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    notes_js = (root_dir / "frontend" / "js" / "notes.js").read_text(encoding="utf-8")
+    timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
+
+    # Snapshot wrapping & badge no-wrap
+    assert "briefing-item-main" in dash_js and ".briefing-item-main" in css
+    assert "briefing-rank-pill" in dash_js
+    assert "white-space: nowrap;" in css[css.index(".priority-num-badge {"):css.index(".priority-num-badge {") + 320]
+
+    # Bidirectional accessible project tag contrast (black on dark + white on light) & live refresh on theme change
+    assert "refreshAccessibleProjectTags(" in app_js
+    assert "data-raw-tag-color" in dash_js and "data-raw-tag-color" in timeline_js
+
+    # Mobile Detailed List responsive cards
+    assert "tl-detail-hour-row" in timeline_js and ".tl-detail-card" in css
+
+    # Finalised Snapshot FLIP check-off & retired state
+    assert "animateSnapshotRowCompletion(" in dash_js
+    assert "snapshotStrikeSweep" in css
+    assert "snapshot-unified-rank is-retired" in dash_js
+
+    # Minor UI: Trivial Tasks rename, colour match, no sparkle in Finalised pill, no 6-dot grip-vertical on Focus/Trivial headers, consistent Pool header font
+    assert "Trivial Tasks</h3>" in index_html and "Trivial Errands</h3>" not in index_html
+    assert ".trivial-title {\n  color: var(--text-main);" in css
+    pill_html = index_html[index_html.index('id="snapshotLockedPill"'):index_html.index('id="snapshotLockedPill"') + 220]
+    assert 'data-lucide="sparkles"' not in pill_html
+    focus_triv_html = index_html[index_html.index('id="focusCardSection"'):index_html.index('id="remindersCardSection"')]
+    assert 'data-lucide="grip-vertical"' not in focus_triv_html
+    pool_hdr_css = css[css.index(".pool-header-title {"):css.index(".pool-header-title {") + 220]
+    assert "font-family: var(--font-family);" in pool_hdr_css
+
+    # Notes Tab overhaul: '+ Folder', 'Folders', retired 'Scratchpad', multi-select bulk actions, lazy project folders
+    assert "+ Folder</button>" in index_html
+    assert '<span class="notes-sidebar-heading">Folders</span>' in index_html
+    assert "General Scratchpad" not in notes_js
+    assert "Scratchpad Media Folder" not in index_html
+    assert "promptCreateFolder(" in notes_js
+    assert "bulkMoveSelectedNotes(" in notes_js
+    assert "bulkDeleteSelectedNotes(" in notes_js
+    assert 'id="notesBulkActionBar"' in index_html
+
 
 
 

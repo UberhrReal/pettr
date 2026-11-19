@@ -5,11 +5,15 @@
 const Notes = {
   currentNoteId: null,
   currentProjectName: null,
+  currentFolderName: null,
   currentEventId: null,
   currentEventTitle: null,
   allNotes: [],
+  customFolders: [],
+  allProjects: [],
   expandedFolders: new Set(["general"]),
-  focusedProjectName: null,
+  multiSelectMode: false,
+  selectedNoteIds: new Set(),
   saveTimeout: null,
   viewMode: "notes", // "notes" | "media"
   mediaItems: [],
@@ -116,11 +120,32 @@ const Notes = {
 
   async loadNotes(preferredNoteId = null) {
     try {
-      const res = await fetch("/api/notes");
-      if (!res.ok) return [];
-      const notes = await res.json();
+      const [notesRes, foldersRes, projectsRes] = await Promise.all([
+        fetch("/api/notes"),
+        fetch("/api/note-folders").catch(() => null),
+        fetch("/api/projects").catch(() => null)
+      ]);
+      if (!notesRes.ok) return [];
+      const notes = await notesRes.json();
       this.allNotes = Array.isArray(notes) ? notes : [];
+
+      if (foldersRes && foldersRes.ok) {
+        const fList = await foldersRes.json();
+        this.customFolders = Array.isArray(fList) ? fList.map(f => f.name).filter(Boolean) : [];
+      }
+      if (projectsRes && projectsRes.ok) {
+        const pList = await projectsRes.json();
+        this.allProjects = Array.isArray(pList) ? pList : [];
+      }
+
+      // Prune stale IDs from multi-select set
+      const validIds = new Set(this.allNotes.map(n => String(n.id)));
+      Array.from(this.selectedNoteIds).forEach(id => {
+        if (!validIds.has(String(id))) this.selectedNoteIds.delete(id);
+      });
+
       this.renderSidebar(this.allNotes);
+      this.updateBulkBarUI();
 
       const targetId = preferredNoteId !== null ? preferredNoteId : this.currentNoteId;
       if (targetId) {
@@ -131,10 +156,12 @@ const Notes = {
         }
       }
 
-      if (this.allNotes.length > 0 && !this.currentNoteId && !this.currentProjectName && !this.currentEventId) {
+      if (this.allNotes.length > 0 && !this.currentNoteId && !this.currentProjectName && !this.currentFolderName && !this.currentEventId) {
         this.selectNote(this.allNotes[0]);
-      } else if (this.allNotes.length === 0 && !this.currentProjectName && !this.currentEventId) {
+      } else if (this.allNotes.length === 0 && !this.currentProjectName && !this.currentFolderName && !this.currentEventId) {
         this.createNewNote();
+      } else {
+        this.renderFolderContextBar();
       }
       return this.allNotes;
     } catch (err) {
@@ -164,8 +191,63 @@ const Notes = {
     return rawColor || "var(--focus-indigo)";
   },
 
+  getAvailableProjectNames() {
+    const names = new Set();
+    (this.allProjects || []).forEach(p => { if (p && p.name) names.add(String(p.name).trim()); });
+    if (typeof Dashboard !== "undefined" && Dashboard.tasks && Array.isArray(Dashboard.tasks.projects)) {
+      Dashboard.tasks.projects.forEach(p => { if (p && p.name) names.add(String(p.name).trim()); });
+    }
+    (this.allNotes || []).forEach(n => { if (n.project_name) names.add(String(n.project_name).trim()); });
+    if (this.currentProjectName) names.add(String(this.currentProjectName).trim());
+    return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  },
+
+  getAvailableCustomFolders() {
+    const names = new Set();
+    (this.customFolders || []).forEach(f => { if (f) names.add(String(f).trim()); });
+    (this.allNotes || []).forEach(n => { if (n.folder_name && !n.project_name) names.add(String(n.folder_name).trim()); });
+    if (this.currentFolderName) names.add(String(this.currentFolderName).trim());
+    return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  },
+
+  buildFolderDestinationOptionsHtml(selectedToken = "general", prefixLabel = "") {
+    const customNames = this.getAvailableCustomFolders();
+    const projectNames = this.getAvailableProjectNames();
+    const genLabel = prefixLabel ? `${prefixLabel}General` : "General";
+    let html = `<option value="general" ${selectedToken === "general" ? "selected" : ""}>${this.escapeHtml(genLabel)}</option>`;
+    if (customNames.length > 0) {
+      html += `<optgroup label="Custom Folders">`;
+      customNames.forEach(fname => {
+        const val = `folder:${fname}`;
+        html += `<option value="${this.escapeHtml(val)}" ${selectedToken === val ? "selected" : ""}>📁 ${this.escapeHtml(fname)}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+    if (projectNames.length > 0) {
+      html += `<optgroup label="Projects">`;
+      projectNames.forEach(pname => {
+        const val = `project:${pname}`;
+        html += `<option value="${this.escapeHtml(val)}" ${selectedToken === val ? "selected" : ""}>📌 ${this.escapeHtml(pname)}</option>`;
+      });
+      html += `</optgroup>`;
+    }
+    return html;
+  },
+
+  parseFolderDestinationToken(token) {
+    const val = String(token || "general");
+    if (val.startsWith("project:")) {
+      return { project_name: val.slice("project:".length).trim() || null, folder_name: null };
+    }
+    if (val.startsWith("folder:")) {
+      return { project_name: null, folder_name: val.slice("folder:".length).trim() || null };
+    }
+    return { project_name: null, folder_name: null };
+  },
+
   buildFolderTreeData(notes) {
     const projectMap = new Map();
+    const customFolderMap = new Map();
     const standaloneEventMap = new Map();
     const generalNotes = [];
 
@@ -185,8 +267,28 @@ const Notes = {
       return projectMap.get(key);
     };
 
+    const ensureCustomFolder = (folderName) => {
+      const clean = String(folderName || "").trim();
+      const key = `folder:${this.normalizeFolderKey(clean)}`;
+      if (!customFolderMap.has(key)) {
+        customFolderMap.set(key, {
+          key,
+          folderName: clean,
+          notes: []
+        });
+      }
+      return customFolderMap.get(key);
+    };
+
+    // Custom folders created explicitly via '+ Folder' appear immediately
+    (this.customFolders || []).forEach(fname => {
+      if (fname && String(fname).trim()) ensureCustomFolder(fname);
+    });
+
+    // Project folders ONLY appear once the first note belonging to that project exists
     (notes || []).forEach(n => {
       const pName = (n.project_name || "").trim();
+      const fName = (n.folder_name || "").trim();
       const evTitle = (n.event_title || "").trim();
       const evId = n.event_id || null;
       const hasEvent = Boolean(evId || evTitle);
@@ -220,26 +322,22 @@ const Notes = {
           });
         }
         standaloneEventMap.get(evKey).notes.push(n);
+      } else if (fName) {
+        ensureCustomFolder(fName).notes.push(n);
       } else {
         generalNotes.push(n);
       }
     });
-
-    if (this.focusedProjectName) {
-      ensureProject(this.focusedProjectName, null);
-    }
-    if (this.currentProjectName) {
-      ensureProject(this.currentProjectName, null);
-    }
 
     const projects = Array.from(projectMap.values()).sort((a, b) => a.projectName.localeCompare(b.projectName));
     projects.forEach(p => {
       p.events = Array.from(p.eventsMap.values()).sort((a, b) => a.eventTitle.localeCompare(b.eventTitle));
       p.totalNotes = p.directNotes.length + p.events.reduce((acc, ev) => acc + ev.notes.length, 0);
     });
+    const customFolders = Array.from(customFolderMap.values()).sort((a, b) => a.folderName.localeCompare(b.folderName));
     const standaloneEvents = Array.from(standaloneEventMap.values()).sort((a, b) => a.eventTitle.localeCompare(b.eventTitle));
 
-    return { projects, standaloneEvents, generalNotes };
+    return { projects, customFolders, standaloneEvents, generalNotes };
   },
 
   toggleFolder(folderKey) {
@@ -255,6 +353,7 @@ const Notes = {
   toggleAllFolders() {
     const tree = this.buildFolderTreeData(this.allNotes);
     const allKeys = ["general"];
+    tree.customFolders.forEach(f => allKeys.push(f.key));
     tree.projects.forEach(p => {
       allKeys.push(p.key);
       p.events.forEach(ev => allKeys.push(ev.key));
@@ -270,17 +369,181 @@ const Notes = {
     this.renderSidebar(this.allNotes);
   },
 
+  async promptCreateFolder() {
+    const raw = prompt("New folder name:");
+    if (!raw || !raw.trim()) return;
+    const cleanName = raw.trim();
+    try {
+      const res = await fetch("/api/note-folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cleanName })
+      });
+      if (!res.ok) throw new Error("Failed creating folder");
+      const data = await res.json();
+      const createdName = (data.folder && data.folder.name) || cleanName;
+      if (!this.customFolders.includes(createdName)) {
+        this.customFolders.push(createdName);
+      }
+      this.expandedFolders.add(`folder:${this.normalizeFolderKey(createdName)}`);
+      this.renderSidebar(this.allNotes);
+      this.renderFolderContextBar();
+      this.updateBulkBarUI();
+      if (typeof App !== "undefined") App.showToast(`Created folder "${createdName}"`);
+    } catch (err) {
+      console.error(err);
+      if (typeof App !== "undefined") App.showToast("Could not create folder.", true);
+    }
+  },
+
+  async deleteCustomFolder(folderName) {
+    if (!folderName) return;
+    if (!confirm(`Delete folder "${folderName}"? Notes inside will be moved to General.`)) return;
+    try {
+      await fetch(`/api/note-folders/${encodeURIComponent(folderName)}`, { method: "DELETE" });
+      if (this.currentFolderName && this.normalizeFolderKey(this.currentFolderName) === this.normalizeFolderKey(folderName)) {
+        this.currentFolderName = null;
+      }
+      await this.loadNotes(this.currentNoteId);
+      if (typeof App !== "undefined") App.showToast(`Deleted folder "${folderName}"`);
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  toggleMultiSelect(forceState = null) {
+    this.multiSelectMode = forceState === null ? !this.multiSelectMode : Boolean(forceState);
+    if (!this.multiSelectMode) {
+      this.selectedNoteIds.clear();
+    }
+    this.renderSidebar(this.allNotes);
+    this.updateBulkBarUI();
+  },
+
+  toggleNoteSelection(noteId) {
+    const key = String(noteId);
+    if (this.selectedNoteIds.has(key)) {
+      this.selectedNoteIds.delete(key);
+    } else {
+      this.selectedNoteIds.add(key);
+    }
+    this.renderSidebar(this.allNotes);
+    this.updateBulkBarUI();
+  },
+
+  selectAllVisibleNotes() {
+    this.multiSelectMode = true;
+    (this.allNotes || []).forEach(n => this.selectedNoteIds.add(String(n.id)));
+    this.renderSidebar(this.allNotes);
+    this.updateBulkBarUI();
+  },
+
+  updateBulkBarUI() {
+    const bar = document.getElementById("notesBulkActionBar");
+    const btn = document.getElementById("notesSelectModeBtn");
+    const countEl = document.getElementById("notesBulkSelectedCount");
+    const targetSel = document.getElementById("notesBulkMoveTarget");
+    if (btn) btn.classList.toggle("active", this.multiSelectMode);
+    if (bar) bar.style.display = this.multiSelectMode ? "flex" : "none";
+    if (countEl) countEl.textContent = `${this.selectedNoteIds.size} selected`;
+    if (targetSel) {
+      const prev = targetSel.value || "general";
+      targetSel.innerHTML = this.buildFolderDestinationOptionsHtml(prev, "Move to: ");
+    }
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+  },
+
+  async bulkMoveSelectedNotes() {
+    const ids = Array.from(this.selectedNoteIds).map(Number).filter(n => !isNaN(n));
+    if (ids.length === 0) {
+      if (typeof App !== "undefined") App.showToast("Select at least one note first.", true);
+      return;
+    }
+    const targetSel = document.getElementById("notesBulkMoveTarget");
+    const token = targetSel ? targetSel.value : "general";
+    const dest = this.parseFolderDestinationToken(token);
+    try {
+      const res = await fetch("/api/notes/bulk-move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          note_ids: ids,
+          project_name: dest.project_name,
+          folder_name: dest.folder_name,
+          event_id: null,
+          event_title: null
+        })
+      });
+      if (!res.ok) throw new Error("Bulk move failed");
+      if (dest.project_name) {
+        this.expandedFolders.add(`project:${this.normalizeFolderKey(dest.project_name)}`);
+      } else if (dest.folder_name) {
+        this.expandedFolders.add(`folder:${this.normalizeFolderKey(dest.folder_name)}`);
+      } else {
+        this.expandedFolders.add("general");
+      }
+      this.multiSelectMode = false;
+      this.selectedNoteIds.clear();
+      await this.loadNotes(this.currentNoteId);
+      const destLabel = dest.project_name || dest.folder_name || "General";
+      if (typeof App !== "undefined") App.showToast(`Moved ${ids.length} note${ids.length === 1 ? "" : "s"} to ${destLabel}`);
+    } catch (err) {
+      console.error(err);
+      if (typeof App !== "undefined") App.showToast("Could not move selected notes.", true);
+    }
+  },
+
+  async bulkDeleteSelectedNotes() {
+    const ids = Array.from(this.selectedNoteIds).map(Number).filter(n => !isNaN(n));
+    if (ids.length === 0) {
+      if (typeof App !== "undefined") App.showToast("Select at least one note first.", true);
+      return;
+    }
+    if (!confirm(`Delete ${ids.length} selected note${ids.length === 1 ? "" : "s"} permanently?`)) return;
+    try {
+      const res = await fetch("/api/notes/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note_ids: ids })
+      });
+      if (!res.ok) throw new Error("Bulk delete failed");
+      if (this.currentNoteId && ids.includes(Number(this.currentNoteId))) {
+        this.currentNoteId = null;
+        this.currentProjectName = null;
+        this.currentFolderName = null;
+        this.currentEventId = null;
+        this.currentEventTitle = null;
+      }
+      this.multiSelectMode = false;
+      this.selectedNoteIds.clear();
+      await this.loadNotes();
+      if (typeof App !== "undefined") App.showToast(`Deleted ${ids.length} note${ids.length === 1 ? "" : "s"}`);
+    } catch (err) {
+      console.error(err);
+      if (typeof App !== "undefined") App.showToast("Could not delete selected notes.", true);
+    }
+  },
+
   buildNoteSidebarRow(n, isNested = false) {
     const btn = document.createElement("button");
     btn.type = "button";
     const isActive = String(n.id) === String(this.currentNoteId);
-    btn.className = `tab-btn notes-tree-note-btn ${isNested ? 'is-nested' : ''} ${isActive ? 'active' : ''}`;
+    const isSelected = this.selectedNoteIds.has(String(n.id));
+    btn.className = `tab-btn notes-tree-note-btn ${isNested ? 'is-nested' : ''} ${isActive ? 'active' : ''} ${isSelected ? 'is-multi-selected' : ''}`;
     btn.dataset.noteId = n.id;
     btn.innerHTML = `
+      ${this.multiSelectMode ? `<input type="checkbox" class="notes-tree-select-cb" ${isSelected ? "checked" : ""} aria-label="Select note" onclick="event.stopPropagation(); Notes.toggleNoteSelection(${n.id})">` : ''}
       <i data-lucide="file-text" class="notes-tree-note-icon"></i>
       <span class="notes-tree-note-title">${this.escapeHtml(n.title || "Untitled Note")}</span>
     `;
-    btn.onclick = () => this.selectNote(n);
+    btn.onclick = (e) => {
+      if (this.multiSelectMode || e.ctrlKey || e.metaKey || e.shiftKey) {
+        if (!this.multiSelectMode) this.multiSelectMode = true;
+        this.toggleNoteSelection(n.id);
+        return;
+      }
+      this.selectNote(n);
+    };
     return btn;
   },
 
@@ -400,7 +663,67 @@ const Notes = {
       });
     }
 
-    // 3. General / Unfiled Scratchpad Notes
+    // 3. Custom User Folders
+    if (tree.customFolders.length > 0) {
+      const cfLabel = document.createElement("div");
+      cfLabel.className = "notes-tree-section-label";
+      cfLabel.textContent = "Custom Folders";
+      sidebar.appendChild(cfLabel);
+
+      tree.customFolders.forEach(fGroup => {
+        const isExpanded = this.expandedFolders.has(fGroup.key);
+        const wrap = document.createElement("div");
+        wrap.className = "notes-folder-node notes-custom-folder-node";
+        wrap.dataset.folderKey = fGroup.key;
+
+        const header = document.createElement("div");
+        header.className = `notes-folder-header ${isExpanded ? 'is-open' : ''}`;
+        header.innerHTML = `
+          <button type="button" class="notes-folder-toggle-btn" aria-expanded="${isExpanded ? 'true' : 'false'}">
+            <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="notes-folder-chevron"></i>
+            <i data-lucide="${isExpanded ? 'folder-open' : 'folder'}" class="notes-folder-icon"></i>
+            <span class="notes-folder-name">${this.escapeHtml(fGroup.folderName)}</span>
+            <span class="notes-folder-count">${fGroup.notes.length}</span>
+          </button>
+          <button type="button" class="notes-folder-add-btn" title="New note in ${this.escapeHtml(fGroup.folderName)}" aria-label="New note in folder">
+            <i data-lucide="plus" style="width:12px;height:12px;"></i>
+          </button>
+          <button type="button" class="notes-folder-add-btn notes-folder-del-btn" title="Delete folder" aria-label="Delete custom folder">
+            <i data-lucide="trash-2" style="width:11px;height:11px;"></i>
+          </button>
+        `;
+        header.querySelector(".notes-folder-toggle-btn").onclick = () => this.toggleFolder(fGroup.key);
+        header.querySelector(".notes-folder-add-btn:not(.notes-folder-del-btn)").onclick = (e) => {
+          e.stopPropagation();
+          this.createNewNoteInContext({
+            folderName: fGroup.folderName,
+            defaultTitle: "Untitled Note"
+          });
+        };
+        header.querySelector(".notes-folder-del-btn").onclick = (e) => {
+          e.stopPropagation();
+          this.deleteCustomFolder(fGroup.folderName);
+        };
+        wrap.appendChild(header);
+
+        if (isExpanded) {
+          const body = document.createElement("div");
+          body.className = "notes-folder-children";
+          if (fGroup.notes.length === 0) {
+            const emptyHint = document.createElement("div");
+            emptyHint.className = "notes-folder-empty-hint";
+            emptyHint.textContent = "Empty folder — click + to add a note.";
+            body.appendChild(emptyHint);
+          } else {
+            fGroup.notes.forEach(n => body.appendChild(this.buildNoteSidebarRow(n, false)));
+          }
+          wrap.appendChild(body);
+        }
+        sidebar.appendChild(wrap);
+      });
+    }
+
+    // 4. General / Unfiled Notes
     const genOpen = this.expandedFolders.has("general");
     const genWrap = document.createElement("div");
     genWrap.className = "notes-folder-node notes-general-folder-node";
@@ -412,10 +735,10 @@ const Notes = {
       <button type="button" class="notes-folder-toggle-btn" aria-expanded="${genOpen ? 'true' : 'false'}">
         <i data-lucide="${genOpen ? 'chevron-down' : 'chevron-right'}" class="notes-folder-chevron"></i>
         <i data-lucide="notebook" class="notes-folder-icon"></i>
-        <span class="notes-folder-name">General Scratchpad</span>
+        <span class="notes-folder-name">General</span>
         <span class="notes-folder-count">${tree.generalNotes.length}</span>
       </button>
-      <button type="button" class="notes-folder-add-btn" title="New unfiled scratchpad note" aria-label="New general note">
+      <button type="button" class="notes-folder-add-btn" title="New note in General" aria-label="New general note">
         <i data-lucide="plus" style="width:12px;height:12px;"></i>
       </button>
     `;
@@ -432,7 +755,7 @@ const Notes = {
       if (tree.generalNotes.length === 0) {
         const emptyHint = document.createElement("div");
         emptyHint.className = "notes-folder-empty-hint";
-        emptyHint.textContent = "No general scratchpad notes.";
+        emptyHint.textContent = "No unfiled notes yet.";
         genBody.appendChild(emptyHint);
       } else {
         tree.generalNotes.forEach(n => genBody.appendChild(this.buildNoteSidebarRow(n, false)));
@@ -448,47 +771,47 @@ const Notes = {
     const bar = document.getElementById("noteFolderContextBar");
     if (!bar) return;
 
-    const projOptions = new Set();
-    if (typeof Dashboard !== "undefined" && Dashboard.tasks && Array.isArray(Dashboard.tasks.projects)) {
-      Dashboard.tasks.projects.forEach(p => { if (p && p.name) projOptions.add(p.name); });
-    }
-    (this.allNotes || []).forEach(n => { if (n.project_name) projOptions.add(n.project_name); });
-    if (this.currentProjectName) projOptions.add(this.currentProjectName);
-
-    const sortedProjects = Array.from(projOptions).sort((a, b) => a.localeCompare(b));
-    const hasLink = Boolean(this.currentProjectName || this.currentEventId || this.currentEventTitle);
+    const hasLink = Boolean(this.currentProjectName || this.currentFolderName || this.currentEventId || this.currentEventTitle);
     bar.style.display = "flex";
 
     const crumbs = [];
     if (this.currentProjectName) {
       const pColor = this.getProjectAccent(this.currentProjectName, null);
       crumbs.push(`<span class="notes-context-chip is-project"><span class="notes-folder-color-dot" style="background:${this.escapeHtml(pColor)};"></span> ${this.escapeHtml(this.currentProjectName)}</span>`);
+    } else if (this.currentFolderName) {
+      crumbs.push(`<span class="notes-context-chip is-folder"><i data-lucide="folder" style="width:11px;height:11px;"></i> ${this.escapeHtml(this.currentFolderName)}</span>`);
     }
     if (this.currentEventId || this.currentEventTitle) {
       crumbs.push(`<span class="notes-context-chip is-event"><i data-lucide="calendar-check" style="width:11px;height:11px;"></i> ${this.escapeHtml(this.currentEventTitle || `Event #${this.currentEventId}`)}</span>`);
     }
     if (!hasLink) {
-      crumbs.push(`<span class="notes-context-chip is-general"><i data-lucide="notebook" style="width:11px;height:11px;"></i> General Scratchpad</span>`);
+      crumbs.push(`<span class="notes-context-chip is-general"><i data-lucide="notebook" style="width:11px;height:11px;"></i> General</span>`);
     }
+
+    const activeToken = this.currentProjectName
+      ? `project:${this.currentProjectName}`
+      : (this.currentFolderName ? `folder:${this.currentFolderName}` : "general");
 
     bar.innerHTML = `
       <div class="notes-context-crumbs">${crumbs.join('<span class="notes-context-sep">&rsaquo;</span>')}</div>
       <div class="notes-context-actions">
-        <select class="notes-folder-assign-select" aria-label="Assign note to project folder" onchange="Notes.assignCurrentNoteProject(this.value)">
-          <option value="">Move to folder: General</option>
-          ${sortedProjects.map(pname => `<option value="${this.escapeHtml(pname)}" ${this.currentProjectName === pname ? 'selected' : ''}>📁 ${this.escapeHtml(pname)}</option>`).join("")}
+        <select class="notes-folder-assign-select" aria-label="Move note to folder or project" onchange="Notes.assignCurrentNoteDestination(this.value)">
+          ${this.buildFolderDestinationOptionsHtml(activeToken, "Move to folder: ")}
         </select>
-        ${hasLink ? `<button type="button" class="action-icon-btn notes-context-unlink-btn" onclick="Notes.unlinkCurrentNoteFolder()" title="Move back to General Scratchpad"><i data-lucide="folder-minus" style="width:11px;height:11px;"></i> Unfile</button>` : ''}
+        ${hasLink ? `<button type="button" class="action-icon-btn notes-context-unlink-btn" onclick="Notes.unlinkCurrentNoteFolder()" title="Move back to General"><i data-lucide="folder-minus" style="width:11px;height:11px;"></i> Unfile</button>` : ''}
       </div>
     `;
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
   },
 
-  async assignCurrentNoteProject(projectName) {
-    const clean = (projectName || "").trim() || null;
-    this.currentProjectName = clean;
-    if (clean) {
-      this.expandedFolders.add(`project:${this.normalizeFolderKey(clean)}`);
+  async assignCurrentNoteDestination(token) {
+    const dest = this.parseFolderDestinationToken(token);
+    this.currentProjectName = dest.project_name;
+    this.currentFolderName = dest.folder_name;
+    if (dest.project_name) {
+      this.expandedFolders.add(`project:${this.normalizeFolderKey(dest.project_name)}`);
+    } else if (dest.folder_name) {
+      this.expandedFolders.add(`folder:${this.normalizeFolderKey(dest.folder_name)}`);
     } else {
       this.expandedFolders.add("general");
     }
@@ -496,8 +819,14 @@ const Notes = {
     await this.saveCurrentNote();
   },
 
+  async assignCurrentNoteProject(projectName) {
+    const clean = (projectName || "").trim();
+    await this.assignCurrentNoteDestination(clean ? `project:${clean}` : "general");
+  },
+
   async unlinkCurrentNoteFolder() {
     this.currentProjectName = null;
+    this.currentFolderName = null;
     this.currentEventId = null;
     this.currentEventTitle = null;
     this.expandedFolders.add("general");
@@ -508,6 +837,7 @@ const Notes = {
   selectNote(note) {
     this.currentNoteId = note.id;
     this.currentProjectName = (note.project_name || "").trim() || null;
+    this.currentFolderName = (!this.currentProjectName && note.folder_name) ? String(note.folder_name).trim() || null : null;
     this.currentEventId = note.event_id || null;
     this.currentEventTitle = (note.event_title || "").trim() || null;
 
@@ -518,6 +848,8 @@ const Notes = {
       }
     } else if (this.currentEventId || this.currentEventTitle) {
       this.expandedFolders.add(this.getEventFolderKey(note));
+    } else if (this.currentFolderName) {
+      this.expandedFolders.add(`folder:${this.normalizeFolderKey(this.currentFolderName)}`);
     } else {
       this.expandedFolders.add("general");
     }
@@ -541,9 +873,10 @@ const Notes = {
     this.renderFolderContextBar();
   },
 
-  createNewNoteInContext({ projectName = null, eventId = null, eventTitle = null, defaultTitle = "Quick Scratchpad" } = {}) {
+  createNewNoteInContext({ projectName = null, folderName = null, eventId = null, eventTitle = null, defaultTitle = "Untitled Note" } = {}) {
     this.currentNoteId = null;
     this.currentProjectName = (projectName || "").trim() || null;
+    this.currentFolderName = (!this.currentProjectName && folderName) ? String(folderName).trim() || null : null;
     this.currentEventId = eventId || null;
     this.currentEventTitle = (eventTitle || "").trim() || null;
 
@@ -555,6 +888,8 @@ const Notes = {
       }
     } else if (this.currentEventId || this.currentEventTitle) {
       this.expandedFolders.add(this.getEventFolderKey({ event_id: this.currentEventId, event_title: this.currentEventTitle }));
+    } else if (this.currentFolderName) {
+      this.expandedFolders.add(`folder:${this.normalizeFolderKey(this.currentFolderName)}`);
     } else {
       this.expandedFolders.add("general");
     }
@@ -572,8 +907,7 @@ const Notes = {
   },
 
   createNewNote() {
-    this.focusedProjectName = null;
-    this.createNewNoteInContext({ projectName: null, eventId: null, eventTitle: null, defaultTitle: "Quick Scratchpad" });
+    this.createNewNoteInContext({ projectName: null, folderName: null, eventId: null, eventTitle: null, defaultTitle: "Untitled Note" });
   },
 
   async openEventNote(eventId, eventTitle, projectName = "") {
@@ -633,7 +967,6 @@ const Notes = {
     const cleanName = (projectName || "").trim();
     if (!cleanName) return;
 
-    this.focusedProjectName = cleanName;
     const projKey = `project:${this.normalizeFolderKey(cleanName)}`;
     this.expandedFolders.add(projKey);
 
@@ -657,6 +990,12 @@ const Notes = {
           defaultTitle: `${cleanName} — Notes`
         });
       }
+    } else {
+      // No notes exist for this project yet — prepare a pre-linked draft so saving creates its folder
+      this.createNewNoteInContext({
+        projectName: cleanName,
+        defaultTitle: `${cleanName} — Notes`
+      });
     }
 
     setTimeout(() => {
@@ -681,6 +1020,7 @@ const Notes = {
           title: title,
           content: content,
           project_name: this.currentProjectName,
+          folder_name: this.currentFolderName,
           event_id: this.currentEventId,
           event_title: this.currentEventTitle,
           update_links: true
@@ -690,6 +1030,7 @@ const Notes = {
       if (data.note) {
         this.currentNoteId = data.note.id;
         this.currentProjectName = data.note.project_name || null;
+        this.currentFolderName = data.note.folder_name || null;
         this.currentEventId = data.note.event_id || null;
         this.currentEventTitle = data.note.event_title || null;
         const statusEl = document.getElementById("noteSaveStatus");
@@ -709,6 +1050,7 @@ const Notes = {
       await fetch(`/api/notes/${this.currentNoteId}`, { method: "DELETE" });
       this.currentNoteId = null;
       this.currentProjectName = null;
+      this.currentFolderName = null;
       this.currentEventId = null;
       this.currentEventTitle = null;
       await this.loadNotes();
@@ -1206,7 +1548,7 @@ const Notes = {
             </div>
           </div>
           <div class="media-card-actions">
-            <button type="button" class="media-card-action-btn select-btn" onclick="Notes.selectMediaForNote(${fnArg})" title="Insert this media into your current scratchpad note">
+            <button type="button" class="media-card-action-btn select-btn" onclick="Notes.selectMediaForNote(${fnArg})" title="Insert this media into your current note">
               <i data-lucide="plus" style="width:12px;height:12px;"></i> Insert
             </button>
             <button type="button" class="media-card-action-btn view-btn" onclick="Notes.openMediaLightbox(${fnArg})" title="View / Preview">
@@ -1328,7 +1670,7 @@ const Notes = {
   async confirmDeleteMedia(filename) {
     const item = this.mediaItems.find(m => m.filename === filename);
     const displayName = item ? item.display_name : filename;
-    if (!confirm(`Permanently delete '${displayName}' from the scratchpad media folder?`)) {
+    if (!confirm(`Permanently delete '${displayName}' from the media folder?`)) {
       return;
     }
 

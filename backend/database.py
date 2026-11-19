@@ -16,13 +16,20 @@ def resolve_db_path(db_path: Optional[Path] = None) -> Path:
     return Path(db_path) if db_path is not None else Path(DEFAULT_DB_PATH)
 
 def _ensure_notes_folder_columns(conn: sqlite3.Connection) -> None:
-    """Adds hierarchical project/event folder metadata columns onto notes."""
+    """Adds hierarchical project/event/custom folder metadata columns onto notes."""
     for ddl in (
         "ALTER TABLE notes ADD COLUMN project_name TEXT",
         "ALTER TABLE notes ADD COLUMN event_id INTEGER REFERENCES events(id) ON DELETE SET NULL",
         "ALTER TABLE notes ADD COLUMN event_title TEXT",
+        "ALTER TABLE notes ADD COLUMN folder_name TEXT",
         "CREATE INDEX IF NOT EXISTS idx_notes_project ON notes(project_name)",
         "CREATE INDEX IF NOT EXISTS idx_notes_event ON notes(event_id)",
+        "CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_name)",
+        """CREATE TABLE IF NOT EXISTS note_folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""",
     ):
         try:
             conn.execute(ddl)
@@ -942,6 +949,10 @@ def _enrich_note_row(row_dict: Dict[str, Any], proj_colors: Dict[str, str]) -> D
         row_dict["event_title"] = resolved_ev
     elif row_dict.get("event_title"):
         row_dict["event_title"] = str(row_dict["event_title"]).strip() or None
+    if row_dict.get("folder_name"):
+        row_dict["folder_name"] = str(row_dict["folder_name"]).strip() or None
+    else:
+        row_dict["folder_name"] = None
     pname = row_dict.get("project_name")
     if not row_dict.get("project_color") and pname and pname in proj_colors:
         row_dict["project_color"] = proj_colors[pname]
@@ -974,12 +985,14 @@ def save_note(content: str,
               project_name: Optional[str] = None,
               event_id: Optional[int] = None,
               event_title: Optional[str] = None,
+              folder_name: Optional[str] = None,
               update_links: bool = False,
               db_path: Optional[Path] = None) -> Dict[str, Any]:
     conn = get_connection(db_path)
     clean_proj = (project_name or "").strip() or None if project_name is not None else None
     clean_ev_title = (event_title or "").strip() or None if event_title is not None else None
     clean_ev_id = int(event_id) if event_id is not None else None
+    clean_folder = (folder_name or "").strip() or None if folder_name is not None else None
 
     if clean_ev_id is not None:
         ev_row = conn.execute("""
@@ -994,21 +1007,26 @@ def save_note(content: str,
             if not clean_proj and ev_row["project_name"]:
                 clean_proj = ev_row["project_name"]
 
+    if clean_proj:
+        clean_folder = None
+
     with conn:
+        if clean_folder:
+            conn.execute("INSERT OR IGNORE INTO note_folders (name) VALUES (?)", (clean_folder,))
         if note_id:
-            if update_links or clean_proj is not None or clean_ev_id is not None or clean_ev_title is not None:
+            if update_links or clean_proj is not None or clean_ev_id is not None or clean_ev_title is not None or clean_folder is not None:
                 conn.execute("""
                     UPDATE notes
-                    SET title = ?, content = ?, project_name = ?, event_id = ?, event_title = ?, updated_at = CURRENT_TIMESTAMP
+                    SET title = ?, content = ?, project_name = ?, event_id = ?, event_title = ?, folder_name = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE id = ?
-                """, (title, content, clean_proj, clean_ev_id, clean_ev_title, note_id))
+                """, (title, content, clean_proj, clean_ev_id, clean_ev_title, clean_folder, note_id))
             else:
                 conn.execute("UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (title, content, note_id))
             target_id = note_id
         else:
             cursor = conn.execute(
-                "INSERT INTO notes (title, content, project_name, event_id, event_title) VALUES (?, ?, ?, ?, ?)",
-                (title, content, clean_proj, clean_ev_id, clean_ev_title)
+                "INSERT INTO notes (title, content, project_name, event_id, event_title, folder_name) VALUES (?, ?, ?, ?, ?, ?)",
+                (title, content, clean_proj, clean_ev_id, clean_ev_title, clean_folder)
             )
             target_id = cursor.lastrowid
 
@@ -1030,6 +1048,71 @@ def save_note(content: str,
             if r["color"]
         }
         return _enrich_note_row(dict(row), proj_colors)
+
+def get_note_folders(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    conn = get_connection(db_path)
+    rows = conn.execute("SELECT * FROM note_folders ORDER BY LOWER(name) ASC").fetchall()
+    return [dict(r) for r in rows]
+
+def create_note_folder(name: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+    clean = (name or "").strip()
+    if not clean:
+        raise ValueError("Folder name cannot be empty")
+    conn = get_connection(db_path)
+    with conn:
+        existing = conn.execute("SELECT * FROM note_folders WHERE LOWER(TRIM(name)) = LOWER(?)", (clean,)).fetchone()
+        if existing:
+            return dict(existing)
+        cursor = conn.execute("INSERT INTO note_folders (name) VALUES (?)", (clean,))
+        row = conn.execute("SELECT * FROM note_folders WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        return dict(row)
+
+def delete_note_folder(name: str, db_path: Optional[Path] = None) -> bool:
+    clean = (name or "").strip()
+    if not clean:
+        return False
+    conn = get_connection(db_path)
+    with conn:
+        conn.execute("UPDATE notes SET folder_name = NULL WHERE LOWER(TRIM(folder_name)) = LOWER(?)", (clean,))
+        res = conn.execute("DELETE FROM note_folders WHERE LOWER(TRIM(name)) = LOWER(?)", (clean,))
+        return res.rowcount > 0
+
+def bulk_move_notes(note_ids: List[int],
+                    project_name: Optional[str] = None,
+                    folder_name: Optional[str] = None,
+                    event_id: Optional[int] = None,
+                    event_title: Optional[str] = None,
+                    db_path: Optional[Path] = None) -> int:
+    clean_ids = [int(i) for i in (note_ids or []) if i is not None]
+    if not clean_ids:
+        return 0
+    clean_proj = (project_name or "").strip() or None if project_name is not None else None
+    clean_folder = (folder_name or "").strip() or None if folder_name is not None else None
+    clean_ev_id = int(event_id) if event_id is not None else None
+    clean_ev_title = (event_title or "").strip() or None if event_title is not None else None
+    if clean_proj:
+        clean_folder = None
+    conn = get_connection(db_path)
+    with conn:
+        if clean_folder:
+            conn.execute("INSERT OR IGNORE INTO note_folders (name) VALUES (?)", (clean_folder,))
+        placeholders = ",".join("?" for _ in clean_ids)
+        cur = conn.execute(f"""
+            UPDATE notes
+            SET project_name = ?, folder_name = ?, event_id = ?, event_title = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id IN ({placeholders})
+        """, [clean_proj, clean_folder, clean_ev_id, clean_ev_title, *clean_ids])
+        return cur.rowcount
+
+def bulk_delete_notes(note_ids: List[int], db_path: Optional[Path] = None) -> int:
+    clean_ids = [int(i) for i in (note_ids or []) if i is not None]
+    if not clean_ids:
+        return 0
+    conn = get_connection(db_path)
+    with conn:
+        placeholders = ",".join("?" for _ in clean_ids)
+        cur = conn.execute(f"DELETE FROM notes WHERE id IN ({placeholders})", clean_ids)
+        return cur.rowcount
 
 # --- History Log Operations ---
 

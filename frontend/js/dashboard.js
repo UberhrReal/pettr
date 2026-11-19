@@ -69,7 +69,7 @@ const Dashboard = {
     return false;
   },
 
-  getProjectColor(projectName, explicitColor = null) {
+  getRawProjectColor(projectName, explicitColor = null) {
     if (explicitColor) return explicitColor;
     const raw = (projectName || "").trim();
     if (!raw) return "#3b82f6";
@@ -80,6 +80,22 @@ const Dashboard = {
     let hash = 0;
     for (let i = 0; i < raw.length; i++) hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
     return palette[hash % palette.length];
+  },
+
+  getProjectColor(projectName, explicitColor = null) {
+    const rawColor = this.getRawProjectColor(projectName, explicitColor);
+    if (typeof App !== "undefined" && App.getAccessibleAccentColor) {
+      return App.getAccessibleAccentColor(rawColor);
+    }
+    return rawColor;
+  },
+
+  renderProjectTagHtml(projectName, explicitColor = null, extraStyle = "") {
+    if (!projectName) return "";
+    const rawColor = this.getRawProjectColor(projectName, explicitColor);
+    const safeColor = this.getProjectColor(projectName, rawColor);
+    const styleStr = `--tag-color:${this.escapeHtml(safeColor)};${extraStyle ? " " + extraStyle : ""}`;
+    return `<span class="project-tag" data-raw-tag-color="${this.escapeHtml(rawColor)}" style="${styleStr}">${this.escapeHtml(projectName)}</span>`;
   },
 
   _daySwipeTimer: null,
@@ -804,7 +820,8 @@ const Dashboard = {
     App.showToast("All panels visible");
   },
 
-  async refresh() {
+  async refresh(options = {}) {
+    const skipLockedSnapshot = Boolean(options && options.skipLockedSnapshotRerender);
     this.updateDateNavigatorUI();
     const refreshDate = this.selectedDate;
     await Promise.all([
@@ -814,7 +831,7 @@ const Dashboard = {
       this.loadDailyOrder(),
       this.checkUnorganized(),
       this.loadProductivityStats(),
-      this.loadSnapshotBriefing()
+      this.loadSnapshotBriefing({ skipRerender: skipLockedSnapshot })
     ]);
     if (this.selectedDate === refreshDate) {
       this.reconcileDailyOrderTitles();
@@ -824,7 +841,9 @@ const Dashboard = {
     this.updateProgressRing();
     this.adjustPanelScaling();
     this.applyPanelFilter();
-    this.applySnapshotLockUI();
+    if (!skipLockedSnapshot) {
+      this.applySnapshotLockUI();
+    }
     if (typeof EveningDebrief !== "undefined") EveningDebrief.updateDebriefButtonState();
     App.renderIcons();
   },
@@ -1285,12 +1304,14 @@ const Dashboard = {
                data-drag-id="${t.id}" data-drag-type="task" data-drag-tier="focus"
                ondragstart="${isLockedDay ? 'return false;' : 'Dashboard.onBriefingRowDragStart(event, this)'}"
                ondragend="Dashboard.onBriefingRowDragEnd(event, this)">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
-              <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
-              <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${t.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
+            <div class="briefing-item-main">
+              <span class="priority-num-badge briefing-rank-pill">${String(i+1).padStart(2, '0')}</span>
+              <div class="briefing-item-copy">
+                <span class="briefing-item-title" style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
+                ${t.project_name ? this.renderProjectTagHtml(t.project_name, t.project_color, "padding:1px 6px; font-size:10.5px;") : ''}
+              </div>
             </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+            <div class="briefing-item-side">
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
               ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}" aria-label="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="minus" style="width:12px;height:12px;"></i>' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
@@ -1339,13 +1360,15 @@ const Dashboard = {
                data-drag-id="${t.id}" data-drag-type="task" data-drag-tier="trivial"
                ondragstart="${isLockedDay ? 'return false;' : 'Dashboard.onBriefingRowDragStart(event, this)'}"
                ondragend="Dashboard.onBriefingRowDragEnd(event, this)">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
-              <span class="priority-num-badge" style="width:20px;height:20px;font-size:10px;">${String(i+1).padStart(2, '0')}</span>
-              <span style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${t.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(t.project_name)}</span>` : ''}
-              ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
+            <div class="briefing-item-main">
+              <span class="priority-num-badge briefing-rank-pill">${String(i+1).padStart(2, '0')}</span>
+              <div class="briefing-item-copy">
+                <span class="briefing-item-title" style="font-weight:500; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
+                ${t.project_name ? this.renderProjectTagHtml(t.project_name, t.project_color, "padding:1px 6px; font-size:10.5px;") : ''}
+                ${t.recurrence ? `<span class="recurrence-badge" style="padding:1px 6px; font-size:10px;">↻ Recur</span>` : ''}
+              </div>
             </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+            <div class="briefing-item-side">
               ${timeMarker.displayText ? `<span style="font-size:11px; font-family:var(--font-mono); color:${timeMarker.isOverdue ? 'var(--urgent-orange)' : 'var(--text-muted)'}; font-weight:${timeMarker.isOverdue ? '600' : '400'};">${this.escapeHtml(timeMarker.displayText)}</span>` : ''}
               ${badgeHtml}
               ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('task', ${t.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}" aria-label="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="minus" style="width:12px;height:12px;"></i>' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
@@ -1384,12 +1407,14 @@ const Dashboard = {
                data-drag-id="${e.id}" data-drag-type="event" data-drag-tier="event"
                ondragstart="${isLockedDay ? 'return false;' : 'Dashboard.onBriefingRowDragStart(event, this)'}"
                ondragend="Dashboard.onBriefingRowDragEnd(event, this)">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
-              <span style="font-size:11px; font-family:var(--font-mono); background:var(--bg-tertiary); padding:2px 6px; border-radius:4px; font-weight:700;">${timeMil}</span>
-              <span style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
-              ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(e.project_name)}</span>` : ''}
+            <div class="briefing-item-main">
+              <span class="briefing-event-time-pill">${timeMil}</span>
+              <div class="briefing-item-copy">
+                <span class="briefing-item-title" style="font-weight:600; ${isDone ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${this.escapeHtml(cleanTitle)}</span>
+                ${e.project_name ? this.renderProjectTagHtml(e.project_name, e.project_color, "padding:1px 6px; font-size:10.5px;") : ''}
+              </div>
             </div>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+            <div class="briefing-item-side">
               ${!isLockedDay ? `<button type="button" class="snapshot-quick-queue-btn ${inSeq ? 'queued' : ''}" onclick="event.stopPropagation(); Dashboard.toggleQueueFromSnapshot('event', ${e.id})" title="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}" aria-label="${inSeq ? 'Remove from Tasking Priority' : 'Add to Tasking Priority'}">${inSeq ? '<i data-lucide="minus" style="width:12px;height:12px;"></i>' : '<i data-lucide="plus" style="width:11px;height:11px;"></i> Queue'}</button>` : ''}
               ${isLockedDay ? '<span style="font-size:11px; color:var(--text-dim);" title="Past records are locked"><i data-lucide="lock" style="width:11px;height:11px;"></i></span>' : '<span style="font-size:11px; color:var(--text-dim);" title="Drag into Daily Order">⋮⋮</span>'}
             </div>
@@ -2223,7 +2248,7 @@ const Dashboard = {
   },
 
   /* --- v10.0 Lock-In Natural Language Snapshot Briefing --- */
-  async loadSnapshotBriefing() {
+  async loadSnapshotBriefing(options = {}) {
     const targetDate = this.selectedDate;
     const clientHour = new Date().getHours();
     try {
@@ -2238,7 +2263,9 @@ const Dashboard = {
       try {
         localStorage.setItem("pettr_snapshot_lock_" + targetDate, this.isSnapshotLocked ? "true" : "false");
       } catch (_) {}
-      this.applySnapshotLockUI();
+      if (!(options && options.skipRerender && this.isSnapshotLocked)) {
+        this.applySnapshotLockUI();
+      }
     } catch (err) {
       console.warn("Could not load snapshot briefing state:", err);
     }
@@ -2376,6 +2403,156 @@ const Dashboard = {
     if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
   },
 
+  recomputeSnapshotBriefingCounts() {
+    if (!this.snapshotBriefing) return;
+    const b = this.snapshotBriefing;
+    const focusItems = b.focus_items || [];
+    const trivialItems = b.trivial_items || [];
+    const eventsItems = b.events || [];
+    const queue = b.priority_queue || [];
+    const focusPending = focusItems.filter(x => !x.completed);
+    const trivialPending = trivialItems.filter(x => !x.completed);
+    const eventsPending = eventsItems.filter(x => !x.completed);
+    const queuedPending = queue.filter(x => !x.completed);
+    const focusOverdue = focusPending.filter(x => x.is_overdue).length;
+    const trivialOverdue = trivialPending.filter(x => x.is_overdue).length;
+    const totalCompleted = (focusItems.length - focusPending.length) + (trivialItems.length - trivialPending.length) + (eventsItems.length - eventsPending.length);
+
+    b.counts = {
+      ...(b.counts || {}),
+      focus_pending: focusPending.length,
+      focus_completed: focusItems.length - focusPending.length,
+      focus_overdue: focusOverdue,
+      trivial_pending: trivialPending.length,
+      trivial_completed: trivialItems.length - trivialPending.length,
+      trivial_overdue: trivialOverdue,
+      events_pending: eventsPending.length,
+      queued_pending: queuedPending.length,
+      overdue_total: focusOverdue + trivialOverdue,
+      total_pending: focusPending.length + trivialPending.length + eventsPending.length,
+      total_completed: totalCompleted,
+      total_items: focusItems.length + trivialItems.length + eventsItems.length
+    };
+  },
+
+  animateSnapshotRowCompletion(entityType, entityId, isCompleted) {
+    const listEl = document.getElementById("snapshotUnifiedQueueList");
+    if (!listEl) return false;
+
+    const targetRow = listEl.querySelector(`.snapshot-unified-row[data-snap-type="${entityType}"][data-snap-id="${entityId}"]`);
+    if (!targetRow) return false;
+
+    // 1. Capture FIRST positions of all rows for FLIP animation
+    const rowsBefore = Array.from(listEl.querySelectorAll(".snapshot-unified-row"));
+    const firstRects = new Map();
+    rowsBefore.forEach(r => firstRects.set(r, r.getBoundingClientRect()));
+
+    // 2. Toggle completed state & strike-through animation cleanly in-place
+    targetRow.classList.toggle("completed", Boolean(isCompleted));
+    targetRow.classList.remove("is-striking");
+    if (isCompleted) {
+      void targetRow.offsetWidth;
+      targetRow.classList.add("is-striking");
+    }
+
+    // Hide/show task Focus button gracefully
+    const focusBtn = targetRow.querySelector(".snapshot-unified-focus-btn");
+    if (focusBtn) {
+      focusBtn.style.display = isCompleted ? "none" : "";
+    }
+
+    // 3. Reorder DOM smoothly: active rows first, completed retired rows at bottom
+    if (isCompleted) {
+      const firstCompleted = Array.from(listEl.querySelectorAll(".snapshot-unified-row.completed")).find(r => r !== targetRow);
+      if (firstCompleted) {
+        listEl.insertBefore(targetRow, firstCompleted);
+      } else {
+        listEl.appendChild(targetRow);
+      }
+    } else {
+      const firstCompleted = listEl.querySelector(".snapshot-unified-row.completed");
+      if (firstCompleted) {
+        listEl.insertBefore(targetRow, firstCompleted);
+      } else {
+        listEl.appendChild(targetRow);
+      }
+    }
+
+    // 4. Re-index active rows (1, 2, 3...) and retire completed rows (check icon, no number)
+    let activeRank = 0;
+    const rowsAfter = Array.from(listEl.querySelectorAll(".snapshot-unified-row"));
+    rowsAfter.forEach(r => {
+      const rankEl = r.querySelector(".snapshot-unified-rank");
+      if (!rankEl) return;
+      if (r.classList.contains("completed")) {
+        rankEl.classList.add("is-retired");
+        rankEl.title = "Completed";
+        rankEl.innerHTML = `<i data-lucide="check" style="width:13px;height:13px;"></i>`;
+      } else {
+        activeRank += 1;
+        rankEl.classList.remove("is-retired");
+        rankEl.title = `Priority #${activeRank}`;
+        rankEl.textContent = String(activeRank);
+      }
+    });
+
+    // 5. Capture LAST rects and run smooth FLIP slide
+    rowsAfter.forEach(r => {
+      const first = firstRects.get(r);
+      if (!first) return;
+      const last = r.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        r.style.transition = "none";
+        r.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+        r.style.willChange = "transform";
+      }
+    });
+
+    void listEl.offsetHeight;
+    requestAnimationFrame(() => {
+      rowsAfter.forEach(r => {
+        if (!r.style.transform) return;
+        r.style.transition = "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)";
+        r.style.transform = "translate3d(0, 0, 0)";
+        const clearFlip = () => {
+          r.style.transition = "";
+          r.style.transform = "";
+          r.style.willChange = "";
+        };
+        r.addEventListener("transitionend", clearFlip, { once: true });
+        setTimeout(clearFlip, 460);
+      });
+    });
+
+    // 6. Update in-place tally numbers & remaining/done counters without regenerating Snapshot
+    const b = this.snapshotBriefing || this.buildLocalSnapshotFallback();
+    const c = b.counts || {};
+    const setStat = (key, val) => {
+      const el = document.querySelector(`[data-snap-stat="${key}"]`);
+      if (el && val !== undefined) el.textContent = String(val);
+    };
+    setStat("focus", c.focus_pending ?? 0);
+    setStat("trivial", c.trivial_pending ?? 0);
+    setStat("events", c.events_pending ?? 0);
+    setStat("overdue", c.overdue_total ?? 0);
+    setStat("priority", c.queued_pending ?? 0);
+    setStat("done", c.total_completed ?? 0);
+
+    const remEl = document.getElementById("snapshotQueueRemainingLabel");
+    if (remEl) {
+      remEl.textContent = `${activeRank} of ${rowsAfter.length} remaining`;
+    }
+    const doneRatioEl = document.getElementById("snapshotDoneRatioLabel");
+    if (doneRatioEl && c.total_items !== undefined) {
+      doneRatioEl.textContent = `${c.total_completed || 0}/${c.total_items} DONE`;
+    }
+
+    if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+    return true;
+  },
+
   async toggleSnapshotItemStatus(entityType, entityId, isCompleted) {
     if (this.isPastDay() || this.isDaySealed(this.selectedDate)) {
       App.showToast("Cannot modify locked historical records.", true);
@@ -2393,18 +2570,36 @@ const Dashboard = {
         });
       };
       updateBucket(this.snapshotBriefing.priority_queue);
+      if (Array.isArray(this.snapshotBriefing.priority_queue)) {
+        const active = this.snapshotBriefing.priority_queue.filter(q => !q.completed);
+        const retired = this.snapshotBriefing.priority_queue.filter(q => q.completed);
+        this.snapshotBriefing.priority_queue = [...active, ...retired];
+      }
       if (entityType === "event") {
         updateBucket(this.snapshotBriefing.events);
       } else {
         updateBucket(this.snapshotBriefing.focus_items);
         updateBucket(this.snapshotBriefing.trivial_items);
       }
+      this.recomputeSnapshotBriefingCounts();
     }
-    this.renderLockedSnapshotView();
+
+    // Reorder local dailyOrder cleanly so active items lead and retired items move to the bottom
+    if (Array.isArray(this.dailyOrder) && this.dailyOrder.length > 0) {
+      const activeOrder = this.dailyOrder.filter(d => !d.completed);
+      const retiredOrder = this.dailyOrder.filter(d => d.completed);
+      this.dailyOrder = [...activeOrder, ...retiredOrder];
+    }
+
+    const animatedInPlace = this.isSnapshotLocked && this.animateSnapshotRowCompletion(entityType, entityId, isCompleted);
+    if (!animatedInPlace) {
+      this.renderLockedSnapshotView();
+    }
+
     if (entityType === "event") {
-      await this.toggleEventStatus(entityId, isCompleted);
+      await this.toggleEventStatus(entityId, isCompleted, { silentSnapshot: animatedInPlace });
     } else {
-      await this.toggleTaskStatus(entityId, isCompleted);
+      await this.toggleTaskStatus(entityId, isCompleted, { silentSnapshot: animatedInPlace });
     }
   },
 
@@ -2745,25 +2940,27 @@ const Dashboard = {
     const isLockedDay = this.isPastDay() || this.isDaySealed(this.selectedDate);
 
     const tallyItems = [
-      { label: "Focus", value: counts.focus_pending || 0, tone: "accent" },
-      { label: "Trivial", value: counts.trivial_pending || 0, tone: "neutral" },
-      { label: "Events", value: counts.events_pending || 0, tone: "neutral" }
+      { key: "focus", label: "Focus", value: counts.focus_pending || 0, tone: "accent" },
+      { key: "trivial", label: "Trivial", value: counts.trivial_pending || 0, tone: "neutral" },
+      { key: "events", label: "Events", value: counts.events_pending || 0, tone: "neutral" }
     ];
     if ((counts.overdue_total || 0) > 0) {
-      tallyItems.push({ label: "Overdue", value: counts.overdue_total, tone: "alert" });
+      tallyItems.push({ key: "overdue", label: "Overdue", value: counts.overdue_total, tone: "alert" });
     } else if ((counts.queued_pending || 0) > 0) {
-      tallyItems.push({ label: "Priority", value: counts.queued_pending, tone: "accent" });
+      tallyItems.push({ key: "priority", label: "Priority", value: counts.queued_pending, tone: "accent" });
     } else if ((counts.projects_total || 0) > 0) {
-      tallyItems.push({ label: "Projects", value: counts.projects_total, tone: "neutral" });
+      tallyItems.push({ key: "projects", label: "Projects", value: counts.projects_total, tone: "neutral" });
     } else {
-      tallyItems.push({ label: "Done", value: counts.total_completed || 0, tone: "done" });
+      tallyItems.push({ key: "done", label: "Done", value: counts.total_completed || 0, tone: "done" });
     }
 
     const renderQueueRow = (it, idx) => {
       const isDone = Boolean(it.completed);
       const itype = it.type || "task";
       const isOverdue = Boolean(it.is_overdue && !isDone);
-      const rankHtml = `<span class="snapshot-unified-rank">${idx + 1}</span>`;
+      const rankHtml = isDone
+        ? `<span class="snapshot-unified-rank is-retired" title="Completed"><i data-lucide="check" style="width:13px;height:13px;"></i></span>`
+        : `<span class="snapshot-unified-rank">${idx + 1}</span>`;
 
       let resolvedProjName = it.project_name || null;
       let resolvedProjColor = it.project_color || null;
@@ -2788,8 +2985,7 @@ const Dashboard = {
       if (isOverdue) metaBits.push(`<span class="snapshot-meta-alert">Overdue</span>`);
       if (it.time || it.time_label) metaBits.push(`<span class="font-mono">${this.escapeHtml(it.time || it.time_label)}</span>`);
       if (resolvedProjName) {
-        const projColor = this.getProjectColor(resolvedProjName, resolvedProjColor);
-        metaBits.push(`<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)}; padding:1px 6px; font-size:10.5px;">${this.escapeHtml(resolvedProjName)}</span>`);
+        metaBits.push(this.renderProjectTagHtml(resolvedProjName, resolvedProjColor, "padding:1px 6px; font-size:10.5px;"));
       }
       if (it.tier) {
         const tierLabel = it.tier === "focus" ? "Focus" : (it.tier === "trivial" ? "Trivial" : "Event");
@@ -2797,14 +2993,14 @@ const Dashboard = {
       }
 
       return `
-        <div class="snapshot-unified-row snapshot-coalesce ${isDone ? 'completed' : ''}">
+        <div class="snapshot-unified-row snapshot-coalesce ${isDone ? 'completed' : ''}" data-snap-type="${itype}" data-snap-id="${it.id}">
           <div class="snapshot-unified-row-main">
             ${rankHtml}
             <input type="checkbox" class="snapshot-unified-checkbox" ${isDone ? 'checked' : ''} ${isLockedDay ? 'disabled' : ''}
                    onclick="event.stopPropagation()" onchange="Dashboard.toggleSnapshotItemStatus('${itype}', ${it.id}, this.checked)"
                    title="${isLockedDay ? 'Past day items are locked' : 'Check off item'}">
             <div class="snapshot-unified-row-copy">
-              <div class="snapshot-unified-item-title">${this.tokenizeParticleText(it.title || "")}</div>
+              <div class="snapshot-unified-item-title"><span class="snapshot-title-strike-wrap">${this.tokenizeParticleText(it.title || "")}</span></div>
               ${metaBits.length > 0 ? `<div class="snapshot-unified-item-meta">${metaBits.join('<span class="snapshot-meta-dot">·</span>')}</div>` : ''}
             </div>
           </div>
@@ -2812,8 +3008,8 @@ const Dashboard = {
             <button type="button" class="action-icon-btn snapshot-unified-notes-btn" onclick="event.stopPropagation(); Notes.openEventNote(${it.id}, ${App.escapeJsAttr(it.title || 'Event')}, ${App.escapeJsAttr(resolvedProjName || '')})" title="Create & open Notes linked to this event" aria-label="Create note for event">
               <i data-lucide="notebook-pen" style="width:13px;height:13px;"></i> <span>Notes</span>
             </button>
-          ` : ((!isDone && itype === "task" && !isLockedDay) ? `
-            <button type="button" class="action-icon-btn snapshot-unified-focus-btn" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Deep Work Focus Sprint" aria-label="Start Focus Sprint">
+          ` : ((itype === "task" && !isLockedDay) ? `
+            <button type="button" class="action-icon-btn snapshot-unified-focus-btn" style="${isDone ? 'display:none;' : ''}" onclick="Dashboard.launchLockedFocusTask(${it.id})" title="Start Deep Work Focus Sprint" aria-label="Start Focus Sprint">
               <i data-lucide="play" class="snapshot-focus-play-icon" style="width:14px;height:14px;"></i>
             </button>
           ` : '')}
@@ -2821,7 +3017,10 @@ const Dashboard = {
       `;
     };
 
-    const queue = b.priority_queue || [];
+    const rawQueue = b.priority_queue || [];
+    const activeQueue = rawQueue.filter(q => !q.completed);
+    const retiredQueue = rawQueue.filter(q => q.completed);
+    const queue = [...activeQueue, ...retiredQueue];
     const focusList = b.focus_items || [];
     const eventsList = b.events || [];
     const trivialList = b.trivial_items || [];
@@ -2869,7 +3068,7 @@ const Dashboard = {
           <div class="snapshot-unified-tally snapshot-coalesce" aria-label="Briefing summary counters">
             ${tallyItems.map(t => `
               <div class="snapshot-tally-cell is-${t.tone}">
-                <span class="snapshot-tally-num">${t.value}</span>
+                <span class="snapshot-tally-num" data-snap-stat="${t.key}">${t.value}</span>
                 <span class="snapshot-tally-label">${this.escapeHtml(t.label)}</span>
               </div>
             `).join("")}
@@ -2880,11 +3079,11 @@ const Dashboard = {
           <section class="snapshot-unified-section snapshot-stream-wide">
             <div class="snapshot-unified-section-header snapshot-coalesce">
               <span>Tasking Priority</span>
-              <span class="snapshot-unified-section-count">${counts.queued_pending || 0} of ${queue.length} remaining</span>
+              <span class="snapshot-unified-section-count" id="snapshotQueueRemainingLabel">${activeQueue.length} of ${queue.length} remaining</span>
             </div>
             ${queue.length > 0 ? `
-              <div class="snapshot-unified-list ${queue.length >= 3 ? 'snapshot-unified-list--grid' : ''}">
-                ${queue.map((it, idx) => renderQueueRow(it, idx)).join("")}
+              <div class="snapshot-unified-list ${queue.length >= 3 ? 'snapshot-unified-list--grid' : ''}" id="snapshotUnifiedQueueList">
+                ${activeQueue.map((it, idx) => renderQueueRow(it, idx)).join("")}${retiredQueue.map((it, idx) => renderQueueRow(it, idx)).join("")}
               </div>
             ` : `
               <div class="snapshot-queue-empty-note snapshot-coalesce">
@@ -2912,7 +3111,7 @@ const Dashboard = {
         <footer class="snapshot-unified-tail snapshot-coalesce">
           <div class="snapshot-tail-left">
             <div class="snapshot-tail-specs">
-              <span class="snapshot-tail-spec font-mono">${completedItems}/${totalItems} DONE</span>
+              <span class="snapshot-tail-spec font-mono" id="snapshotDoneRatioLabel">${completedItems}/${totalItems} DONE</span>
             </div>
             <div class="snapshot-tail-caption">// ${this.escapeHtml(endNotice)} //</div>
           </div>
@@ -3215,8 +3414,7 @@ const Dashboard = {
 
       let projectHtml = "";
       if (task.project_name) {
-        const projColor = this.getProjectColor(task.project_name, task.project_color);
-        projectHtml = `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)};">${this.escapeHtml(task.project_name)}</span>`;
+        projectHtml = this.renderProjectTagHtml(task.project_name, task.project_color);
       }
 
       let remindersHtml = "";
@@ -3279,7 +3477,8 @@ const Dashboard = {
     });
   },
 
-  async toggleTaskStatus(taskId, isCompleted) {
+  async toggleTaskStatus(taskId, isCompleted, options = {}) {
+    const silentSnapshot = Boolean(options && options.silentSnapshot);
     if (this.isPastDay()) {
       App.showToast("Cannot modify locked historical records.", true);
       return;
@@ -3302,13 +3501,13 @@ const Dashboard = {
         await this.refresh();
         return;
       }
-      App.showToast(isCompleted ? "Task completed! Marked with strikethrough." : "Task reopened.");
+      App.showToast(isCompleted ? "Task completed!" : "Task reopened.");
       this.syncLocalEntityStatus("task", taskId, isCompleted);
       if (this.dailyOrder && this.dailyOrder.some(item => (item.type === "task" || !item.type) && String(item.id) === String(taskId))) {
         this.renderDailyOrder();
         await this.saveDailyOrder();
       }
-      await this.refresh();
+      await this.refresh({ skipLockedSnapshotRerender: silentSnapshot });
       if (typeof Timeline !== "undefined") Timeline.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
@@ -3403,7 +3602,7 @@ const Dashboard = {
           </div>
           <div class="task-body" onclick="${isPast ? '' : `EntityModal.open('event', ${e.id})`}">
             <div class="task-title" style="${isCompleted ? 'text-decoration: line-through; color: var(--text-dim);' : ''}">${this.escapeHtml(e.title)}</div>
-            ${e.project_name ? `<span class="project-tag" style="--tag-color:${this.escapeHtml(projColor)};">${this.escapeHtml(e.project_name)}</span>` : ''}
+            ${e.project_name ? this.renderProjectTagHtml(e.project_name, e.project_color) : ''}
           </div>
           ${isPast ? '<span style="font-size:11px; color:var(--text-dim);"><i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Locked</span>' : ''}
         `;
@@ -3414,7 +3613,8 @@ const Dashboard = {
     }
   },
 
-  async toggleEventStatus(eventId, isCompleted) {
+  async toggleEventStatus(eventId, isCompleted, options = {}) {
+    const silentSnapshot = Boolean(options && options.silentSnapshot);
     if (this.isPastDay()) {
       App.showToast("Cannot modify locked historical records.", true);
       return;
@@ -3443,7 +3643,7 @@ const Dashboard = {
         this.renderDailyOrder();
         await this.saveDailyOrder();
       }
-      await this.refresh();
+      await this.refresh({ skipLockedSnapshotRerender: silentSnapshot });
       if (typeof Timeline !== "undefined") Timeline.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
@@ -3530,7 +3730,7 @@ const Dashboard = {
     };
 
     const focusLabel = isModal ? "🎯 Focus Task" : "🎯 Focus";
-    const trivialLabel = isModal ? "⚡ Trivial Errands" : "⚡ Trivial";
+    const trivialLabel = isModal ? "⚡ Trivial Tasks" : "⚡ Trivial";
     const editLabel = isModal ? "✏️ Edit Details" : "✏️ Edit";
     const editOnclick = isModal
       ? `event.stopPropagation(); const um = document.getElementById('unorganizedModal'); if (um) um.dataset.wasOpen = 'true'; Dashboard.closeUnorganizedModal(); EntityModal.open('unorganized', ${item.id});`
