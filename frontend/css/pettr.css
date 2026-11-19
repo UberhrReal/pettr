@@ -26,6 +26,10 @@
   --recurrence-purple-bg: rgba(139, 92, 246, 0.08);
   --focus-indigo: #6366F1;
   --focus-indigo-bg: rgba(99, 102, 241, 0.08);
+  --flow-base: #2563EB;
+  --flow-mid: #0284C7;
+  --flow-bright: #38BDF8;
+  --flow-glow: rgba(37, 99, 235, 0.40);
 
   --card-border: rgba(0, 0, 0, 0.08);
   --card-border-hover: rgba(0, 0, 0, 0.16);
@@ -80,6 +84,10 @@
   --urgent-orange: #EA580C;
   --normal-green: #059669;
   --focus-indigo: #D97706;
+  --flow-base: #D97706;
+  --flow-mid: #F97316;
+  --flow-bright: #FBBF24;
+  --flow-glow: rgba(245, 158, 11, 0.44);
   
   --card-border: rgba(42, 23, 19, 0.09);
   --card-border-hover: rgba(234, 88, 12, 0.28);
@@ -117,6 +125,10 @@
   --urgent-orange: #FB7185;
   --normal-green: #34D399;
   --focus-indigo: #FBBF24;
+  --flow-base: #D97706;
+  --flow-mid: #F59E0B;
+  --flow-bright: #FDE68A;
+  --flow-glow: rgba(251, 191, 36, 0.50);
   
   --card-border: rgba(251, 191, 36, 0.20);
   --card-border-hover: rgba(251, 191, 36, 0.44);
@@ -147,6 +159,10 @@
   --text-muted: #A1A1AA;
   --text-dim: #71717A;
   --text-inverse: #08080A;
+  --flow-base: #6366F1;
+  --flow-mid: #818CF8;
+  --flow-bright: #67E8F9;
+  --flow-glow: rgba(129, 140, 248, 0.48);
   
   --card-border: rgba(255, 255, 255, 0.11);
   --card-border-hover: rgba(255, 255, 255, 0.24);
@@ -11594,23 +11610,26 @@ body {
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="start"] {
-  opacity: 1;
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.78), rgba(56, 189, 248, 0.96));
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.55), 0 2px 14px rgba(99, 102, 241, 0.34);
+  opacity: 0.88;
+  color: var(--flow-mid);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--flow-base) 72%, transparent), var(--flow-mid));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--flow-glow) 72%, transparent), 0 1px 12px color-mix(in srgb, var(--flow-glow) 45%, transparent);
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="momentum"] {
-  opacity: 1;
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.85), rgba(245, 158, 11, 0.95), rgba(251, 191, 36, 1));
-  box-shadow: 0 0 14px rgba(251, 191, 36, 0.62), 0 2px 18px rgba(245, 158, 11, 0.38);
+  opacity: 0.96;
+  color: var(--flow-bright);
+  background: linear-gradient(90deg, var(--flow-base), var(--flow-mid), var(--flow-bright));
+  box-shadow: 0 0 13px color-mix(in srgb, var(--flow-glow) 92%, transparent), 0 2px 16px color-mix(in srgb, var(--flow-glow) 60%, transparent);
 }
 
 .snapshot-flow-progress-fill[data-flow-stage="complete"] {
   opacity: 1;
+  color: var(--flow-bright);
   border-radius: 0;
-  background: linear-gradient(90deg, #10b981, #34d399, #38bdf8, #34d399);
+  background: linear-gradient(90deg, var(--flow-base), var(--flow-mid), var(--flow-bright), var(--flow-mid));
   background-size: 220% 100%;
-  box-shadow: 0 0 16px rgba(52, 211, 153, 0.72), 0 3px 22px rgba(16, 185, 129, 0.42);
+  box-shadow: 0 0 16px var(--flow-glow), 0 3px 22px color-mix(in srgb, var(--flow-glow) 75%, transparent);
   animation: flowGlowComplete 3.4s ease-in-out infinite;
 }
 

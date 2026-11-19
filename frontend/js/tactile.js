@@ -436,11 +436,21 @@ const TactileFX = {
     this.playQueueClear();
     if (typeof App !== "undefined" && App.haptic) App.haptic("medium");
 
+    const mode = (typeof WaveCanvas !== "undefined" && WaveCanvas.getThemeMode)
+      ? WaveCanvas.getThemeMode()
+      : (document.documentElement.getAttribute("data-theme") || "light");
+    const themePalettes = {
+      dark: ["#6366F1", "#818CF8", "#67E8F9", "#A5B4FC"],
+      evening: ["#D97706", "#F59E0B", "#FBBF24", "#FDE68A"],
+      morning: ["#D97706", "#F97316", "#FBBF24", "#FB7185"],
+      light: ["#2563EB", "#0284C7", "#38BDF8", "#60A5FA"]
+    };
+    const palette = themePalettes[mode] || themePalettes.light;
+
     const rect = el ? el.getBoundingClientRect() : null;
     if (rect && !this.prefersReducedMotion()) {
-      // Sweeping ribbon of translucent motes along the glowing top progress bar
+      // Sweeping ribbon of theme-cohesive translucent motes along the glowing top progress bar
       const steps = 4;
-      const palette = ["#34d399", "#38bdf8", "#fbbf24", "#a78bfa"];
       for (let i = 0; i < steps; i++) {
         setTimeout(() => {
           const px = rect.left + rect.width * (0.14 + (i / (steps - 1)) * 0.72);
@@ -455,7 +465,7 @@ const TactileFX = {
         kind: "queue_clear",
         x: rect ? rect.left + rect.width * 0.5 : window.innerWidth * 0.5,
         y: rect ? rect.top + 40 : window.innerHeight * 0.25,
-        color: "#34d399"
+        color: palette[1]
       });
     }
   },

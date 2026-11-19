@@ -4246,6 +4246,8 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     assert '.snapshot-flow-progress-fill[data-flow-stage="start"]' in css
     assert '.snapshot-flow-progress-fill[data-flow-stage="momentum"]' in css
     assert '.snapshot-flow-progress-fill[data-flow-stage="complete"]' in css
+    assert "--flow-base:" in css and "--flow-bright:" in css and "--flow-glow:" in css
+    assert "var(--flow-base)" in css and "var(--flow-bright)" in css
     assert "@keyframes snapshotLockSheen" in css
     assert ".daily-order-slots-list.is-drop-active" in css
     assert ".snapshot-unified-row.is-swiping" in css
