@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=11.6">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=12.0">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -111,12 +111,39 @@
             <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Solar Cycle (Morning, Afternoon, Evening, Dark)" aria-label="Auto Theme"><i data-lucide="sun-moon"></i></button>
             <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light / Afternoon Mode" aria-label="Light Theme"><i data-lucide="sun"></i></button>
             <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode" aria-label="Dark Theme"><i data-lucide="moon"></i></button>
-            <button class="theme-btn" id="themeBtnSliderToggle" onclick="App.toggleThemeSlider()" title="Time of Day Theme Slider" aria-label="Theme Slider"><i data-lucide="sliders"></i></button>
+            <button class="theme-btn" id="themeBtnSliderToggle" onclick="App.toggleThemeSlider()" title="Theme Worlds &amp; Time of Day" aria-label="Theme Worlds and Time of Day"><i data-lucide="sliders"></i></button>
           </div>
           <div id="themeSliderDrawer" class="theme-slider-drawer" style="display: none;">
             <div class="theme-slider-header">
+              <span class="theme-drawer-section-title">Theme World</span>
+              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()" aria-label="Close theme drawer"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
+            </div>
+            <div class="world-selector-grid" id="worldSelectorGrid" role="group" aria-label="Select theme world">
+              <button type="button" class="world-selector-card active" data-world-option="nature" onclick="App.setWorld('nature')" aria-pressed="true">
+                <span class="world-card-swatch is-nature" aria-hidden="true"><i data-lucide="mountain"></i></span>
+                <span class="world-card-copy">
+                  <span class="world-card-name">Nature</span>
+                  <span class="world-card-sub">Diurnal Skies</span>
+                </span>
+              </button>
+              <button type="button" class="world-selector-card" data-world-option="gateway" onclick="App.setWorld('gateway')" aria-pressed="false">
+                <span class="world-card-swatch is-gateway" aria-hidden="true"><i data-lucide="rocket"></i></span>
+                <span class="world-card-copy">
+                  <span class="world-card-name">Gateway</span>
+                  <span class="world-card-sub">Launch Complex</span>
+                </span>
+              </button>
+              <button type="button" class="world-selector-card" data-world-option="deep-blue" onclick="App.setWorld('deep-blue')" aria-pressed="false">
+                <span class="world-card-swatch is-deep-blue" aria-hidden="true"><i data-lucide="waves"></i></span>
+                <span class="world-card-copy">
+                  <span class="world-card-name">Deep Blue</span>
+                  <span class="world-card-sub">Ocean Station</span>
+                </span>
+              </button>
+            </div>
+            <div class="theme-drawer-divider"></div>
+            <div class="theme-slider-header" style="margin-bottom: 6px;">
               <span id="themeSliderLabel" class="theme-slider-label">Solar Time: 12:00 · Afternoon</span>
-              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
             </div>
             <input type="range" id="themeHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)">
             <div class="theme-slider-ticks">
@@ -2529,21 +2556,23 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=11.6"></script>
-  <script src="/static/js/app.js?v=11.6"></script>
-  <script src="/static/js/drag_drop.js?v=11.6"></script>
-  <script src="/static/js/wave_canvas.js?v=11.6"></script>
-  <script src="/static/js/tactile.js?v=11.6"></script>
-  <script src="/static/js/entity_modal.js?v=11.6"></script>
-  <script src="/static/js/timeline.js?v=11.6"></script>
-  <script src="/static/js/mindmap.js?v=11.6"></script>
-  <script src="/static/js/dashboard.js?v=11.6"></script>
-  <script src="/static/js/exploded.js?v=11.6"></script>
-  <script src="/static/js/notes.js?v=11.6"></script>
-  <script src="/static/js/history.js?v=11.6"></script>
-  <script src="/static/js/command_palette.js?v=11.6"></script>
-  <script src="/static/js/focus_cockpit.js?v=11.6"></script>
-  <script src="/static/js/evening_debrief.js?v=11.6"></script>
-  <script src="/static/js/horace_chat.js?v=11.6"></script>
+  <script src="/static/js/pin_lock.js?v=12.0"></script>
+  <script src="/static/js/app.js?v=12.0"></script>
+  <script src="/static/js/drag_drop.js?v=12.0"></script>
+  <script src="/static/js/world_gateway.js?v=12.0"></script>
+  <script src="/static/js/world_deepblue.js?v=12.0"></script>
+  <script src="/static/js/wave_canvas.js?v=12.0"></script>
+  <script src="/static/js/tactile.js?v=12.0"></script>
+  <script src="/static/js/entity_modal.js?v=12.0"></script>
+  <script src="/static/js/timeline.js?v=12.0"></script>
+  <script src="/static/js/mindmap.js?v=12.0"></script>
+  <script src="/static/js/dashboard.js?v=12.0"></script>
+  <script src="/static/js/exploded.js?v=12.0"></script>
+  <script src="/static/js/notes.js?v=12.0"></script>
+  <script src="/static/js/history.js?v=12.0"></script>
+  <script src="/static/js/command_palette.js?v=12.0"></script>
+  <script src="/static/js/focus_cockpit.js?v=12.0"></script>
+  <script src="/static/js/evening_debrief.js?v=12.0"></script>
+  <script src="/static/js/horace_chat.js?v=12.0"></script>
 </body>
 </html>

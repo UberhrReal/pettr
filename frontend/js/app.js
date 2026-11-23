@@ -386,6 +386,72 @@ const App = {
       .replace(/\u2029/g, "\\u2029");
   },
 
+  getWorld() {
+    const attr = document.documentElement.getAttribute("data-world");
+    if (attr === "nature" || attr === "gateway" || attr === "deep-blue") return attr;
+    try {
+      const saved = localStorage.getItem("pettr_theme_world");
+      if (saved === "nature" || saved === "gateway" || saved === "deep-blue") return saved;
+    } catch (_) {}
+    return "nature";
+  },
+
+  applyEffectiveWorld(world) {
+    const valid = (world === "gateway" || world === "deep-blue") ? world : "nature";
+    document.documentElement.setAttribute("data-world", valid);
+    if (document.body) {
+      document.body.setAttribute("data-world", valid);
+    }
+    this.syncWorldSelectorUI(valid);
+
+    if (typeof WaveCanvas !== "undefined") {
+      try {
+        if (!WaveCanvas.ctx) {
+          WaveCanvas.init();
+        } else {
+          WaveCanvas.draw(0.016);
+        }
+      } catch (e) {}
+    }
+
+    if (typeof requestAnimationFrame !== "undefined") {
+      requestAnimationFrame(() => {
+        this.updateTabIndicator(true);
+        this.refreshAccessibleProjectTags();
+      });
+    } else {
+      this.refreshAccessibleProjectTags();
+    }
+  },
+
+  setWorld(world, notify = true) {
+    const valid = (world === "gateway" || world === "deep-blue") ? world : "nature";
+    try {
+      localStorage.setItem("pettr_theme_world", valid);
+    } catch (_) {}
+    this.applyEffectiveWorld(valid);
+
+    if (notify) {
+      const labels = {
+        nature: "Nature",
+        gateway: "Gateway (Spaceport)",
+        "deep-blue": "Deep Blue (Underwater)"
+      };
+      this.haptic("light");
+      this.showToast(`Theme world: ${labels[valid] || valid}`, 1800);
+    }
+    this.renderIcons();
+  },
+
+  syncWorldSelectorUI(activeWorld = null) {
+    const current = activeWorld || this.getWorld();
+    document.querySelectorAll(".world-selector-card[data-world-option]").forEach(btn => {
+      const isMatch = btn.dataset.worldOption === current;
+      btn.classList.toggle("active", isMatch);
+      btn.setAttribute("aria-pressed", isMatch ? "true" : "false");
+    });
+  },
+
   applyEffectiveTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     if (document.body) {
@@ -397,7 +463,7 @@ const App = {
         if (!WaveCanvas.ctx) {
           WaveCanvas.init();
         } else {
-          WaveCanvas.draw();
+          WaveCanvas.draw(0.016);
         }
       } catch (e) {}
     }
@@ -413,6 +479,9 @@ const App = {
   },
 
   initTheme() {
+    const savedWorld = localStorage.getItem("pettr_theme_world") || "nature";
+    this.applyEffectiveWorld(savedWorld);
+
     const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
     if (savedMode === "slider") {
       const savedHour = parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10);
@@ -482,12 +551,17 @@ const App = {
     const isShown = drawer.style.display !== "none";
     drawer.style.display = isShown ? "none" : "block";
     if (!isShown) {
-      const currentHour = new Date().getHours();
+      this.syncWorldSelectorUI();
+      const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
+      const currentHour = savedMode === "slider"
+        ? parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10)
+        : new Date().getHours();
       const slider = document.getElementById("themeHourSlider");
       if (slider) {
         slider.value = currentHour;
         this.updateThemeSliderLabel(currentHour);
       }
+      this.renderIcons();
     }
   },
 

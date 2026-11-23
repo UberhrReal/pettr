@@ -69,6 +69,26 @@ const WaveCanvas = {
     return mode === "dark" || mode === "evening";
   },
 
+  getWorldMode() {
+    const docWorld = document.documentElement.getAttribute("data-world");
+    const bodyWorld = document.body ? document.body.getAttribute("data-world") : null;
+    const current = docWorld || bodyWorld;
+    if (current === "nature" || current === "gateway" || current === "deep-blue") {
+      return current;
+    }
+    try {
+      const stored = localStorage.getItem("pettr_theme_world");
+      if (stored === "nature" || stored === "gateway" || stored === "deep-blue") {
+        return stored;
+      }
+    } catch (_) {}
+    return "nature";
+  },
+
+  _boundVisibility: null,
+  _lastFrameTs: 0,
+  _dpr: 1,
+
   init() {
     this.canvas = document.getElementById("bgWaveCanvas");
     if (!this.canvas) return;
@@ -80,32 +100,98 @@ const WaveCanvas = {
     }
 
     this.resize();
-    window.removeEventListener("resize", this._boundResize);
+    if (this._boundResize) window.removeEventListener("resize", this._boundResize);
     this._boundResize = () => this.resize();
     window.addEventListener("resize", this._boundResize);
-    this.animate();
+
+    // Battery optimisation: pause animation completely when browser tab is hidden
+    if (this._boundVisibility) document.removeEventListener("visibilitychange", this._boundVisibility);
+    this._boundVisibility = () => {
+      if (document.hidden) {
+        if (this.animationId) {
+          cancelAnimationFrame(this.animationId);
+          this.animationId = null;
+        }
+      } else if (!this.animationId) {
+        this._lastFrameTs = performance.now();
+        this.animate(this._lastFrameTs);
+      }
+    };
+    document.addEventListener("visibilitychange", this._boundVisibility);
+
+    this._lastFrameTs = performance.now();
+    this.animate(this._lastFrameTs);
   },
 
   resize() {
     if (!this.canvas) return;
-    this.width = this.canvas.width = window.innerWidth;
-    this.height = this.canvas.height = window.innerHeight;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // Smart DPR cap: 1.0 on mobile (saves ~60-75% GPU fill-rate behind glass), 1.5 max on desktop
+    const dpr = Math.min(window.devicePixelRatio || 1, w < 768 ? 1.0 : 1.5);
+    this._dpr = dpr;
+    this.width = w;
+    this.height = h;
+    this.canvas.width = Math.max(1, Math.round(w * dpr));
+    this.canvas.height = Math.max(1, Math.round(h * dpr));
+    this.canvas.style.width = `${w}px`;
+    this.canvas.style.height = `${h}px`;
+    if (this.ctx) {
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     this.stars = [];
+    if (typeof WorldGateway !== "undefined") WorldGateway.cacheKey = "";
+    if (typeof WorldDeepBlue !== "undefined") WorldDeepBlue.cacheKey = "";
   },
 
-  animate() {
-    this.step += 0.008; // Smooth fluid propagation
-    this.draw();
-    this.animationId = requestAnimationFrame(() => this.animate());
+  animate(ts) {
+    if (document.hidden) {
+      this.animationId = null;
+      return;
+    }
+    const now = typeof ts === "number" ? ts : performance.now();
+    const minInterval = this.width < 768 ? 33 : 22; // ~30fps mobile / ~45fps desktop for battery life
+    const elapsedMs = now - (this._lastFrameTs || now);
+
+    if (elapsedMs >= minInterval || !this._lastFrameTs) {
+      const dt = Math.min(0.05, Math.max(0.012, (elapsedMs || 22) / 1000));
+      this._lastFrameTs = now;
+      this.step += 0.008 * (dt * 60); // Consistent fluid propagation regardless of refresh rate
+      this.draw(dt);
+    }
+
+    const reducedMotion = Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (reducedMotion) {
+      this.animationId = null;
+      return;
+    }
+    this.animationId = requestAnimationFrame((nextTs) => this.animate(nextTs));
   },
 
-  draw() {
+  draw(dt = 0.016) {
     if (!this.ctx) return;
     const ctx = this.ctx;
-    const w = this.width;
-    const h = this.height;
+    const w = this.width || window.innerWidth;
+    const h = this.height || window.innerHeight;
+    if (this._dpr && ctx.setTransform) {
+      ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
+    }
 
     const mode = this.getThemeMode();
+    const world = this.getWorldMode();
+
+    // Delegate cleanly to alternate World renderers when selected
+    if (world === "gateway" && typeof WorldGateway !== "undefined") {
+      WorldGateway.draw(ctx, w, h, mode, dt, this.step);
+      this.updateAndDrawActivityRipples(ctx, w, h, mode);
+      return;
+    }
+    if (world === "deep-blue" && typeof WorldDeepBlue !== "undefined") {
+      WorldDeepBlue.draw(ctx, w, h, mode, dt, this.step);
+      this.updateAndDrawActivityRipples(ctx, w, h, mode);
+      return;
+    }
+
     const isDark = (mode === "dark" || mode === "evening");
 
     // Clear off-theme ambient particle engines so nothing lingers across theme transitions
@@ -1073,7 +1159,17 @@ const WaveCanvas = {
     const reducedMotion = Boolean(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     if (reducedMotion) return;
 
-    // 2. Theme-authentic reactive atmospheric phenomenon
+    const world = this.getWorldMode();
+    if (world === "gateway" && typeof WorldGateway !== "undefined") {
+      WorldGateway.pulseActivity({ kind, x: rx, y: ry, color });
+      return;
+    }
+    if (world === "deep-blue" && typeof WorldDeepBlue !== "undefined") {
+      WorldDeepBlue.pulseActivity({ kind, x: rx, y: ry, color });
+      return;
+    }
+
+    // 2. Theme-authentic reactive atmospheric phenomenon (Nature)
     if (mode === "dark") {
       this.auroraBoost = Math.min(1.4, this.auroraBoost + (isMajor ? 0.95 : 0.55));
       const meteorCount = kind === "queue_clear" ? 3 : (kind === "finalise" ? 2 : 1);

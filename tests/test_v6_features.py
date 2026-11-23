@@ -3839,10 +3839,10 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
     # Static cache-busters bumped to v11.2
-    assert "pettr.css?v=11.6" in index_html
-    assert "dashboard.js?v=11.6" in index_html
-    assert "entity_modal.js?v=11.6" in index_html
-    assert "app.js?v=11.6" in index_html
+    assert "pettr.css?v=12.0" in index_html
+    assert "dashboard.js?v=12.0" in index_html
+    assert "entity_modal.js?v=12.0" in index_html
+    assert "app.js?v=12.0" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=11.6" in index_html
-    assert "timeline.js?v=11.6" in index_html
+    assert "history.js?v=12.0" in index_html
+    assert "timeline.js?v=12.0" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4029,9 +4029,9 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
     # Cache busters bumped to v11.2
-    assert "pettr.css?v=11.6" in index_html
-    assert "dashboard.js?v=11.6" in index_html
-    assert "notes.js?v=11.6" in index_html
+    assert "pettr.css?v=12.0" in index_html
+    assert "dashboard.js?v=12.0" in index_html
+    assert "notes.js?v=12.0" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=11.6"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=12.0"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4254,6 +4254,58 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     assert ".mission-clock-progress-bar" not in css
     clock_css = css[css.index(".mission-clock-time-display {"):css.index(".mission-clock-time-display {") + 220]
     assert "font-size: 34px;" in clock_css
+
+
+def test_v12_theme_worlds_gateway_and_deep_blue():
+    """Verify v12.0 Theme World Selector (Nature, Gateway, Deep Blue), 8 new diurnal palettes, battery-optimised WaveCanvas orchestrator, and quasi-3D Gateway & Deep Blue renderers."""
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    wave_js = (root_dir / "frontend" / "js" / "wave_canvas.js").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Scripts & World Selector UI in index.html
+    assert '<script src="/static/js/world_gateway.js?v=12.0"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=12.0"></script>' in index_html
+    assert 'id="worldSelectorGrid"' in index_html
+    assert 'data-world-option="nature"' in index_html
+    assert 'data-world-option="gateway"' in index_html
+    assert 'data-world-option="deep-blue"' in index_html
+    assert "Gateway" in index_html and "Deep Blue" in index_html
+
+    # 2. Two-axis CSS palettes for all 8 new themes (Gateway x4, Deep Blue x4)
+    for selector in [
+        '[data-world="gateway"]',
+        '[data-world="gateway"][data-theme="morning"]',
+        '[data-world="gateway"][data-theme="evening"]',
+        '[data-world="gateway"][data-theme="dark"]',
+        '[data-world="deep-blue"]',
+        '[data-world="deep-blue"][data-theme="morning"]',
+        '[data-world="deep-blue"][data-theme="evening"]',
+        '[data-world="deep-blue"][data-theme="dark"]',
+        ".world-selector-grid",
+        ".world-selector-card.active"
+    ]:
+        assert selector in css, f"Missing CSS selector: {selector}"
+
+    # 3. App world persistence & synchronization
+    for token in ["getWorld()", "setWorld(", "applyEffectiveWorld(", "syncWorldSelectorUI(", "pettr_theme_world", 'setAttribute("data-world"']:
+        assert token in app_js, f"Missing {token} in app.js"
+
+    # 4. Battery-optimised WaveCanvas orchestrator
+    for token in ["getWorldMode()", "visibilitychange", "document.hidden", "WorldGateway.draw(", "WorldDeepBlue.draw(", "WorldGateway.pulseActivity(", "WorldDeepBlue.pulseActivity("]:
+        assert token in wave_js, f"Missing {token} in wave_canvas.js"
+
+    # 5. Gateway (Space) quasi-3D launch complex renderer
+    for token in ["ensureStaticCache(", "_drawLatticeTower(", "_updateAndDrawRocket(", "_updateAndDrawSpaceplane(", "_updateAndDrawDawnFog(", "chute_rollout", "armClose", "taxi", "plumeParticles"]:
+        assert token in gateway_js, f"Missing {token} in world_gateway.js"
+
+    # 6. Deep Blue (Underwater) research station renderer
+    for token in ["ensureStaticCache(", "_drawResearchStation(", "_updateAndDrawFarLife(", "_updateAndDrawSubmersible(", "_updateAndDrawROVs(", "_updateAndDrawNearLife(", "docking", "beamAngle", "sonarRings"]:
+        assert token in deepblue_js, f"Missing {token} in world_deepblue.js"
+
 
 
 

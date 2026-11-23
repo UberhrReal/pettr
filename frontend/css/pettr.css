@@ -11829,3 +11829,301 @@ body {
     animation: none;
   }
 }
+
+/* ==========================================================================
+   v12.0 Theme World Selector & Two-Axis Diurnal Palettes (Gateway & Deep Blue)
+   ========================================================================== */
+
+.theme-slider-drawer {
+  min-width: 322px;
+}
+
+.theme-slider-drawer .theme-slider-ticks {
+  gap: 6px;
+}
+
+.theme-slider-drawer .theme-slider-ticks span {
+  white-space: nowrap;
+  font-size: 9.5px;
+}
+
+.theme-drawer-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.theme-drawer-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--glass-edge) 75%, transparent);
+  margin: 10px 0;
+}
+
+.world-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.world-selector-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--glass-edge) 85%, transparent);
+  background: var(--glass-sheet-subtle);
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.world-selector-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--glass-edge-hover);
+  background: color-mix(in srgb, var(--focus-indigo) 8%, var(--glass-sheet-subtle));
+}
+
+.world-selector-card.active {
+  border-color: var(--focus-indigo);
+  background: color-mix(in srgb, var(--focus-indigo) 14%, var(--glass-sheet-subtle));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--focus-indigo) 40%, transparent), 0 6px 16px -6px color-mix(in srgb, var(--focus-indigo) 38%, transparent);
+}
+
+.world-card-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+.world-card-swatch svg {
+  width: 15px;
+  height: 15px;
+}
+
+.world-card-swatch.is-nature {
+  background: linear-gradient(135deg, #f59e0b 0%, #3b82f6 55%, #10b981 100%);
+}
+
+.world-card-swatch.is-gateway {
+  background: linear-gradient(135deg, #0f172a 0%, #334155 52%, #f97316 100%);
+}
+
+.world-card-swatch.is-deep-blue {
+  background: linear-gradient(135deg, #0284c7 0%, #0d9488 52%, #082f49 100%);
+}
+
+.world-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.world-card-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.15;
+}
+
+.world-card-sub {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- World 2: Space ("Gateway") Diurnal Palettes --- */
+
+/* Gateway · Afternoon / Light (Crisp High-Altitude Cobalt & Titanium) */
+[data-world="gateway"] {
+  --bg-primary: #EDF4FC;
+  --bg-secondary: #E3ECF7;
+  --bg-tertiary: #D7E3F0;
+  --accent-cyan: #0284C7;
+  --accent-blue: #1D4ED8;
+  --focus-indigo: #2563EB;
+  --focus-indigo-bg: rgba(37, 99, 235, 0.09);
+  --glass-sheet: rgba(246, 250, 255, 0.48);
+  --glass-sheet-subtle: rgba(241, 247, 254, 0.32);
+  --glass-sheet-elevated: rgba(248, 251, 255, 0.78);
+  --glass-edge: rgba(255, 255, 255, 0.78);
+  --glass-edge-hover: rgba(37, 99, 235, 0.42);
+  --flow-base: #1D4ED8;
+  --flow-mid: #0284C7;
+  --flow-bright: #38BDF8;
+  --flow-glow: rgba(2, 132, 199, 0.44);
+}
+
+/* Gateway · Morning / Dawn (Atmospheric Rose-Steel & Tungsten Sun) */
+[data-world="gateway"][data-theme="morning"] {
+  --bg-primary: #F7EEE8;
+  --bg-secondary: #EFE3DC;
+  --bg-tertiary: #E5D6CE;
+  --accent-cyan: #0284C7;
+  --accent-blue: #EA580C;
+  --focus-indigo: #D97706;
+  --focus-indigo-bg: rgba(217, 119, 6, 0.10);
+  --glass-sheet: rgba(255, 248, 244, 0.48);
+  --glass-sheet-subtle: rgba(255, 244, 238, 0.32);
+  --glass-sheet-elevated: rgba(255, 249, 245, 0.80);
+  --glass-edge: rgba(255, 238, 228, 0.82);
+  --glass-edge-hover: rgba(234, 88, 12, 0.44);
+  --flow-base: #C2410C;
+  --flow-mid: #F97316;
+  --flow-bright: #FCD34D;
+  --flow-glow: rgba(249, 115, 22, 0.46);
+}
+
+/* Gateway · Evening / Dusk (Launchpad Twilight Copper & Slate) */
+[data-world="gateway"][data-theme="evening"] {
+  --bg-primary: #171522;
+  --bg-secondary: #201C2C;
+  --bg-card: #241F31;
+  --bg-tertiary: #2E273D;
+  --text-main: #F8FAFC;
+  --text-muted: #FDE68A;
+  --text-dim: #B8A9C9;
+  --accent-cyan: #38BDF8;
+  --accent-blue: #F59E0B;
+  --focus-indigo: #F59E0B;
+  --focus-indigo-bg: rgba(245, 158, 11, 0.12);
+  --glass-sheet: rgba(26, 22, 36, 0.48);
+  --glass-sheet-subtle: rgba(38, 32, 52, 0.34);
+  --glass-sheet-elevated: rgba(24, 20, 34, 0.80);
+  --glass-edge: rgba(251, 191, 36, 0.24);
+  --glass-edge-hover: rgba(249, 115, 22, 0.52);
+  --flow-base: #EA580C;
+  --flow-mid: #F59E0B;
+  --flow-bright: #FDE68A;
+  --flow-glow: rgba(249, 115, 22, 0.52);
+}
+
+/* Gateway · Night / Dark (Orbital Obsidian & Telemetry Cyan) */
+[data-world="gateway"][data-theme="dark"] {
+  --bg-primary: #060913;
+  --bg-secondary: #0D1322;
+  --bg-card: #111829;
+  --bg-tertiary: #192238;
+  --accent-cyan: #38BDF8;
+  --accent-blue: #60A5FA;
+  --focus-indigo: #38BDF8;
+  --focus-indigo-bg: rgba(56, 189, 248, 0.12);
+  --glass-sheet: rgba(13, 19, 34, 0.48);
+  --glass-sheet-subtle: rgba(255, 255, 255, 0.048);
+  --glass-sheet-elevated: rgba(12, 18, 32, 0.80);
+  --glass-edge: rgba(148, 163, 184, 0.22);
+  --glass-edge-hover: rgba(56, 189, 248, 0.45);
+  --flow-base: #0284C7;
+  --flow-mid: #38BDF8;
+  --flow-bright: #E0F2FE;
+  --flow-glow: rgba(56, 189, 248, 0.52);
+}
+
+/* --- World 3: Underwater ("Deep Blue") Diurnal Palettes --- */
+
+/* Deep Blue · Afternoon / Light (Sunlit Cerulean Crystal Shallows) */
+[data-world="deep-blue"] {
+  --bg-primary: #DFF3FA;
+  --bg-secondary: #D0ECF6;
+  --bg-tertiary: #C1E3F0;
+  --text-main: #0C2434;
+  --text-muted: #2C536A;
+  --text-dim: #527B93;
+  --accent-cyan: #0891B2;
+  --accent-blue: #0284C7;
+  --focus-indigo: #0284C7;
+  --focus-indigo-bg: rgba(2, 132, 199, 0.10);
+  --glass-sheet: rgba(242, 251, 255, 0.54);
+  --glass-sheet-subtle: rgba(234, 248, 254, 0.38);
+  --glass-sheet-elevated: rgba(245, 252, 255, 0.82);
+  --glass-edge: rgba(255, 255, 255, 0.80);
+  --glass-edge-hover: rgba(8, 145, 178, 0.45);
+  --flow-base: #0369A1;
+  --flow-mid: #0891B2;
+  --flow-bright: #22D3EE;
+  --flow-glow: rgba(8, 145, 178, 0.44);
+}
+
+/* Deep Blue · Morning / Dawn (Sunlit Turquoise-Aqua Shallows) */
+[data-world="deep-blue"][data-theme="morning"] {
+  --bg-primary: #D4F1F4;
+  --bg-secondary: #C4E9EE;
+  --bg-tertiary: #B3E0E6;
+  --text-main: #0D2930;
+  --text-muted: #2F5B65;
+  --text-dim: #53808A;
+  --accent-cyan: #0D9488;
+  --accent-blue: #0284C7;
+  --focus-indigo: #0D9488;
+  --focus-indigo-bg: rgba(13, 148, 136, 0.10);
+  --glass-sheet: rgba(242, 253, 252, 0.54);
+  --glass-sheet-subtle: rgba(232, 250, 249, 0.38);
+  --glass-sheet-elevated: rgba(245, 254, 253, 0.82);
+  --glass-edge: rgba(255, 255, 255, 0.80);
+  --glass-edge-hover: rgba(13, 148, 136, 0.45);
+  --flow-base: #0F766E;
+  --flow-mid: #14B8A6;
+  --flow-bright: #5EEAD4;
+  --flow-glow: rgba(20, 184, 166, 0.46);
+}
+
+/* Deep Blue · Evening / Twilight (Mesopelagic Indigo-Teal & Warm Habitat Glow) */
+[data-world="deep-blue"][data-theme="evening"] {
+  --bg-primary: #091D33;
+  --bg-secondary: #0E2742;
+  --bg-card: #112D4A;
+  --bg-tertiary: #17385B;
+  --text-main: #F0F9FF;
+  --text-muted: #BAE6FD;
+  --text-dim: #7DD3FC;
+  --accent-cyan: #2DD4BF;
+  --accent-blue: #38BDF8;
+  --focus-indigo: #2DD4BF;
+  --focus-indigo-bg: rgba(45, 212, 191, 0.12);
+  --glass-sheet: rgba(12, 34, 58, 0.48);
+  --glass-sheet-subtle: rgba(20, 52, 84, 0.34);
+  --glass-sheet-elevated: rgba(10, 29, 50, 0.80);
+  --glass-edge: rgba(125, 211, 252, 0.24);
+  --glass-edge-hover: rgba(45, 212, 191, 0.48);
+  --flow-base: #0D9488;
+  --flow-mid: #2DD4BF;
+  --flow-bright: #99F6E4;
+  --flow-glow: rgba(45, 212, 191, 0.50);
+}
+
+/* Deep Blue · Night / Dark (Abyssal Midnight Trench & Bioluminescent Cyan) */
+[data-world="deep-blue"][data-theme="dark"] {
+  --bg-primary: #020812;
+  --bg-secondary: #061224;
+  --bg-card: #08182E;
+  --bg-tertiary: #0E223D;
+  --text-main: #ECFEFF;
+  --text-muted: #A5F3FC;
+  --text-dim: #67E8F9;
+  --accent-cyan: #22D3EE;
+  --accent-blue: #38BDF8;
+  --focus-indigo: #22D3EE;
+  --focus-indigo-bg: rgba(34, 211, 238, 0.12);
+  --glass-sheet: rgba(6, 20, 38, 0.50);
+  --glass-sheet-subtle: rgba(34, 211, 238, 0.055);
+  --glass-sheet-elevated: rgba(5, 16, 32, 0.82);
+  --glass-edge: rgba(103, 232, 249, 0.22);
+  --glass-edge-hover: rgba(34, 211, 238, 0.48);
+  --flow-base: #0891B2;
+  --flow-mid: #22D3EE;
+  --flow-bright: #A5F3FC;
+  --flow-glow: rgba(34, 211, 238, 0.54);
+}

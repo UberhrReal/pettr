@@ -265,13 +265,21 @@ const TactileFX = {
     const mode = (typeof WaveCanvas !== "undefined" && WaveCanvas.getThemeMode)
       ? WaveCanvas.getThemeMode()
       : (document.documentElement.getAttribute("data-theme") || "light");
+    const rootStyle = (typeof getComputedStyle === "function" && document.documentElement)
+      ? getComputedStyle(document.documentElement)
+      : null;
+    const cssFlowBase = rootStyle ? rootStyle.getPropertyValue("--flow-base").trim() : "";
+    const cssFlowMid = rootStyle ? rootStyle.getPropertyValue("--flow-mid").trim() : "";
+    const cssFlowBright = rootStyle ? rootStyle.getPropertyValue("--flow-bright").trim() : "";
     const themePalettes = {
       dark: ["#6366F1", "#818CF8", "#67E8F9", "#A5B4FC"],
       evening: ["#D97706", "#F59E0B", "#FBBF24", "#FDE68A"],
       morning: ["#D97706", "#F97316", "#FBBF24", "#FB7185"],
       light: ["#2563EB", "#0284C7", "#38BDF8", "#60A5FA"]
     };
-    const palette = themePalettes[mode] || themePalettes.light;
+    const palette = (cssFlowBase && cssFlowMid && cssFlowBright)
+      ? [cssFlowBase, cssFlowMid, cssFlowBright, cssFlowMid]
+      : (themePalettes[mode] || themePalettes.light);
 
     const rect = el ? el.getBoundingClientRect() : null;
     const bottomY = rect ? Math.min(window.innerHeight - 10, Math.max(24, rect.bottom - 4)) : window.innerHeight * 0.72;
