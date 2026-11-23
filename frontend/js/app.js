@@ -462,6 +462,7 @@ const App = {
   enterScenicMode({ fromCockpit = false } = {}) {
     this.isScenicMode = true;
     this.closeThemeSlider();
+    this.closeScenicTimePopover();
     if (typeof HoraceChat !== "undefined" && HoraceChat.isOpen) {
       HoraceChat.close();
     }
@@ -469,6 +470,7 @@ const App = {
     const restoreBar = document.getElementById("scenicRestoreBar");
     if (restoreBar) restoreBar.style.display = "flex";
     this.syncWorldSelectorUI();
+    this.syncScenicTimeUI();
 
     if (typeof FocusCockpit !== "undefined") {
       if (!fromCockpit) {
@@ -484,6 +486,7 @@ const App = {
 
   exitScenicMode() {
     this.isScenicMode = false;
+    this.closeScenicTimePopover();
     document.body.classList.remove("scenic-hidden-mode");
     const restoreBar = document.getElementById("scenicRestoreBar");
     if (restoreBar) restoreBar.style.display = "none";
@@ -525,6 +528,8 @@ const App = {
         }
       } catch (e) {}
     }
+
+    this.syncScenicTimeUI(theme);
 
     if (typeof requestAnimationFrame !== "undefined") {
       requestAnimationFrame(() => {
@@ -588,12 +593,89 @@ const App = {
       this.updateThemeSliderLabel(curH);
     }
 
+    this.syncScenicTimeUI(effectiveTheme);
+
     if (notify) {
       this.haptic("light");
       this.showToast(`Theme updated: ${mode.toUpperCase()} mode active`);
     }
 
     this.renderIcons();
+  },
+
+  closeScenicTimePopover() {
+    const pop = document.getElementById("scenicTimePopover");
+    if (pop && pop.style.display !== "none") {
+      pop.style.display = "none";
+    }
+    const btn = document.getElementById("scenicTimeToggleBtn");
+    if (btn) btn.setAttribute("aria-expanded", "false");
+  },
+
+  toggleScenicTimePopover() {
+    const pop = document.getElementById("scenicTimePopover");
+    if (!pop) return;
+    const isShown = pop.style.display !== "none";
+    pop.style.display = isShown ? "none" : "block";
+    const btn = document.getElementById("scenicTimeToggleBtn");
+    if (btn) btn.setAttribute("aria-expanded", isShown ? "false" : "true");
+    if (!isShown) {
+      this.syncScenicTimeUI();
+      if (pop.querySelector("[data-lucide]")) {
+        this.renderIcons();
+      }
+    }
+  },
+
+  syncScenicTimeUI(forcedTheme = null) {
+    let savedMode = "auto";
+    let savedSliderHour = NaN;
+    try {
+      savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
+      savedSliderHour = parseInt(localStorage.getItem("pettr_theme_slider_hour") || "", 10);
+    } catch (_) {}
+
+    const effectiveTheme = forcedTheme || document.documentElement.getAttribute("data-theme") || "light";
+    const presetHours = { morning: 8, light: 13, evening: 18, dark: 23 };
+    let activeHour = new Date().getHours();
+    if (savedMode === "slider" && !isNaN(savedSliderHour)) {
+      activeHour = Math.max(0, Math.min(23, savedSliderHour));
+    } else if (savedMode !== "auto" && presetHours[effectiveTheme] !== undefined) {
+      activeHour = presetHours[effectiveTheme];
+    }
+
+    const slider = document.getElementById("scenicHourSlider");
+    if (slider) slider.value = activeHour;
+
+    const shortLabels = {
+      morning: "Dawn",
+      light: "Noon",
+      evening: "Golden",
+      dark: "Night"
+    };
+    const btnLabel = document.getElementById("scenicTimeBtnLabel");
+    if (btnLabel) {
+      btnLabel.textContent = savedMode === "auto" ? "Auto" : (shortLabels[effectiveTheme] || "Solar");
+    }
+
+    const popLabel = document.getElementById("scenicTimePopoverLabel");
+    if (popLabel) {
+      const { label } = this.getDiurnalTheme(activeHour);
+      popLabel.textContent = `Solar Time: ${String(activeHour).padStart(2, "0")}:00 · ${label}${savedMode === "auto" ? " (Auto)" : ""}`;
+    }
+
+    const autoBtn = document.getElementById("scenicThemeAutoBtn");
+    if (autoBtn) {
+      const isAuto = savedMode === "auto";
+      autoBtn.classList.toggle("active", isAuto);
+      autoBtn.setAttribute("aria-pressed", isAuto ? "true" : "false");
+    }
+
+    document.querySelectorAll(".scenic-diurnal-chip[data-scenic-diurnal]").forEach(btn => {
+      const isMatch = btn.dataset.scenicDiurnal === effectiveTheme;
+      btn.classList.toggle("active", isMatch);
+      btn.setAttribute("aria-pressed", isMatch ? "true" : "false");
+    });
   },
 
   closeThemeSlider() {
@@ -635,10 +717,10 @@ const App = {
   onThemeSliderInput(hour) {
     const h = parseInt(hour, 10);
     this.updateThemeSliderLabel(h);
-    const { theme, label } = this.getDiurnalTheme(h);
-    this.applyEffectiveTheme(theme);
+    const { theme } = this.getDiurnalTheme(h);
     localStorage.setItem("pettr_theme_mode", "slider");
     localStorage.setItem("pettr_theme_slider_hour", String(h));
+    this.applyEffectiveTheme(theme);
 
     // Deselect other preset buttons
     document.querySelectorAll(".theme-switcher-control .theme-btn").forEach(btn => {
@@ -649,6 +731,8 @@ const App = {
   setThemeHourPreset(hour) {
     const slider = document.getElementById("themeHourSlider");
     if (slider) slider.value = hour;
+    const scenicSlider = document.getElementById("scenicHourSlider");
+    if (scenicSlider) scenicSlider.value = hour;
     this.onThemeSliderInput(hour);
   },
 
@@ -1520,6 +1604,12 @@ const App = {
       return dismiss();
     }
 
+    const scenicTimePopover = document.getElementById("scenicTimePopover");
+    if (scenicTimePopover && scenicTimePopover.style.display !== "none") {
+      this.closeScenicTimePopover();
+      return dismiss();
+    }
+
     const horacePanel = document.getElementById("horacePanel");
     if (
       typeof HoraceChat !== "undefined" &&
@@ -1553,13 +1643,16 @@ const App = {
       this.handleGlobalEscape(e);
     });
 
-    // Click outside dismisses the diurnal theme slider drawer
+    // Click outside dismisses the diurnal theme slider drawer and scenic time-of-day popover
     document.addEventListener("click", (e) => {
-      const drawer = document.getElementById("themeSliderDrawer");
-      if (!drawer || drawer.style.display === "none") return;
       if (!e.target || !e.target.isConnected) return;
-      if (!e.target.closest(".theme-switcher-wrapper")) {
+      const drawer = document.getElementById("themeSliderDrawer");
+      if (drawer && drawer.style.display !== "none" && !e.target.closest(".theme-switcher-wrapper")) {
         this.closeThemeSlider();
+      }
+      const scenicPop = document.getElementById("scenicTimePopover");
+      if (scenicPop && scenicPop.style.display !== "none" && !e.target.closest(".scenic-time-wrap")) {
+        this.closeScenicTimePopover();
       }
     });
 

@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=12.1">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=12.2">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -2196,7 +2196,6 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </div>
         <div class="cockpit-header-actions">
           <button type="button" class="action-icon-btn cockpit-close-btn" onclick="FocusCockpit.minimize()" title="Collapse to Corner Cockpit"><i data-lucide="minimize-2" style="width:14px;height:14px;"></i></button>
-          <button type="button" class="action-icon-btn cockpit-close-btn" onclick="App.exitScenicMode()" title="Return to Dashboard"><i data-lucide="eye" style="width:14px;height:14px;"></i></button>
         </div>
       </div>
 
@@ -2289,6 +2288,12 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </div>
       </div>
 
+      <div class="cockpit-backdrop-deck">
+        <span class="cockpit-backdrop-label"><i data-lucide="eye" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Backdrop Frost</span>
+        <input type="range" id="cockpitBackdropSlider" class="cockpit-backdrop-slider" min="0" max="100" step="2" value="0" oninput="FocusCockpit.setBackdropIntensity(this.value)" aria-label="Background blur and dimness" title="Adjust background blur and dimness">
+        <span id="cockpitBackdropValue" class="cockpit-backdrop-value font-mono">0%</span>
+      </div>
+
       <div class="cockpit-scratchpad-section">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <label style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Scratchpad</label>
@@ -2316,6 +2321,25 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       <button type="button" class="scenic-world-dot" data-scenic-world="nature" onclick="App.setWorld('nature')" title="Nature"><i data-lucide="mountain" style="width:12px;height:12px;"></i></button>
       <button type="button" class="scenic-world-dot" data-scenic-world="gateway" onclick="App.setWorld('gateway')" title="Gateway"><i data-lucide="rocket" style="width:12px;height:12px;"></i></button>
       <button type="button" class="scenic-world-dot" data-scenic-world="deep-blue" onclick="App.setWorld('deep-blue')" title="Deep Blue"><i data-lucide="waves" style="width:12px;height:12px;"></i></button>
+    </div>
+    <div class="scenic-time-wrap">
+      <button type="button" class="scenic-time-btn" id="scenicTimeToggleBtn" onclick="event.stopPropagation(); App.toggleScenicTimePopover()" title="Time of Day &amp; Solar Lighting" aria-label="Time of Day selector" aria-expanded="false">
+        <i data-lucide="sun-moon" style="width:13px;height:13px;"></i>
+        <span id="scenicTimeBtnLabel">Auto</span>
+      </button>
+      <div id="scenicTimePopover" class="scenic-time-popover" style="display: none;" onclick="event.stopPropagation()">
+        <div class="scenic-time-popover-header">
+          <span id="scenicTimePopoverLabel" class="theme-slider-label">Solar Time: Auto</span>
+          <button type="button" class="scenic-time-auto-chip" id="scenicThemeAutoBtn" onclick="App.setTheme('auto')">Auto</button>
+        </div>
+        <input type="range" id="scenicHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)" aria-label="Solar time of day">
+        <div class="scenic-time-presets" role="group" aria-label="Time of day presets">
+          <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="morning" onclick="App.setThemeHourPreset(8)">Dawn</button>
+          <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="light" onclick="App.setThemeHourPreset(13)">Noon</button>
+          <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="evening" onclick="App.setThemeHourPreset(18)">Golden</button>
+          <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="dark" onclick="App.setThemeHourPreset(23)">Night</button>
+        </div>
+      </div>
     </div>
     <button type="button" class="scenic-restore-btn" id="scenicRestoreBtn" onclick="App.exitScenicMode()" title="Show Dashboard [Esc / Alt+Z]">
       <i data-lucide="eye" style="width:13px;height:13px;"></i>
@@ -2585,23 +2609,23 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=12.1"></script>
-  <script src="/static/js/app.js?v=12.1"></script>
-  <script src="/static/js/drag_drop.js?v=12.1"></script>
-  <script src="/static/js/world_gateway.js?v=12.1"></script>
-  <script src="/static/js/world_deepblue.js?v=12.1"></script>
-  <script src="/static/js/wave_canvas.js?v=12.1"></script>
-  <script src="/static/js/tactile.js?v=12.1"></script>
-  <script src="/static/js/entity_modal.js?v=12.1"></script>
-  <script src="/static/js/timeline.js?v=12.1"></script>
-  <script src="/static/js/mindmap.js?v=12.1"></script>
-  <script src="/static/js/dashboard.js?v=12.1"></script>
-  <script src="/static/js/exploded.js?v=12.1"></script>
-  <script src="/static/js/notes.js?v=12.1"></script>
-  <script src="/static/js/history.js?v=12.1"></script>
-  <script src="/static/js/command_palette.js?v=12.1"></script>
-  <script src="/static/js/focus_cockpit.js?v=12.1"></script>
-  <script src="/static/js/evening_debrief.js?v=12.1"></script>
-  <script src="/static/js/horace_chat.js?v=12.1"></script>
+  <script src="/static/js/pin_lock.js?v=12.2"></script>
+  <script src="/static/js/app.js?v=12.2"></script>
+  <script src="/static/js/drag_drop.js?v=12.2"></script>
+  <script src="/static/js/world_gateway.js?v=12.2"></script>
+  <script src="/static/js/world_deepblue.js?v=12.2"></script>
+  <script src="/static/js/wave_canvas.js?v=12.2"></script>
+  <script src="/static/js/tactile.js?v=12.2"></script>
+  <script src="/static/js/entity_modal.js?v=12.2"></script>
+  <script src="/static/js/timeline.js?v=12.2"></script>
+  <script src="/static/js/mindmap.js?v=12.2"></script>
+  <script src="/static/js/dashboard.js?v=12.2"></script>
+  <script src="/static/js/exploded.js?v=12.2"></script>
+  <script src="/static/js/notes.js?v=12.2"></script>
+  <script src="/static/js/history.js?v=12.2"></script>
+  <script src="/static/js/command_palette.js?v=12.2"></script>
+  <script src="/static/js/focus_cockpit.js?v=12.2"></script>
+  <script src="/static/js/evening_debrief.js?v=12.2"></script>
+  <script src="/static/js/horace_chat.js?v=12.2"></script>
 </body>
 </html>

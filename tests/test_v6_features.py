@@ -3839,10 +3839,10 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
     # Static cache-busters bumped to v11.2
-    assert "pettr.css?v=12.1" in index_html
-    assert "dashboard.js?v=12.1" in index_html
-    assert "entity_modal.js?v=12.1" in index_html
-    assert "app.js?v=12.1" in index_html
+    assert "pettr.css?v=12.2" in index_html
+    assert "dashboard.js?v=12.2" in index_html
+    assert "entity_modal.js?v=12.2" in index_html
+    assert "app.js?v=12.2" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=12.1" in index_html
-    assert "timeline.js?v=12.1" in index_html
+    assert "history.js?v=12.2" in index_html
+    assert "timeline.js?v=12.2" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4029,9 +4029,9 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
     # Cache busters bumped to v11.2
-    assert "pettr.css?v=12.1" in index_html
-    assert "dashboard.js?v=12.1" in index_html
-    assert "notes.js?v=12.1" in index_html
+    assert "pettr.css?v=12.2" in index_html
+    assert "dashboard.js?v=12.2" in index_html
+    assert "notes.js?v=12.2" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=12.1"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=12.2"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4267,8 +4267,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=12.1"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=12.1"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=12.2"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=12.2"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4317,9 +4317,9 @@ def test_v12_1_worlds_overhaul_scenic_cockpit_and_drawer_fix():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    # 1. Gateway: 3 detailed spaceplane variants, runway takeoff + hangar occlusion, full rocket lifecycle
+    # 1. Gateway: multi-variant spaceplanes, runway takeoff + hangar occlusion, full rocket lifecycle
     for token in [
-        'SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper"]',
+        'SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner"]',
         "_drawSpaceplaneModel(",
         "_drawStarTerminal(",
         "_drawArchedHangarOcclusionRoof(",
@@ -4337,7 +4337,7 @@ def test_v12_1_worlds_overhaul_scenic_cockpit_and_drawer_fix():
 
     # 2. Deep Blue: multi-wing complex, sharks (great white, hammerhead, whale shark), true whales & cargo subs
     for token in [
-        "_drawPylonLeg(",
+        "_drawSeabedFoundation(",
         "_drawPressurizedTunnel(",
         "_updateAndDrawWhales(",
         "_updateAndDrawSharks(",
@@ -4359,12 +4359,82 @@ def test_v12_1_worlds_overhaul_scenic_cockpit_and_drawer_fix():
     assert "toggleTimerFromMini()" in cockpit_js
     assert "body.scenic-hidden-mode .app-header" in css
     assert ".scenic-restore-bar {" in css
-    assert "background: transparent !important;" in css[css.index("/* Unified Transparent Backdrop"):]
+    cockpit_css_tail = css[css.index("/* Unified Transparent Backdrop"):]
+    assert "var(--cockpit-bg-dim" in cockpit_css_tail
+    assert "var(--cockpit-bg-blur" in cockpit_css_tail
 
     # 4. Theme Configuration Drawer button icon click bug fix
     assert 'onclick="event.stopPropagation(); App.toggleThemeSlider()"' in index_html
     assert "e.target.isConnected" in app_js
     assert "pointer-events: none;" in css[css.index(".theme-switcher-btn svg"):css.index(".theme-switcher-btn svg") + 180]
+
+
+def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
+    """Verify v12.2 Gateway & Deep Blue 2.5D architectural depth, stochastic realism, tug+flatbed, grounded seabed station + surface elevator, fixed shark fin silhouette, Focus Cockpit backdrop frost slider & removal of duplicate button, and Scenic Time-of-Day selector."""
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    cockpit_js = (root_dir / "frontend" / "js" / "focus_cockpit.js").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Cache-buster v12.2 across CSS & JS assets
+    assert '/static/css/pettr.css?v=12.2' in index_html
+    for asset in ["app.js?v=12.2", "focus_cockpit.js?v=12.2", "world_gateway.js?v=12.2", "world_deepblue.js?v=12.2"]:
+        assert asset in index_html, f"Missing v12.2 cache-buster for {asset}"
+
+    # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Backdrop Frost slider added
+    cockpit_section = index_html[index_html.index('id="focusCockpitModal"'):index_html.index('id="scenicRestoreBar"')]
+    assert 'title="Return to Dashboard"' not in cockpit_section
+    assert 'id="cockpitBackdropSlider"' in cockpit_section
+    assert 'id="cockpitBackdropValue"' in cockpit_section
+    for token in ["setBackdropIntensity(", "pettr_cockpit_backdrop", "--cockpit-bg-blur", "--cockpit-bg-dim"]:
+        assert token in cockpit_js, f"Missing {token} in focus_cockpit.js"
+    assert ".cockpit-backdrop-deck {" in css
+
+    # 3. Scenic Hidden View: Time-of-Day selector & popover synced with diurnal state
+    for token in [
+        'id="scenicTimeToggleBtn"',
+        'id="scenicTimePopover"',
+        'id="scenicHourSlider"',
+        'data-scenic-diurnal="morning"',
+        'data-scenic-diurnal="dark"'
+    ]:
+        assert token in index_html, f"Missing {token} in index.html"
+    for token in ["toggleScenicTimePopover(", "closeScenicTimePopover(", "syncScenicTimeUI("]:
+        assert token in app_js, f"Missing {token} in app.js"
+    assert ".scenic-time-popover {" in css
+
+    # 4. Gateway: tug+flatbed, cryo tank farm, animated sky/water, multi-craft fleet, starliner, smooth heading/lineup
+    for token in [
+        "_drawRocketTugAndFlatbed(",
+        "_drawCryoTankFarm(",
+        "_drawAnimatedSkyAndWater(",
+        "this.spaceplanes",
+        '"starliner"',
+        "_lerpAngle(",
+        "lineup_hold"
+    ]:
+        assert token in gateway_js, f"Missing Gateway v12.2 feature: {token}"
+
+    # 5. Deep Blue: no stilts, seabed-rising modules, surface supply elevator, cohesive diverse sub fleet
+    assert "_drawPylonLeg" not in deepblue_js
+    for token in [
+        "_drawSeabedFoundation(",
+        "_drawArchitecturalModule(",
+        "_drawSupplyElevatorShaft(",
+        "_updateAndDrawSupplyElevator(",
+        "_drawSubmarineModel(",
+        '"bathyscaphe"',
+        '"crew_shuttle"',
+        '"research_catamaran"',
+        '"heavy_freighter"',
+        "subHullLight",
+        "subContainers",
+        "roamingSubs"
+    ]:
+        assert token in deepblue_js, f"Missing Deep Blue v12.2 feature: {token}"
 
 
 

@@ -24,8 +24,10 @@ const FocusCockpit = {
   gainNode: null,
   currentSoundType: "none", // 'none', 'brown', 'pink', 'rain'
   volume: 0.35,
+  backdropIntensity: 0,
 
   init() {
+    this.initBackdropPreference();
     // Dismiss task picker when clicking outside
     document.addEventListener("click", (e) => {
       const picker = document.getElementById("cockpitTaskPicker");
@@ -52,6 +54,47 @@ const FocusCockpit = {
     });
   },
 
+  initBackdropPreference() {
+    let saved = 0;
+    try {
+      const raw = localStorage.getItem("pettr_cockpit_backdrop");
+      if (raw !== null && raw !== "") {
+        const parsed = parseInt(raw, 10);
+        if (!isNaN(parsed)) saved = parsed;
+      }
+    } catch (_) {}
+    this.setBackdropIntensity(saved, false);
+  },
+
+  setBackdropIntensity(val, persist = true) {
+    const pct = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+    this.backdropIntensity = pct;
+    if (persist) {
+      try {
+        localStorage.setItem("pettr_cockpit_backdrop", String(pct));
+      } catch (_) {}
+    }
+
+    const ratio = pct / 100;
+    const blurPx = (ratio * 18).toFixed(1);
+    const dimAlpha = (Math.pow(ratio, 1.15) * 0.72).toFixed(3);
+
+    const modal = document.getElementById("focusCockpitModal");
+    if (modal) {
+      modal.style.setProperty("--cockpit-bg-blur", `${blurPx}px`);
+      modal.style.setProperty("--cockpit-bg-dim", dimAlpha);
+    }
+
+    const slider = document.getElementById("cockpitBackdropSlider");
+    if (slider && slider.value !== String(pct)) {
+      slider.value = String(pct);
+    }
+    const label = document.getElementById("cockpitBackdropValue");
+    if (label) {
+      label.textContent = `${pct}%`;
+    }
+  },
+
   updateSliderVisibility() {
     const wrap = document.getElementById("cockpitDurationSliderWrap") || document.querySelector(".cockpit-duration-slider-wrap");
     if (!wrap) return;
@@ -70,6 +113,7 @@ const FocusCockpit = {
 
     if (this.isMinimized && !task) {
       this.isMinimized = false;
+      this.setBackdropIntensity(this.backdropIntensity, false);
       modal.style.display = "flex";
       document.body.classList.add("cockpit-active");
       const floating = document.getElementById("cockpitFloatingPill");
@@ -83,6 +127,7 @@ const FocusCockpit = {
     }
 
     this.isMinimized = false;
+    this.setBackdropIntensity(this.backdropIntensity, false);
     if (task) {
       this.activeTask = task;
     } else if (!this.activeTask) {
