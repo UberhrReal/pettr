@@ -63,7 +63,12 @@ const FocusCockpit = {
     const modal = document.getElementById("focusCockpitModal");
     if (!modal) return;
 
-    if (this.isMinimized) {
+    // Unified Scenic Glassmorphic Focus Mode: hide dashboard behind the glassmorphic cockpit
+    if (typeof App !== "undefined" && App.enterScenicMode) {
+      App.enterScenicMode({ fromCockpit: true });
+    }
+
+    if (this.isMinimized && !task) {
       this.isMinimized = false;
       modal.style.display = "flex";
       document.body.classList.add("cockpit-active");
@@ -77,6 +82,7 @@ const FocusCockpit = {
       return;
     }
 
+    this.isMinimized = false;
     if (task) {
       this.activeTask = task;
     } else if (!this.activeTask) {
@@ -90,6 +96,9 @@ const FocusCockpit = {
     this.updateSliderVisibility();
     this.renderSoundControls();
     this.fetchWeeklyMetrics();
+
+    const floating = document.getElementById("cockpitFloatingPill");
+    if (floating) floating.style.display = "none";
 
     modal.style.display = "flex";
     document.body.classList.add("cockpit-active");
@@ -115,12 +124,21 @@ const FocusCockpit = {
       this.toggleTaskPicker(false);
       return;
     }
-    if (this.hasStarted || this.isRunning) {
-      // Keep active sprint alive in the mini display when closing / pressing escape
+    if (this.hasStarted || this.isRunning || (typeof App !== "undefined" && App.isScenicMode)) {
+      // Collapse cleanly to the corner mini-cockpit while appreciating the scenic theme
       this.minimize();
       return;
     }
     this.stopSession();
+  },
+
+  toggleTimerFromMini() {
+    if (!this.activeTask) {
+      this.activeTask = this.resolveActiveTask();
+      this.renderTaskDetails();
+    }
+    this.toggleTimer();
+    this.updateMiniDisplays();
   },
 
   stopSession() {
@@ -139,12 +157,10 @@ const FocusCockpit = {
     this.hasStarted = false;
     this.isMinimized = false;
 
-    const floatingPill = document.getElementById("cockpitFloatingPill");
-    if (floatingPill) floatingPill.style.display = "none";
-
     document.title = "PETTR - Personal Errands, Task Tracker & Repository";
     this.updatePlayButton();
     this.updateSliderVisibility();
+    this.updateMiniDisplays();
     App.showToast("Focus sprint ended.");
     App.haptic("light");
   },
@@ -691,16 +707,33 @@ const FocusCockpit = {
     const floatingPill = document.getElementById("cockpitFloatingPill");
     const floatingDigits = document.getElementById("cockpitFloatingDigits");
     const floatingTitle = document.getElementById("cockpitFloatingTitle");
+    const floatingDot = document.getElementById("cockpitFloatingDot");
+    const miniPlayBtn = document.getElementById("cockpitMiniPlayBtn");
+    const modal = document.getElementById("focusCockpitModal");
+    const isExpanded = Boolean(modal && modal.style.display !== "none");
+    const isScenic = Boolean(typeof App !== "undefined" && App.isScenicMode);
 
     if (floatingDigits) floatingDigits.textContent = timeStr;
     if (floatingTitle) {
-      floatingTitle.textContent = (this.activeTask && this.activeTask.title) ? this.activeTask.title : "Focus";
+      floatingTitle.textContent = (this.activeTask && this.activeTask.title) ? this.activeTask.title : "Focus Cockpit";
+    }
+    if (floatingDot) {
+      floatingDot.classList.toggle("is-paused", !this.isRunning);
+    }
+    if (miniPlayBtn) {
+      const targetIcon = this.isRunning ? "pause" : "play";
+      if (miniPlayBtn.dataset.iconState !== targetIcon) {
+        miniPlayBtn.dataset.iconState = targetIcon;
+        miniPlayBtn.innerHTML = `<i data-lucide="${targetIcon}" style="width:13px;height:13px;"></i>`;
+        if (typeof App !== "undefined" && App.renderIcons) App.renderIcons();
+      }
+      miniPlayBtn.title = this.isRunning ? "Pause Focus Timer" : "Start Focus Timer";
     }
 
-    if (this.hasStarted) {
-      if (floatingPill) floatingPill.style.display = this.isMinimized ? "flex" : "none";
-    } else {
-      if (floatingPill) floatingPill.style.display = "none";
+    const shouldShowCornerDock = !isExpanded && (isScenic || (this.hasStarted && this.isMinimized));
+    if (floatingPill) {
+      floatingPill.style.display = shouldShowCornerDock ? "flex" : "none";
+      floatingPill.classList.toggle("is-scenic-dock", isScenic);
     }
   },
 

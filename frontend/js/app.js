@@ -450,6 +450,64 @@ const App = {
       btn.classList.toggle("active", isMatch);
       btn.setAttribute("aria-pressed", isMatch ? "true" : "false");
     });
+    document.querySelectorAll(".scenic-world-dot[data-scenic-world]").forEach(btn => {
+      const isMatch = btn.dataset.scenicWorld === current;
+      btn.classList.toggle("active", isMatch);
+      btn.setAttribute("aria-pressed", isMatch ? "true" : "false");
+    });
+  },
+
+  isScenicMode: false,
+
+  enterScenicMode({ fromCockpit = false } = {}) {
+    this.isScenicMode = true;
+    this.closeThemeSlider();
+    if (typeof HoraceChat !== "undefined" && HoraceChat.isOpen) {
+      HoraceChat.close();
+    }
+    document.body.classList.add("scenic-hidden-mode");
+    const restoreBar = document.getElementById("scenicRestoreBar");
+    if (restoreBar) restoreBar.style.display = "flex";
+    this.syncWorldSelectorUI();
+
+    if (typeof FocusCockpit !== "undefined") {
+      if (!fromCockpit) {
+        if (!FocusCockpit.activeTask) {
+          FocusCockpit.activeTask = FocusCockpit.resolveActiveTask();
+        }
+        FocusCockpit.updateMiniDisplays();
+      }
+    }
+    this.renderIcons();
+    if (!fromCockpit) this.haptic("light");
+  },
+
+  exitScenicMode() {
+    this.isScenicMode = false;
+    document.body.classList.remove("scenic-hidden-mode");
+    const restoreBar = document.getElementById("scenicRestoreBar");
+    if (restoreBar) restoreBar.style.display = "none";
+
+    if (typeof FocusCockpit !== "undefined") {
+      const modal = document.getElementById("focusCockpitModal");
+      if (modal && modal.style.display !== "none") {
+        modal.style.display = "none";
+        document.body.classList.remove("cockpit-active");
+        if (FocusCockpit.hasStarted || FocusCockpit.isRunning) {
+          FocusCockpit.isMinimized = true;
+        }
+      }
+      FocusCockpit.updateMiniDisplays();
+    }
+    this.haptic("light");
+  },
+
+  toggleScenicMode() {
+    if (this.isScenicMode) {
+      this.exitScenicMode();
+    } else {
+      this.enterScenicMode();
+    }
   },
 
   applyEffectiveTheme(theme) {
@@ -561,7 +619,9 @@ const App = {
         slider.value = currentHour;
         this.updateThemeSliderLabel(currentHour);
       }
-      this.renderIcons();
+      if (drawer.querySelector("[data-lucide]")) {
+        this.renderIcons();
+      }
     }
   },
 
@@ -1469,6 +1529,11 @@ const App = {
       return dismiss();
     }
 
+    if (this.isScenicMode) {
+      this.exitScenicMode();
+      return dismiss();
+    }
+
     if (typeof Dashboard !== "undefined" && Dashboard.activeFilter) {
       Dashboard.clearFilter();
       return dismiss();
@@ -1480,6 +1545,11 @@ const App = {
 
     // Global Escape key dismisses topmost open dropdown / popup / modal panel
     document.addEventListener("keydown", (e) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        this.toggleScenicMode();
+        return;
+      }
       this.handleGlobalEscape(e);
     });
 
@@ -1487,6 +1557,7 @@ const App = {
     document.addEventListener("click", (e) => {
       const drawer = document.getElementById("themeSliderDrawer");
       if (!drawer || drawer.style.display === "none") return;
+      if (!e.target || !e.target.isConnected) return;
       if (!e.target.closest(".theme-switcher-wrapper")) {
         this.closeThemeSlider();
       }

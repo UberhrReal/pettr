@@ -3839,10 +3839,10 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
     # Static cache-busters bumped to v11.2
-    assert "pettr.css?v=12.0" in index_html
-    assert "dashboard.js?v=12.0" in index_html
-    assert "entity_modal.js?v=12.0" in index_html
-    assert "app.js?v=12.0" in index_html
+    assert "pettr.css?v=12.1" in index_html
+    assert "dashboard.js?v=12.1" in index_html
+    assert "entity_modal.js?v=12.1" in index_html
+    assert "app.js?v=12.1" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=12.0" in index_html
-    assert "timeline.js?v=12.0" in index_html
+    assert "history.js?v=12.1" in index_html
+    assert "timeline.js?v=12.1" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4029,9 +4029,9 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
     # Cache busters bumped to v11.2
-    assert "pettr.css?v=12.0" in index_html
-    assert "dashboard.js?v=12.0" in index_html
-    assert "notes.js?v=12.0" in index_html
+    assert "pettr.css?v=12.1" in index_html
+    assert "dashboard.js?v=12.1" in index_html
+    assert "notes.js?v=12.1" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=12.0"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=12.1"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4267,8 +4267,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=12.0"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=12.0"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=12.1"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=12.1"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4305,6 +4305,67 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     # 6. Deep Blue (Underwater) research station renderer
     for token in ["ensureStaticCache(", "_drawResearchStation(", "_updateAndDrawFarLife(", "_updateAndDrawSubmersible(", "_updateAndDrawROVs(", "_updateAndDrawNearLife(", "docking", "beamAngle", "sonarRings"]:
         assert token in deepblue_js, f"Missing {token} in world_deepblue.js"
+
+
+def test_v12_1_worlds_overhaul_scenic_cockpit_and_drawer_fix():
+    """Verify v12.1 Gateway multi-variant spaceplanes & full rocket tow/erect/catch sequence, Deep Blue multi-wing complex + sharks/whales + cargo subs, Scenic Hide Mode + Unified Glassmorphic Focus Cockpit, and Theme Drawer icon click fix."""
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    cockpit_js = (root_dir / "frontend" / "js" / "focus_cockpit.js").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Gateway: 3 detailed spaceplane variants, runway takeoff + hangar occlusion, full rocket lifecycle
+    for token in [
+        'SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper"]',
+        "_drawSpaceplaneModel(",
+        "_drawStarTerminal(",
+        "_drawArchedHangarOcclusionRoof(",
+        "hangar_emerge",
+        "taxi_to_runway",
+        "runway_takeoff",
+        "taxi_to_hangar",
+        "tow_out",
+        "erect",
+        "arm_swing",
+        "lower_horizontal",
+        "tow_back"
+    ]:
+        assert token in gateway_js, f"Missing Gateway v12.1 feature: {token}"
+
+    # 2. Deep Blue: multi-wing complex, sharks (great white, hammerhead, whale shark), true whales & cargo subs
+    for token in [
+        "_drawPylonLeg(",
+        "_drawPressurizedTunnel(",
+        "_updateAndDrawWhales(",
+        "_updateAndDrawSharks(",
+        "_updateAndDrawCargoSub(",
+        '"great_white"',
+        '"hammerhead"',
+        '"whale_shark"',
+        "cargoSub"
+    ]:
+        assert token in deepblue_js, f"Missing Deep Blue v12.1 feature: {token}"
+
+    # 3. Scenic Hide Mode + Unified Glassmorphic Focus Cockpit
+    assert 'id="scenicModeToggleBtn"' in index_html
+    assert 'id="scenicRestoreBar"' in index_html
+    assert 'id="cockpitMiniPlayBtn"' in index_html
+    assert 'id="cockpitMiniExpandBtn"' in index_html
+    assert "enterScenicMode(" in app_js and "exitScenicMode(" in app_js
+    assert "App.enterScenicMode({ fromCockpit: true })" in cockpit_js
+    assert "toggleTimerFromMini()" in cockpit_js
+    assert "body.scenic-hidden-mode .app-header" in css
+    assert ".scenic-restore-bar {" in css
+    assert "background: transparent !important;" in css[css.index("/* Unified Transparent Backdrop"):]
+
+    # 4. Theme Configuration Drawer button icon click bug fix
+    assert 'onclick="event.stopPropagation(); App.toggleThemeSlider()"' in index_html
+    assert "e.target.isConnected" in app_js
+    assert "pointer-events: none;" in css[css.index(".theme-switcher-btn svg"):css.index(".theme-switcher-btn svg") + 180]
+
 
 
 

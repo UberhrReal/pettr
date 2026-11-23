@@ -3293,10 +3293,11 @@ body {
   user-select: none;
 }
 
-.theme-switcher-btn svg, .theme-btn svg {
+.theme-switcher-btn svg, .theme-btn svg, .action-icon-btn svg {
   width: 13px;
   height: 13px;
   stroke-width: 2;
+  pointer-events: none;
 }
 
 .theme-switcher-btn:hover, .theme-btn:hover {
@@ -12126,4 +12127,221 @@ body {
   --flow-mid: #22D3EE;
   --flow-bright: #A5F3FC;
   --flow-glow: rgba(34, 211, 238, 0.54);
+}
+
+/* ==========================================================================
+   v12.1 Scenic Hidden Dashboard Mode & Unified Glassmorphic Focus Cockpit
+   ========================================================================== */
+
+.app-header,
+.main-content {
+  transition: opacity 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.scenic-hidden-mode .app-header,
+body.scenic-hidden-mode .main-content {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-10px) scale(0.99);
+}
+
+body.scenic-hidden-mode .toast-container {
+  bottom: 96px !important;
+}
+
+/* Top-Right Frosted Scenic Restore Bar */
+.scenic-restore-bar {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 10020;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--glass-sheet) 82%, transparent);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-inset-gleam), var(--shadow-floating);
+  animation: drawerSlideDown 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scenic-world-quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+  border-right: 1px solid color-mix(in srgb, var(--glass-edge) 80%, transparent);
+}
+
+.scenic-world-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+}
+
+.scenic-world-dot svg {
+  pointer-events: none;
+}
+
+.scenic-world-dot:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--focus-indigo) 12%, transparent);
+}
+
+.scenic-world-dot.active {
+  color: var(--focus-indigo);
+  background: color-mix(in srgb, var(--focus-indigo) 16%, var(--glass-sheet-subtle));
+  border-color: color-mix(in srgb, var(--focus-indigo) 45%, transparent);
+}
+
+.scenic-restore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.15s ease;
+}
+
+.scenic-restore-btn:hover {
+  background: color-mix(in srgb, var(--focus-indigo) 14%, transparent);
+}
+
+.scenic-restore-btn:active {
+  transform: scale(0.96);
+}
+
+/* Unified Transparent Backdrop & Frosted Glassmorphic Expanded Focus Cockpit */
+.cockpit-overlay {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  pointer-events: auto;
+}
+
+.cockpit-card {
+  background: color-mix(in srgb, var(--glass-sheet) 84%, transparent) !important;
+  backdrop-filter: blur(26px) saturate(165%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(165%) !important;
+  border: 1px solid var(--glass-edge) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--glass-inset-gleam), 0 28px 68px -12px rgba(0, 0, 0, 0.36) !important;
+}
+
+.cockpit-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Upgraded Compact Corner Mini Focus Cockpit */
+.cockpit-floating-pill {
+  gap: 12px;
+  padding: 9px 12px 9px 14px;
+  border-radius: 18px !important;
+  border-left: 1px solid var(--glass-edge) !important;
+  background: color-mix(in srgb, var(--glass-sheet) 82%, transparent) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  box-shadow: var(--glass-inset-gleam), var(--shadow-floating-hover) !important;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cockpit-mini-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cockpit-mini-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cockpit-mini-digits {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.cockpit-floating-title {
+  max-width: 155px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.cockpit-live-dot.mini.is-paused {
+  background: var(--text-dim);
+  box-shadow: none;
+  animation: none;
+}
+
+.cockpit-mini-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--glass-edge) 75%, transparent);
+}
+
+.cockpit-mini-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--glass-edge) 80%, transparent);
+  background: var(--glass-sheet-subtle);
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
+}
+
+.cockpit-mini-btn svg {
+  pointer-events: none;
+}
+
+.cockpit-mini-btn:hover {
+  background: color-mix(in srgb, var(--focus-indigo) 18%, var(--glass-sheet-subtle));
+  border-color: var(--focus-indigo);
+}
+
+.cockpit-mini-btn:active {
+  transform: scale(0.92);
+}
+
+@media (max-width: 768px) {
+  .scenic-restore-bar {
+    top: calc(10px + var(--safe-top, 0px));
+    right: 10px;
+    padding: 5px 7px 5px 8px;
+  }
+
+  .scenic-restore-btn span {
+    display: none;
+  }
 }

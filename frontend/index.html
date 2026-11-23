@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=12.0">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=12.1">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -111,7 +111,7 @@
             <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Solar Cycle (Morning, Afternoon, Evening, Dark)" aria-label="Auto Theme"><i data-lucide="sun-moon"></i></button>
             <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light / Afternoon Mode" aria-label="Light Theme"><i data-lucide="sun"></i></button>
             <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode" aria-label="Dark Theme"><i data-lucide="moon"></i></button>
-            <button class="theme-btn" id="themeBtnSliderToggle" onclick="App.toggleThemeSlider()" title="Theme Worlds &amp; Time of Day" aria-label="Theme Worlds and Time of Day"><i data-lucide="sliders"></i></button>
+            <button class="theme-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="Theme Worlds &amp; Time of Day" aria-label="Theme Worlds and Time of Day"><i data-lucide="sliders"></i></button>
           </div>
           <div id="themeSliderDrawer" class="theme-slider-drawer" style="display: none;">
             <div class="theme-slider-header">
@@ -154,6 +154,7 @@
             </div>
           </div>
         </div>
+        <button class="action-icon-btn scenic-hide-btn" id="scenicModeToggleBtn" onclick="App.enterScenicMode()" title="Hide Dashboard &amp; View Theme [Alt+Z]" aria-label="Hide Dashboard"><i data-lucide="eye-off" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
         <button class="action-icon-btn lock-btn" onclick="App.logout()" title="Lock Session (Logout)" aria-label="Lock Session"><i data-lucide="lock" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
       </div>
     </div>
@@ -2193,7 +2194,10 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <span class="cockpit-badge-title">FOCUS COCKPIT</span>
           <span class="cockpit-weekly-badge font-mono" id="cockpitWeeklyHoursBadge" onclick="App.switchTab('history'); Dashboard.scrollToYourStats(); FocusCockpit.minimize();" title="Click to view Your Stats">⚡ This Week: 0.0h</span>
         </div>
-        <button class="action-icon-btn cockpit-close-btn" onclick="FocusCockpit.minimize()" title="Minimize Cockpit"><i data-lucide="minus" style="width:14px;height:14px;"></i></button>
+        <div class="cockpit-header-actions">
+          <button type="button" class="action-icon-btn cockpit-close-btn" onclick="FocusCockpit.minimize()" title="Collapse to Corner Cockpit"><i data-lucide="minimize-2" style="width:14px;height:14px;"></i></button>
+          <button type="button" class="action-icon-btn cockpit-close-btn" onclick="App.exitScenicMode()" title="Return to Dashboard"><i data-lucide="eye" style="width:14px;height:14px;"></i></button>
+        </div>
       </div>
 
       <div class="cockpit-target-banner" id="cockpitTargetBanner">
@@ -2306,11 +2310,36 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     </div>
   </div>
 
-  <!-- Focus Cockpit Floating Mini Pill (Visible when minimized with active sprint) -->
-  <div id="cockpitFloatingPill" class="cockpit-floating-pill" style="display: none;" onclick="FocusCockpit.open()" title="Focus Sprint in Progress - Click to reopen">
-    <span class="cockpit-live-dot mini"></span>
-    <span class="font-mono" id="cockpitFloatingDigits">25:00</span>
-    <span class="cockpit-floating-title" id="cockpitFloatingTitle">Focus</span>
+  <!-- Scenic Hidden Mode Top-Right Restore Bar -->
+  <div id="scenicRestoreBar" class="scenic-restore-bar" style="display: none;">
+    <div class="scenic-world-quick" role="group" aria-label="Switch scenic world">
+      <button type="button" class="scenic-world-dot" data-scenic-world="nature" onclick="App.setWorld('nature')" title="Nature"><i data-lucide="mountain" style="width:12px;height:12px;"></i></button>
+      <button type="button" class="scenic-world-dot" data-scenic-world="gateway" onclick="App.setWorld('gateway')" title="Gateway"><i data-lucide="rocket" style="width:12px;height:12px;"></i></button>
+      <button type="button" class="scenic-world-dot" data-scenic-world="deep-blue" onclick="App.setWorld('deep-blue')" title="Deep Blue"><i data-lucide="waves" style="width:12px;height:12px;"></i></button>
+    </div>
+    <button type="button" class="scenic-restore-btn" id="scenicRestoreBtn" onclick="App.exitScenicMode()" title="Show Dashboard [Esc / Alt+Z]">
+      <i data-lucide="eye" style="width:13px;height:13px;"></i>
+      <span>Show Dashboard</span>
+    </button>
+  </div>
+
+  <!-- Focus Cockpit Corner Mini-Dock (Always visible in Hidden Scenic Mode & when minimized with active sprint) -->
+  <div id="cockpitFloatingPill" class="cockpit-floating-pill" style="display: none;" onclick="FocusCockpit.open()" title="Click to expand Focus Cockpit">
+    <div class="cockpit-mini-left">
+      <span class="cockpit-live-dot mini" id="cockpitFloatingDot"></span>
+      <div class="cockpit-mini-copy">
+        <span class="cockpit-mini-digits font-mono" id="cockpitFloatingDigits">25:00</span>
+        <span class="cockpit-floating-title" id="cockpitFloatingTitle">Focus</span>
+      </div>
+    </div>
+    <div class="cockpit-mini-actions" onclick="event.stopPropagation()">
+      <button type="button" class="cockpit-mini-btn" id="cockpitMiniPlayBtn" onclick="FocusCockpit.toggleTimerFromMini()" title="Start / Pause Focus Timer" aria-label="Start or pause timer">
+        <i data-lucide="play" style="width:13px;height:13px;"></i>
+      </button>
+      <button type="button" class="cockpit-mini-btn" id="cockpitMiniExpandBtn" onclick="FocusCockpit.open()" title="Expand Focus Cockpit" aria-label="Expand Focus Cockpit">
+        <i data-lucide="maximize-2" style="width:13px;height:13px;"></i>
+      </button>
+    </div>
   </div>
 
   <!-- Evening Debrief Modal -->
@@ -2556,23 +2585,23 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=12.0"></script>
-  <script src="/static/js/app.js?v=12.0"></script>
-  <script src="/static/js/drag_drop.js?v=12.0"></script>
-  <script src="/static/js/world_gateway.js?v=12.0"></script>
-  <script src="/static/js/world_deepblue.js?v=12.0"></script>
-  <script src="/static/js/wave_canvas.js?v=12.0"></script>
-  <script src="/static/js/tactile.js?v=12.0"></script>
-  <script src="/static/js/entity_modal.js?v=12.0"></script>
-  <script src="/static/js/timeline.js?v=12.0"></script>
-  <script src="/static/js/mindmap.js?v=12.0"></script>
-  <script src="/static/js/dashboard.js?v=12.0"></script>
-  <script src="/static/js/exploded.js?v=12.0"></script>
-  <script src="/static/js/notes.js?v=12.0"></script>
-  <script src="/static/js/history.js?v=12.0"></script>
-  <script src="/static/js/command_palette.js?v=12.0"></script>
-  <script src="/static/js/focus_cockpit.js?v=12.0"></script>
-  <script src="/static/js/evening_debrief.js?v=12.0"></script>
-  <script src="/static/js/horace_chat.js?v=12.0"></script>
+  <script src="/static/js/pin_lock.js?v=12.1"></script>
+  <script src="/static/js/app.js?v=12.1"></script>
+  <script src="/static/js/drag_drop.js?v=12.1"></script>
+  <script src="/static/js/world_gateway.js?v=12.1"></script>
+  <script src="/static/js/world_deepblue.js?v=12.1"></script>
+  <script src="/static/js/wave_canvas.js?v=12.1"></script>
+  <script src="/static/js/tactile.js?v=12.1"></script>
+  <script src="/static/js/entity_modal.js?v=12.1"></script>
+  <script src="/static/js/timeline.js?v=12.1"></script>
+  <script src="/static/js/mindmap.js?v=12.1"></script>
+  <script src="/static/js/dashboard.js?v=12.1"></script>
+  <script src="/static/js/exploded.js?v=12.1"></script>
+  <script src="/static/js/notes.js?v=12.1"></script>
+  <script src="/static/js/history.js?v=12.1"></script>
+  <script src="/static/js/command_palette.js?v=12.1"></script>
+  <script src="/static/js/focus_cockpit.js?v=12.1"></script>
+  <script src="/static/js/evening_debrief.js?v=12.1"></script>
+  <script src="/static/js/horace_chat.js?v=12.1"></script>
 </body>
 </html>
