@@ -232,7 +232,21 @@ body {
   width: 100vw;
   height: 100vh;
   pointer-events: none;
+  z-index: -2;
+}
+
+/* Universal Backdrop Frost Veil (Blur & Dim applied globally over active world canvas) */
+.universal-backdrop-frost {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
   z-index: -1;
+  background: rgba(5, 8, 16, var(--backdrop-frost-dim, 0));
+  backdrop-filter: blur(var(--backdrop-frost-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--backdrop-frost-blur, 0px));
+  transition: background 140ms ease, backdrop-filter 140ms ease;
 }
 
 /* --- Typography Utilities --- */
@@ -12351,50 +12365,47 @@ body.scenic-hidden-mode .toast-container {
   background: color-mix(in srgb, var(--focus-indigo) 16%, var(--glass-sheet-subtle));
 }
 
-/* Unified Transparent Backdrop & Frosted Glassmorphic Expanded Focus Cockpit */
+/* Unified Transparent Backdrop & Frosted Glassmorphic Expanded Focus Cockpit (universal frost handled by #universalBackdropFrost) */
 .cockpit-overlay {
-  background: rgba(5, 8, 16, var(--cockpit-bg-dim, 0)) !important;
-  backdrop-filter: blur(var(--cockpit-bg-blur, 0px)) !important;
-  -webkit-backdrop-filter: blur(var(--cockpit-bg-blur, 0px)) !important;
-  transition: background 140ms ease, backdrop-filter 140ms ease;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   pointer-events: auto;
 }
 
-.cockpit-backdrop-deck {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 14px;
-  border-radius: 12px;
-  background: var(--glass-sheet-subtle);
-  border: 1px solid color-mix(in srgb, var(--glass-edge) 75%, transparent);
+.theme-frost-section {
+  padding-top: 2px;
 }
 
-.cockpit-backdrop-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-main);
-  white-space: nowrap;
-}
-
-.cockpit-backdrop-slider {
-  flex: 1;
-  min-width: 90px;
-  height: 4px;
-  accent-color: var(--accent-cyan);
-  cursor: pointer;
-}
-
-.cockpit-backdrop-value {
+.theme-frost-value {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
-  min-width: 32px;
-  text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.scenic-frost-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--glass-edge) 75%, transparent);
+}
+
+.scenic-frost-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.scenic-frost-slider {
+  flex: 1;
+  margin: 0 !important;
 }
 
 .cockpit-card {

@@ -3838,11 +3838,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v11.2
-    assert "pettr.css?v=12.2" in index_html
-    assert "dashboard.js?v=12.2" in index_html
-    assert "entity_modal.js?v=12.2" in index_html
-    assert "app.js?v=12.2" in index_html
+    # Static cache-busters bumped to v12.3
+    assert "pettr.css?v=12.3" in index_html
+    assert "dashboard.js?v=12.3" in index_html
+    assert "entity_modal.js?v=12.3" in index_html
+    assert "app.js?v=12.3" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=12.2" in index_html
-    assert "timeline.js?v=12.2" in index_html
+    assert "history.js?v=12.3" in index_html
+    assert "timeline.js?v=12.3" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4028,10 +4028,10 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
-    # Cache busters bumped to v11.2
-    assert "pettr.css?v=12.2" in index_html
-    assert "dashboard.js?v=12.2" in index_html
-    assert "notes.js?v=12.2" in index_html
+    # Cache busters bumped to v12.3
+    assert "pettr.css?v=12.3" in index_html
+    assert "dashboard.js?v=12.3" in index_html
+    assert "notes.js?v=12.3" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=12.2"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=12.3"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4267,8 +4267,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=12.2"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=12.2"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=12.3"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=12.3"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4360,8 +4360,10 @@ def test_v12_1_worlds_overhaul_scenic_cockpit_and_drawer_fix():
     assert "body.scenic-hidden-mode .app-header" in css
     assert ".scenic-restore-bar {" in css
     cockpit_css_tail = css[css.index("/* Unified Transparent Backdrop"):]
-    assert "var(--cockpit-bg-dim" in cockpit_css_tail
-    assert "var(--cockpit-bg-blur" in cockpit_css_tail
+    assert "background: transparent !important;" in cockpit_css_tail
+    assert "backdrop-filter: none !important;" in cockpit_css_tail
+    assert "var(--backdrop-frost-dim" in css
+    assert "var(--backdrop-frost-blur" in css
 
     # 4. Theme Configuration Drawer button icon click bug fix
     assert 'onclick="event.stopPropagation(); App.toggleThemeSlider()"' in index_html
@@ -4370,7 +4372,7 @@ def test_v12_1_worlds_overhaul_scenic_cockpit_and_drawer_fix():
 
 
 def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
-    """Verify v12.2 Gateway & Deep Blue 2.5D architectural depth, stochastic realism, tug+flatbed, grounded seabed station + surface elevator, fixed shark fin silhouette, Focus Cockpit backdrop frost slider & removal of duplicate button, and Scenic Time-of-Day selector."""
+    """Verify v12.2 Gateway & Deep Blue 2.5D architectural depth, stochastic realism, tug+flatbed, grounded seabed station + surface elevator, fixed shark fin silhouette, universal backdrop frost & removal of duplicate cockpit button, and Scenic Time-of-Day selector."""
     root_dir = Path(__file__).resolve().parent.parent
     index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
     css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
@@ -4379,19 +4381,22 @@ def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    # 1. Cache-buster v12.2 across CSS & JS assets
-    assert '/static/css/pettr.css?v=12.2' in index_html
-    for asset in ["app.js?v=12.2", "focus_cockpit.js?v=12.2", "world_gateway.js?v=12.2", "world_deepblue.js?v=12.2"]:
-        assert asset in index_html, f"Missing v12.2 cache-buster for {asset}"
+    # 1. Cache-buster v12.3 across CSS & JS assets
+    assert '/static/css/pettr.css?v=12.3' in index_html
+    for asset in ["app.js?v=12.3", "focus_cockpit.js?v=12.3", "world_gateway.js?v=12.3", "world_deepblue.js?v=12.3"]:
+        assert asset in index_html, f"Missing v12.3 cache-buster for {asset}"
 
-    # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Backdrop Frost slider added
+    # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Universal Backdrop Frost moved to Theme Configuration Panel
     cockpit_section = index_html[index_html.index('id="focusCockpitModal"'):index_html.index('id="scenicRestoreBar"')]
     assert 'title="Return to Dashboard"' not in cockpit_section
-    assert 'id="cockpitBackdropSlider"' in cockpit_section
-    assert 'id="cockpitBackdropValue"' in cockpit_section
-    for token in ["setBackdropIntensity(", "pettr_cockpit_backdrop", "--cockpit-bg-blur", "--cockpit-bg-dim"]:
-        assert token in cockpit_js, f"Missing {token} in focus_cockpit.js"
-    assert ".cockpit-backdrop-deck {" in css
+    assert 'id="cockpitBackdropSlider"' not in cockpit_section
+    assert 'id="universalBackdropFrost"' in index_html
+    assert 'id="themeBackdropSlider"' in index_html
+    assert 'id="themeBackdropValue"' in index_html
+    for token in ["setBackdropFrost(", "pettr_backdrop_frost", "--backdrop-frost-blur", "--backdrop-frost-dim"]:
+        assert token in app_js, f"Missing {token} in app.js"
+    assert "setBackdropIntensity(" in cockpit_js
+    assert ".universal-backdrop-frost {" in css
 
     # 3. Scenic Hidden View: Time-of-Day selector & popover synced with diurnal state
     for token in [
@@ -4435,6 +4440,58 @@ def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
         "roamingSubs"
     ]:
         assert token in deepblue_js, f"Missing Deep Blue v12.2 feature: {token}"
+
+
+def test_v12_3_universal_frost_gateway_realism_and_deepblue_tubes():
+    """Verify v12.3 universal Backdrop Frost in Theme Configuration Panel, Gateway arc-length kinematics + ships + helicopters + non-overlapping terminal taxiways, and Deep Blue horizontal clear-tube modules + buoyant-trim arc-length submarines."""
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Universal Backdrop Frost slider inside Theme Configuration Panel & Scenic popover (removed from Focus Cockpit)
+    drawer_section = index_html[index_html.index('id="themeSliderDrawer"'):index_html.index('id="scenicModeToggleBtn"')]
+    assert 'id="themeBackdropSlider"' in drawer_section
+    assert 'oninput="App.setBackdropFrost(this.value)"' in drawer_section
+    assert 'id="scenicBackdropSlider"' in index_html
+    assert 'id="universalBackdropFrost"' in index_html
+    assert "initBackdropFrost()" in app_js and "setBackdropFrost(" in app_js
+    assert ".theme-frost-section {" in css and ".universal-backdrop-frost {" in css
+
+    # 2. Gateway: true arc-length velocity-continuous kinematics, ships & patrolling helicopters, terminal occlusion
+    for token in [
+        "_buildArcPath(",
+        "_sampleArcPath(",
+        "_updateAndDrawShips(",
+        "_updateAndDrawHelicopters(",
+        "_drawHelipad(",
+        "_drawStarTerminalSpireOcclusion(",
+        "this.ships",
+        "this.helicopters",
+        "heliPad1",
+        "heliPad2",
+        "V_TAXI"
+    ]:
+        assert token in gateway_js, f"Missing Gateway v12.3 feature: {token}"
+
+    # 3. Deep Blue: horizontal satellite wings connected by transparent acrylic glass tubes + arc-length level-trim subs
+    assert "_drawPylonLeg" not in deepblue_js
+    for token in [
+        "_drawClearGlassTube(",
+        "_drawSatelliteWing(",
+        "_drawWindowBand(",
+        "_drawExteriorFloodlight(",
+        "_buildArcPath(",
+        "_sampleArcPath(",
+        "_computeBuoyantTransform(",
+        "westWingX",
+        "eastWingX",
+        "farWestX",
+        "farEastX"
+    ]:
+        assert token in deepblue_js, f"Missing Deep Blue v12.3 feature: {token}"
 
 
 

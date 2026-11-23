@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=12.2">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=12.3">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -18,6 +18,8 @@
 <body>
   <!-- Pseudo-3D Top-Down Propagating Wave Background Canvas -->
   <canvas id="bgWaveCanvas"></canvas>
+  <!-- Universal Backdrop Frost Layer (Blur & Dim applied globally over active world canvas) -->
+  <div id="universalBackdropFrost" class="universal-backdrop-frost" aria-hidden="true"></div>
 
   <!-- 4-Digit PIN Lock Screen Overlay -->
   <div id="pinLockOverlay" class="pin-overlay">
@@ -151,6 +153,14 @@
               <span onclick="App.setThemeHourPreset(13)">13:00 Noon</span>
               <span onclick="App.setThemeHourPreset(18)">18:00 Golden Hour</span>
               <span onclick="App.setThemeHourPreset(23)">23:00 Night</span>
+            </div>
+            <div class="theme-drawer-divider"></div>
+            <div class="theme-frost-section">
+              <div class="theme-slider-header" style="margin-bottom: 4px;">
+                <span class="theme-drawer-section-title" style="display:inline-flex;align-items:center;gap:5px;"><i data-lucide="eye" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Backdrop Frost</span>
+                <span id="themeBackdropValue" class="theme-frost-value font-mono">0%</span>
+              </div>
+              <input type="range" id="themeBackdropSlider" min="0" max="100" step="2" value="0" class="theme-hour-slider" oninput="App.setBackdropFrost(this.value)" aria-label="Universal background blur and dimness" title="Adjust background blur and dimness universally">
             </div>
           </div>
         </div>
@@ -2288,12 +2298,6 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </div>
       </div>
 
-      <div class="cockpit-backdrop-deck">
-        <span class="cockpit-backdrop-label"><i data-lucide="eye" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Backdrop Frost</span>
-        <input type="range" id="cockpitBackdropSlider" class="cockpit-backdrop-slider" min="0" max="100" step="2" value="0" oninput="FocusCockpit.setBackdropIntensity(this.value)" aria-label="Background blur and dimness" title="Adjust background blur and dimness">
-        <span id="cockpitBackdropValue" class="cockpit-backdrop-value font-mono">0%</span>
-      </div>
-
       <div class="cockpit-scratchpad-section">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <label style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Scratchpad</label>
@@ -2338,6 +2342,11 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="light" onclick="App.setThemeHourPreset(13)">Noon</button>
           <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="evening" onclick="App.setThemeHourPreset(18)">Golden</button>
           <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="dark" onclick="App.setThemeHourPreset(23)">Night</button>
+        </div>
+        <div class="scenic-frost-row">
+          <span class="scenic-frost-label"><i data-lucide="eye" style="width:11px;height:11px;color:var(--accent-cyan);"></i> Frost</span>
+          <input type="range" id="scenicBackdropSlider" min="0" max="100" step="2" value="0" class="theme-hour-slider scenic-frost-slider" oninput="App.setBackdropFrost(this.value)" aria-label="Universal background blur and dimness">
+          <span id="scenicBackdropValue" class="theme-frost-value font-mono">0%</span>
         </div>
       </div>
     </div>
@@ -2609,23 +2618,23 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=12.2"></script>
-  <script src="/static/js/app.js?v=12.2"></script>
-  <script src="/static/js/drag_drop.js?v=12.2"></script>
-  <script src="/static/js/world_gateway.js?v=12.2"></script>
-  <script src="/static/js/world_deepblue.js?v=12.2"></script>
-  <script src="/static/js/wave_canvas.js?v=12.2"></script>
-  <script src="/static/js/tactile.js?v=12.2"></script>
-  <script src="/static/js/entity_modal.js?v=12.2"></script>
-  <script src="/static/js/timeline.js?v=12.2"></script>
-  <script src="/static/js/mindmap.js?v=12.2"></script>
-  <script src="/static/js/dashboard.js?v=12.2"></script>
-  <script src="/static/js/exploded.js?v=12.2"></script>
-  <script src="/static/js/notes.js?v=12.2"></script>
-  <script src="/static/js/history.js?v=12.2"></script>
-  <script src="/static/js/command_palette.js?v=12.2"></script>
-  <script src="/static/js/focus_cockpit.js?v=12.2"></script>
-  <script src="/static/js/evening_debrief.js?v=12.2"></script>
-  <script src="/static/js/horace_chat.js?v=12.2"></script>
+  <script src="/static/js/pin_lock.js?v=12.3"></script>
+  <script src="/static/js/app.js?v=12.3"></script>
+  <script src="/static/js/drag_drop.js?v=12.3"></script>
+  <script src="/static/js/world_gateway.js?v=12.3"></script>
+  <script src="/static/js/world_deepblue.js?v=12.3"></script>
+  <script src="/static/js/wave_canvas.js?v=12.3"></script>
+  <script src="/static/js/tactile.js?v=12.3"></script>
+  <script src="/static/js/entity_modal.js?v=12.3"></script>
+  <script src="/static/js/timeline.js?v=12.3"></script>
+  <script src="/static/js/mindmap.js?v=12.3"></script>
+  <script src="/static/js/dashboard.js?v=12.3"></script>
+  <script src="/static/js/exploded.js?v=12.3"></script>
+  <script src="/static/js/notes.js?v=12.3"></script>
+  <script src="/static/js/history.js?v=12.3"></script>
+  <script src="/static/js/command_palette.js?v=12.3"></script>
+  <script src="/static/js/focus_cockpit.js?v=12.3"></script>
+  <script src="/static/js/evening_debrief.js?v=12.3"></script>
+  <script src="/static/js/horace_chat.js?v=12.3"></script>
 </body>
 </html>

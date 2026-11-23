@@ -541,9 +541,58 @@ const App = {
     }
   },
 
+  backdropFrost: 0,
+
+  initBackdropFrost() {
+    let saved = 0;
+    try {
+      const raw = localStorage.getItem("pettr_backdrop_frost");
+      const fallback = localStorage.getItem("pettr_cockpit_backdrop");
+      const picked = (raw !== null && raw !== "") ? raw : fallback;
+      if (picked !== null && picked !== "") {
+        const parsed = parseInt(picked, 10);
+        if (!isNaN(parsed)) saved = parsed;
+      }
+    } catch (_) {}
+    this.setBackdropFrost(saved, false);
+  },
+
+  setBackdropFrost(val, persist = true) {
+    const pct = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+    this.backdropFrost = pct;
+    if (persist) {
+      try {
+        localStorage.setItem("pettr_backdrop_frost", String(pct));
+      } catch (_) {}
+    }
+
+    const ratio = pct / 100;
+    const blurPx = (ratio * 18).toFixed(1);
+    const dimAlpha = (Math.pow(ratio, 1.15) * 0.68).toFixed(3);
+
+    document.documentElement.style.setProperty("--backdrop-frost-blur", `${blurPx}px`);
+    document.documentElement.style.setProperty("--backdrop-frost-dim", dimAlpha);
+
+    const frostEl = document.getElementById("universalBackdropFrost");
+    if (frostEl) {
+      frostEl.style.setProperty("--backdrop-frost-blur", `${blurPx}px`);
+      frostEl.style.setProperty("--backdrop-frost-dim", dimAlpha);
+    }
+
+    ["themeBackdropSlider", "scenicBackdropSlider"].forEach(id => {
+      const sl = document.getElementById(id);
+      if (sl && sl.value !== String(pct)) sl.value = String(pct);
+    });
+    ["themeBackdropValue", "scenicBackdropValue"].forEach(id => {
+      const lbl = document.getElementById(id);
+      if (lbl) lbl.textContent = `${pct}%`;
+    });
+  },
+
   initTheme() {
     const savedWorld = localStorage.getItem("pettr_theme_world") || "nature";
     this.applyEffectiveWorld(savedWorld);
+    this.initBackdropFrost();
 
     const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
     if (savedMode === "slider") {
@@ -676,6 +725,11 @@ const App = {
       btn.classList.toggle("active", isMatch);
       btn.setAttribute("aria-pressed", isMatch ? "true" : "false");
     });
+
+    const scenicFrostSlider = document.getElementById("scenicBackdropSlider");
+    if (scenicFrostSlider) scenicFrostSlider.value = String(this.backdropFrost || 0);
+    const scenicFrostVal = document.getElementById("scenicBackdropValue");
+    if (scenicFrostVal) scenicFrostVal.textContent = `${this.backdropFrost || 0}%`;
   },
 
   closeThemeSlider() {
@@ -692,6 +746,7 @@ const App = {
     drawer.style.display = isShown ? "none" : "block";
     if (!isShown) {
       this.syncWorldSelectorUI();
+      this.setBackdropFrost(this.backdropFrost, false);
       const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
       const currentHour = savedMode === "slider"
         ? parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10)
