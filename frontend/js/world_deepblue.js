@@ -1,34 +1,54 @@
 /**
- * PETTR World Renderer: Underwater — "Deep Blue" (v12.3 Horizontal Clear-Tube Complex & Realistic Subsea Physics)
- * Panoramic multi-wing benthic research station grounded solidly onto volcanic seabed terraces:
- * - No spindly stilts: heavy terraced seabed foundations rise directly from volcanic basalt outcrops across
- *   a central command complex, horizontal West Observatory & East Habitat wings, and depth-hazed outer sensor pods.
- * - Crystal-clear acrylic glass walkway tubes (_drawClearGlassTube) connect horizontal modules over the canyon floor,
- *   showing translucent glass reflections, interior walkway decks, warm recessed lighting, and titanium pressure rings.
- * - Atmospheric subsea lighting: top-down cyan water bounce rims, multi-stop warm interior glazing, downward
- *   exterior hull floodlights onto basalt rock, and Beer-Lambert depth haze separation.
- * - Realistic arc-length submarine kinematics (_buildArcPath / _sampleArcPath) with weighty constant-speed cruising,
- *   gentle docking deceleration, and clamped buoyant trim (±11.5° max pitch) so vessels glide level instead of nose-diving.
- * - Animated vertical Surface Supply Elevator + rigid-torso megafauna (Great Whites, Hammerheads, Whale Sharks, True Whales).
+ * PETTR World Renderer: Underwater — "Deep Blue" (v12.4 Pre-Fab Industrial Habitat, Hydro Farm, Divers, Schools & Shallow Golden Hour)
+ * Panoramic multi-wing benthic research complex grounded solidly onto volcanic & sandy coastal seabed terraces:
+ * - Pre-fabricated modular industrial architecture (_drawPrefabModule) with polygonal chamfered contours,
+ *   standardized hull panel seams, exterior manifolds, and zero support stilts.
+ * - Purpose-built linked wings:
+ *   * Far-West Hydropower Tidal Turbine Farm (_drawHydropowerFarm / _updateAndDrawTurbines) with spinning rotor blades
+ *   * West Fabrication & Illuminated Diver Wet Airlock Wing
+ *   * Central Polygonal Command Hub, Vertical Surface Supply Elevator & twin submarine piers
+ *   * Faceted Hydroponic Crop Greenhouse Dome (_drawGreenhouseDome) with visible tiered green crops inside
+ *   * East Sensor Annex crowned by live Rotating Sonar Array (_drawSonarRelay / _updateAndDrawSonarArray)
+ * - Crystal-clear acrylic glass walkway tubes (_drawClearGlassTube) connecting horizontal wings across the seabed.
+ * - To-scale human maintenance divers (_updateAndDrawDivers) cycling from inside the station airlock out to
+ *   perform hull/tube maintenance with bubbling decompression hatches and flickering torch sparks.
+ * - Rich benthic terrain (sand ripples, basalt cobbles, hydrothermal vents, tube sponges) with every coral cluster
+ *   and swaying kelp silhouette anchored strictly below the terrain edge (_cliffYAtX / _seabedYAtX).
+ * - 7 theme-cohesive submarine styles navigating with arc-length physics & level buoyant trim (±0.20 rad).
+ * - Coordinated undulating fish schools alongside sharks (Great White, Hammerhead, Whale Shark), rays & true whales.
+ * - Shallow coastal Golden Hour (evening) with golden-amber sunset sunbeams piercing clear shallow blue-teal water.
  */
 const WorldDeepBlue = {
   cacheCanvas: null,
   cacheKey: "",
   farLife: [],
   nearLife: [],
+  fishSchools: [],
   sharks: [],
   whales: [],
   jellies: [],
+  kelp: [],
   snow: [],
   bubbles: [],
+  divers: [],
   sub: null,          // Primary left-pier visiting submarine
   cargoSub: null,     // Primary right-pier visiting freighter/vessel
-  roamingSubs: [],    // Additional multi-directional research visitor + deep background transit traffic
+  roamingSubs: [],    // Multi-directional roaming visitor + background transit traffic
   elevator: null,     // Vertical surface supply elevator state
   rovs: [],
   sonarRings: [],
   _lastW: 0,
   _lastH: 0,
+
+  SUB_STYLES: [
+    "bathyscaphe",
+    "crew_shuttle",
+    "research_catamaran",
+    "heavy_freighter",
+    "manta_glider",
+    "industrial_tug",
+    "deep_explorer"
+  ],
 
   _rand(min, max) {
     return min + Math.random() * (max - min);
@@ -63,7 +83,7 @@ const WorldDeepBlue = {
     return { x, y, dx, dy, angle: Math.atan2(dy, dx) };
   },
 
-  // True arc-length polyline sampler for smooth, constant-speed weighty submarine motion
+  // True arc-length polyline sampler for steady weighty submarine & diver motion
   _buildArcPath(segments, samplesPerSeg = 24) {
     const pts = [];
     let accDist = 0;
@@ -141,7 +161,6 @@ const WorldDeepBlue = {
     return { x, y, dx, dy, angle: Math.atan2(dy, dx) };
   },
 
-  // Compute realistic submarine buoyant pitch trim (±0.20 rad ≈ ±11.5° max) and facing side
   _computeBuoyantTransform(dx, dy, prevFacingLeft) {
     let facingLeft = prevFacingLeft;
     if (Math.abs(dx) > 0.08) {
@@ -152,15 +171,90 @@ const WorldDeepBlue = {
     return { facingLeft, targetPitch };
   },
 
+  // Exact terrain surface queries so EVERY kelp, sponge, coral & foundation anchors firmly ON the ground!
+  _quadYAt(p0, p1, p2, x) {
+    // Solve monotonic x(t) = (1-t)^2*x0 + 2(1-t)t*x1 + t^2*x2 by binary search for exact y!
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) * 0.5;
+      const u = 1 - mid;
+      const mx = u * u * p0.x + 2 * u * mid * p1.x + mid * mid * p2.x;
+      if (mx < x) lo = mid;
+      else hi = mid;
+    }
+    const t = (lo + hi) * 0.5;
+    const u = 1 - t;
+    return u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y;
+  },
+
+  _seabedYAtX(x, w, h, L) {
+    const midX = w * 0.50;
+    if (x <= midX) {
+      return this._quadYAt(
+        { x: 0, y: L.seabedY - 12 },
+        { x: w * 0.22, y: L.seabedY - 44 },
+        { x: midX, y: L.seabedY - 58 },
+        this._clamp(x, 0, midX)
+      );
+    }
+    return this._quadYAt(
+      { x: midX, y: L.seabedY - 58 },
+      { x: w * 0.78, y: L.seabedY - 44 },
+      { x: w, y: L.seabedY - 16 },
+      this._clamp(x, midX, w)
+    );
+  },
+
+  _cliffYAtX(x, w, h) {
+    // Left reef cliff spans [0 .. 0.30w]; Right reef cliff spans [0.70w .. w]
+    if (x <= w * 0.30) {
+      if (x <= w * 0.14) {
+        return this._quadYAt(
+          { x: 0, y: h * 0.67 },
+          { x: w * 0.06, y: h * 0.72 },
+          { x: w * 0.14, y: h * 0.82 },
+          Math.max(0, x)
+        );
+      }
+      return this._quadYAt(
+        { x: w * 0.14, y: h * 0.82 },
+        { x: w * 0.22, y: h * 0.90 },
+        { x: w * 0.30, y: h },
+        x
+      );
+    }
+    if (x >= w * 0.70) {
+      if (x <= w * 0.86) {
+        return this._quadYAt(
+          { x: w * 0.70, y: h },
+          { x: w * 0.78, y: h * 0.92 },
+          { x: w * 0.86, y: h * 0.84 },
+          x
+        );
+      }
+      return this._quadYAt(
+        { x: w * 0.86, y: h * 0.84 },
+        { x: w * 0.93, y: h * 0.73 },
+        { x: w, y: h * 0.66 },
+        Math.min(w, x)
+      );
+    }
+    return null;
+  },
+
   reset() {
     this.cacheKey = "";
     this.farLife = [];
     this.nearLife = [];
+    this.fishSchools = [];
     this.sharks = [];
     this.whales = [];
     this.jellies = [];
+    this.kelp = [];
     this.snow = [];
     this.bubbles = [];
+    this.divers = [];
     this.sub = null;
     this.cargoSub = null;
     this.roamingSubs = [];
@@ -186,6 +280,8 @@ const WorldDeepBlue = {
         reefNear: "#133C54",
         seabedLight: "#4B97B3",
         seabedDark: "#1E5673",
+        kelpColor: "#144A5E",
+        kelpTip: "#216A7D",
         hullLight: "#DCECF3",
         hullMid: "#7EA3B9",
         hullDark: "#2D4F66",
@@ -195,23 +291,24 @@ const WorldDeepBlue = {
         glassHighlight: "rgba(255, 255, 255, 0.62)",
         glassRim: "rgba(165, 235, 248, 0.42)",
         tubeFloor: "#3B6078",
-        tubeWarmGlow: "rgba(254, 236, 175, 0.68)",
+        tubeWarmGlow: "rgba(186, 245, 236, 0.72)",
         subHullLight: "#D6ECEF",
         subHullMid: "#72A2B8",
         subHullDark: "#2A526B",
-        subAccent: "#3694A6",
+        subAccent: "#0D9488",
         subContainers: ["#3B7E96", "#4B8B88", "#8BA2B4"],
         rovBody: "#C59C50",
         elevatorGlow: "186, 240, 244",
-        trimGold: "#CFA046",
-        portholeGlow: "rgba(254, 236, 176, 0.84)",
+        trimGold: "#0D9488",
+        portholeGlow: "rgba(254, 242, 198, 0.82)",
         windowTop: "rgba(38, 66, 84, 0.72)",
-        windowMid: "rgba(254, 238, 182, 0.82)",
-        windowBot: "rgba(214, 174, 108, 0.78)",
+        windowMid: "rgba(232, 248, 246, 0.82)",
+        windowBot: "rgba(162, 214, 218, 0.78)",
         windowRecess: "rgba(16, 44, 62, 0.74)",
         floodlightRgb: "224, 248, 252",
         floodlightAlpha: 0.14,
-        biodomeFlora: "rgba(52, 200, 148, 0.42)",
+        biodomeFlora: "rgba(34, 197, 94, 0.56)",
+        cropRow: "#16A34A",
         farCreatureRgb: "24, 86, 114",
         nearCreatureRgb: "14, 56, 78",
         jellyRgb: "56, 189, 248",
@@ -222,54 +319,59 @@ const WorldDeepBlue = {
       };
     }
     if (mode === "evening") {
+      // Shallow Coastal Golden Hour — clear coastal turquoise-indigo water pierced by slanted golden sunset shafts!
       return {
         isDark: true,
-        waterTop: "#0F3454",
-        waterMid: "#09213A",
-        waterBottom: "#04101F",
-        waterHazeRgb: "9, 33, 58",
-        waterBounce: "rgba(125, 204, 242, 0.40)",
-        surfaceRipple: "rgba(125, 211, 252, 0.24)",
-        rayColor: "56, 189, 248",
-        rayAlpha: 0.13,
-        reefFar: "#0B263F",
-        reefMid: "#071B2E",
-        reefNear: "#030D18",
-        seabedLight: "#0E2D49",
-        seabedDark: "#051424",
-        hullLight: "#7695AE",
-        hullMid: "#36526B",
-        hullDark: "#142537",
-        hullDeep: "#0B1624",
-        hullShadow: "rgba(3, 10, 20, 0.48)",
-        glassTint: "rgba(125, 211, 252, 0.16)",
-        glassHighlight: "rgba(186, 230, 253, 0.46)",
-        glassRim: "rgba(96, 194, 240, 0.34)",
-        tubeFloor: "#1E364D",
-        tubeWarmGlow: "rgba(253, 224, 142, 0.88)",
-        subHullLight: "#6A8DA9",
-        subHullMid: "#304F6B",
-        subHullDark: "#132539",
-        subAccent: "#3E8499",
-        subContainers: ["#254866", "#2B5661", "#656F7E"],
-        rovBody: "#8F764A",
+        isGoldenCoastal: true,
+        waterTop: "#3B88A8",
+        waterMid: "#154969",
+        waterBottom: "#09243B",
+        waterHazeRgb: "24, 84, 114",
+        waterBounce: "rgba(253, 224, 168, 0.50)",
+        surfaceRipple: "rgba(255, 224, 165, 0.56)",
+        rayColor: "255, 224, 158",
+        rayAlpha: 0.30,
+        reefFar: "#144260",
+        reefMid: "#0D3048",
+        reefNear: "#061B2B",
+        seabedLight: "#256482",
+        seabedDark: "#0E354E",
+        kelpColor: "#082436",
+        kelpTip: "#154B5E",
+        hullLight: "#98B6CB",
+        hullMid: "#476985",
+        hullDark: "#1B334B",
+        hullDeep: "#0E1E2E",
+        hullShadow: "rgba(4, 14, 26, 0.46)",
+        glassTint: "rgba(147, 224, 252, 0.20)",
+        glassHighlight: "rgba(255, 238, 204, 0.50)",
+        glassRim: "rgba(103, 212, 248, 0.36)",
+        tubeFloor: "#24435E",
+        tubeWarmGlow: "rgba(153, 246, 228, 0.84)",
+        subHullLight: "#8CB0C9",
+        subHullMid: "#416785",
+        subHullDark: "#1A334A",
+        subAccent: "#2DD4BF",
+        subContainers: ["#255A7A", "#23696E", "#648399"],
+        rovBody: "#A68C58",
         elevatorGlow: "125, 211, 252",
-        trimGold: "#C48E3D",
-        portholeGlow: "rgba(253, 224, 142, 0.92)",
-        windowTop: "rgba(22, 34, 48, 0.82)",
-        windowMid: "rgba(253, 224, 146, 0.92)",
-        windowBot: "rgba(204, 152, 74, 0.86)",
-        windowRecess: "rgba(6, 16, 30, 0.86)",
-        floodlightRgb: "186, 232, 250",
-        floodlightAlpha: 0.24,
-        biodomeFlora: "rgba(52, 211, 153, 0.36)",
-        farCreatureRgb: "14, 46, 72",
-        nearCreatureRgb: "24, 72, 104",
+        trimGold: "#38BDF8",
+        portholeGlow: "rgba(224, 247, 250, 0.90)",
+        windowTop: "rgba(18, 44, 66, 0.82)",
+        windowMid: "rgba(253, 232, 178, 0.90)",
+        windowBot: "rgba(218, 176, 108, 0.82)",
+        windowRecess: "rgba(8, 24, 42, 0.86)",
+        floodlightRgb: "165, 243, 252",
+        floodlightAlpha: 0.22,
+        biodomeFlora: "rgba(52, 211, 153, 0.54)",
+        cropRow: "#22C55E",
+        farCreatureRgb: "16, 62, 88",
+        nearCreatureRgb: "12, 46, 68",
         jellyRgb: "45, 212, 191",
-        beamAlpha: 0.46,
+        beamAlpha: 0.38,
         beamRgb: "254, 243, 199",
-        snowRgb: "186, 230, 253",
-        biolumAlpha: 0.68
+        snowRgb: "224, 247, 250",
+        biolumAlpha: 0.44
       };
     }
     if (mode === "dark") {
@@ -288,6 +390,8 @@ const WorldDeepBlue = {
         reefNear: "#020812",
         seabedLight: "#081C30",
         seabedDark: "#020A14",
+        kelpColor: "#020B16",
+        kelpTip: "#071B2E",
         hullLight: "#496780",
         hullMid: "#21364B",
         hullDark: "#0C1826",
@@ -297,15 +401,15 @@ const WorldDeepBlue = {
         glassHighlight: "rgba(148, 224, 248, 0.38)",
         glassRim: "rgba(56, 189, 248, 0.28)",
         tubeFloor: "#122436",
-        tubeWarmGlow: "rgba(254, 230, 148, 0.94)",
+        tubeWarmGlow: "rgba(165, 243, 252, 0.90)",
         subHullLight: "#466782",
         subHullMid: "#1E354C",
         subHullDark: "#0B1726",
-        subAccent: "#287A92",
+        subAccent: "#22D3EE",
         subContainers: ["#193852", "#1C454D", "#44566A"],
         rovBody: "#6E5E3D",
         elevatorGlow: "56, 189, 248",
-        trimGold: "#A67C38",
+        trimGold: "#38BDF8",
         portholeGlow: "rgba(254, 230, 148, 0.94)",
         windowTop: "rgba(12, 22, 34, 0.88)",
         windowMid: "rgba(254, 232, 156, 0.95)",
@@ -313,7 +417,8 @@ const WorldDeepBlue = {
         windowRecess: "rgba(3, 9, 20, 0.92)",
         floodlightRgb: "165, 238, 252",
         floodlightAlpha: 0.28,
-        biodomeFlora: "rgba(45, 212, 191, 0.34)",
+        biodomeFlora: "rgba(45, 212, 191, 0.44)",
+        cropRow: "#34D399",
         farCreatureRgb: "10, 32, 54",
         nearCreatureRgb: "18, 56, 84",
         jellyRgb: "34, 211, 238",
@@ -339,6 +444,8 @@ const WorldDeepBlue = {
       reefNear: "#15425E",
       seabedLight: "#5AA5C7",
       seabedDark: "#246082",
+      kelpColor: "#0F384F",
+      kelpTip: "#1B5674",
       hullLight: "#E8F3F9",
       hullMid: "#89ABC4",
       hullDark: "#32536C",
@@ -348,15 +455,15 @@ const WorldDeepBlue = {
       glassHighlight: "rgba(255, 255, 255, 0.68)",
       glassRim: "rgba(186, 236, 252, 0.46)",
       tubeFloor: "#3C637D",
-      tubeWarmGlow: "rgba(254, 236, 176, 0.64)",
+      tubeWarmGlow: "rgba(186, 242, 250, 0.72)",
       subHullLight: "#E2F1F8",
       subHullMid: "#7BA6C2",
       subHullDark: "#2F5470",
-      subAccent: "#2A84A8",
+      subAccent: "#0891B2",
       subContainers: ["#2D7294", "#3B7E84", "#86A2BA"],
       rovBody: "#C29642",
       elevatorGlow: "224, 247, 250",
-      trimGold: "#D09B3E",
+      trimGold: "#0284C7",
       portholeGlow: "rgba(254, 236, 178, 0.82)",
       windowTop: "rgba(42, 74, 96, 0.70)",
       windowMid: "rgba(254, 238, 186, 0.80)",
@@ -364,7 +471,8 @@ const WorldDeepBlue = {
       windowRecess: "rgba(22, 54, 78, 0.72)",
       floodlightRgb: "230, 250, 255",
       floodlightAlpha: 0.13,
-      biodomeFlora: "rgba(52, 206, 152, 0.42)",
+      biodomeFlora: "rgba(34, 197, 94, 0.56)",
+      cropRow: "#16A34A",
       farCreatureRgb: "28, 92, 124",
       nearCreatureRgb: "16, 62, 88",
       jellyRgb: "14, 165, 233",
@@ -377,35 +485,54 @@ const WorldDeepBlue = {
 
   getLayout(w, h) {
     const isNarrow = w < 720;
-    const seabedY = h * (isNarrow ? 0.80 : 0.76);
+    const seabedY = h * (isNarrow ? 0.79 : 0.76);
     const hubX = w * (isNarrow ? 0.52 : 0.50);
     const hubY = h * (isNarrow ? 0.62 : 0.585);
-    const s = isNarrow ? 0.56 : Math.min(1.06, Math.max(0.76, w / 1320));
+    const s = isNarrow ? 0.52 : Math.min(1.06, Math.max(0.76, w / 1320));
 
-    // Horizontal satellite complexes terraced naturally onto lower seabed rock shelves & linked by clear acrylic glass tubes
-    const westWingX = hubX - 262 * s;
-    const westWingY = hubY + 52 * s;
-    const farWestX = hubX - 394 * s;
-    const farWestY = hubY + 72 * s;
+    // Pre-fab horizontal station campus coordinates
+    const westWingX = hubX - 246 * s;
+    const westWingY = hubY + 46 * s;
+    const farWestX = hubX - 388 * s;  // Hydropower Tidal Turbine Farm!
+    const farWestY = hubY + 70 * s;
 
-    const eastWingX = hubX + 266 * s;
-    const eastWingY = hubY + 50 * s;
-    const farEastX = hubX + 396 * s;
-    const farEastY = hubY + 70 * s;
+    const eastWingX = hubX + 250 * s; // East Sensor Wing & Rotating Sonar Relay
+    const eastWingY = hubY + 46 * s;
+    const farEastX = hubX + 392 * s;
+    const farEastY = hubY + 68 * s;
 
-    // Gentle realistic docking pier angles matching buoyant submarine trim (±11-12°)
-    const leftAngle = 2.94; // ~168.5° -> docked sub nose points at -0.20 rad (-11.5°)
+    // Diver Wet-Lock Airlock Aperture on West Fabrication Wing + Hub Lower Lock
+    const airlockX = westWingX + 12 * s;
+    const airlockY = westWingY + 12 * s;
+
+    // Rotating Sonar Relay Dish Pedestal on East Sensor Wing
+    const sonarX = eastWingX + 18 * s;
+    const sonarY = eastWingY - 36 * s;
+
+    // Hydropower Tidal Turbines (Far West on seabed currents)
+    const hydroBaseX = isNarrow ? (hubX - 188 * s) : farWestX;
+    const hydroBaseY = isNarrow ? (hubY + 86 * s) : (farWestY + 10 * s);
+    const hydroTurbines = isNarrow
+      ? [{ x: hydroBaseX - 18 * s, y: hydroBaseY }, { x: hydroBaseX + 16 * s, y: hydroBaseY + 3 * s }]
+      : [
+          { x: hydroBaseX - 32 * s, y: hydroBaseY + 2 * s },
+          { x: hydroBaseX, y: hydroBaseY - 4 * s },
+          { x: hydroBaseX + 32 * s, y: hydroBaseY + 2 * s }
+        ];
+
+    // Gentle realistic docking pier angles matching buoyant submarine trim
+    const leftAngle = 2.94;
     const leftArmLen = 148 * s;
     const leftDockX = hubX - 18 * s + Math.cos(leftAngle) * leftArmLen;
     const leftDockY = hubY + 24 * s + Math.sin(leftAngle) * leftArmLen;
 
-    const rightAngle = 0.20; // ~11.5° -> docked cargo sub nose points at -0.20 rad left-upward
+    const rightAngle = 0.20;
     const rightArmLen = 160 * s;
     const rightDockX = hubX + 20 * s + Math.cos(rightAngle) * rightArmLen;
     const rightDockY = hubY + 28 * s + Math.sin(rightAngle) * rightArmLen;
 
-    // Geodesic hydroponics biodome (right-rear terrace seated directly onto seabed foundation)
-    const domeX = hubX + 104 * s;
+    // Geodesic Hydroponic Crop Greenhouse Dome (right-center terrace)
+    const domeX = hubX + 106 * s;
     const domeY = hubY - 14 * s;
 
     // Vertical Surface Supply Elevator Shaft & Transfer Collar (left-rear terrace wing)
@@ -416,6 +543,7 @@ const WorldDeepBlue = {
       isNarrow, seabedY, hubX, hubY, s,
       westWingX, westWingY, farWestX, farWestY,
       eastWingX, eastWingY, farEastX, farEastY,
+      airlockX, airlockY, sonarX, sonarY, hydroTurbines,
       leftAngle, leftArmLen, leftDockX, leftDockY,
       rightAngle, rightArmLen, rightDockX, rightDockY,
       domeX, domeY, elevX, elevDockY
@@ -447,14 +575,14 @@ const WorldDeepBlue = {
 
     // 2. Ocean surface ceiling band
     ctx.save();
-    const surfG = ctx.createLinearGradient(0, 0, 0, 56);
+    const surfG = ctx.createLinearGradient(0, 0, 0, 60);
     surfG.addColorStop(0, pal.surfaceRipple);
     surfG.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = surfG;
-    ctx.fillRect(0, 0, w, 56);
+    ctx.fillRect(0, 0, w, 60);
     ctx.restore();
 
-    // 3. Far hazy canyon ridges & distant seamounts (two soft atmospheric layers)
+    // 3. Far hazy canyon ridges & distant seamounts
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(0, h);
@@ -470,7 +598,7 @@ const WorldDeepBlue = {
     ctx.fill();
     ctx.restore();
 
-    // 4. Elevated Panoramic Volcanic Seabed Plateau Supporting Central & Horizontal Wings
+    // 4. Rich Volcanic & Rippled Sandy Canyon Floor
     ctx.save();
     const floorG = ctx.createLinearGradient(0, L.seabedY - 76, 0, h);
     floorG.addColorStop(0, pal.seabedLight);
@@ -486,28 +614,78 @@ const WorldDeepBlue = {
     ctx.closePath();
     ctx.fill();
 
-    // Subtle seabed sediment ridges & basalt boulders across canyon basin
-    ctx.fillStyle = pal.reefMid;
-    ctx.globalAlpha = 0.72;
-    for (let b = 0; b < 26; b++) {
-      const bx = w * (0.08 + (b * 0.036) % 0.84);
-      const by = L.seabedY - 16 + ((b * 37) % 108);
-      const br = 8 + (b % 5) * 5.5;
+    // Subtle sand ripple ridges across shallow canyon floor
+    ctx.strokeStyle = pal.waterBounce;
+    ctx.globalAlpha = pal.isDark && !pal.isGoldenCoastal ? 0.08 : 0.16;
+    ctx.lineWidth = 1.2;
+    for (let row = 0; row < 6; row++) {
+      const sy = L.seabedY + 8 + row * 24;
+      if (sy > h - 8) break;
       ctx.beginPath();
-      ctx.ellipse(bx, by, br * 1.65, br * 0.48, 0, 0, Math.PI * 2);
+      for (let x = w * 0.10; x <= w * 0.90; x += 48) {
+        const wy = sy + Math.sin(x * 0.016 + row * 1.3) * 4;
+        if (x === w * 0.10) ctx.moveTo(x, wy);
+        else ctx.lineTo(x, wy);
+      }
+      ctx.stroke();
+    }
+
+    // Scattered basalt boulders, benthic pebbles & seabed cable conduits
+    ctx.globalAlpha = 0.78;
+    for (let b = 0; b < (L.isNarrow ? 18 : 34); b++) {
+      const bx = w * (0.06 + (b * 0.028) % 0.88);
+      const minY = this._seabedYAtX(bx, w, h, L) + 8;
+      const by = minY + ((b * 37) % Math.max(20, (h - minY - 10)));
+      const br = 6 + (b % 5) * 5.0;
+      ctx.fillStyle = b % 2 === 0 ? pal.reefMid : pal.seabedDark;
+      ctx.beginPath();
+      ctx.ellipse(bx, by, br * 1.6, br * 0.45, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Armored benthic power cable conduit running cleanly across seabed from Hydropower Farm into West Wing
+    ctx.globalAlpha = 0.82;
+    ctx.strokeStyle = pal.hullDark;
+    ctx.lineWidth = 3.2 * L.s;
+    ctx.beginPath();
+    ctx.moveTo(L.hydroTurbines[0].x, L.hydroTurbines[0].y + 12 * L.s);
+    ctx.quadraticCurveTo((L.hydroTurbines[0].x + L.westWingX) * 0.5, L.seabedY - 6, L.westWingX - 42 * L.s, L.westWingY + 26 * L.s);
+    ctx.stroke();
     ctx.restore();
 
-    // 5. Grand Grounded Panoramic Horizontal 2.5D Underwater Research Complex + Clear Glass Tubes
+    // 5. Industrial Pre-Fab Modular Seabed Research Station + Hydropower Farm + Clear Tubes + Greenhouse
     this._drawResearchStation(ctx, L, pal);
 
-    // 6. Framing Foreground Coral Cliffs & Sea Fans
+    // 6. Enriched Canyon Seabed Flora (Anchored Table Corals, Tube Sponges & Hydrothermal Chimneys outside central hull)
+    const floorSpots = L.isNarrow ? [0.24, 0.76] : [0.22, 0.31, 0.71, 0.80];
+    floorSpots.forEach((xf, idx) => {
+      const fx = w * xf;
+      const fy = Math.min(h - 14, this._seabedYAtX(fx, w, h, L) + 18 + (idx % 3) * 18);
+      this._drawBenthicSpongeCluster(ctx, fx, fy, (10 + (idx % 3) * 3) * L.s, pal);
+    });
+
+    // Hydrothermal basalt vent mounds on canyon outskirts
+    [w * 0.19, w * 0.81].forEach((vx, idx) => {
+      if (L.isNarrow && idx === 1) return;
+      const vy = this._seabedYAtX(vx, w, h, L) + 12;
+      ctx.save();
+      ctx.fillStyle = pal.reefNear;
+      ctx.beginPath();
+      ctx.moveTo(vx - 14 * L.s, vy + 8 * L.s);
+      ctx.lineTo(vx - 5 * L.s, vy - 18 * L.s);
+      ctx.lineTo(vx + 5 * L.s, vy - 18 * L.s);
+      ctx.lineTo(vx + 16 * L.s, vy + 8 * L.s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    });
+
+    // 7. Framing Foreground Coral Cliffs & Strictly Ground-Anchored Reef Corals
     ctx.save();
     ctx.fillStyle = pal.reefNear;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.66);
+    ctx.lineTo(0, h * 0.67);
     ctx.quadraticCurveTo(w * 0.06, h * 0.72, w * 0.14, h * 0.82);
     ctx.quadraticCurveTo(w * 0.22, h * 0.90, w * 0.30, h);
     ctx.closePath();
@@ -515,17 +693,34 @@ const WorldDeepBlue = {
 
     ctx.beginPath();
     ctx.moveTo(w, h);
-    ctx.lineTo(w, h * 0.65);
+    ctx.lineTo(w, h * 0.66);
     ctx.quadraticCurveTo(w * 0.93, h * 0.73, w * 0.86, h * 0.84);
     ctx.quadraticCurveTo(w * 0.78, h * 0.92, w * 0.70, h);
     ctx.closePath();
     ctx.fill();
 
-    this._drawCoralCluster(ctx, w * 0.06, h * 0.72, 24, pal.reefNear);
-    this._drawCoralCluster(ctx, w * 0.13, h * 0.83, 20, pal.reefNear);
-    this._drawCoralCluster(ctx, w * 0.21, h * 0.91, 16, pal.reefNear);
-    this._drawCoralCluster(ctx, w * 0.93, h * 0.72, 23, pal.reefNear);
-    this._drawCoralCluster(ctx, w * 0.86, h * 0.85, 19, pal.reefNear);
+    // Plant every foreground coral root 7px deeper than _cliffYAtX so ZERO floating!
+    [0.05, 0.11, 0.17, 0.23, 0.77, 0.83, 0.90, 0.95].forEach((cf, idx) => {
+      const cx = w * cf;
+      const cy = (this._cliffYAtX(cx, w, h) || h * 0.85) + 7;
+      this._drawCoralCluster(ctx, cx, cy, 17 + (idx % 3) * 4, pal.reefNear);
+    });
+    ctx.restore();
+  },
+
+  _drawBenthicSpongeCluster(ctx, x, y, sc, pal) {
+    ctx.save();
+    ctx.fillStyle = pal.reefMid;
+    [-6, 0, 6].forEach((ox, idx) => {
+      const th = sc * (0.7 + (idx % 2) * 0.4);
+      ctx.beginPath();
+      ctx.roundRect(x + ox * (sc * 0.10) - 2.2, y - th, 4.4, th + 3, 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = pal.reefNear;
+    ctx.beginPath();
+    ctx.ellipse(x, y + 3, sc * 0.9, 3.2, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   },
 
@@ -539,7 +734,7 @@ const WorldDeepBlue = {
       const bx = x + Math.sin(ang) * len;
       const by = y - Math.cos(ang) * len;
       ctx.beginPath();
-      ctx.moveTo(x, y);
+      ctx.moveTo(x, y + 3); // Anchor base firmly inside rock
       ctx.quadraticCurveTo(x + Math.sin(ang) * len * 0.45, y - len * 0.55, bx, by);
       ctx.stroke();
       ctx.lineWidth = 1.6;
@@ -552,15 +747,12 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Helper: realistic recessed panoramic window band with warm vertical interior gradient & glass mullions
   _drawWindowBand(ctx, x, y, w, h, mullions, pal, s, alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
-    // Deep recessed brow frame
     ctx.fillStyle = pal.windowRecess;
     ctx.fillRect(x, y - 0.8 * s, w, h + 1.6 * s);
 
-    // Multi-stop warm interior gradient (darker ceiling -> warm lit room -> warm floor bounce)
     const wg = ctx.createLinearGradient(0, y, 0, y + h);
     wg.addColorStop(0, pal.windowTop);
     wg.addColorStop(0.45, pal.windowMid);
@@ -568,13 +760,11 @@ const WorldDeepBlue = {
     ctx.fillStyle = wg;
     ctx.fillRect(x + 1.2 * s, y, Math.max(1, w - 2.4 * s), h);
 
-    // Subtle exterior water-glass specular sheen along top edge
     ctx.fillStyle = pal.glassHighlight;
     ctx.globalAlpha = alpha * 0.22;
     ctx.fillRect(x + 1.2 * s, y, Math.max(1, w - 2.4 * s), Math.max(0.8, h * 0.24));
     ctx.globalAlpha = alpha;
 
-    // Fine structural vertical mullions
     if (mullions > 0) {
       ctx.fillStyle = pal.hullDark;
       const step = (w - 2.4 * s) / (mullions + 1);
@@ -585,7 +775,6 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Helper: subtle diffuse underwater exterior architectural wash onto basalt rocks (no hard geometric triangles)
   _drawExteriorFloodlight(ctx, x, y, spreadW, dropH, pal) {
     ctx.save();
     if (pal.isDark) ctx.globalCompositeOperation = "screen";
@@ -601,22 +790,22 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Unified Multi-Tier Sloped Benthic Fortress Foundation Rising Solidly From Seabed Plateau
+  // Grounded Polygonal Pre-Fabricated Seabed Bunker Foundation (modular seams, bolted buttresses, zero stilts)
   _drawSeabedFoundation(ctx, cx, topY, botY, topW, botW, pal, s, opts = {}) {
     ctx.save();
     const h = Math.max(22, botY - topY);
     const windowRows = opts.windowRows !== undefined ? opts.windowRows : 2;
 
-    // 1. Cast bedrock shadow stretching down-right
     ctx.fillStyle = pal.hullShadow;
     ctx.beginPath();
     ctx.ellipse(cx + 12 * s, botY + 4 * s, botW * 0.56, 11 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Main continuous armored bunker hull rising straight from seafloor plateau
     const midY = topY + h * 0.48;
     const midW = topW + (botW - topW) * 0.42;
+    const ch = 6 * s; // Polygonal corner chamfer
 
+    // Lower Tier Chamfered Polygonal Pre-Fab Vault
     const lowG = ctx.createLinearGradient(cx - botW * 0.5, 0, cx + botW * 0.5, 0);
     lowG.addColorStop(0, pal.hullLight);
     lowG.addColorStop(0.30, pal.hullMid);
@@ -624,40 +813,61 @@ const WorldDeepBlue = {
     lowG.addColorStop(1, pal.hullDark);
     ctx.fillStyle = lowG;
     ctx.beginPath();
-    ctx.moveTo(cx - midW * 0.5, midY);
-    ctx.lineTo(cx + midW * 0.5, midY);
+    ctx.moveTo(cx - midW * 0.5 + ch, midY);
+    ctx.lineTo(cx + midW * 0.5 - ch, midY);
+    ctx.lineTo(cx + midW * 0.5, midY + ch);
     ctx.lineTo(cx + botW * 0.5, botY + 12 * s);
     ctx.lineTo(cx - botW * 0.5, botY + 12 * s);
+    ctx.lineTo(cx - midW * 0.5, midY + ch);
     ctx.closePath();
     ctx.fill();
 
-    // 2.5D Faceted Right-Flank Shadow Return Plane on Lower Bunker
+    // 2.5D Faceted Right-Flank Shadow Return Plane
     ctx.fillStyle = pal.hullDark;
     ctx.beginPath();
-    ctx.moveTo(cx + midW * 0.24, midY);
-    ctx.lineTo(cx + midW * 0.5, midY);
+    ctx.moveTo(cx + midW * 0.22, midY);
+    ctx.lineTo(cx + midW * 0.5 - ch, midY);
+    ctx.lineTo(cx + midW * 0.5, midY + ch);
     ctx.lineTo(cx + botW * 0.5, botY + 12 * s);
     ctx.lineTo(cx + botW * 0.24, botY + 12 * s);
     ctx.closePath();
     ctx.fill();
 
-    // Upper Recessed Habitat Terrace Ring Platform
+    // Upper Chamfered Pre-Fab Habitat Platform
     ctx.fillStyle = lowG;
     ctx.beginPath();
-    ctx.moveTo(cx - topW * 0.5, topY);
-    ctx.lineTo(cx + topW * 0.5, topY);
+    ctx.moveTo(cx - topW * 0.5 + ch, topY);
+    ctx.lineTo(cx + topW * 0.5 - ch, topY);
+    ctx.lineTo(cx + topW * 0.5, topY + ch);
     ctx.lineTo(cx + midW * 0.52, midY + 2 * s);
     ctx.lineTo(cx - midW * 0.52, midY + 2 * s);
+    ctx.lineTo(cx - topW * 0.5, topY + ch);
     ctx.closePath();
     ctx.fill();
 
-    // Horizontal beveled terrace shoulder ledge & ambient ocean water-bounce crown rim
+    // Horizontal beveled terrace flange + modular hull panel grid tiling lines!
     ctx.fillStyle = pal.hullDark;
     ctx.fillRect(cx - midW * 0.53, midY - 1.8 * s, midW * 1.06, 4.2 * s);
     ctx.fillStyle = pal.waterBounce;
-    ctx.fillRect(cx - topW * 0.5, topY, topW * 0.74, 1.8 * s);
+    ctx.fillRect(cx - topW * 0.5 + ch, topY, topW * 0.74 - ch, 1.8 * s);
 
-    // Integral sloped armored buttress ribs
+    // Modular panel tile seam lines across lower and upper hulls
+    ctx.strokeStyle = pal.hullDeep;
+    ctx.globalAlpha = 0.28;
+    ctx.lineWidth = 0.85 * s;
+    for (let f = -0.34; f <= 0.34; f += 0.17) {
+      ctx.beginPath();
+      ctx.moveTo(cx + topW * f, topY + 2 * s);
+      ctx.lineTo(cx + botW * f, botY + 10 * s);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(cx - midW * 0.5, midY + (botY - midY) * 0.48);
+    ctx.lineTo(cx + midW * 0.5, midY + (botY - midY) * 0.48);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Integral Armored Wing Buttress Ribs
     ctx.fillStyle = pal.hullDeep;
     ctx.globalAlpha = 0.40;
     [-0.28, -0.09, 0.12].forEach(f => {
@@ -671,7 +881,6 @@ const WorldDeepBlue = {
     });
     ctx.globalAlpha = 1;
 
-    // Sleek recessed engineering window bands with warm multi-stop gradients
     const rowFracs = windowRows === 1 ? [0.34] : (windowRows === 2 ? [0.24, 0.62] : []);
     rowFracs.forEach((f, idx) => {
       const wy = topY + h * f;
@@ -680,13 +889,11 @@ const WorldDeepBlue = {
       this._drawWindowBand(ctx, bx, wy, bandW, 3.6 * s, Math.max(3, Math.round(bandW / (22 * s))), pal, s);
     });
 
-    // Subtle downward hull floodlights onto surrounding basalt shelf
     if (!opts.noFloodlight) {
       this._drawExteriorFloodlight(ctx, cx - botW * 0.24, midY + 2 * s, 44 * s, (botY - midY) + 14 * s, pal);
       this._drawExteriorFloodlight(ctx, cx + botW * 0.18, midY + 2 * s, 40 * s, (botY - midY) + 14 * s, pal);
     }
 
-    // Anchoring Volcanic Basalt Outcrops & Sediment Shelf Wrapping Cleanly Around Base
     ctx.fillStyle = pal.reefMid;
     ctx.beginPath();
     ctx.moveTo(cx - botW * 0.64, botY + 20 * s);
@@ -698,11 +905,12 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Sleek Chamfered 2.5D Research Module (cyan water-bounce crown, recessed mullioned panoramic glass)
+  // Parametrically standardized Chamfered Polygonal Pre-Fab Industrial Module
   _drawArchitecturalModule(ctx, x, y, bw, bh, pal, s, opts = {}) {
     const frontW = bw * 0.66;
     const depthX = bw * 0.34;
     const bevel = Math.min(7.5 * s, bh * 0.24);
+    const c = Math.min(5.5 * s, bh * 0.20); // Crisp octagonal pre-fab chamfer corner!
 
     ctx.save();
     ctx.fillStyle = pal.hullShadow;
@@ -713,55 +921,72 @@ const WorldDeepBlue = {
     mg.addColorStop(0.65, pal.hullMid);
     mg.addColorStop(1, pal.hullDark);
     ctx.fillStyle = mg;
-    ctx.fillRect(x, y, frontW, bh);
 
-    // Shaded isometric right flank
+    // Chamfered polygonal front face
+    ctx.beginPath();
+    ctx.moveTo(x + c, y);
+    ctx.lineTo(x + frontW - c * 0.4, y);
+    ctx.lineTo(x + frontW, y + c * 0.4);
+    ctx.lineTo(x + frontW, y + bh);
+    ctx.lineTo(x, y + bh);
+    ctx.lineTo(x, y + c);
+    ctx.closePath();
+    ctx.fill();
+
+    // Shaded polygonal isometric right flank
     const sideG = ctx.createLinearGradient(x + frontW, y, x + bw, y + bh);
     sideG.addColorStop(0, pal.hullDark);
     sideG.addColorStop(1, pal.hullDeep);
     ctx.fillStyle = sideG;
     ctx.beginPath();
-    ctx.moveTo(x + frontW, y);
-    ctx.lineTo(x + bw, y + bevel * 0.65);
+    ctx.moveTo(x + frontW, y + c * 0.4);
+    ctx.lineTo(x + bw - c * 0.4, y + bevel * 0.65);
+    ctx.lineTo(x + bw, y + bevel * 0.65 + c * 0.5);
     ctx.lineTo(x + bw, y + bh + bevel * 0.35);
     ctx.lineTo(x + frontW, y + bh);
     ctx.closePath();
     ctx.fill();
 
-    // Chamfered 2.5D roof terrace deck with ambient cyan water-bounce edge
+    // Chamfered 2.5D roof terrace deck + bolted safety railing
     ctx.fillStyle = pal.hullMid;
     ctx.beginPath();
-    ctx.moveTo(x, y);
+    ctx.moveTo(x + c, y);
     ctx.lineTo(x + depthX * 0.72, y - bevel);
-    ctx.lineTo(x + bw, y - bevel + bevel * 0.65);
-    ctx.lineTo(x + frontW, y);
+    ctx.lineTo(x + bw - c * 0.4, y - bevel + bevel * 0.65);
+    ctx.lineTo(x + frontW - c * 0.4, y);
     ctx.closePath();
     ctx.fill();
 
     ctx.strokeStyle = pal.waterBounce;
     ctx.lineWidth = 1.15 * s;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + frontW, y);
+    ctx.moveTo(x + c, y);
+    ctx.lineTo(x + frontW - c * 0.4, y);
     ctx.stroke();
 
-    // Fine vertical structural pressure seam ribs
-    ctx.fillStyle = pal.hullDeep;
-    ctx.globalAlpha = 0.45;
-    [0.32, 0.68].forEach(f => {
-      ctx.fillRect(x + frontW * f - 0.8 * s, y, 1.6 * s, bh);
+    // Standardized Pre-Fab Modular Panel Seam Tiles & Bolted Flange Collars
+    ctx.strokeStyle = pal.hullDeep;
+    ctx.globalAlpha = 0.38;
+    ctx.lineWidth = 0.85 * s;
+    [0.25, 0.50, 0.75].forEach(f => {
+      ctx.beginPath();
+      ctx.moveTo(x + frontW * f, y + 1 * s);
+      ctx.lineTo(x + frontW * f, y + bh - 1 * s);
+      ctx.stroke();
     });
+    // Horizontal panel mid-flange
+    ctx.beginPath();
+    ctx.moveTo(x + 1 * s, y + bh * 0.52);
+    ctx.lineTo(x + frontW - 1 * s, y + bh * 0.52);
+    ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Sleek Narrow Panoramic Glass Gallery Bands with Warm Interior Gradient & Vertical Mullions
     const rows = opts.rows || 1;
     for (let r = 0; r < rows; r++) {
-      const wy = y + bh * (rows === 1 ? 0.38 : (0.28 + r * 0.35));
+      const wy = y + bh * (rows === 1 ? 0.36 : (0.26 + r * 0.36));
       const wh = Math.max(2.6 * s, bh * 0.11);
-      this._drawWindowBand(ctx, x + 4.5 * s, wy, frontW - 9 * s, wh, 3, pal, s);
-
-      // Subtle recessed return glazing on shaded right flank
-      this._drawWindowBand(ctx, x + frontW + 3 * s, wy + 1.2 * s, Math.max(4 * s, depthX * 0.50), wh * 0.88, 1, pal, s, 0.68);
+      this._drawWindowBand(ctx, x + 5 * s, wy, frontW - 10 * s, wh, 3, pal, s);
+      this._drawWindowBand(ctx, x + frontW + 3 * s, wy + 1.2 * s, Math.max(4 * s, depthX * 0.48), wh * 0.88, 1, pal, s, 0.68);
     }
 
     if (opts.hasTanks) {
@@ -775,7 +1000,236 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Crystal-Clear Pressurized Acrylic Glass Walkway Tube connecting horizontal station modules!
+  // Hydropower Tidal Turbine Farm Anchored on Concrete Gravity Plinths Next to Base
+  _drawHydropowerFarm(ctx, L, pal) {
+    const s = L.s;
+    const turbines = L.hydroTurbines;
+    ctx.save();
+
+    // Grounded concrete seabed gravity piers anchoring manifold sill down into terrace bedrock
+    const leftX = turbines[0].x - 20 * s;
+    const rightX = turbines[turbines.length - 1].x + 20 * s;
+    const baseY = turbines[0].y + 12 * s;
+    const pierBottom = Math.max(L.seabedY + 2 * s, baseY + 28 * s);
+    [turbines[0].x, turbines[turbines.length - 1].x].forEach(px => {
+      ctx.fillStyle = pal.hullDeep;
+      ctx.beginPath();
+      ctx.moveTo(px - 10 * s, baseY + 6 * s);
+      ctx.lineTo(px + 10 * s, baseY + 6 * s);
+      ctx.lineTo(px + 15 * s, pierBottom);
+      ctx.lineTo(px - 15 * s, pierBottom);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // Shared concrete tidal manifold sill connecting turbine footings
+    ctx.fillStyle = pal.hullDark;
+    ctx.fillRect(leftX, baseY, rightX - leftX, 8 * s);
+    ctx.fillStyle = pal.waterBounce;
+    ctx.fillRect(leftX, baseY, rightX - leftX, 1.4 * s);
+
+    turbines.forEach(tb => {
+      // Gravity pedestal pylon
+      ctx.fillStyle = pal.hullMid;
+      ctx.beginPath();
+      ctx.moveTo(tb.x - 9 * s, baseY + 2 * s);
+      ctx.lineTo(tb.x - 5 * s, tb.y);
+      ctx.lineTo(tb.x + 5 * s, tb.y);
+      ctx.lineTo(tb.x + 9 * s, baseY + 2 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Ducted cylindrical tidal turbine nacelle
+      ctx.fillStyle = pal.hullDark;
+      ctx.beginPath();
+      ctx.ellipse(tb.x, tb.y - 2 * s, 14 * s, 14 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = pal.hullLight;
+      ctx.lineWidth = 2.0 * s;
+      ctx.beginPath();
+      ctx.arc(tb.x, tb.y - 2 * s, 12.5 * s, Math.PI * 0.9, Math.PI * 2.1);
+      ctx.stroke();
+
+      // Inner water aperture
+      ctx.fillStyle = pal.waterBottom;
+      ctx.beginPath();
+      ctx.arc(tb.x, tb.y - 2 * s, 9.5 * s, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  },
+
+  // Live animated spinning blades inside the Hydropower Tidal Turbine shrouds!
+  _updateAndDrawTurbines(ctx, L, pal, step) {
+    const s = L.s;
+    const turbines = L.hydroTurbines;
+    ctx.save();
+    turbines.forEach((tb, idx) => {
+      const cx = tb.x;
+      const cy = tb.y - 2 * s;
+      const r = 8.6 * s;
+      const rot = step * (2.6 + idx * 0.15);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.fillStyle = pal.hullLight;
+      for (let b = 0; b < 3; b++) {
+        ctx.save();
+        ctx.rotate((b * Math.PI * 2) / 3);
+        ctx.beginPath();
+        ctx.moveTo(0, -1.2 * s);
+        ctx.lineTo(r, -2.2 * s);
+        ctx.lineTo(r * 0.85, 1.4 * s);
+        ctx.lineTo(0, 1.0 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      // Hub spinner nose + cyan generator telemetry LED
+      ctx.fillStyle = pal.subAccent;
+      ctx.beginPath();
+      ctx.arc(0, 0, 2.4 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Crown generator status light
+      ctx.fillStyle = "#22D3EE";
+      ctx.beginPath();
+      ctx.arc(cx, cy - 12.5 * s, 1.4 * s, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  },
+
+  // Rotating Sonar & Acoustic Communications Dish Relay on East Sensor Wing
+  _drawSonarRelay(ctx, L, pal) {
+    const s = L.s;
+    const sx = L.sonarX;
+    const sy = L.sonarY;
+    ctx.save();
+    // Polygonal rotary base collar
+    ctx.fillStyle = pal.hullDark;
+    ctx.fillRect(sx - 6.5 * s, sy - 6 * s, 13 * s, 10 * s);
+    ctx.fillStyle = pal.hullLight;
+    ctx.fillRect(sx - 5 * s, sy - 9 * s, 10 * s, 3 * s);
+    ctx.restore();
+  },
+
+  _updateAndDrawSonarArray(ctx, L, pal, step) {
+    const s = L.s;
+    const sx = L.sonarX;
+    const sy = L.sonarY - 12 * s;
+    const sweep = Math.sin(step * 0.9) * 0.85;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(Math.cos(sweep) * 0.95 + 0.15, 1);
+
+    // Parabolic hydrophone transceiver dish + phased array transducer bar
+    ctx.fillStyle = pal.hullLight;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 11 * s, 6.5 * s, -0.2, Math.PI * 0.85, Math.PI * 2.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = pal.subAccent;
+    ctx.lineWidth = 1.6 * s;
+    ctx.beginPath();
+    ctx.moveTo(-10 * s, 0);
+    ctx.lineTo(10 * s, -2 * s);
+    ctx.stroke();
+
+    // Central emitter feed horn pulsing aqua
+    const pulse = 0.5 + 0.5 * Math.sin(step * 4.5);
+    ctx.fillStyle = `rgba(34, 211, 238, ${(0.45 + 0.45 * pulse).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(0, -6 * s, 1.8 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+
+  // Crop Cultivation Greenhouse Dome with Faceted Polygonal Glass & Interior Green Hydroponic Rows!
+  _drawGreenhouseDome(ctx, L, pal) {
+    const s = L.s;
+    ctx.save();
+    ctx.translate(L.domeX, L.domeY + 12 * s);
+
+    // Chamfered steel skirt base
+    ctx.fillStyle = pal.hullMid;
+    ctx.beginPath();
+    ctx.ellipse(0, 3 * s, 46 * s, 14 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = pal.hullDark;
+    ctx.fillRect(-44 * s, 3 * s, 88 * s, 16 * s);
+    this._drawWindowBand(ctx, -34 * s, 8 * s, 68 * s, 4.4 * s, 5, pal, s);
+
+    // Interior ambient warm/horticultural grow-light glow visible through glass
+    const bioG = ctx.createRadialGradient(-4 * s, -12 * s, 4 * s, 0, -6 * s, 40 * s);
+    bioG.addColorStop(0, pal.biodomeFlora);
+    bioG.addColorStop(0.62, pal.isDark ? "rgba(253, 224, 146, 0.34)" : "rgba(218, 246, 255, 0.46)");
+    bioG.addColorStop(1, "rgba(186, 230, 253, 0.14)");
+    ctx.fillStyle = bioG;
+    ctx.beginPath();
+    ctx.arc(0, 0, 38 * s, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Visible Tiered Interior Hydroponic Crop Cultivation Racks & Leafy Canopy Rows!
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, 36 * s, Math.PI, 0);
+    ctx.closePath();
+    ctx.clip();
+
+    // Upper & lower metallic hydroponic shelf trays
+    ctx.fillStyle = pal.hullDark;
+    ctx.fillRect(-26 * s, -6 * s, 52 * s, 2.2 * s);
+    ctx.fillRect(-20 * s, -16 * s, 40 * s, 2.0 * s);
+
+    // Leafy green crop domes along both cultivation tiers
+    ctx.fillStyle = pal.cropRow;
+    for (let k = -4; k <= 4; k++) {
+      ctx.beginPath();
+      ctx.arc(k * 5.2 * s, -6.5 * s, 3.4 * s, Math.PI, 0);
+      ctx.fill();
+    }
+    for (let k = -3; k <= 3; k++) {
+      ctx.beginPath();
+      ctx.arc(k * 5.0 * s, -16.5 * s, 2.8 * s, Math.PI, 0);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Glass specular highlight arc
+    ctx.strokeStyle = pal.glassHighlight;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 2.0 * s;
+    ctx.beginPath();
+    ctx.arc(0, 0, 34 * s, Math.PI * 1.15, Math.PI * 1.48);
+    ctx.stroke();
+
+    // Polygonal geodesic dome truss struts
+    ctx.strokeStyle = pal.hullLight;
+    ctx.globalAlpha = 0.78;
+    ctx.lineWidth = 1.2 * s;
+    ctx.beginPath();
+    ctx.arc(0, 0, 38 * s, Math.PI, 0);
+    ctx.moveTo(-38 * s, 0);
+    ctx.lineTo(38 * s, 0);
+    ctx.moveTo(-34 * s, -16 * s);
+    ctx.lineTo(34 * s, -16 * s);
+    ctx.moveTo(-23 * s, -29 * s);
+    ctx.lineTo(23 * s, -29 * s);
+    [-21, -9, 0, 9, 21].forEach(rx => {
+      ctx.moveTo(rx * s, 0);
+      ctx.lineTo(rx * 0.55 * s, -29 * s);
+      ctx.lineTo(0, -38 * s);
+    });
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  // Crystal-Clear Pressurized Acrylic Glass Walkway Tube connecting horizontal station modules
   _drawClearGlassTube(ctx, x0, y0, x1, y1, thickness, s, pal, opts = {}) {
     const ang = Math.atan2(y1 - y0, x1 - x0);
     const len = Math.hypot(x1 - x0, y1 - y0);
@@ -788,20 +1242,18 @@ const WorldDeepBlue = {
     ctx.translate(x0, y0);
     ctx.rotate(ang);
 
-    // 1. Subtle ambient underwater warm glow radiating from illuminated acrylic gallery in evening/dark
     if (pal.isDark) {
       ctx.save();
       ctx.globalCompositeOperation = "screen";
-      const haloG = ctx.createLinearGradient(0, -halfT * 1.9, 0, halfT * 1.9);
-      haloG.addColorStop(0, "rgba(253, 224, 146, 0)");
-      haloG.addColorStop(0.5, `rgba(253, 224, 146, ${(0.16 * hazeAlpha).toFixed(3)})`);
-      haloG.addColorStop(1, "rgba(253, 224, 146, 0)");
+      const haloG = ctx.createLinearGradient(0, -halfT * 1.8, 0, halfT * 1.8);
+      haloG.addColorStop(0, "rgba(165, 243, 252, 0)");
+      haloG.addColorStop(0.5, `rgba(165, 243, 252, ${(0.12 * hazeAlpha).toFixed(3)})`);
+      haloG.addColorStop(1, "rgba(165, 243, 252, 0)");
       ctx.fillStyle = haloG;
-      ctx.fillRect(4 * s, -halfT * 1.9, Math.max(0, len - 8 * s), thickness * 1.9);
+      ctx.fillRect(4 * s, -halfT * 1.8, Math.max(0, len - 8 * s), thickness * 1.8);
       ctx.restore();
     }
 
-    // 2. Translucent curved glass cylinder envelope (ocean background remains clearly visible through the glass!)
     const glassG = ctx.createLinearGradient(0, -halfT, 0, halfT);
     glassG.addColorStop(0, pal.glassHighlight);
     glassG.addColorStop(0.18, pal.glassTint);
@@ -811,26 +1263,16 @@ const WorldDeepBlue = {
     ctx.fillStyle = glassG;
     ctx.fillRect(0, -halfT, len, thickness);
 
-    // 3. Visible interior walkway floor deck along bottom 26% of glass tube + warm handrail illumination
     const floorTop = halfT * 0.34;
     const floorH = halfT - floorTop;
     ctx.fillStyle = pal.tubeFloor;
     ctx.globalAlpha = hazeAlpha * 0.88;
     ctx.fillRect(0, floorTop, len, floorH);
 
-    // Warm interior walkway LED strip & soft light wash up the curved glass wall
-    const warmWash = ctx.createLinearGradient(0, -halfT * 0.3, 0, floorTop);
-    warmWash.addColorStop(0, "rgba(254, 236, 176, 0)");
-    warmWash.addColorStop(1, pal.isDark ? "rgba(254, 230, 148, 0.34)" : "rgba(254, 238, 186, 0.22)");
-    ctx.fillStyle = warmWash;
-    ctx.globalAlpha = hazeAlpha;
-    ctx.fillRect(4 * s, -halfT * 0.3, Math.max(0, len - 8 * s), floorTop + halfT * 0.3);
-
-    // Crisp continuous warm illuminated interior walkway handrail/deck strip
     ctx.fillStyle = pal.tubeWarmGlow;
-    ctx.fillRect(3 * s, floorTop - 1.3 * s, Math.max(0, len - 6 * s), 1.7 * s);
+    ctx.globalAlpha = hazeAlpha;
+    ctx.fillRect(3 * s, floorTop - 1.3 * s, Math.max(0, len - 6 * s), 1.6 * s);
 
-    // Subtle interior bulkhead handrails visible behind glass
     ctx.strokeStyle = pal.waterBounce;
     ctx.globalAlpha = hazeAlpha * 0.34;
     ctx.lineWidth = 0.8 * s;
@@ -839,12 +1281,10 @@ const WorldDeepBlue = {
     ctx.lineTo(len - 4 * s, floorTop - 4.0 * s);
     ctx.stroke();
 
-    // 4. Curved titanium structural pressure ribs spaced cleanly along acrylic span
     const segs = Math.max(3, Math.floor(len / (22 * s)));
     ctx.globalAlpha = hazeAlpha;
     for (let i = 1; i < segs; i++) {
       const sx = (i / segs) * len;
-      // Shaded titanium hoop
       ctx.strokeStyle = pal.hullDark;
       ctx.lineWidth = 2.0 * s;
       ctx.beginPath();
@@ -852,7 +1292,6 @@ const WorldDeepBlue = {
       ctx.quadraticCurveTo(sx + 2.6 * s, 0, sx, halfT + 0.8 * s);
       ctx.stroke();
 
-      // Top cyan water-bounce highlight on structural ring
       ctx.strokeStyle = pal.waterBounce;
       ctx.lineWidth = 0.9 * s;
       ctx.beginPath();
@@ -861,7 +1300,6 @@ const WorldDeepBlue = {
       ctx.stroke();
     }
 
-    // 5. Top & bottom curved acrylic glass edge refraction lines + crisp specular reflection streak
     ctx.strokeStyle = pal.glassRim;
     ctx.lineWidth = 1.0 * s;
     ctx.beginPath();
@@ -879,7 +1317,6 @@ const WorldDeepBlue = {
     ctx.lineTo(len - 4 * s, -halfT * 0.62);
     ctx.stroke();
 
-    // 6. Armored bulkhead airlock mating collars at both ends of the glass tube
     ctx.globalAlpha = hazeAlpha;
     [0, len - 6.5 * s].forEach(cx => {
       ctx.fillStyle = pal.hullDark;
@@ -891,7 +1328,6 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Vertical Surface Supply Elevator Shaft rising cleanly from Station Airlock Collar to Ocean Surface!
   _drawSupplyElevatorShaft(ctx, L, pal) {
     const s = L.s;
     const ex = L.elevX;
@@ -913,7 +1349,6 @@ const WorldDeepBlue = {
     ctx.lineTo(ex + railHalf, dockY);
     ctx.stroke();
 
-    // Horizontal tension spreader brackets
     ctx.strokeStyle = pal.hullMid;
     ctx.globalAlpha = 0.48;
     ctx.lineWidth = 0.85 * s;
@@ -927,7 +1362,6 @@ const WorldDeepBlue = {
     }
     ctx.globalAlpha = 1;
 
-    // Reinforced Conical Elevator Airlock Receiver Funnel at Station Collar
     ctx.fillStyle = pal.hullDark;
     ctx.beginPath();
     ctx.moveTo(ex - 15 * s, dockY + 8 * s);
@@ -955,7 +1389,6 @@ const WorldDeepBlue = {
     ctx.fillStyle = tg;
     ctx.fillRect(0, -thickness * 0.5, len, thickness);
 
-    // Subtle cyan top water-bounce specular line along pier crown
     ctx.fillStyle = pal.waterBounce;
     ctx.fillRect(0, -thickness * 0.5, len, 1.3 * s);
 
@@ -964,16 +1397,7 @@ const WorldDeepBlue = {
       const sx = (i / segs) * len;
       ctx.fillStyle = pal.hullDark;
       ctx.fillRect(sx - 1.4 * s, -thickness * 0.56, 2.8 * s, thickness * 1.12);
-      this._drawWindowBand(
-        ctx,
-        sx - (len / segs) * 0.62,
-        -thickness * 0.14,
-        (len / segs) * 0.34,
-        thickness * 0.24,
-        1,
-        pal,
-        s
-      );
+      this._drawWindowBand(ctx, sx - (len / segs) * 0.62, -thickness * 0.14, (len / segs) * 0.34, thickness * 0.24, 1, pal, s);
     }
 
     ctx.fillStyle = pal.hullDark;
@@ -983,16 +1407,15 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Horizontal Satellite Observatory / Habitat Wing terraced organically onto a wide volcanic seabed mound
   _drawSatelliteWing(ctx, cx, cy, seabedY, pal, s, opts = {}) {
     const isObs = opts.kind === "observatory";
     const isPod = opts.kind === "pod";
     const sc = isPod ? s * 0.78 : s * 0.92;
-    const baseTopW = isPod ? 82 * sc : 132 * sc;
-    const baseBotW = isPod ? 136 * sc : 196 * sc;
+    const baseTopW = isPod ? 82 * sc : 134 * sc;
+    const baseBotW = isPod ? 136 * sc : 198 * sc;
 
     ctx.save();
-    // 0. Raised volcanic basalt terrace shelf cradling the satellite wing (eliminates tall skinny column look!)
+    // Volcanic basalt mound cradling satellite base
     ctx.fillStyle = pal.seabedDark;
     ctx.beginPath();
     ctx.moveTo(cx - baseBotW * 0.85, seabedY + 24 * sc);
@@ -1001,30 +1424,30 @@ const WorldDeepBlue = {
     ctx.closePath();
     ctx.fill();
 
-    // 1. Low wide sloped armored benthic foundation rising cleanly from basalt terrace (NO stilts!)
     this._drawSeabedFoundation(ctx, cx, cy + 12 * sc, Math.min(seabedY, cy + 72 * sc), baseTopW, baseBotW, pal, sc, {
       windowRows: 1,
       noFloodlight: true
     });
 
     if (isObs) {
-      // West Wing: Curved Marine Biology Observatory with Panoramic Acrylic Dome & Lab Annex
+      // West Fabrication & Diver Wet Airlock Wing
       this._drawArchitecturalModule(ctx, cx - 50 * sc, cy - 12 * sc, 64 * sc, 30 * sc, pal, sc, { rows: 1, hasTanks: true });
 
-      // Translucent curved glass observation dome seated solidly on wing terrace
+      // Illuminated Moonpool Diver Airlock Chamber Hatch along lower-right shoulder of West Wing!
+      ctx.fillStyle = pal.hullDark;
+      ctx.fillRect(cx + 2 * sc, cy + 8 * sc, 24 * sc, 15 * sc);
+      ctx.fillStyle = "rgba(56, 224, 232, 0.72)";
+      ctx.fillRect(cx + 6 * sc, cy + 12 * sc, 16 * sc, 9 * sc);
+
       ctx.save();
       ctx.translate(cx + 12 * sc, cy + 8 * sc);
-      ctx.fillStyle = pal.hullDark;
-      ctx.fillRect(-30 * sc, 0, 60 * sc, 12 * sc);
-      this._drawWindowBand(ctx, -24 * sc, 3 * sc, 48 * sc, 4.2 * sc, 3, pal, sc);
-
       const obsG = ctx.createRadialGradient(-4 * sc, -10 * sc, 3 * sc, 0, -4 * sc, 30 * sc);
-      obsG.addColorStop(0, pal.isDark ? "rgba(254, 232, 160, 0.45)" : "rgba(224, 248, 255, 0.58)");
+      obsG.addColorStop(0, pal.isDark ? "rgba(186, 236, 252, 0.42)" : "rgba(224, 248, 255, 0.58)");
       obsG.addColorStop(0.65, pal.glassTint);
       obsG.addColorStop(1, pal.glassRim);
       ctx.fillStyle = obsG;
       ctx.beginPath();
-      ctx.arc(0, 0, 27 * sc, Math.PI, 0);
+      ctx.arc(0, 0, 26 * sc, Math.PI, 0);
       ctx.closePath();
       ctx.fill();
 
@@ -1032,14 +1455,14 @@ const WorldDeepBlue = {
       ctx.globalAlpha = 0.72;
       ctx.lineWidth = 1.15 * sc;
       ctx.beginPath();
-      ctx.arc(0, 0, 27 * sc, Math.PI, 0);
-      [-12, 0, 12].forEach(rx => {
+      ctx.arc(0, 0, 26 * sc, Math.PI, 0);
+      [-11, 0, 11].forEach(rx => {
         ctx.moveTo(rx * sc, 0);
-        ctx.quadraticCurveTo(rx * 0.6 * sc, -15 * sc, 0, -27 * sc);
+        ctx.lineTo(rx * 0.55 * sc, -20 * sc);
+        ctx.lineTo(0, -26 * sc);
       });
       ctx.stroke();
 
-      // Hydrophone mast
       ctx.globalAlpha = 1;
       ctx.strokeStyle = pal.hullLight;
       ctx.lineWidth = 1.4 * sc;
@@ -1051,7 +1474,7 @@ const WorldDeepBlue = {
       ctx.stroke();
       ctx.restore();
     } else if (isPod) {
-      // Distant Abyssal Sensor / Sonar Outpost Pod
+      // Far East Telemetry & Water Sampling Outpost Pod
       this._drawArchitecturalModule(ctx, cx - 28 * sc, cy - 8 * sc, 56 * sc, 24 * sc, pal, sc, { rows: 1 });
       ctx.save();
       ctx.translate(cx, cy - 8 * sc);
@@ -1069,21 +1492,11 @@ const WorldDeepBlue = {
       ctx.stroke();
       ctx.restore();
     } else {
-      // East Wing: Horizontal Benthic Habitat & Deep Sampling Annex
+      // East Pre-Fab Sensor & Sonar Relay Wing
       this._drawArchitecturalModule(ctx, cx - 48 * sc, cy - 18 * sc, 68 * sc, 34 * sc, pal, sc, { rows: 2, hasTanks: true });
-      this._drawArchitecturalModule(ctx, cx + 10 * sc, cy - 6 * sc, 46 * sc, 24 * sc, pal, sc, { rows: 1 });
-      // Roof sensor array & telemetry beacon
-      ctx.strokeStyle = pal.hullLight;
-      ctx.lineWidth = 1.4 * sc;
-      ctx.beginPath();
-      ctx.moveTo(cx + 26 * sc, cy - 10 * sc);
-      ctx.lineTo(cx + 26 * sc, cy - 42 * sc);
-      ctx.moveTo(cx + 20 * sc, cy - 30 * sc);
-      ctx.lineTo(cx + 32 * sc, cy - 30 * sc);
-      ctx.stroke();
+      this._drawArchitecturalModule(ctx, cx + 10 * sc, cy - 6 * sc, 48 * sc, 24 * sc, pal, sc, { rows: 1 });
     }
 
-    // Optional Beer-Lambert water haze overlay for distant outer wings
     if (opts.haze > 0) {
       ctx.fillStyle = `rgba(${pal.waterHazeRgb}, ${opts.haze.toFixed(3)})`;
       ctx.beginPath();
@@ -1099,88 +1512,42 @@ const WorldDeepBlue = {
     const hy = L.hubY;
     const seabedBaseY = L.seabedY + 20 * s;
 
-    // 0. Distant Depth-Hazed Horizontal Outer Outposts & Connecting Clear Glass Tubes (desktop)
+    // 0. Far-West Hydropower Tidal Turbine Farm & Far-East Depth-Hazed Outpost
+    this._drawHydropowerFarm(ctx, L, pal);
     if (!L.isNarrow) {
-      this._drawClearGlassTube(ctx, L.farWestX + 26 * s, L.farWestY + 2 * s, L.westWingX - 52 * s, L.westWingY + 4 * s, 11.5 * s, s, pal, { depthAlpha: 0.78 });
-      this._drawSatelliteWing(ctx, L.farWestX, L.farWestY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.24 });
-
       this._drawClearGlassTube(ctx, L.eastWingX + 52 * s, L.eastWingY + 4 * s, L.farEastX - 26 * s, L.farEastY + 2 * s, 11.5 * s, s, pal, { depthAlpha: 0.78 });
       this._drawSatelliteWing(ctx, L.farEastX, L.farEastY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.24 });
     }
 
-    // 1. Horizontal Clear Acrylic Glass Walkway Tubes Linking West Observatory & East Habitat to Main Complex!
+    // 1. Clear Acrylic Glass Walkway Tubes Linking Horizontal Pre-Fab Wings Across Canyon Floor
     this._drawClearGlassTube(ctx, L.westWingX + 44 * s, L.westWingY + 4 * s, hx - 118 * s, hy + 36 * s, 15 * s, s, pal);
     this._drawClearGlassTube(ctx, hx + 116 * s, hy + 32 * s, L.eastWingX - 46 * s, L.eastWingY + 4 * s, 15 * s, s, pal);
-    // Secondary upper clear glass observatory gallery tube from biodome terrace sloping down to East Wing
     this._drawClearGlassTube(ctx, L.domeX + 30 * s, L.domeY + 14 * s, L.eastWingX - 36 * s, L.eastWingY - 6 * s, 11 * s, s, pal, { depthAlpha: 0.90 });
 
-    // 2. Grounded Horizontal West Observatory Wing & East Habitat Annex
+    // 2. Grounded West Wet-Lock/Fabrication Wing & East Sonar Wing + Rotating Sonar Array Collar
     this._drawSatelliteWing(ctx, L.westWingX, L.westWingY, seabedBaseY + 2 * s, pal, s, { kind: "observatory", haze: 0.08 });
     this._drawSatelliteWing(ctx, L.eastWingX, L.eastWingY, seabedBaseY + 2 * s, pal, s, { kind: "habitat", haze: 0.08 });
+    this._drawSonarRelay(ctx, L, pal);
 
-    // 3. Vertical Surface Supply Elevator Guide Shaft (behind left upper transfer bay)
+    // 3. Vertical Surface Supply Elevator Guide Shaft
     this._drawSupplyElevatorShaft(ctx, L, pal);
 
-    // 4. Monumental Unified Benthic Fortress Foundation Rising Solidly Out of Central Seabed Ridge
+    // 4. Central Chamfered Polygonal Pre-Fab Seabed Fortress Foundation
     this._drawSeabedFoundation(ctx, hx + 4 * s, hy + 16 * s, seabedBaseY, 276 * s, 368 * s, pal, s);
 
-    // 5. Integrated Flanking Lower Wing Modules Seated Flush on Central Foundation Terrace
+    // 5. Flanking Chamfered Pre-Fab Laboratory Modules
     this._drawArchitecturalModule(ctx, hx - 124 * s, hy + 16 * s, 68 * s, 36 * s, pal, s, { rows: 2, hasTanks: true });
     this._drawArchitecturalModule(ctx, hx + 66 * s, hy + 14 * s, 72 * s, 36 * s, pal, s, { rows: 2 });
 
-    // 6. Upper Rear Modules & Surface Supply Elevator Airlock Tower seated flush into foundation terrace
+    // 6. Upper Rear Modules & Surface Supply Elevator Airlock Tower
     this._drawArchitecturalModule(ctx, L.elevX - 28 * s, L.elevDockY + 6 * s, 58 * s, 46 * s, pal, s, { rows: 2, hasTanks: true });
     this._drawArchitecturalModule(ctx, hx + 28 * s, hy - 52 * s, 60 * s, 44 * s, pal, s, { rows: 2, hasTanks: true });
 
-    // Clear glass connecting gallery from Command Hub to Hydroponics Biodome Wing
+    // Clear glass connecting gallery from Command Hub to Crop Cultivation Greenhouse Dome
     this._drawClearGlassTube(ctx, hx + 32 * s, hy - 4 * s, L.domeX - 24 * s, L.domeY + 10 * s, 14 * s, s, pal);
 
-    // 7. Geodesic Hydroponics Biodome Seated Solidly on Right Foundation Terrace
-    ctx.save();
-    ctx.translate(L.domeX, L.domeY + 12 * s);
-    ctx.fillStyle = pal.hullMid;
-    ctx.beginPath();
-    ctx.ellipse(0, 3 * s, 44 * s, 14 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = pal.hullDark;
-    ctx.fillRect(-42 * s, 3 * s, 84 * s, 15 * s);
-    this._drawWindowBand(ctx, -32 * s, 8 * s, 64 * s, 4.4 * s, 5, pal, s);
-
-    const bioG = ctx.createRadialGradient(-4 * s, -12 * s, 4 * s, 0, -6 * s, 38 * s);
-    bioG.addColorStop(0, pal.biodomeFlora);
-    bioG.addColorStop(0.62, pal.isDark ? "rgba(253, 224, 146, 0.45)" : "rgba(218, 246, 255, 0.48)");
-    bioG.addColorStop(1, "rgba(186, 230, 253, 0.14)");
-    ctx.fillStyle = bioG;
-    ctx.beginPath();
-    ctx.arc(0, 0, 36 * s, Math.PI, 0);
-    ctx.closePath();
-    ctx.fill();
-
-    // Subtle glass specular arc on biodome
-    ctx.strokeStyle = pal.glassHighlight;
-    ctx.globalAlpha = 0.42;
-    ctx.lineWidth = 2.0 * s;
-    ctx.beginPath();
-    ctx.arc(0, 0, 32 * s, Math.PI * 1.15, Math.PI * 1.48);
-    ctx.stroke();
-
-    ctx.strokeStyle = pal.hullLight;
-    ctx.globalAlpha = 0.72;
-    ctx.lineWidth = 1.2 * s;
-    ctx.beginPath();
-    ctx.arc(0, 0, 36 * s, Math.PI, 0);
-    ctx.moveTo(-36 * s, 0);
-    ctx.lineTo(36 * s, 0);
-    ctx.moveTo(-32 * s, -15 * s);
-    ctx.lineTo(32 * s, -15 * s);
-    ctx.moveTo(-22 * s, -27 * s);
-    ctx.lineTo(22 * s, -27 * s);
-    [-20, -9, 0, 9, 20].forEach(rx => {
-      ctx.moveTo(rx * s, 0);
-      ctx.quadraticCurveTo(rx * 0.65 * s, -21 * s, 0, -36 * s);
-    });
-    ctx.stroke();
-    ctx.restore();
+    // 7. Faceted Hydroponic Crop Cultivation Greenhouse Dome
+    this._drawGreenhouseDome(ctx, L, pal);
 
     // 8. Twin Foreground Radiating Pressurized Submarine Docking Piers
     this._drawPressurizedTunnel(ctx, hx - 20 * s, hy + 24 * s, L.leftDockX, L.leftDockY, 22 * s, s, pal);
@@ -1191,7 +1558,7 @@ const WorldDeepBlue = {
     ctx.translate(hx, hy);
     ctx.fillStyle = pal.hullDark;
     ctx.beginPath();
-    ctx.roundRect(-60 * s, 4 * s, 120 * s, 32 * s, 10 * s);
+    ctx.roundRect(-60 * s, 4 * s, 120 * s, 32 * s, 8 * s);
     ctx.fill();
 
     const ringG = ctx.createLinearGradient(-64 * s, -18 * s, 64 * s, 18 * s);
@@ -1203,43 +1570,40 @@ const WorldDeepBlue = {
     ctx.ellipse(0, 4 * s, 66 * s, 25 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ambient ocean bounce rim along command ring
     ctx.strokeStyle = pal.waterBounce;
     ctx.lineWidth = 1.2 * s;
     ctx.beginPath();
     ctx.ellipse(0, 4 * s, 66 * s, 25 * s, 0, Math.PI * 1.05, Math.PI * 1.92);
     ctx.stroke();
 
-    // Stepped observation dome collar
     ctx.fillStyle = ringG;
     ctx.beginPath();
     ctx.arc(0, -4 * s, 46 * s, Math.PI, 0);
     ctx.closePath();
     ctx.fill();
 
-    // Cupola ribs on main dome
     ctx.strokeStyle = pal.hullDeep;
     ctx.globalAlpha = 0.35;
     ctx.lineWidth = 1.15 * s;
     [-25, 0, 25].forEach(rx => {
       ctx.beginPath();
       ctx.moveTo(rx * s, -4 * s);
-      ctx.quadraticCurveTo(rx * 0.55 * s, -27 * s, 0, -50 * s);
+      ctx.lineTo(rx * 0.55 * s, -27 * s);
+      ctx.lineTo(0, -50 * s);
       ctx.stroke();
     });
     ctx.globalAlpha = 1;
 
     if (pal.isDark) {
       const bridgeHalo = ctx.createRadialGradient(0, -4 * s, 8 * s, 0, -4 * s, 64 * s);
-      bridgeHalo.addColorStop(0, "rgba(253, 224, 142, 0.28)");
-      bridgeHalo.addColorStop(1, "rgba(253, 224, 142, 0)");
+      bridgeHalo.addColorStop(0, "rgba(186, 236, 252, 0.22)");
+      bridgeHalo.addColorStop(1, "rgba(186, 236, 252, 0)");
       ctx.fillStyle = bridgeHalo;
       ctx.beginPath();
       ctx.arc(0, -4 * s, 64 * s, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Recessed panoramic command bridge windows with warm gradient & mullions
     this._drawWindowBand(ctx, -41 * s, -13 * s, 82 * s, 9.2 * s, 8, pal, s);
 
     // Multi-Stage Communications & Hydrophone Spire
@@ -1258,7 +1622,7 @@ const WorldDeepBlue = {
     ctx.lineTo(7.5 * s, -96 * s);
     ctx.stroke();
 
-    // 10. Front-Right Grounded ROV Terrace Pad
+    // Front-Right Grounded ROV Terrace Pad
     ctx.translate(46 * s, 26 * s);
     ctx.fillStyle = pal.hullDark;
     ctx.fillRect(-26 * s, 0, 52 * s, 14 * s);
@@ -1278,7 +1642,6 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Gentle horizontal/diagonal submarine approach corridors (no artificial vertical top-edge plunges!)
   _assignCorridorEndpoints(subObj, side, w, h, L) {
     const corr = this._pick(["upper_glide", "mid_cruise", "deep_ascent"]);
     subObj.corridor = corr;
@@ -1318,7 +1681,30 @@ const WorldDeepBlue = {
     const L = this.getLayout(w, h);
     const s = L.s;
 
-    // 1. True Whales gliding across deep background lanes
+    // 1. Ground-Anchored Swinging Kelp Fronds (roots strictly embedded 7-10px below _cliffYAtX / _seabedYAtX!)
+    if (this.kelp.length === 0) {
+      const leftXs = isNarrow ? [0.05, 0.14] : [0.04, 0.10, 0.17, 0.24];
+      const rightXs = isNarrow ? [0.85, 0.94] : [0.76, 0.84, 0.91, 0.96];
+      const floorXs = isNarrow ? [0.36, 0.64] : [0.21, 0.34, 0.66, 0.79];
+
+      leftXs.forEach((xf, idx) => {
+        const kx = w * xf;
+        const ky = (this._cliffYAtX(kx, w, h) || h * 0.82) + 9;
+        this.kelp.push({ x: kx, y: ky, h: (32 + (idx % 3) * 14) * (isNarrow ? 0.75 : 1), fronds: 3, phase: idx * 1.1, foreground: true });
+      });
+      rightXs.forEach((xf, idx) => {
+        const kx = w * xf;
+        const ky = (this._cliffYAtX(kx, w, h) || h * 0.82) + 9;
+        this.kelp.push({ x: kx, y: ky, h: (34 + (idx % 2) * 16) * (isNarrow ? 0.75 : 1), fronds: 3, phase: idx * 1.4 + 0.6, foreground: true });
+      });
+      floorXs.forEach((xf, idx) => {
+        const kx = w * xf;
+        const ky = this._seabedYAtX(kx, w, h, L) + 18 + (idx % 2) * 14;
+        this.kelp.push({ x: kx, y: Math.min(h - 4, ky), h: 24 + (idx % 3) * 9, fronds: 2, phase: idx * 0.9 + 2, foreground: false });
+      });
+    }
+
+    // 2. True Whales gliding across deep background lanes
     if (this.whales.length === 0) {
       this.whales = [
         { x: w * 0.22, y: h * 0.20, vx: 0.20, len: isNarrow ? 74 : 112, depth: 0.26, phase: 0 },
@@ -1326,7 +1712,7 @@ const WorldDeepBlue = {
       ];
     }
 
-    // 2. Sharks: Great Whites, Hammerheads, Whale Sharks with unified rigid-torso silhouettes
+    // 3. Sharks: Great Whites, Hammerheads, Whale Sharks
     if (this.sharks.length === 0) {
       this.sharks = [
         { species: "great_white", x: w * 0.30, y: h * 0.25, vx: 0.56, size: isNarrow ? 27 : 37, depth: 0.56, phase: 0.4 },
@@ -1336,7 +1722,33 @@ const WorldDeepBlue = {
       ];
     }
 
-    // 3. Manta Rays & Dense Fish Schools
+    // 4. Synchronized Undulating Coastal Fish Schools!
+    if (this.fishSchools.length === 0) {
+      const schoolSpecs = isNarrow
+        ? [
+            { x: w * 0.18, y: h * 0.28, vx: 0.52, depth: 0.44, count: 14, spread: 42 },
+            { x: w * 0.78, y: h * 0.20, vx: -0.44, depth: 0.36, count: 14, spread: 38 }
+          ]
+        : [
+            { x: w * 0.16, y: h * 0.29, vx: 0.56, depth: 0.46, count: 24, spread: 64 },
+            { x: w * 0.72, y: h * 0.17, vx: -0.48, depth: 0.34, count: 26, spread: 72 },
+            { x: w * 0.42, y: h * 0.12, vx: 0.36, depth: 0.24, count: 20, spread: 56 },
+            { x: w * 0.85, y: h * 0.38, vx: -0.62, depth: 0.60, count: 18, spread: 52 }
+          ];
+      this.fishSchools = schoolSpecs.map((sc, sIdx) => {
+        const members = [];
+        for (let m = 0; m < sc.count; m++) {
+          members.push({
+            ox: ((m * 0.6180339) % 1 - 0.5) * sc.spread,
+            oy: (Math.sin(m * 1.9 + sIdx) * 0.45) * (sc.spread * 0.42),
+            sz: (3.2 + (m % 3) * 0.9) * (0.65 + sc.depth * 0.55),
+            pOff: m * 0.45
+          });
+        }
+        return { ...sc, phase: sIdx * 1.3, members };
+      });
+    }
+
     if (this.farLife.length === 0) {
       for (let i = 0; i < (isNarrow ? 2 : 3); i++) {
         this.farLife.push({
@@ -1349,7 +1761,7 @@ const WorldDeepBlue = {
           phase: Math.random() * Math.PI * 2
         });
       }
-      const schoolCount = isNarrow ? 14 : 26;
+      const schoolCount = isNarrow ? 10 : 18;
       for (let i = 0; i < schoolCount; i++) {
         const rightGroup = i >= schoolCount * 0.55;
         this.farLife.push({
@@ -1392,7 +1804,7 @@ const WorldDeepBlue = {
     }
 
     if (this.snow.length === 0) {
-      const count = isNarrow ? 24 : 44;
+      const count = isNarrow ? 22 : 44;
       for (let i = 0; i < count; i++) {
         this.snow.push({
           x: Math.random() * w,
@@ -1405,7 +1817,32 @@ const WorldDeepBlue = {
       }
     }
 
-    // 4. Vertical Surface Supply Elevator (starts descending partway down shaft)
+    // 5. To-Scale Human Maintenance Divers Entering & Exiting Station Airlocks!
+    if (this.divers.length === 0) {
+      const dTargets = [
+        { tx: L.hubX - 148 * s, ty: L.hubY + 24 * s },
+        { tx: L.hydroTurbines[0].x + 14 * s, ty: L.hydroTurbines[0].y + 4 * s },
+        { tx: L.westWingX + 54 * s, ty: L.westWingY + 6 * s }
+      ];
+      const count = isNarrow ? 2 : 3;
+      for (let i = 0; i < count; i++) {
+        this.divers.push({
+          id: `diver_${i + 1}`,
+          phase: i === 0 ? "swim_to_site" : (i === 1 ? "weld_inspect" : "inside_airlock"),
+          t: i === 0 ? 1.5 : 0,
+          dist: i === 0 ? 28 : 0,
+          phaseDuration: this._rand(5.0, 9.0),
+          targetPt: dTargets[i],
+          path: null,
+          x: i === 1 ? dTargets[1].tx : L.airlockX,
+          y: i === 1 ? dTargets[1].ty : L.airlockY,
+          facingLeft: dTargets[i].tx < L.airlockX,
+          kickPhase: i * 1.7
+        });
+      }
+    }
+
+    // 6. Vertical Surface Supply Elevator
     if (!this.elevator) {
       this.elevator = {
         phase: "descending",
@@ -1415,19 +1852,18 @@ const WorldDeepBlue = {
       };
     }
 
-    // 5. Left-Pier Visiting Submarine (arc-length velocity-continuous cruising & level buoyant trim)
+    // 7. Left-Pier Visiting Submarine (varied from all 7 cohesive designs)
     if (!this.sub) {
       const dirX = Math.cos(L.leftAngle);
       const dirY = Math.sin(L.leftAngle);
       const holdPt = { x: L.leftDockX + dirX * (130 * s), y: L.leftDockY + dirY * (130 * s) };
       this.sub = {
-        style: "crew_shuttle",
+        style: "deep_explorer",
         phase: "approaching",
         t: 0,
         dist: 120,
         speed: 17.5,
         cruiseSpeed: 18.0,
-        phaseDuration: this._rand(10.0, 15.0),
         corridor: "mid_cruise",
         entryX: -150,
         entryY: h * 0.48,
@@ -1448,7 +1884,7 @@ const WorldDeepBlue = {
       this.sub.dist = Math.min(this.sub.path.totalLen * 0.35, 160);
     }
 
-    // 6. Right-Pier Modular Cargo / Research Submarine (starts docked, level buoyant trim)
+    // 8. Right-Pier Modular Cargo / Tug Submarine
     if (!this.cargoSub) {
       const dirX = Math.cos(L.rightAngle);
       const dirY = Math.sin(L.rightAngle);
@@ -1473,7 +1909,7 @@ const WorldDeepBlue = {
       this._assignCorridorEndpoints(this.cargoSub, "right", w, h, L);
     }
 
-    // 7. Extra Multi-Directional Roaming Submarines (Science Bathyscaphe + Far Depth Transit Sub)
+    // 9. Extra Multi-Directional Roaming Submarines
     if (this.roamingSubs.length === 0) {
       const fromPt = { x: w + 115, y: h * 0.30 };
       const hoverPt = { x: L.eastWingX - 18 * s, y: L.eastWingY - 62 * s };
@@ -1487,7 +1923,7 @@ const WorldDeepBlue = {
         {
           id: "science_visitor",
           role: "visitor",
-          style: "bathyscaphe",
+          style: "manta_glider",
           phase: "patrol_in",
           t: 0,
           dist: visitorPath.totalLen * 0.32,
@@ -1507,7 +1943,7 @@ const WorldDeepBlue = {
         {
           id: "deep_transit",
           role: "transit",
-          style: "research_catamaran",
+          style: "industrial_tug",
           phase: "cruising",
           t: 4.5,
           dist: 240,
@@ -1527,7 +1963,7 @@ const WorldDeepBlue = {
       ];
     }
 
-    // 8. 3 Maintenance ROVs inspecting the seabed reef & clear glass tubes
+    // 10. 3 Maintenance ROVs
     if (this.rovs.length === 0) {
       this.rovs = [
         {
@@ -1606,6 +2042,11 @@ const WorldDeepBlue = {
   },
 
   draw(ctx, w, h, mode, dt, step) {
+    // Reset terrain-dependent foliage & diver coordinates cleanly on desktop <-> mobile resize
+    if (this._lastW && Math.abs(this._lastW - w) > 20) {
+      this.kelp = [];
+      this.divers = [];
+    }
     this._lastW = w;
     this._lastH = h;
     this.ensureStaticCache(w, h, mode);
@@ -1614,36 +2055,43 @@ const WorldDeepBlue = {
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
 
-    // 1. Blit offscreen cached water, grounded horizontal clear-tube station, and elevator guide shaft
+    // 1. Blit offscreen cached water, grounded pre-fab complex, hydropower farm & benthic terrain
     ctx.drawImage(this.cacheCanvas, 0, 0, w, h);
 
-    // 2. Subtle Animated Ocean Surface Ripples & Volumetric God-Rays
+    // 2. Animated Ocean Surface Shimmer & Slanted Sunbeams (warm golden shafts on shallow coastal Golden Hour!)
     this._drawSurfaceShimmer(ctx, w, pal, step);
     if (pal.rayAlpha > 0.05) {
       this._drawGodRays(ctx, w, h, pal, step, mode);
     }
 
-    // 3. Far-Depth Megafauna & Background Transit Submarines
+    // 3. Far-Depth Megafauna, Undulating Fish Schools & Background Transit Submarines
     this._updateAndDrawWhales(ctx, w, h, pal, dt);
     this._updateAndDrawSharks(ctx, w, h, pal, dt);
+    this._updateAndDrawFishSchools(ctx, w, h, pal, dt);
     this._updateAndDrawFarLife(ctx, w, h, pal, dt);
     this._updateAndDrawExtraSubs(ctx, w, h, L, pal, dt, step);
 
-    // 4. Animated Surface Supply Elevator Capsule & Station Beacons
+    // 4. Live Rotating Hydropower Turbines, Spinning Sonar Array, Beacons & Supply Elevator
+    this._updateAndDrawTurbines(ctx, L, pal, step);
+    this._updateAndDrawSonarArray(ctx, L, pal, step);
     this._drawStationBeacons(ctx, L, pal, step);
     this._updateAndDrawSupplyElevator(ctx, L, pal, dt, step);
 
-    // 5. Left-Pier & Right-Pier Arc-Length Buoyant-Trim Docking Submarines
+    // 5. To-Scale Human Maintenance Divers Cycling In/Out of Station Wet-Lock Airlock!
+    this._updateAndDrawDivers(ctx, L, pal, dt, step);
+
+    // 6. Left-Pier & Right-Pier Arc-Length Buoyant-Trim Docking Submarines
     this._updateAndDrawSubmersible(ctx, w, h, L, pal, dt, step);
     this._updateAndDrawCargoSub(ctx, w, h, L, pal, dt, step);
 
-    // 6. 3 Maintenance ROVs with Volumetric Spotlights
+    // 7. 3 Maintenance ROVs with Volumetric Spotlights
     this._updateAndDrawROVs(ctx, w, h, pal, dt, step);
 
-    // 7. Foreground Reef Fish & Bioluminescent Jellyfish
+    // 8. Ground-Anchored Swinging Kelp, Foreground Reef Fish & Bioluminescent Jellyfish
+    this._drawAnchoredKelp(ctx, pal, step);
     this._updateAndDrawNearLife(ctx, w, h, pal, dt);
 
-    // 8. Rising Bubbles, Marine Snow & Reactive Sonar Rings
+    // 9. Rising Bubbles, Marine Snow & Reactive Sonar Rings
     this._updateAndDrawAmbientParticles(ctx, w, h, pal, dt);
   },
 
@@ -1654,7 +2102,7 @@ const WorldDeepBlue = {
       const sx = ((i * 0.082 + Math.sin(step * 0.35 + i) * 0.015) % 1) * w;
       const sy = 5 + (i % 3) * 7 + Math.sin(step * 1.1 + i * 1.7) * 2.5;
       const len = 28 + (i % 4) * 16;
-      const a = (0.14 + 0.14 * Math.sin(step * 1.3 + i)) * (pal.isDark ? 0.55 : 0.90);
+      const a = (0.14 + 0.14 * Math.sin(step * 1.3 + i)) * (pal.isDark && !pal.isGoldenCoastal ? 0.55 : 0.92);
       ctx.strokeStyle = pal.surfaceRipple;
       ctx.globalAlpha = Math.max(0.04, a);
       ctx.lineWidth = 1.6;
@@ -1669,18 +2117,18 @@ const WorldDeepBlue = {
   _drawGodRays(ctx, w, h, pal, step, mode) {
     ctx.save();
     ctx.globalCompositeOperation = "screen";
-    const slant = mode === "morning" ? 0.36 : 0.28;
+    const slant = mode === "evening" ? 0.46 : (mode === "morning" ? 0.36 : 0.28);
     const rayCount = w < 720 ? 5 : 7;
     for (let i = 0; i < rayCount; i++) {
       const baseX = (w * (0.04 + i * (0.58 / rayCount))) + Math.sin(step * 0.5 + i * 1.3) * 28;
       const topW = 24 + (i % 3) * 18;
-      const botW = topW * 3.2;
-      const rayH = h * (0.68 + (i % 2) * 0.18);
+      const botW = topW * 3.3;
+      const rayH = h * (mode === "evening" ? 0.84 : (0.68 + (i % 2) * 0.18));
       const pulse = 0.65 + 0.35 * Math.sin(step * 0.85 + i * 2.0);
 
       const g = ctx.createLinearGradient(baseX, 0, baseX + rayH * slant, rayH);
       g.addColorStop(0, `rgba(${pal.rayColor}, ${(pal.rayAlpha * pulse).toFixed(3)})`);
-      g.addColorStop(0.62, `rgba(${pal.rayColor}, ${(pal.rayAlpha * 0.32 * pulse).toFixed(3)})`);
+      g.addColorStop(0.62, `rgba(${pal.rayColor}, ${(pal.rayAlpha * 0.34 * pulse).toFixed(3)})`);
       g.addColorStop(1, `rgba(${pal.rayColor}, 0)`);
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -1690,6 +2138,29 @@ const WorldDeepBlue = {
       ctx.lineTo(baseX + rayH * slant - botW * 0.5, rayH);
       ctx.closePath();
       ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  // Ground-Anchored Swinging Kelp Blades (zero floating bases!)
+  _drawAnchoredKelp(ctx, pal, step) {
+    ctx.save();
+    for (let i = 0; i < this.kelp.length; i++) {
+      const k = this.kelp[i];
+      ctx.globalAlpha = k.foreground ? 0.94 : 0.65;
+      ctx.strokeStyle = k.foreground ? pal.kelpColor : pal.kelpTip;
+      ctx.lineCap = "round";
+      for (let f = 0; f < k.fronds; f++) {
+        const bx = k.x + (f - (k.fronds - 1) * 0.5) * 4.5;
+        const fh = k.h * (0.76 + (f % 2) * 0.28);
+        const sway1 = Math.sin(step * 1.45 + k.phase + f * 0.8) * 6.5;
+        const sway2 = Math.sin(step * 1.45 + k.phase + f * 0.8 - 1.1) * 11.5;
+        ctx.lineWidth = k.foreground ? 2.6 : 1.9;
+        ctx.beginPath();
+        ctx.moveTo(bx, k.y + 4); // Firmly rooted inside seabed polygon!
+        ctx.bezierCurveTo(bx + sway1, k.y - fh * 0.35, bx - sway1 * 0.5, k.y - fh * 0.72, bx + sway2, k.y - fh);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   },
@@ -1709,11 +2180,10 @@ const WorldDeepBlue = {
     ctx.arc(mastX, mastY, 13 * s, 0, Math.PI * 2);
     ctx.fill();
 
-    // Subtle navigation marker strobes on West & East horizontal wings
     const wingPulse = 0.5 + 0.5 * Math.sin(step * 3.1 + 1.4);
     [
       { x: L.westWingX - 28 * s, y: L.westWingY - 35 * s },
-      { x: L.eastWingX + 23 * s, y: L.eastWingY - 37 * s }
+      { x: L.sonarX, y: L.sonarY - 18 * s }
     ].forEach(pt => {
       const wg = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, 8 * s);
       wg.addColorStop(0, `rgba(56, 189, 248, ${(0.35 + 0.45 * wingPulse).toFixed(3)})`);
@@ -1743,6 +2213,193 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
+  // To-Scale Human Maintenance Divers Cycling Through Wet-Lock Airlock!
+  _updateAndDrawDivers(ctx, L, pal, dt, step) {
+    const s = L.s;
+    const lockPt = { x: L.airlockX, y: L.airlockY };
+    const exitPt = { x: L.airlockX + 6 * s, y: L.airlockY + 18 * s };
+
+    for (let i = 0; i < this.divers.length; i++) {
+      const d = this.divers[i];
+      d.t += dt;
+      d.kickPhase += dt * 7.5;
+      let visible = false;
+      let welding = false;
+
+      if (d.phase === "inside_airlock") {
+        d.x = lockPt.x;
+        d.y = lockPt.y;
+        if (d.t >= d.phaseDuration) {
+          d.phase = "airlock_exit";
+          d.t = 0;
+          d.phaseDuration = 2.6;
+          // Burst of decompression air bubbles from wet-lock chamber!
+          for (let b = 0; b < 5; b++) {
+            this.bubbles.push({
+              x: lockPt.x + (Math.random() - 0.5) * 6 * s,
+              y: lockPt.y + 4 * s,
+              r: 1.0 + Math.random() * 1.4,
+              vy: -(0.5 + Math.random() * 0.4),
+              wobble: Math.random() * 6,
+              alpha: 0.45
+            });
+          }
+        }
+      } else if (d.phase === "airlock_exit") {
+        visible = true;
+        const p = Math.min(1, d.t / d.phaseDuration);
+        d.x = this._lerp(lockPt.x, exitPt.x, p);
+        d.y = this._lerp(lockPt.y, exitPt.y, p);
+        d.facingLeft = d.targetPt.x < d.x;
+        if (d.t >= d.phaseDuration) {
+          d.path = this._buildArcPath([{
+            type: "cubic",
+            p0: exitPt,
+            p1: { x: exitPt.x, y: exitPt.y + 18 * s },
+            p2: { x: d.targetPt.x + (d.facingLeft ? 18 : -18) * s, y: d.targetPt.y - 6 * s },
+            p3: d.targetPt
+          }], 18);
+          d.phase = "swim_to_site";
+          d.dist = 0;
+          d.t = 0;
+        }
+      } else if (d.phase === "swim_to_site") {
+        visible = true;
+        if (!d.path) {
+          d.path = this._buildArcPath([{
+            type: "cubic",
+            p0: exitPt,
+            p1: { x: exitPt.x, y: exitPt.y + 18 * s },
+            p2: { x: d.targetPt.x + 15 * s, y: d.targetPt.y - 6 * s },
+            p3: d.targetPt
+          }], 18);
+        }
+        d.dist += 11.0 * dt;
+        const pt = this._sampleArcPath(d.path, d.dist);
+        d.x = pt.x;
+        d.y = pt.y + Math.sin(d.kickPhase * 0.5) * 1.2 * s;
+        d.facingLeft = pt.dx < 0;
+        if (d.dist >= d.path.totalLen) {
+          d.phase = "weld_inspect";
+          d.t = 0;
+          d.phaseDuration = this._rand(7.0, 12.0);
+        }
+      } else if (d.phase === "weld_inspect") {
+        visible = true;
+        welding = true;
+        d.x = d.targetPt.x + Math.sin(step * 1.2 + i) * 2.5 * s;
+        d.y = d.targetPt.y + Math.cos(step * 1.5 + i) * 2.0 * s;
+        d.facingLeft = d.targetPt.x > L.hubX;
+        if (d.t >= d.phaseDuration) {
+          d.path = this._buildArcPath([{
+            type: "cubic",
+            p0: { x: d.x, y: d.y },
+            p1: { x: d.x, y: d.y + 14 * s },
+            p2: { x: exitPt.x, y: exitPt.y + 16 * s },
+            p3: exitPt
+          }], 18);
+          d.phase = "swim_back";
+          d.dist = 0;
+          d.t = 0;
+        }
+      } else if (d.phase === "swim_back") {
+        visible = true;
+        d.dist += 10.5 * dt;
+        const pt = this._sampleArcPath(d.path, d.dist);
+        d.x = pt.x;
+        d.y = pt.y + Math.sin(d.kickPhase * 0.5) * 1.2 * s;
+        d.facingLeft = pt.dx < 0;
+        if (d.dist >= d.path.totalLen) {
+          d.phase = "airlock_enter";
+          d.t = 0;
+          d.phaseDuration = 2.6;
+        }
+      } else {
+        visible = true;
+        const p = Math.min(1, d.t / d.phaseDuration);
+        d.x = this._lerp(exitPt.x, lockPt.x, p);
+        d.y = this._lerp(exitPt.y, lockPt.y, p);
+        if (d.t >= d.phaseDuration) {
+          d.phase = "inside_airlock";
+          d.t = 0;
+          d.phaseDuration = this._rand(6.0, 14.0);
+        }
+      }
+
+      if (!visible) continue;
+
+      if (Math.random() < 0.14) {
+        this.bubbles.push({
+          x: d.x,
+          y: d.y - 2 * s,
+          r: 0.7 + Math.random() * 0.9,
+          vy: -(0.45 + Math.random() * 0.35),
+          wobble: Math.random() * 6,
+          alpha: 0.36
+        });
+      }
+
+      // Draw Tiny Realistic To-Scale Human Diver (~10-12px total length!)
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      if (d.facingLeft) ctx.scale(-1, 1);
+      ctx.scale(s * 0.92, s * 0.92);
+
+      // Tiny helmet beam
+      if (pal.isDark) {
+        const hb = ctx.createLinearGradient(5, -1, 24, 0);
+        hb.addColorStop(0, "rgba(224, 247, 250, 0.36)");
+        hb.addColorStop(1, "rgba(224, 247, 250, 0)");
+        ctx.fillStyle = hb;
+        ctx.beginPath();
+        ctx.moveTo(5, -2);
+        ctx.lineTo(24, -6);
+        ctx.lineTo(24, 5);
+        ctx.lineTo(5, 0);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Wetsuit torso & scuba tank
+      ctx.fillStyle = "#1E293B";
+      ctx.beginPath();
+      ctx.roundRect(-4, -1.6, 8, 3.2, 1.4);
+      ctx.fill();
+      ctx.fillStyle = "#F59E0B";
+      ctx.fillRect(-2.5, -2.9, 4.5, 1.6);
+
+      // Scuba helmet with glowing aqua visor
+      ctx.fillStyle = pal.subHullLight;
+      ctx.beginPath();
+      ctx.arc(4.8, -0.5, 2.0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#67E8F9";
+      ctx.beginPath();
+      ctx.arc(5.5, -0.5, 1.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Animated scissor diving fins
+      const kick = Math.sin(d.kickPhase) * 2.2;
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(-4, 0);
+      ctx.lineTo(-8.2, -1.2 + kick);
+      ctx.moveTo(-4, 0.8);
+      ctx.lineTo(-8.2, 1.6 - kick);
+      ctx.stroke();
+
+      // Flickering underwater arc-welding / inspection torch flash while on maintenance site!
+      if (welding && Math.sin(step * 28 + i * 3) > -0.2) {
+        ctx.fillStyle = "rgba(103, 232, 249, 0.92)";
+        ctx.beginPath();
+        ctx.arc(7.5, -0.5, 2.2 + Math.random() * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  },
+
   _updateAndDrawSupplyElevator(ctx, L, pal, dt, step) {
     const el = this.elevator;
     if (!el) return;
@@ -1762,7 +2419,6 @@ const WorldDeepBlue = {
     } else if (el.phase === "descending") {
       moving = true;
       const p = Math.min(1, el.t / el.phaseDuration);
-      // Smooth steady hoist velocity with soft start/stop ramps (no mid-travel surge)
       const ease = p < 0.15 ? (p * p) / 0.30 : (p > 0.85 ? 1 - ((1 - p) * (1 - p)) / 0.30 : (p - 0.075) / 0.85);
       el.y = topY + (botY - topY) * this._clamp(ease, 0, 1);
       if (el.t >= el.phaseDuration) {
@@ -1841,10 +2497,56 @@ const WorldDeepBlue = {
     ctx.fillStyle = pal.subHullDark;
     ctx.fillRect(-8.5, 9.5, 17, 3.8);
 
-    ctx.fillStyle = el.phase === "docked_station" ? "#34D399" : "#FBBF24";
+    ctx.fillStyle = el.phase === "docked_station" ? "#34D399" : "#22D3EE";
     ctx.beginPath();
     ctx.arc(0, -17, 1.9, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  },
+
+  // Synchronized Undulating Coastal Fish Schools
+  _updateAndDrawFishSchools(ctx, w, h, pal, dt) {
+    const scaleDt = dt * 60;
+    ctx.save();
+    for (let i = 0; i < this.fishSchools.length; i++) {
+      const sc = this.fishSchools[i];
+      sc.phase += 0.036 * scaleDt;
+      sc.x += sc.vx * scaleDt;
+      sc.y += Math.sin(sc.phase * 0.55) * 0.18 * scaleDt;
+
+      if (sc.vx > 0 && sc.x > w + sc.spread) {
+        sc.x = -sc.spread;
+        sc.y = h * this._rand(0.12, 0.38);
+      }
+      if (sc.vx < 0 && sc.x < -sc.spread) {
+        sc.x = w + sc.spread;
+        sc.y = h * this._rand(0.12, 0.38);
+      }
+
+      const alpha = (0.16 + sc.depth * 0.44) * (pal.isDark && !pal.isGoldenCoastal ? 0.65 : 0.85);
+      ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${alpha.toFixed(3)})`;
+      const dir = sc.vx < 0 ? -1 : 1;
+
+      for (let m = 0; m < sc.members.length; m++) {
+        const mb = sc.members[m];
+        const fx = sc.x + mb.ox + Math.cos(sc.phase + mb.pOff) * 3.5;
+        const fy = sc.y + mb.oy + Math.sin(sc.phase * 1.3 + mb.pOff) * 4.5;
+        const sz = mb.sz;
+        const wag = Math.sin(sc.phase * 2.4 + mb.pOff) * 1.1;
+
+        ctx.save();
+        ctx.translate(fx, fy);
+        if (dir < 0) ctx.scale(-1, 1);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, sz, sz * 0.36, 0, 0, Math.PI * 2);
+        ctx.moveTo(-sz * 0.75, 0);
+        ctx.lineTo(-sz * 1.45, -sz * 0.42 + wag);
+        ctx.lineTo(-sz * 1.45, sz * 0.42 + wag);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
     ctx.restore();
   },
 
@@ -1866,7 +2568,7 @@ const WorldDeepBlue = {
         wh.y = h * this._rand(0.10, 0.28);
       }
 
-      const alpha = (0.14 + wh.depth * 0.52) * (pal.isDark ? 0.68 : 0.78);
+      const alpha = (0.14 + wh.depth * 0.52) * (pal.isDark && !pal.isGoldenCoastal ? 0.68 : 0.78);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${alpha.toFixed(3)})`;
 
       ctx.save();
@@ -1876,7 +2578,6 @@ const WorldDeepBlue = {
       const L = wh.len;
       const tailWag = Math.sin(wh.phase * 1.4) * (L * 0.06);
 
-      // Steady anterior torso, undulation confined to tail peduncle
       ctx.beginPath();
       ctx.moveTo(L * 0.50, -L * 0.02);
       ctx.quadraticCurveTo(L * 0.20, -L * 0.13, -L * 0.10, -L * 0.10);
@@ -1889,14 +2590,12 @@ const WorldDeepBlue = {
       ctx.closePath();
       ctx.fill();
 
-      // Long humpback pectoral fin anchored deep inside rigid belly midline
       ctx.beginPath();
       ctx.moveTo(L * 0.16, L * 0.02);
       ctx.quadraticCurveTo(L * 0.02, L * 0.25, -L * 0.09, L * 0.22);
       ctx.quadraticCurveTo(L * 0.02, L * 0.10, L * 0.07, L * 0.01);
       ctx.closePath();
       ctx.fill();
-
       ctx.restore();
     }
     ctx.restore();
@@ -1920,7 +2619,7 @@ const WorldDeepBlue = {
         sh.y = h * this._rand(0.14, 0.36);
       }
 
-      const alpha = (0.18 + sh.depth * 0.55) * (pal.isDark ? 0.72 : 0.86);
+      const alpha = (0.18 + sh.depth * 0.55) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.86);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${alpha.toFixed(3)})`;
 
       ctx.save();
@@ -2033,7 +2732,7 @@ const WorldDeepBlue = {
       if (f.vx > 0 && f.x > w + 75) f.x = -75;
       if (f.vx < 0 && f.x < -75) f.x = w + 75;
 
-      const visAlpha = (0.14 + f.depth * 0.45) * (pal.isDark ? 0.72 : 0.85);
+      const visAlpha = (0.14 + f.depth * 0.45) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.85);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${visAlpha.toFixed(3)})`;
 
       ctx.save();
@@ -2067,14 +2766,14 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Unified 4-Style Theme-Cohesive Submarine Renderer (Bow = +x, Stern = -x, Top = -y)
+  // 7 Cohesive Theme-Synchronized Submarine Classes (Bow = +x, Stern = -x, Top = -y)
   _drawSubmarineModel(ctx, style, pal, step, thrusterGlow = 0.3, showBeam = false) {
     const hullG = ctx.createLinearGradient(0, -18, 0, 18);
     hullG.addColorStop(0, pal.subHullLight);
     hullG.addColorStop(0.52, pal.subHullMid);
     hullG.addColorStop(1, pal.subHullDark);
 
-    const beamOrigin = style === "heavy_freighter" ? 64 : (style === "bathyscaphe" ? 28 : 54);
+    const beamOrigin = style === "heavy_freighter" ? 64 : (style === "deep_explorer" ? 60 : (style === "bathyscaphe" ? 28 : 48));
     if (showBeam) {
       ctx.save();
       if (pal.isDark) ctx.globalCompositeOperation = "screen";
@@ -2094,8 +2793,115 @@ const WorldDeepBlue = {
       ctx.restore();
     }
 
-    if (style === "bathyscaphe") {
-      // Compact Science Bathyscaphe Sphere-Sub (manipulator skids + wide glass front dome)
+    if (style === "manta_glider") {
+      // Sleek Winged Hydrofoil Reconnaissance Submersible
+      ctx.fillStyle = hullG;
+      ctx.beginPath();
+      ctx.moveTo(42, 0);
+      ctx.quadraticCurveTo(22, -10, -28, -9);
+      ctx.lineTo(-36, -3);
+      ctx.lineTo(-36, 4);
+      ctx.lineTo(-26, 9);
+      ctx.quadraticCurveTo(22, 9, 42, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Swept lateral hydroplane wings
+      ctx.fillStyle = pal.subHullDark;
+      ctx.beginPath();
+      ctx.moveTo(8, 2);
+      ctx.lineTo(-14, 14);
+      ctx.lineTo(-22, 13);
+      ctx.lineTo(-10, 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = pal.waterBounce;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-26, -8.5);
+      ctx.quadraticCurveTo(18, -9.5, 36, -2);
+      ctx.stroke();
+
+      ctx.fillStyle = pal.subAccent;
+      ctx.fillRect(-18, -1.5, 42, 2.2);
+      // Forward bubble cockpit canopy
+      ctx.fillStyle = pal.glassHighlight;
+      ctx.beginPath();
+      ctx.arc(24, -3.5, 6.2, Math.PI * 0.9, Math.PI * 2.05);
+      ctx.fill();
+    } else if (style === "industrial_tug") {
+      // Compact Boxy Heavy-Duty Utility / Salvage Sub with Front Articulated Claws
+      ctx.fillStyle = pal.subHullDark;
+      ctx.fillRect(-30, -13, 56, 26);
+      ctx.fillStyle = hullG;
+      ctx.beginPath();
+      ctx.roundRect(-28, -14, 54, 24, 5);
+      ctx.fill();
+
+      ctx.fillStyle = pal.subAccent;
+      ctx.fillRect(-26, -16, 48, 3.2);
+      ctx.fillStyle = pal.waterBounce;
+      ctx.fillRect(-24, -14, 46, 1.2);
+
+      // Large armored bow viewport
+      this._drawWindowBand(ctx, 10, -9, 14, 8, 2, pal, 1);
+      // Articulated manipulator claws extending from bow
+      ctx.strokeStyle = pal.subHullLight;
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(26, 4);
+      ctx.lineTo(38, 8);
+      ctx.lineTo(44, 5);
+      ctx.moveTo(26, 7);
+      ctx.lineTo(37, 12);
+      ctx.lineTo(43, 12);
+      ctx.stroke();
+
+      // Ducted twin stern pump-jets
+      ctx.fillStyle = pal.subHullDark;
+      ctx.fillRect(-35, -10, 7, 20);
+    } else if (style === "deep_explorer") {
+      // Multi-Tier Abyssal Explorer Cruiser (forward bow observatory + tall hydrophone sail)
+      ctx.fillStyle = hullG;
+      ctx.beginPath();
+      ctx.moveTo(60, 1);
+      ctx.quadraticCurveTo(48, -15, 16, -15.5);
+      ctx.lineTo(-50, -14);
+      ctx.lineTo(-58, -8);
+      ctx.lineTo(-58, 10);
+      ctx.lineTo(-50, 15.5);
+      ctx.lineTo(28, 15.5);
+      ctx.quadraticCurveTo(50, 14, 60, 1);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = pal.waterBounce;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-48, -14);
+      ctx.lineTo(16, -15.5);
+      ctx.quadraticCurveTo(44, -15, 56, -3);
+      ctx.stroke();
+
+      // Tall trapezoidal conning sail & hydrophone mast
+      ctx.fillStyle = pal.subHullLight;
+      ctx.beginPath();
+      ctx.moveTo(22, -15.5);
+      ctx.lineTo(12, -28);
+      ctx.lineTo(-8, -28);
+      ctx.lineTo(-14, -14.5);
+      ctx.closePath();
+      ctx.fill();
+      this._drawWindowBand(ctx, -2, -25, 14, 4.0, 2, pal, 1);
+      this._drawWindowBand(ctx, -36, -6, 68, 3.8, 5, pal, 1);
+
+      // Bow panoramic dome
+      ctx.fillStyle = pal.windowMid;
+      ctx.beginPath();
+      ctx.arc(54, 1, 7, -Math.PI * 0.45, Math.PI * 0.45);
+      ctx.fill();
+    } else if (style === "bathyscaphe") {
       ctx.strokeStyle = pal.subHullDark;
       ctx.lineWidth = 1.9;
       ctx.beginPath();
@@ -2112,7 +2918,6 @@ const WorldDeepBlue = {
       ctx.ellipse(-2, 0, 26, 12.8, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Top cyan ambient ocean bounce highlight
       ctx.strokeStyle = pal.waterBounce;
       ctx.lineWidth = 1.1;
       ctx.beginPath();
@@ -2122,7 +2927,6 @@ const WorldDeepBlue = {
       ctx.fillStyle = pal.subAccent;
       ctx.fillRect(-10, -15.5, 14, 3.8);
 
-      // Panoramic acrylic observation sphere dome at bow (+x)
       const domeG = ctx.createRadialGradient(21, -2, 1, 19, 0, 9);
       domeG.addColorStop(0, pal.glassHighlight);
       domeG.addColorStop(0.45, pal.windowMid);
@@ -2135,7 +2939,6 @@ const WorldDeepBlue = {
       ctx.lineWidth = 1.3;
       ctx.stroke();
 
-      // Shrouded stern thruster + vertical stabilizer fin
       ctx.fillStyle = pal.subHullDark;
       ctx.fillRect(-31, -6, 6, 12);
       ctx.beginPath();
@@ -2145,7 +2948,6 @@ const WorldDeepBlue = {
       ctx.closePath();
       ctx.fill();
     } else if (style === "research_catamaran") {
-      // Twin-Hull Oceanographic Survey Catamaran Vessel
       ctx.fillStyle = pal.subHullDark;
       ctx.beginPath();
       ctx.roundRect(-48, 5, 92, 9.5, 4.8);
@@ -2162,7 +2964,6 @@ const WorldDeepBlue = {
       ctx.closePath();
       ctx.fill();
 
-      // Ambient ocean top bounce highlight
       ctx.strokeStyle = pal.waterBounce;
       ctx.lineWidth = 1.1;
       ctx.beginPath();
@@ -2171,7 +2972,6 @@ const WorldDeepBlue = {
       ctx.quadraticCurveTo(38, -12, 48, -3);
       ctx.stroke();
 
-      // Raised panoramic research bridge + dorsal hydrophone fin
       ctx.fillStyle = pal.subHullLight;
       ctx.beginPath();
       ctx.moveTo(30, -12.5);
@@ -2186,34 +2986,28 @@ const WorldDeepBlue = {
       ctx.fillRect(-36, -3, 76, 2.5);
       this._drawWindowBand(ctx, -28, -9, 52, 3.4, 4, pal, 1);
 
-      // Dive hydroplane fin & shrouded twin stern thruster
       ctx.fillStyle = pal.subHullDark;
       ctx.fillRect(-54, -9, 8, 18);
       ctx.fillRect(14, 1, 11, 2.6);
     } else if (style === "heavy_freighter") {
-      // Massive Elongated Segmented Deep-Cargo Freighter with Theme-Cohesive Intermodal Containers
       ctx.fillStyle = hullG;
       ctx.beginPath();
       ctx.roundRect(-64, -16.5, 128, 33, 6.5);
       ctx.fill();
 
-      // Ambient top water-bounce specular ridge
       ctx.fillStyle = pal.waterBounce;
       ctx.fillRect(-58, -16.5, 116, 1.4);
 
-      // Beveled nose docking probe (+x)
       ctx.fillStyle = pal.subHullDark;
       ctx.beginPath();
       ctx.arc(62, 0, 9.5, -Math.PI * 0.5, Math.PI * 0.5);
       ctx.fill();
 
-      // Armored hull structural ribs
       ctx.fillStyle = pal.subHullDark;
       [-42, -12, 18, 44].forEach(rx => {
         ctx.fillRect(rx, -17.5, 4.2, 35);
       });
 
-      // Theme-cohesive cargo containers on dorsal spine
       const containers = [
         { x: -38, w: 22, color: pal.subContainers[0] },
         { x: -10, w: 24, color: pal.subContainers[1] },
@@ -2229,13 +3023,11 @@ const WorldDeepBlue = {
         ctx.strokeRect(c.x, -25.5, c.w, 9.5);
       });
 
-      // Cohesive industrial stern collar + quad thruster shroud (-x)
       ctx.fillStyle = pal.subAccent;
       ctx.fillRect(-56, -16.5, 4.8, 33);
       ctx.fillStyle = pal.subHullDark;
       ctx.fillRect(-68, -14.5, 12, 29);
 
-      // Recessed warm porthole gallery strip
       this._drawWindowBand(ctx, -46, -3.5, 86, 3.5, 6, pal, 1);
 
       if (thrusterGlow > 0.1) {
@@ -2248,7 +3040,6 @@ const WorldDeepBlue = {
         ctx.fill();
       }
     } else {
-      // Sleek Streamlined Crew Transport Shuttle
       ctx.fillStyle = hullG;
       ctx.beginPath();
       ctx.moveTo(58, 2);
@@ -2262,7 +3053,6 @@ const WorldDeepBlue = {
       ctx.closePath();
       ctx.fill();
 
-      // Ambient ocean crown bounce rim
       ctx.strokeStyle = pal.waterBounce;
       ctx.lineWidth = 1.1;
       ctx.beginPath();
@@ -2271,7 +3061,6 @@ const WorldDeepBlue = {
       ctx.quadraticCurveTo(42, -13.5, 53, -3);
       ctx.stroke();
 
-      // Panoramic elevated forward bridge deck
       ctx.fillStyle = pal.subHullLight;
       ctx.beginPath();
       ctx.moveTo(36, -13);
@@ -2286,7 +3075,6 @@ const WorldDeepBlue = {
       ctx.fillRect(-42, 2, 86, 2.4);
       this._drawWindowBand(ctx, -30, -6.2, 62, 3.5, 5, pal, 1);
 
-      // Dive plane & nose docking collar
       ctx.fillStyle = pal.subHullDark;
       ctx.fillRect(10, 4, 12, 2.6);
       ctx.beginPath();
@@ -2294,15 +3082,13 @@ const WorldDeepBlue = {
       ctx.fill();
     }
 
-    // Crisp tiny submarine navigation marker strobe on conning fin
     const navBlink = 0.55 + 0.45 * Math.sin(step * 4.2);
-    const navY = style === "bathyscaphe" ? -16.5 : (style === "heavy_freighter" ? -26.5 : -22.5);
+    const navY = style === "bathyscaphe" ? -16.5 : (style === "deep_explorer" ? -29 : (style === "heavy_freighter" ? -26.5 : -22.5));
     ctx.fillStyle = `rgba(56, 224, 180, ${(0.55 * navBlink).toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(style === "heavy_freighter" ? 30 : 4, navY, 1.6, 0, Math.PI * 2);
     ctx.fill();
 
-    // Soft stern thruster glow when underway
     if (style !== "heavy_freighter" && thrusterGlow > 0.25) {
       const sTail = style === "bathyscaphe" ? -33 : -56;
       const sg = ctx.createRadialGradient(sTail, 0, 1, sTail - 4, 0, 13);
@@ -2315,7 +3101,6 @@ const WorldDeepBlue = {
     }
   },
 
-  // Helper to draw a submarine with realistic buoyant trim (upright dorsal tower, ±11.5° pitch)
   _renderBuoyantSub(ctx, sub, s, scaleMult, pal, step, thrusterGlow, showBeam, alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -2329,7 +3114,6 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Left Pier Submarine (arc-length constant-weight velocity + realistic level buoyant trim)
   _updateAndDrawSubmersible(ctx, w, h, L, pal, dt, step) {
     const sub = this.sub;
     sub.t += dt;
@@ -2340,12 +3124,12 @@ const WorldDeepBlue = {
     const dirY = Math.sin(armAng);
     const dockedPt = { x: L.leftDockX + dirX * (56 * s), y: L.leftDockY + dirY * (56 * s) };
     const holdPt = { x: L.leftDockX + dirX * (132 * s), y: L.leftDockY + dirY * (132 * s) };
-    const dockPitch = this._clamp(armAng - Math.PI, -0.20, 0.20); // ~ -0.20 rad (-11.5°)
+    const dockPitch = this._clamp(armAng - Math.PI, -0.20, 0.20);
 
     let visible = true;
     let targetPitch = sub.pitch;
     let targetFacingLeft = sub.facingLeft;
-    const scaleMult = sub.style === "bathyscaphe" ? 0.84 : (sub.style === "research_catamaran" ? 1.02 : 0.96);
+    const scaleMult = sub.style === "bathyscaphe" ? 0.84 : (sub.style === "manta_glider" ? 0.90 : 0.96);
 
     if (sub.phase === "approaching") {
       if (!sub.path) {
@@ -2410,7 +3194,6 @@ const WorldDeepBlue = {
         sub.path = this._buildArcPath([{ type: "line", p0: dockedPt, p1: holdPt }], 10);
       }
     } else if (sub.phase === "undocking") {
-      // Back slowly straight away from collar maintaining trim before swinging smoothly out
       const targetSpd = 7.5;
       sub.speed = this._lerp(sub.speed, targetSpd, Math.min(1, dt * 1.8));
       sub.dist += sub.speed * dt;
@@ -2449,7 +3232,7 @@ const WorldDeepBlue = {
         sub.t = 0;
         sub.speed = 0;
         sub.phaseDuration = this._rand(6.5, 14.5);
-        sub.style = this._pick(["crew_shuttle", "research_catamaran", "bathyscaphe"]);
+        sub.style = this._pick(["crew_shuttle", "research_catamaran", "bathyscaphe", "manta_glider", "deep_explorer"]);
         sub.cruiseSpeed = sub.style === "bathyscaphe" ? 15.5 : 18.0;
       }
     } else {
@@ -2491,7 +3274,6 @@ const WorldDeepBlue = {
     this._renderBuoyantSub(ctx, sub, s, scaleMult, pal, step, thrusterGlow, sub.phase !== "docked");
   },
 
-  // Right Pier Submarine (heavy freighter / survey sub, weighty arc-length gliding & level trim)
   _updateAndDrawCargoSub(ctx, w, h, L, pal, dt, step) {
     const cs = this.cargoSub;
     cs.t += dt;
@@ -2502,12 +3284,12 @@ const WorldDeepBlue = {
     const dirY = Math.sin(armAng);
     const dockedPt = { x: L.rightDockX + dirX * (66 * s), y: L.rightDockY + dirY * (66 * s) };
     const holdPt = { x: L.rightDockX + dirX * (146 * s), y: L.rightDockY + dirY * (146 * s) };
-    const dockPitch = this._clamp(-armAng, -0.20, 0.20); // facingLeft = true, nose tilts gently up into right pier
+    const dockPitch = this._clamp(-armAng, -0.20, 0.20);
 
     let visible = true;
     let targetPitch = cs.pitch;
     let targetFacingLeft = cs.facingLeft;
-    const scaleMult = cs.style === "heavy_freighter" ? 1.0 : 0.92;
+    const scaleMult = cs.style === "heavy_freighter" ? 1.0 : (cs.style === "industrial_tug" ? 0.96 : 0.92);
 
     if (cs.phase === "docked") {
       cs.x = dockedPt.x;
@@ -2563,7 +3345,7 @@ const WorldDeepBlue = {
         cs.t = 0;
         cs.speed = 0;
         cs.phaseDuration = this._rand(7.0, 15.5);
-        cs.style = this._pick(["heavy_freighter", "research_catamaran", "crew_shuttle"]);
+        cs.style = this._pick(["heavy_freighter", "research_catamaran", "industrial_tug", "deep_explorer"]);
         cs.cruiseSpeed = cs.style === "heavy_freighter" ? 13.5 : 16.5;
       }
     } else if (cs.phase === "patrol_wait") {
@@ -2604,7 +3386,6 @@ const WorldDeepBlue = {
         cs.path = this._buildArcPath([{ type: "line", p0: holdPt, p1: dockedPt }], 10);
       }
     } else {
-      // docking
       const rem = Math.max(0, cs.path.totalLen - cs.dist);
       const targetSpd = Math.max(2.4, Math.min(7.5, rem * 0.16));
       cs.speed = this._lerp(cs.speed, targetSpd, Math.min(1, dt * 2.2));
@@ -2644,7 +3425,6 @@ const WorldDeepBlue = {
     this._renderBuoyantSub(ctx, cs, s, scaleMult, pal, step, thrusterGlow, cs.phase !== "docked");
   },
 
-  // Additional Multi-Directional Science Bathyscaphe & Background Transit Submarines (Arc-Length + Level Trim)
   _updateAndDrawExtraSubs(ctx, w, h, L, pal, dt, step) {
     const s = L.s;
     for (let i = 0; i < this.roamingSubs.length; i++) {
@@ -2725,7 +3505,7 @@ const WorldDeepBlue = {
               x: fromLeft ? L.westWingX + 18 * s : L.eastWingX - 18 * s,
               y: L.hubY - this._rand(38, 62) * s
             };
-            rs.style = this._pick(["bathyscaphe", "crew_shuttle"]);
+            rs.style = this._pick(["bathyscaphe", "crew_shuttle", "manta_glider", "industrial_tug"]);
             rs.cruiseSpeed = rs.style === "bathyscaphe" ? 15.0 : 17.0;
             rs.path = this._buildSubPath(
               rs.fromPt,
@@ -2745,12 +3525,11 @@ const WorldDeepBlue = {
         rs.facingLeft = targetFacingLeft;
         rs.pitch = this._lerp(rs.pitch, targetPitch, Math.min(1, dt * 2.5));
         if (vis) {
-          const sc = rs.style === "bathyscaphe" ? 0.76 : 0.58;
+          const sc = rs.style === "bathyscaphe" ? 0.76 : 0.62;
           const tg = rs.phase === "hover_scan" ? 0.20 : 0.52;
           this._renderBuoyantSub(ctx, rs, s, sc, pal, step, tg, true, 0.94);
         }
       } else {
-        // Background depth-fogged cruising sub (steady linear velocity across distant ocean lanes)
         if (rs.phase === "cruising") {
           const dx = rs.endPt.x - rs.startPt.x;
           const dy = rs.endPt.y - rs.startPt.y;
@@ -2763,7 +3542,7 @@ const WorldDeepBlue = {
           rs.facingLeft = bt.facingLeft;
           rs.pitch = bt.targetPitch;
 
-          this._renderBuoyantSub(ctx, rs, s, rs.scale, pal, step, 0.30, false, pal.isDark ? 0.40 : 0.50);
+          this._renderBuoyantSub(ctx, rs, s, rs.scale, pal, step, 0.30, false, pal.isDark && !pal.isGoldenCoastal ? 0.40 : 0.52);
 
           if (p >= 1) {
             rs.phase = "wait";
@@ -2774,8 +3553,8 @@ const WorldDeepBlue = {
           const goRight = Math.random() < 0.5;
           rs.startPt = { x: goRight ? -130 : w + 130, y: h * this._rand(0.18, 0.40) };
           rs.endPt = { x: goRight ? w + 130 : -130, y: h * this._rand(0.16, 0.38) };
-          rs.style = this._pick(["research_catamaran", "crew_shuttle", "heavy_freighter", "bathyscaphe"]);
-          rs.scale = rs.style === "heavy_freighter" ? 0.44 : 0.52;
+          rs.style = this._pick(this.SUB_STYLES);
+          rs.scale = rs.style === "heavy_freighter" ? 0.44 : 0.54;
           rs.cruiseSpeed = this._rand(12.0, 16.5);
           rs.dist = 0;
           rs.phase = "cruising";
@@ -2871,7 +3650,7 @@ const WorldDeepBlue = {
       if (f.vx > 0 && f.x > w + 30) f.x = -30;
       if (f.vx < 0 && f.x < -30) f.x = w + 30;
 
-      const alpha = (0.35 + f.depth * 0.45) * (pal.isDark ? 0.65 : 0.85);
+      const alpha = (0.35 + f.depth * 0.45) * (pal.isDark && !pal.isGoldenCoastal ? 0.65 : 0.85);
       ctx.fillStyle = `rgba(${pal.nearCreatureRgb}, ${alpha.toFixed(3)})`;
       ctx.save();
       ctx.translate(f.x, f.y);

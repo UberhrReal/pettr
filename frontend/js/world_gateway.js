@@ -1,16 +1,18 @@
 /**
- * PETTR World Renderer: Space — "Gateway" (v12.3 Cohesive Realism, True Scale, Arc-Length Kinematics, Ships & Helicopters)
- * Elevated coastal island spaceport inspired by atmospheric wide-angle aerospace vistas:
- * - Refined painterly lighting & cohesive muted architecture (muted sunlit ivory/slate silhouettes, subtle glazing,
- *   atmospheric bay mist, monumental Star-Shaped Spire Terminal, twin launch towers, VAB, cryo tank farm,
- *   arched assembly hangar, geodesic radome, ATC tower, and waterfront support buildings).
- * - True arc-length-parameterised kinematics with C1 speed & heading continuity across every flight and taxi phase:
- *   genuinely slow realistic tarmac taxiing (~8.5 px/s) strictly along open apron corridors clear of all buildings,
- *   smooth progressive runway takeoff acceleration/liftoff, gentle flared approaches, and drogue-chute deceleration.
- * - Realistic slow rocket transport on a multi-axle flatbed hauled by a tow tug along the far northern crawlerway
- *   (with foreground spire parallax occlusion).
- * - Ocean vessels (Orbital Booster Recovery Ship, coastal ferry, distant bay freighters) & helicopters taking off,
- *   landing on painted helipads, and patrolling gracefully around the island and bay.
+ * PETTR World Renderer: Space — "Gateway" (v12.4 Scenic Realism, Scale, Connected Terminals, Offshore Pad & Ground Ops)
+ * Elevated coastal island spaceport inspired by wide-angle aerospace vistas:
+ * - Substantially enlarged central Star-Shaped Spire Terminal linked by elevated glazed skybridges to West & East
+ *   Satellite Terminals, multiple gate stands with random live gate-parking + static aircraft population.
+ * - Perspective-aligned 2.5D campus & waterfront buildings (strictly clear of the runway), Satellite Ground Station
+ *   & Radar Centre with moving dishes and 3 geodesic radomes, adjacent maritime Seaport with gantry cranes & berthed
+ *   freighters, plus a coastal arrival highway viaduct branching into the port road & runway terminal underpass.
+ * - True relative scale: massive terminals & buildings, tall orbital launch vehicle hauled out of an occluding
+ *   Horizontal Integration Facility (HIF) by a realistically small multi-axle tow tug (zero sudden spawn/despawn).
+ * - Refined spaceplane designs: military stealth fighter & flying-wing bomber alongside extended passenger liners,
+ *   clippers & shuttles; shallow flared landings + brisk smooth runway takeoffs.
+ * - Offshore Launch Platform in the upper bay connected by a trestle causeway, featuring Falcon-Heavy-style booster
+ *   launches and vertical suicide-burn landings with deploying carbon-fiber landing legs.
+ * - Tiny apron & highway ground handling vehicles, maritime ships, and patrolling helicopters.
  */
 const WorldGateway = {
   cacheCanvas: null,
@@ -22,11 +24,13 @@ const WorldGateway = {
   plumeParticles: [],
   ventParticles: [],
   rocket: null,
+  offshoreRocket: null,
   spaceplane: null,
   spaceplanes: [],
   ships: [],
   boats: [],
   helicopters: [],
+  groundVehicles: [],
   spVariantIdx: 0,
   fogState: { active: false, alpha: 0, targetAlpha: 0, nextCheck: 0, offset: 0 },
   orbiters: [],
@@ -35,6 +39,7 @@ const WorldGateway = {
   _lastMode: "",
 
   SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner"],
+  ALL_SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner", "fighter", "bomber"],
 
   _rand(min, max) {
     return min + Math.random() * (max - min);
@@ -42,6 +47,14 @@ const WorldGateway = {
 
   _pick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
+  },
+
+  _clamp(v, lo, hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+  },
+
+  _lerp(a, b, t) {
+    return a + (b - a) * Math.max(0, Math.min(1, t));
   },
 
   _lerpAngle(cur, target, t) {
@@ -108,11 +121,13 @@ const WorldGateway = {
     this.plumeParticles = [];
     this.ventParticles = [];
     this.rocket = null;
+    this.offshoreRocket = null;
     this.spaceplane = null;
     this.spaceplanes = [];
     this.ships = [];
     this.boats = [];
     this.helicopters = [];
+    this.groundVehicles = [];
     this.stars = [];
     this.clouds = [];
     this.cirrus = [];
@@ -126,6 +141,7 @@ const WorldGateway = {
       return {
         isNightLights: false,
         lightIntensity: 0.36,
+        sunDir: 1.25,
         skyTop: "#7B97C2",
         skyMid: "#E4A8A4",
         skyHorizon: "#FDD5A8",
@@ -140,18 +156,20 @@ const WorldGateway = {
         landBase: "#AE9FA2",
         landShade: "#887C86",
         apronFill: "#9B8F95",
+        quayFill: "#8D8188",
         foliage: "#3A4656",
+        foliageLight: "#505F72",
         runwayFill: "#545463",
         runwayLight: "rgba(255, 245, 228, 0.56)",
         archLight: "#F2E9E4",
         archMid: "#BCB0B8",
         archDark: "#6A6576",
-        roofHighlight: "rgba(255, 250, 245, 0.56)",
-        shadowColor: "rgba(34, 28, 48, 0.20)",
+        roofHighlight: "rgba(255, 250, 245, 0.58)",
+        shadowColor: "rgba(34, 28, 48, 0.22)",
         towerSteel: "#585465",
-        windowGlow: "rgba(254, 226, 178, 0.52)",
+        windowGlow: "rgba(254, 226, 178, 0.54)",
         windowGlassDark: "rgba(44, 44, 64, 0.54)",
-        hangarInterior: "rgba(251, 196, 128, 0.42)",
+        hangarInterior: "rgba(251, 196, 128, 0.40)",
         plumeCore: "255, 250, 232",
         plumeMid: "251, 165, 92",
         smokeRgb: "248, 226, 214",
@@ -162,6 +180,8 @@ const WorldGateway = {
         bodyMid: "#D8D0D5",
         bodyShade: "#8E8794",
         liveryAccent: "#C9755A",
+        militaryBody: "#565B6E",
+        militaryShade: "#35394A",
         shipHull: "#434C63",
         shipSuper: "#E8E0DD"
       };
@@ -170,6 +190,7 @@ const WorldGateway = {
       return {
         isNightLights: true,
         lightIntensity: 0.86,
+        sunDir: 1.45,
         skyTop: "#2E3C69",
         skyMid: "#996982",
         skyHorizon: "#F5A56A",
@@ -184,14 +205,16 @@ const WorldGateway = {
         landBase: "#575066",
         landShade: "#3B374B",
         apronFill: "#4B455B",
+        quayFill: "#3E394E",
         foliage: "#1D2434",
+        foliageLight: "#2C364D",
         runwayFill: "#2C2B3A",
         runwayLight: "rgba(253, 218, 142, 0.62)",
         archLight: "#CFC5CC",
         archMid: "#847C90",
         archDark: "#3F3B4F",
         roofHighlight: "rgba(255, 234, 210, 0.36)",
-        shadowColor: "rgba(12, 10, 26, 0.32)",
+        shadowColor: "rgba(12, 10, 26, 0.34)",
         towerSteel: "#474158",
         windowGlow: "rgba(254, 214, 134, 0.72)",
         windowGlassDark: "rgba(24, 22, 40, 0.72)",
@@ -206,6 +229,8 @@ const WorldGateway = {
         bodyMid: "#B2AAB8",
         bodyShade: "#5E5A6E",
         liveryAccent: "#D98A3A",
+        militaryBody: "#45495C",
+        militaryShade: "#262838",
         shipHull: "#252B3F",
         shipSuper: "#C2B8C2"
       };
@@ -214,6 +239,7 @@ const WorldGateway = {
       return {
         isNightLights: true,
         lightIntensity: 1.0,
+        sunDir: 1.10,
         skyTop: "#050914",
         skyMid: "#0B152A",
         skyHorizon: "#192946",
@@ -228,14 +254,16 @@ const WorldGateway = {
         landBase: "#162033",
         landShade: "#0E1524",
         apronFill: "#131C2E",
+        quayFill: "#101829",
         foliage: "#080E18",
+        foliageLight: "#121C2E",
         runwayFill: "#101726",
         runwayLight: "rgba(125, 211, 252, 0.72)",
         archLight: "#6E8098",
         archMid: "#394860",
         archDark: "#151F33",
         roofHighlight: "rgba(186, 230, 253, 0.22)",
-        shadowColor: "rgba(2, 6, 16, 0.44)",
+        shadowColor: "rgba(2, 6, 16, 0.46)",
         towerSteel: "#384766",
         windowGlow: "rgba(254, 222, 148, 0.76)",
         windowGlassDark: "rgba(8, 14, 28, 0.80)",
@@ -250,6 +278,8 @@ const WorldGateway = {
         bodyMid: "#8090A6",
         bodyShade: "#334155",
         liveryAccent: "#38BDF8",
+        militaryBody: "#2A364B",
+        militaryShade: "#141C2B",
         shipHull: "#0D1526",
         shipSuper: "#5E718A"
       };
@@ -258,6 +288,7 @@ const WorldGateway = {
     return {
       isNightLights: false,
       lightIntensity: 0.14,
+      sunDir: 0.92,
       skyTop: "#9CC2EA",
       skyMid: "#CEE3F8",
       skyHorizon: "#EEF5FC",
@@ -272,14 +303,16 @@ const WorldGateway = {
       landBase: "#C4CEDB",
       landShade: "#9EADC0",
       apronFill: "#B4C1D0",
+      quayFill: "#A3B1C2",
       foliage: "#556E78",
+      foliageLight: "#69848F",
       runwayFill: "#5E6E84",
       runwayLight: "rgba(255, 255, 255, 0.70)",
       archLight: "#F8FAFC",
       archMid: "#C6D1DE",
       archDark: "#64748B",
       roofHighlight: "rgba(255, 255, 255, 0.78)",
-      shadowColor: "rgba(30, 41, 59, 0.19)",
+      shadowColor: "rgba(30, 41, 59, 0.21)",
       towerSteel: "#475569",
       windowGlow: "rgba(219, 238, 252, 0.56)",
       windowGlassDark: "rgba(51, 65, 85, 0.52)",
@@ -294,6 +327,8 @@ const WorldGateway = {
       bodyMid: "#D4DFEC",
       bodyShade: "#8596AB",
       liveryAccent: "#2A7EB0",
+      militaryBody: "#5F6E82",
+      militaryShade: "#3B4759",
       shipHull: "#3E526B",
       shipSuper: "#F1F5F9"
     };
@@ -301,71 +336,120 @@ const WorldGateway = {
 
   getLayout(w, h) {
     const isNarrow = w < 720;
-    const horizonY = h * (isNarrow ? 0.34 : 0.28);
-    const islandTopY = h * (isNarrow ? 0.45 : 0.40);
-    const islandBotY = h * (isNarrow ? 0.78 : 0.77);
+    const horizonY = h * (isNarrow ? 0.34 : 0.27);
+    const islandTopY = h * (isNarrow ? 0.44 : 0.39);
+    const islandBotY = h * (isNarrow ? 0.78 : 0.78);
     const spanY = islandBotY - islandTopY;
 
-    // Twin Launch & Catch Towers (Left-North Peninsula)
-    const padX = w * (isNarrow ? 0.18 : 0.195);
-    const padY = islandTopY + spanY * 0.12;
-    const towerH = Math.min(198, Math.max(110, h * 0.22));
-    const towerW = Math.max(12, towerH * 0.085);
-    const towerLeftX = padX - towerW * 1.9;
-    const towerRightX = padX + towerW * 1.9;
+    // 1. Primary Heavy Orbital Launch Complex (North-West Peninsula)
+    const padX = w * (isNarrow ? 0.17 : 0.185);
+    const padY = islandTopY + spanY * 0.13;
+    const towerH = Math.min(206, Math.max(106, h * 0.22));
+    const towerW = Math.max(11, towerH * 0.082);
+    const towerLeftX = padX - towerW * 1.95;
+    const towerRightX = padX + towerW * 1.95;
 
-    // Monumental Star-Shaped Spire Terminal (scaled generously so spaceplanes feel realistically proportional!)
-    const termX = w * 0.49;
-    const termY = islandTopY + spanY * 0.35;
-    const termScale = isNarrow ? 0.68 : Math.min(1.22, Math.max(0.84, w / 1200));
+    // Horizontal Integration Facility (HIF) along far-northern crawlerway so rocket & tug spawn/despawn INSIDE!
+    const hifX = w * (isNarrow ? 0.64 : 0.635);
+    const hifY = islandTopY + spanY * 0.10;
+    const hifW = isNarrow ? Math.min(86, w * 0.22) : Math.min(134, w * 0.102);
+    const hifH = hifW * 0.22;
+    const hifDoorX = hifX - hifW * 0.42;
+    const hifDoorY = hifY + 2;
 
-    // Wide Arched Assembly Hangar (East-North)
-    const hangarX = w * (isNarrow ? 0.78 : 0.77);
-    const hangarY = islandTopY + spanY * 0.17;
-    const hangarW = Math.min(196, w * (isNarrow ? 0.26 : 0.145));
-    const hangarH = hangarW * 0.30;
-    const hangarDoorX = hangarX - hangarW * 0.21;
+    // 2. Second Offshore Launch Platform (Connected Floating Pad in Upper Bay — Falcon Heavy booster recovery!)
+    const offshorePadX = w * (isNarrow ? 0.78 : 0.75);
+    const offshorePadY = horizonY + Math.max(24, (islandTopY - horizonY) * 0.48);
+    const offshoreShoreX = w * (isNarrow ? 0.70 : 0.69);
+    const offshoreShoreY = islandTopY + 3;
+    const offshoreScale = isNarrow ? 0.46 : Math.min(0.66, Math.max(0.50, w / 1950));
+
+    // 3. Substantially Larger Monumental Star Terminal + Connected Satellite Concourses
+    const termX = w * 0.485;
+    const termY = islandTopY + spanY * 0.34;
+    const termScale = isNarrow ? Math.max(0.58, w / 610) : Math.min(1.50, Math.max(1.06, w / 960));
+
+    const satWest = { x: termX - 216 * termScale, y: termY - 14 * termScale };
+    const satEast = { x: termX + 214 * termScale, y: termY - 8 * termScale };
+
+    // 4. Wide Arched Spaceplane Assembly Hangar (East-North)
+    const hangarX = w * (isNarrow ? 0.80 : 0.785);
+    const hangarY = islandTopY + spanY * 0.19;
+    const hangarW = Math.min(206, w * (isNarrow ? 0.25 : 0.145));
+    const hangarH = hangarW * 0.29;
+    const hangarDoorX = hangarX - hangarW * 0.22;
     const hangarDoorY = hangarY + hangarH * 0.44;
 
-    // Radome & ATC Control Tower (Far East)
-    const radomeX = w * 0.872;
-    const radomeY = hangarY + 6;
-    const atcX = w * 0.918;
+    // 5. Satellite Ground Station & Deep-Space Radar Centre + ATC Tower (Northeast Bluff)
+    const radarX = w * (isNarrow ? 0.88 : 0.882);
+    const radarY = hangarY + (isNarrow ? -6 : 6);
+    const radomeX = radarX - (isNarrow ? 10 : 18);
+    const radomeY = radarY;
+    const atcX = w * (isNarrow ? 0.94 : 0.946);
     const atcY = hangarY + 14;
 
-    // Dedicated Helipads on open tarmac aprons (East Ops Pad + West Waterfront Pad)
-    const heliPad1 = { x: w * 0.88, y: hangarY + hangarH * 0.95 + 16 };
-    const heliPad2 = { x: w * 0.255, y: islandBotY - 58 };
+    // 6. Dedicated Helipads on Open Aprons
+    const heliPad1 = { x: w * 0.875, y: hangarY + hangarH * 0.98 + 14 };
+    const heliPad2 = { x: w * 0.26, y: islandTopY + spanY * 0.74 };
 
-    // Sweeping Diagonal Main Runway across lower-middle of island
-    const rwLeftX = w * 0.03;
-    const rwLeftY = islandTopY + spanY * 0.32;
-    const rwRightX = w * 0.97;
-    const rwRightY = islandBotY + h * 0.05;
+    // 7. Sweeping Diagonal Main Runway across Peninsula (with exact geometric query helpers!)
+    const rwLeftX = w * 0.025;
+    const rwLeftY = islandTopY + spanY * 0.34;
+    const rwRightX = w * 0.975;
+    const rwRightY = islandBotY + h * 0.04;
+    const rwAng = Math.atan2(rwRightY - rwLeftY, rwRightX - rwLeftX);
+    const rwLeftHalf = isNarrow ? 7 : 10.5;
+    const rwRightHalf = isNarrow ? 20 : 30;
 
     const rwPt = (t) => ({
       x: rwLeftX + (rwRightX - rwLeftX) * t,
       y: rwLeftY + (rwRightY - rwLeftY) * t
     });
+    const rwYAtX = (x) => {
+      const t = (x - rwLeftX) / Math.max(1, rwRightX - rwLeftX);
+      return rwLeftY + (rwRightY - rwLeftY) * t;
+    };
+    const rwHalfAtX = (x) => {
+      const t = this._clamp((x - rwLeftX) / Math.max(1, rwRightX - rwLeftX), 0, 1);
+      return rwLeftHalf + (rwRightHalf - rwLeftHalf) * t;
+    };
 
-    const rwExitT = 0.66;
-    const rwEntryT = 0.22;
+    const rwExitT = 0.67;
+    const rwEntryT = 0.20;
 
-    // Open South Apron Taxiway waypoints strictly CLEAR of Star Terminal arms!
-    const apronEast = { x: termX + 206 * termScale, y: termY + 38 * termScale };
-    const apronSE = { x: termX + 145 * termScale, y: termY + 62 * termScale };
+    // Runway Underpass & Highway Terminal Arrival Spine
+    const underpassX = w * 0.61;
+    const underpassY = rwYAtX(underpassX);
+    const underpassHalf = rwHalfAtX(underpassX);
+    const plazaX = termX + 6 * termScale;
+    const plazaY = termY + 34 * termScale;
+
+    // 8. South Apron Taxiway Corridors & Named Terminal Gate Stands (strictly clear of terminal roofs!)
+    const apronEast = { x: termX + 216 * termScale, y: termY + 38 * termScale };
+    const apronSE = { x: termX + 148 * termScale, y: termY + 62 * termScale };
     const apronSouth = { x: termX - 10 * termScale, y: termY + 60 * termScale };
-    const apronSW = { x: termX - 135 * termScale, y: termY + 42 * termScale };
+    const apronSW = { x: termX - 154 * termScale, y: termY + 42 * termScale };
+
+    const gates = [
+      { id: "G_SW", x: termX - 122 * termScale, y: termY + 34 * termScale, heading: -0.30, approachPt: apronSW },
+      { id: "G_SE", x: termX + 128 * termScale, y: termY + 35 * termScale, heading: 2.74, approachPt: apronSE },
+      { id: "G_SC", x: termX + 14 * termScale, y: termY + 44 * termScale, heading: -1.48, approachPt: apronSouth },
+      { id: "G_SAT_W", x: satWest.x + 4 * termScale, y: satWest.y + 30 * termScale, heading: -0.95, approachPt: { x: satWest.x - 16 * termScale, y: satWest.y + 54 * termScale } }
+    ];
 
     return {
       isNarrow, horizonY, islandTopY, islandBotY, spanY,
       padX, padY, towerH, towerW, towerLeftX, towerRightX,
-      termX, termY, termScale,
+      hifX, hifY, hifW, hifH, hifDoorX, hifDoorY,
+      offshorePadX, offshorePadY, offshoreShoreX, offshoreShoreY, offshoreScale,
+      termX, termY, termScale, satWest, satEast,
       hangarX, hangarY, hangarW, hangarH, hangarDoorX, hangarDoorY,
-      radomeX, radomeY, atcX, atcY,
+      radarX, radarY, radomeX, radomeY, atcX, atcY,
       heliPad1, heliPad2,
-      rwLeftX, rwLeftY, rwRightX, rwRightY, rwPt, rwExitT, rwEntryT,
-      apronEast, apronSE, apronSouth, apronSW
+      rwLeftX, rwLeftY, rwRightX, rwRightY, rwAng, rwLeftHalf, rwRightHalf,
+      rwPt, rwYAtX, rwHalfAtX, rwExitT, rwEntryT,
+      underpassX, underpassY, underpassHalf, plazaX, plazaY,
+      apronEast, apronSE, apronSouth, apronSW, gates
     };
   },
 
@@ -464,74 +548,102 @@ const WorldGateway = {
       ctx.fill();
     });
 
+    // Connected Floating Offshore Launch Platform & Umbilical Trestle Bridge in Upper Bay!
+    this._drawOffshoreLaunchPlatform(ctx, L, pal);
+
     // Soft atmospheric horizon mist blending distant bay into sky
     const mistG = ctx.createLinearGradient(0, L.horizonY - 12, 0, L.horizonY + 34);
     mistG.addColorStop(0, `rgba(${pal.hazeRgb}, 0)`);
-    mistG.addColorStop(0.45, `rgba(${pal.hazeRgb}, ${mode === "dark" ? 0.22 : 0.36})`);
+    mistG.addColorStop(0.45, `rgba(${pal.hazeRgb}, ${mode === "dark" ? 0.22 : 0.34})`);
     mistG.addColorStop(1, `rgba(${pal.hazeRgb}, 0)`);
     ctx.fillStyle = mistG;
     ctx.fillRect(0, L.horizonY - 12, w, 46);
 
-    // 4. Sweeping Spaceport Peninsula Island Landmass
+    // 4. Sweeping Spaceport Peninsula Island Landmass + Clean Stepped Coastal Seawall (Zero Awkward Trapezoid!)
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(-20, L.islandTopY + 12);
-    ctx.lineTo(w * 0.24, L.islandTopY - 8);
+    ctx.moveTo(-20, L.islandTopY + 14);
+    ctx.lineTo(w * 0.24, L.islandTopY - 6);
     ctx.lineTo(w * 0.72, L.islandTopY + 2);
     ctx.lineTo(w + 20, L.islandTopY + 42);
     ctx.lineTo(w + 20, h + 10);
-    ctx.lineTo(w * 0.62, L.islandBotY + 32);
+    ctx.lineTo(w * 0.60, L.islandBotY + 36);
     ctx.lineTo(w * 0.12, L.islandBotY - 38);
-    ctx.lineTo(-20, L.islandTopY + 75);
+    ctx.lineTo(-20, L.islandTopY + 72);
     ctx.closePath();
-    const landG = ctx.createLinearGradient(0, L.islandTopY, 0, L.islandBotY + 30);
+    const landG = ctx.createLinearGradient(0, L.islandTopY, 0, L.islandBotY + 36);
     landG.addColorStop(0, pal.landBase);
     landG.addColorStop(1, pal.landShade);
     ctx.fillStyle = landG;
     ctx.fill();
 
-    // Subtle paved tarmac apron zone
+    // Subtle paved tarmac apron zones covering terminal, satellites & hangar stands
     ctx.beginPath();
-    ctx.moveTo(w * 0.25, L.islandTopY + 14);
-    ctx.lineTo(w * 0.86, L.islandTopY + 18);
-    ctx.lineTo(w * 0.90, L.termY + 86);
-    ctx.lineTo(w * 0.22, L.termY + 66);
+    ctx.moveTo(w * 0.24, L.islandTopY + 12);
+    ctx.lineTo(w * 0.87, L.islandTopY + 18);
+    ctx.lineTo(w * 0.90, L.termY + 82);
+    ctx.lineTo(w * 0.20, L.termY + 66);
     ctx.closePath();
     ctx.fillStyle = pal.apronFill;
     ctx.globalAlpha = 0.56;
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Crisp coastal seawall edge & lush dark coastal embankment
-    ctx.strokeStyle = pal.isNightLights ? "rgba(148, 163, 184, 0.20)" : "rgba(255, 255, 255, 0.38)";
-    ctx.lineWidth = 1.8;
+    // Stepped concrete harbor seawall bulkhead & subtle shoreline foam along peninsula coast
+    ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.moveTo(-20, L.islandTopY + 75);
+    ctx.moveTo(-20, L.islandTopY + 72);
     ctx.lineTo(w * 0.12, L.islandBotY - 38);
-    ctx.lineTo(w * 0.62, L.islandBotY + 32);
-    ctx.stroke();
-
-    ctx.fillStyle = pal.foliage;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.10, L.islandBotY - 40);
-    ctx.lineTo(w * 0.63, L.islandBotY + 30);
-    ctx.lineTo(w * 0.61, L.islandBotY + 42);
-    ctx.lineTo(w * 0.08, L.islandBotY - 26);
+    ctx.lineTo(w * 0.60, L.islandBotY + 36);
+    ctx.lineTo(w * 0.66, h + 10);
+    ctx.lineTo(w * 0.648, h + 10);
+    ctx.lineTo(w * 0.594, L.islandBotY + 41);
+    ctx.lineTo(w * 0.115, L.islandBotY - 33);
+    ctx.lineTo(-20, L.islandTopY + 77);
     ctx.closePath();
     ctx.fill();
+
+    // Subtle waterline foam shimmer along the seawall foot
+    ctx.strokeStyle = pal.isNightLights ? "rgba(186, 230, 253, 0.24)" : "rgba(255, 255, 255, 0.52)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-20, L.islandTopY + 78);
+    ctx.lineTo(w * 0.115, L.islandBotY - 32);
+    ctx.lineTo(w * 0.594, L.islandBotY + 42);
+    ctx.lineTo(w * 0.648, h + 10);
+    ctx.stroke();
+
+    // Organic coastal foliage & embankment treeline tufts tucked neatly along the sea quay (kept south of boulevard)
+    const bushStops = [0.22, 0.34, 0.45, 0.55];
+    bushStops.forEach((f, idx) => {
+      const bx = w * f;
+      const by = (L.islandBotY - 38) + (((f - 0.12) / 0.48) * 74) - 5;
+      ctx.fillStyle = pal.foliage;
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath();
+        ctx.arc(bx + k * 8.5, by + (idx % 2), 6.0 - Math.abs(k) * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
     ctx.restore();
 
-    // 5. Runway, Strict Non-Overlapping South Apron Taxiway, Helipads & Gate Stands
+    // 5. Adjacent Maritime Seaport (Finger Piers, Gantry Cranes, Stacked Containers & Berthed Vessels!)
+    this._drawAdjacentSeaport(ctx, w, h, L, pal);
+
+    // 6. Purposeful Highway Network (Coastal Causeway -> Waterfront Boulevard + Runway Underpass -> Terminal Plaza)
+    this._drawIslandHighwayNetwork(ctx, w, h, L, pal);
+
+    // 7. Runway, Strict Non-Overlapping South Apron Taxiway, Gate Stands & Helipads
     this._drawRunwayNetwork(ctx, w, L, pal);
 
-    // 6. Far-Northern Crawlerway Road (strictly behind Star Terminal!)
+    // 8. Far-Northern Crawlerway Road running directly from inside Horizontal Integration Facility to Launch Pad
     ctx.save();
     ctx.strokeStyle = pal.runwayFill;
-    ctx.lineWidth = 10;
-    ctx.globalAlpha = 0.65;
+    ctx.lineWidth = 11;
+    ctx.globalAlpha = 0.68;
     ctx.beginPath();
-    ctx.moveTo(L.hangarDoorX, L.hangarDoorY);
-    ctx.quadraticCurveTo(w * 0.48, L.islandTopY + L.spanY * 0.08, L.padX, L.padY + 4);
+    ctx.moveTo(L.hifX + 20, L.hifY + 8);
+    ctx.quadraticCurveTo(w * 0.41, L.islandTopY + L.spanY * 0.065, L.padX, L.padY + 4);
     ctx.stroke();
     ctx.strokeStyle = pal.runwayLight;
     ctx.lineWidth = 0.9;
@@ -540,73 +652,362 @@ const WorldGateway = {
     ctx.setLineDash([]);
     ctx.restore();
 
-    // 7. Cohesive, Restrained Aerospace Campus Buildings (proportional to terminal & planes!)
-    this._drawCryoTankFarm(ctx, L.padX + (L.isNarrow ? 44 : 62), L.padY + 2, pal);
-    this._draw25DBuilding(ctx, w * 0.30, L.islandTopY + L.spanY * 0.10, L.isNarrow ? 34 : 46, L.isNarrow ? 22 : 30, pal, { style: "vab", floors: 2 });
-    this._draw25DBuilding(ctx, w * 0.36, L.islandTopY + L.spanY * 0.12, L.isNarrow ? 28 : 40, 14, pal, { style: "ops", floors: 2 });
-    this._draw25DBuilding(ctx, w * 0.60, L.islandTopY + L.spanY * 0.09, L.isNarrow ? 40 : 58, 17, pal, { style: "hangar_small", floors: 1 });
+    // 9. Perspective-Aligned Campus Buildings & Logistics District (strictly clear of runway!)
+    const campusSlope = 0.03; // Gentle shallow perspective on level north apron
+    const coastSlope = Math.min(0.18, (L.rwRightY - L.rwLeftY) / Math.max(1, L.rwRightX - L.rwLeftX));
 
-    // Cohesive low-slung waterfront logistics & terminal pavilions along embankment (matching inspiration image!)
-    const waterfrontBldgs = [
-      { t: 0.15, w: 46, h: 12, dy: -46, style: "warehouse", floors: 1 },
-      { t: 0.21, w: 56, h: 16, dy: -36, style: "ops", floors: 2 },
-      { t: 0.30, w: 48, h: 13, dy: -24, style: "warehouse", floors: 1 },
-      { t: 0.38, w: 54, h: 14, dy: -13, style: "terminal_annex", floors: 2 },
-      { t: 0.47, w: 58, h: 15, dy: -1, style: "warehouse", floors: 1 },
-      { t: 0.74, w: 72, h: 18, dy: 28, style: "hangar_small", floors: 1 },
-      { t: 0.85, w: 54, h: 15, dy: 34, style: "ops", floors: 2 }
+    this._drawCryoTankFarm(ctx, L.padX + (L.isNarrow ? 42 : 66), L.padY + 2, pal);
+    this._draw25DBuilding(ctx, w * 0.285, L.islandTopY + L.spanY * 0.14, L.isNarrow ? 34 : 52, L.isNarrow ? 22 : 34, pal, { style: "vab", floors: 3, perspSlope: campusSlope });
+    this._draw25DBuilding(ctx, w * 0.345, L.islandTopY + L.spanY * 0.15, L.isNarrow ? 26 : 44, 16, pal, { style: "ops", floors: 2, perspSlope: campusSlope });
+    this._draw25DBuilding(ctx, w * 0.405, L.islandTopY + L.spanY * 0.14, L.isNarrow ? 24 : 38, 13, pal, { style: "warehouse", floors: 1, perspSlope: campusSlope });
+    this._draw25DBuilding(ctx, w * 0.545, L.islandTopY + L.spanY * 0.12, L.isNarrow ? 32 : 52, 17, pal, { style: "hangar_small", floors: 1, perspSlope: campusSlope });
+
+    // Perspective-aligned south waterfront & airport operations buildings (mathematically clamped STRICTLY below runway!)
+    const southBuildings = [
+      { xFrac: 0.215, w: 50, h: 14, dyBelowRw: 26, style: "ops", floors: 2 },
+      { xFrac: 0.305, w: 58, h: 15, dyBelowRw: 28, style: "warehouse", floors: 1 },
+      { xFrac: 0.395, w: 62, h: 17, dyBelowRw: 29, style: "terminal_annex", floors: 2 },
+      { xFrac: 0.485, w: 54, h: 14, dyBelowRw: 28, style: "ops", floors: 2 },
+      { xFrac: 0.560, w: 48, h: 13, dyBelowRw: 24, style: "warehouse", floors: 1 },
+      { xFrac: 0.675, w: 64, h: 18, dyBelowRw: 32, style: "hangar_small", floors: 1 }
     ];
-    waterfrontBldgs.forEach(b => {
-      const bw = (L.isNarrow && b.w > 46) ? b.w * 0.78 : b.w;
-      const bx = w * b.t;
-      const by = L.islandBotY + b.dy;
-      this._draw25DBuilding(ctx, bx, by, bw, b.h, pal, { style: b.style, floors: b.floors });
+    southBuildings.forEach(b => {
+      if (L.isNarrow && (b.xFrac === 0.305 || b.xFrac === 0.560)) return;
+      const bx = w * b.xFrac;
+      const bw = L.isNarrow ? b.w * 0.72 : b.w;
+      const bh = L.isNarrow ? b.h * 0.85 : b.h;
+      const rwBottom = L.rwYAtX(bx) + L.rwHalfAtX(bx);
+      const by = rwBottom + b.dyBelowRw + bh;
+      // Ensure building base sits comfortably above southern seawall
+      const shoreMaxY = b.xFrac < 0.60
+        ? ((L.islandBotY - 38) + ((Math.max(0.12, b.xFrac) - 0.12) / 0.48) * 72) - 4
+        : h - 18;
+      if (by <= shoreMaxY && by - bh > rwBottom + 10) {
+        this._draw25DBuilding(ctx, bx, by, bw, bh, pal, { style: b.style, floors: b.floors, perspSlope: coastSlope });
+      }
     });
 
-    // 8. Twin Launch & Catch Towers + Concrete Launch Mount
+    // North-of-runway east cargo & maintenance buildings near the hangar (strictly clear of runway!)
+    const eastCampusY = Math.min(L.hangarY + L.hangarH * 0.62, L.rwYAtX(L.hangarX + L.hangarW * 0.62) - L.rwHalfAtX(L.hangarX + L.hangarW * 0.62) - 22);
+    this._draw25DBuilding(ctx, L.hangarX + L.hangarW * 0.54, eastCampusY, L.isNarrow ? 26 : 38, 15, pal, { style: "ops", floors: 2, perspSlope: 0.04 });
+    if (!L.isNarrow) {
+      this._draw25DBuilding(ctx, L.atcX - 44, eastCampusY + 14, 42, 13, pal, { style: "warehouse", floors: 1, perspSlope: 0.06 });
+    }
+
+    // 10. Main Pad Concrete Launch Mount & Twin Catch Towers
     ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.moveTo(L.padX - 46, L.padY + 12);
-    ctx.lineTo(L.padX - 32, L.padY - 4);
-    ctx.lineTo(L.padX + 34, L.padY - 4);
-    ctx.lineTo(L.padX + 48, L.padY + 12);
+    ctx.moveTo(L.padX - 48, L.padY + 12);
+    ctx.lineTo(L.padX - 34, L.padY - 4);
+    ctx.lineTo(L.padX + 36, L.padY - 4);
+    ctx.lineTo(L.padX + 50, L.padY + 12);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = pal.archMid;
-    ctx.fillRect(L.padX - 28, L.padY - 4, 56, 2.5);
+    ctx.fillRect(L.padX - 30, L.padY - 4, 60, 2.5);
     ctx.fillStyle = pal.shadowColor;
     ctx.fillRect(L.padX - 18, L.padY + 2, 36, 6);
 
     this._drawLatticeTower(ctx, L.towerLeftX, L.padY, L.towerW, L.towerH, pal.towerSteel, 0.94);
     this._drawLatticeTower(ctx, L.towerRightX, L.padY, L.towerW, L.towerH, pal.towerSteel, 0.94);
 
-    // 9. Iconic Monumental Multi-Arm Star-Shaped Spire Terminal
+    // Horizontal Integration Facility Base (Back wall & dark interior bay where rocket/tug spawn/despawn!)
+    this._drawHIFBase(ctx, L, pal);
+
+    // 11. Connected West & East Satellite Terminals + Skybridges + Monumental Central Star Terminal
+    this._drawSatelliteTerminalsAndBridges(ctx, L, pal);
     this._drawStarTerminal(ctx, L, pal);
 
-    // Properly scaled static spaceplanes parked spaciously inside wide west & east terminal gate alcoves (zero crowding!)
-    const sc = L.termScale;
-    const parked = [
-      { x: L.termX - 102 * sc, y: L.termY + 32 * sc, ang: -0.22, sc: 0.56 * sc, v: "starliner" },
-      { x: L.termX + 126 * sc, y: L.termY + 32 * sc, ang: 2.88, sc: 0.54 * sc, v: "airliner" }
-    ];
-    parked.forEach(pk => {
+    // 12. Static Aircraft Fleet Populating Terminal Gates & Remote Tarmac Stands (Realistically Scaled!)
+    this._drawStaticParkedAircraft(ctx, L, pal);
+
+    // 13. Curved Arched Assembly Hangar Base + Radar Ground Station Centre + ATC Tower
+    this._drawArchedHangarBase(ctx, L, pal);
+    this._drawRadarCentre(ctx, L, pal);
+
+    // 14. Foreground Lower-Right Curving Highway Causeway Bridge & Lower-Left Coastal Hillside
+    this._drawForegroundBridgeAndCoast(ctx, w, h, L, pal);
+  },
+
+  _drawOffshoreLaunchPlatform(ctx, L, pal) {
+    const px = L.offshorePadX;
+    const py = L.offshorePadY;
+    const sc = L.offshoreScale;
+
+    ctx.save();
+    // 1. Slender umbilical causeway trestle connecting offshore pad to north coast of peninsula
+    ctx.strokeStyle = pal.archDark;
+    ctx.lineWidth = Math.max(2.2, 3.8 * sc);
+    ctx.beginPath();
+    ctx.moveTo(L.offshoreShoreX, L.offshoreShoreY);
+    ctx.lineTo(px - 18 * sc, py + 4 * sc);
+    ctx.stroke();
+    ctx.strokeStyle = pal.archMid;
+    ctx.lineWidth = Math.max(1.1, 2.0 * sc);
+    ctx.beginPath();
+    ctx.moveTo(L.offshoreShoreX - 1, L.offshoreShoreY - 1);
+    ctx.lineTo(px - 19 * sc, py + 3 * sc);
+    ctx.stroke();
+
+    // Trestle piers into bay water
+    for (let i = 1; i <= 4; i++) {
+      const f = i / 5;
+      const tx = L.offshoreShoreX + (px - 18 * sc - L.offshoreShoreX) * f;
+      const ty = L.offshoreShoreY + (py + 4 * sc - L.offshoreShoreY) * f;
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(tx - 1.2, ty, 2.4, 7 * sc);
+    }
+
+    // 2. Water reflection & caisson shadow beneath floating platform
+    ctx.fillStyle = pal.shadowColor;
+    ctx.beginPath();
+    ctx.ellipse(px, py + 11 * sc, 64 * sc, 9 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Twin semi-submersible buoyancy pontoons & support caissons
+    ctx.fillStyle = pal.shipHull;
+    ctx.fillRect(px - 52 * sc, py + 3 * sc, 104 * sc, 5 * sc);
+    [-40, -14, 14, 40].forEach(ox => {
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(px + ox * sc - 3 * sc, py - 2 * sc, 6 * sc, 7 * sc);
+    });
+
+    // 3. Perspective floating launch & landing deck
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.moveTo(px - 60 * sc, py);
+    ctx.lineTo(px - 44 * sc, py - 9 * sc);
+    ctx.lineTo(px + 48 * sc, py - 9 * sc);
+    ctx.lineTo(px + 60 * sc, py);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = pal.archMid;
+    ctx.beginPath();
+    ctx.moveTo(px - 56 * sc, py - 1 * sc);
+    ctx.lineTo(px - 42 * sc, py - 8 * sc);
+    ctx.lineTo(px + 46 * sc, py - 8 * sc);
+    ctx.lineTo(px + 56 * sc, py - 1 * sc);
+    ctx.closePath();
+    ctx.fill();
+
+    // Target X landing bullseye on deck
+    ctx.strokeStyle = pal.isNightLights ? "rgba(253, 224, 152, 0.52)" : "rgba(255, 255, 255, 0.62)";
+    ctx.lineWidth = Math.max(0.8, 1.3 * sc);
+    ctx.beginPath();
+    ctx.ellipse(px + 4 * sc, py - 4.5 * sc, 15 * sc, 3.2 * sc, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Compact deck blast shield & crew module on west edge
+    ctx.fillStyle = pal.archLight;
+    ctx.fillRect(px - 42 * sc, py - 12 * sc, 14 * sc, 6 * sc);
+    ctx.fillStyle = pal.towerSteel;
+    ctx.fillRect(px - 22 * sc, py - 42 * sc, 4 * sc, 36 * sc); // Slimmer support mast
+    ctx.restore();
+  },
+
+  _drawAdjacentSeaport(ctx, w, h, L, pal) {
+    ctx.save();
+    // Follow the true southwest peninsula coastline segment (from (0, islandTopY+72) -> (0.12w, islandBotY-38))
+    const shoreY = (px) => {
+      const xA = 0, yA = L.islandTopY + 72;
+      const xB = w * 0.12, yB = L.islandBotY - 38;
+      const t = (px - xA) / Math.max(1, xB - xA);
+      return yA + t * (yB - yA);
+    };
+    const dockX0 = w * 0.032;
+    const dockY0 = shoreY(dockX0);
+    const dockX1 = w * 0.115;
+    const dockY1 = shoreY(dockX1);
+
+    // Concrete port wharf apron flush inside the southwest seawall
+    const slope = (dockY1 - dockY0) / Math.max(1, dockX1 - dockX0);
+    ctx.fillStyle = pal.quayFill;
+    ctx.beginPath();
+    ctx.moveTo(dockX0 - 6, dockY0);
+    ctx.lineTo(dockX1 + 10, dockY1);
+    ctx.lineTo(dockX1 + 18, dockY1 - 22);
+    ctx.lineTo(dockX0 + 4, dockY0 - 22);
+    ctx.closePath();
+    ctx.fill();
+
+    // Wharf edge curb highlight
+    ctx.strokeStyle = pal.archLight;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(dockX0 - 6, dockY0);
+    ctx.lineTo(dockX1 + 10, dockY1);
+    ctx.stroke();
+
+    // Two finger jetties projecting CLEARLY OUT INTO THE BLUE WATER beyond the seawall
+    [0.25, 0.76].forEach((f, idx) => {
+      const jx = dockX0 + (dockX1 - dockX0) * f;
+      const jy = dockY0 + (dockY1 - dockY0) * f;
+      const jetDx = -24;
+      const jetDy = 24;
+
+      ctx.fillStyle = pal.shadowColor;
+      ctx.beginPath();
+      ctx.moveTo(jx, jy + 3);
+      ctx.lineTo(jx + 11, jy + 6);
+      ctx.lineTo(jx + jetDx + 9, jy + jetDy + 6);
+      ctx.lineTo(jx + jetDx - 2, jy + jetDy + 3);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = pal.archMid;
+      ctx.beginPath();
+      ctx.moveTo(jx, jy);
+      ctx.lineTo(jx + 10, jy + 3);
+      ctx.lineTo(jx + jetDx + 8, jy + jetDy);
+      ctx.lineTo(jx + jetDx - 2, jy + jetDy - 3);
+      ctx.closePath();
+      ctx.fill();
+
+      // Statically berthed cargo vessel floating cleanly in open water alongside the outer pier!
       ctx.save();
-      ctx.translate(pk.x, pk.y);
-      ctx.rotate(pk.ang);
-      ctx.scale(pk.sc, pk.sc);
-      this._drawSpaceplaneModel(ctx, pk.v, pal, 0, 0, 1.5);
+      ctx.translate(jx + jetDx - 12, jy + jetDy + 10);
+      ctx.rotate(slope * 0.42);
+      this._drawDockedCargoVessel(ctx, idx, pal, L.isNarrow ? 0.72 : 0.92);
       ctx.restore();
     });
 
-    // 10. Curved Arched Assembly Hangar Base + Side Annex
-    this._drawArchedHangarBase(ctx, L, pal);
-    this._draw25DBuilding(ctx, L.hangarX + L.hangarW * 0.52, L.hangarY + L.hangarH * 0.54, 28, 13, pal, { style: "ops", floors: 2 });
+    // Stacked container blocks neatly tucked inside the wharf apron
+    const containerPalette = [pal.archDark, pal.shipHull, pal.liveryAccent];
+    for (let c = 0; c < (L.isNarrow ? 3 : 5); c++) {
+      const frac = 0.14 + c * (L.isNarrow ? 0.28 : 0.18);
+      const cx = dockX0 + (dockX1 - dockX0) * frac;
+      const cy = shoreY(cx) - 8;
+      ctx.fillStyle = containerPalette[c % containerPalette.length];
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + 10, cy + 10 * slope);
+      ctx.lineTo(cx + 10, cy + 10 * slope - 4.2);
+      ctx.lineTo(cx, cy - 4.2);
+      ctx.closePath();
+      ctx.fill();
+    }
 
-    // 11. Geodesic Radome, Telemetry Dish & Tall ATC Tower
-    this._drawRadomeAndATC(ctx, L, pal);
+    // Port container gantry cranes on the wharf edge reaching outward over berthed ships in water
+    const craneFracs = L.isNarrow ? [0.46] : [0.22, 0.72];
+    craneFracs.forEach(cf => {
+      const kx = dockX0 + (dockX1 - dockX0) * cf + 3;
+      const ky = shoreY(kx) - 4;
+      ctx.strokeStyle = pal.liveryAccent;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(kx - 4, ky);
+      ctx.lineTo(kx - 2, ky - 18);
+      ctx.moveTo(kx + 4, ky + 2);
+      ctx.lineTo(kx + 3, ky - 18);
+      ctx.moveTo(kx + 8, ky - 15);
+      ctx.lineTo(kx - 18, ky - 23);
+      ctx.moveTo(kx - 2, ky - 18);
+      ctx.lineTo(kx - 16, ky - 22);
+      ctx.stroke();
+    });
+    ctx.restore();
+  },
 
-    // 12. Foreground Lower-Right Curving Highway Causeway Bridge & Lower-Left Coastal Hillside
-    this._drawForegroundBridgeAndCoast(ctx, w, h, L, pal);
+  _drawDockedCargoVessel(ctx, idx, pal, sc) {
+    ctx.save();
+    ctx.scale(sc, sc);
+    ctx.fillStyle = pal.shadowColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 22, 3.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = pal.shipHull;
+    ctx.beginPath();
+    ctx.moveTo(-20, 0);
+    ctx.lineTo(17, -1);
+    ctx.lineTo(22, -3.5);
+    ctx.lineTo(19, 3.5);
+    ctx.lineTo(-19, 3.5);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = pal.shipSuper;
+    ctx.fillRect(8, -7, 8, 6);
+    ctx.fillStyle = pal.windowGlassDark;
+    ctx.fillRect(12, -6, 3.5, 2.2);
+
+    ctx.fillStyle = idx % 2 === 0 ? pal.liveryAccent : pal.archMid;
+    ctx.fillRect(-14, -4.5, 19, 3.5);
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(-10, -7, 11, 2.5);
+    ctx.restore();
+  },
+
+  _drawIslandHighwayNetwork(ctx, w, h, L, pal) {
+    ctx.save();
+    // 1. Coastal Interchange arriving from foreground bridge onto island south bank (x = 0.65w, y = L.islandBotY + 14)
+    const entryX = w * 0.65;
+    const entryY = L.islandBotY + 14;
+    const portEndX = w * 0.118;
+    const portEndY = L.islandBotY - 46;
+
+    // Waterfront Port Boulevard leading cleanly from bridge westwards into Adjacent Seaport Wharf!
+    ctx.strokeStyle = pal.runwayFill;
+    ctx.lineWidth = L.isNarrow ? 6.5 : 8.5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(entryX, entryY);
+    ctx.quadraticCurveTo(w * 0.44, L.islandBotY + 4, portEndX, portEndY);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 250, 235, 0.36)";
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([5, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 2. Airport Parkway rising from interchange into Runway Underpass Tunnel Portal -> Star Terminal Arrival Plaza!
+    const southPortalY = L.underpassY + L.underpassHalf + 7;
+    const northPortalY = L.underpassY - L.underpassHalf - 6;
+
+    // South approach segment into runway underpass
+    ctx.strokeStyle = pal.runwayFill;
+    ctx.lineWidth = L.isNarrow ? 7 : 9;
+    ctx.beginPath();
+    ctx.moveTo(entryX, entryY);
+    ctx.quadraticCurveTo(L.underpassX + 12, southPortalY + 26, L.underpassX, southPortalY);
+    ctx.stroke();
+
+    // North emergence segment curving purposefully straight into Star Terminal Arrival Forecourt Loop!
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 4, northPortalY);
+    ctx.bezierCurveTo(
+      L.underpassX - 18, northPortalY - 28,
+      L.plazaX + 58 * L.termScale, L.plazaY + 24 * L.termScale,
+      L.plazaX, L.plazaY
+    );
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 250, 235, 0.36)";
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([5, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Terminal Ground Arrival Forecourt Loop
+    ctx.strokeStyle = pal.runwayFill;
+    ctx.lineWidth = 6.5;
+    ctx.beginPath();
+    ctx.ellipse(L.plazaX, L.plazaY - 2, 26 * L.termScale, 7.5 * L.termScale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Concrete Tunnel Portals on both sides of the runway underpass
+    [
+      { x: L.underpassX, y: southPortalY },
+      { x: L.underpassX - 4, y: northPortalY }
+    ].forEach((pt, idx) => {
+      ctx.fillStyle = pal.archMid;
+      ctx.fillRect(pt.x - 10, pt.y - 4, 20, 7);
+      ctx.fillStyle = "#0F172A";
+      ctx.fillRect(pt.x - 6, pt.y - (idx === 0 ? 3 : 1), 12, 4.5);
+    });
+    ctx.restore();
   },
 
   _drawCryoTankFarm(ctx, startX, baseY, pal) {
@@ -615,16 +1016,16 @@ const WorldGateway = {
     ctx.lineWidth = 2.0;
     ctx.beginPath();
     ctx.moveTo(startX - 28, baseY - 3.5);
-    ctx.lineTo(startX + 40, baseY - 3.5);
+    ctx.lineTo(startX + 46, baseY - 3.5);
     ctx.stroke();
 
-    for (let i = 0; i < 3; i++) {
-      const tx = startX + i * 15;
-      const ty = baseY - (i % 2) * 2.5;
-      const r = 5.5;
+    for (let i = 0; i < 4; i++) {
+      const tx = startX + i * 14;
+      const ty = baseY - (i % 2) * 2.2;
+      const r = 5.4;
       ctx.fillStyle = pal.shadowColor;
       ctx.beginPath();
-      ctx.ellipse(tx + 4.5, ty + 2.5, r * 1.15, r * 0.38, 0.15, 0, Math.PI * 2);
+      ctx.ellipse(tx + 4.5 * pal.sunDir, ty + 2.5, r * 1.15, r * 0.38, 0.15, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = pal.archDark;
       ctx.lineWidth = 1.2;
@@ -646,106 +1047,129 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // True 2-point perspective 2.5D building aligning cleanly with ground perspective slope!
   _draw25DBuilding(ctx, x, y, bw, bh, pal, opts = {}) {
     const style = opts.style || "warehouse";
     const floors = opts.floors || 1;
+    const persp = opts.perspSlope || 0;
     const frontW = bw * 0.68;
     const depthX = bw * 0.32;
-    const depthY = Math.max(2.5, Math.min(6, bh * 0.24));
+    const depthY = Math.max(2.5, Math.min(6.5, bh * 0.24));
+    const sy = frontW * persp;
+    const sd = pal.sunDir || 1.1;
 
     ctx.save();
-    // 1. Soft cast ground shadow down-right
+    // 1. Directional cast solar shadow aligned along ground plane
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.moveTo(x + frontW, y);
-    ctx.lineTo(x + frontW + bh * 0.45 + depthX * 0.55, y + 3.5);
-    ctx.lineTo(x + bw + bh * 0.45, y + depthY + 2.5);
-    ctx.lineTo(x + frontW, y + depthY * 0.5);
+    ctx.moveTo(x + frontW, y + sy);
+    ctx.lineTo(x + frontW + bh * 0.44 * sd + depthX * 0.55, y + sy + 4.0);
+    ctx.lineTo(x + bw + bh * 0.44 * sd, y + sy + depthY * 0.55 + 3.5);
+    ctx.lineTo(x + frontW, y + sy + depthY * 0.45);
     ctx.closePath();
     ctx.fill();
 
-    // 2. Front architectural facade with soft daylight gradient
-    const frontG = ctx.createLinearGradient(x, y - bh, x, y);
+    // 2. Perspective-aligned front facade (keeps vertical lines strictly plumb!)
+    const frontG = ctx.createLinearGradient(x, y - bh, x, y + sy);
     frontG.addColorStop(0, pal.archLight);
     frontG.addColorStop(1, pal.archMid);
     ctx.fillStyle = frontG;
-    ctx.fillRect(x, y - bh, frontW, bh);
-
-    // 3. Shaded isometric right side wall
-    ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.moveTo(x + frontW, y - bh);
-    ctx.lineTo(x + bw, y - bh + depthY);
-    ctx.lineTo(x + bw, y + depthY * 0.85);
-    ctx.lineTo(x + frontW, y);
+    ctx.moveTo(x, y - bh);
+    ctx.lineTo(x + frontW, y + sy - bh);
+    ctx.lineTo(x + frontW, y + sy);
+    ctx.lineTo(x, y);
     ctx.closePath();
     ctx.fill();
 
-    // 4. Beveled rooftop deck + subtle sunlit cornice rim
+    // 3. Shaded isometric right flank wall
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.moveTo(x + frontW, y + sy - bh);
+    ctx.lineTo(x + bw, y + sy - bh - depthY * 0.45 + 1.5);
+    ctx.lineTo(x + bw, y + sy - depthY * 0.2 + 2.5);
+    ctx.lineTo(x + frontW, y + sy);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Perspective rooftop deck + sunlit cornice highlight
     ctx.fillStyle = pal.archMid;
     ctx.beginPath();
     ctx.moveTo(x, y - bh);
-    ctx.lineTo(x + depthX * 0.72, y - bh - depthY * 0.6);
-    ctx.lineTo(x + bw, y - bh + depthY * 0.35);
-    ctx.lineTo(x + frontW, y - bh);
+    ctx.lineTo(x + depthX * 0.78, y - bh - depthY * 0.72);
+    ctx.lineTo(x + bw, y + sy - bh - depthY * 0.45 + 1.5);
+    ctx.lineTo(x + frontW, y + sy - bh);
     ctx.closePath();
     ctx.fill();
 
     ctx.strokeStyle = pal.roofHighlight;
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = 0.85;
     ctx.beginPath();
     ctx.moveTo(x, y - bh);
-    ctx.lineTo(x + frontW, y - bh);
+    ctx.lineTo(x + frontW, y + sy - bh);
     ctx.stroke();
 
     // 5. Restrained architectural superstructures
     if (style === "vab") {
       ctx.fillStyle = pal.windowGlassDark;
-      ctx.fillRect(x + frontW * 0.30, y - bh * 0.82, frontW * 0.40, bh * 0.82);
-      ctx.fillStyle = pal.archLight;
-      ctx.fillRect(x + frontW * 0.20, y - bh - 3.5, frontW * 0.48, 3.5);
-      ctx.fillStyle = pal.archDark;
-      ctx.fillRect(x + frontW * 0.68, y - bh - 2.8, depthX * 0.42, 3.2);
-    } else if (style === "hangar_small") {
-      ctx.fillStyle = pal.archLight;
       ctx.beginPath();
-      ctx.moveTo(x, y - bh);
-      ctx.quadraticCurveTo(x + frontW * 0.5, y - bh - 6, x + frontW, y - bh);
+      ctx.moveTo(x + frontW * 0.28, y + sy * 0.28 - bh * 0.82);
+      ctx.lineTo(x + frontW * 0.70, y + sy * 0.70 - bh * 0.82);
+      ctx.lineTo(x + frontW * 0.70, y + sy * 0.70);
+      ctx.lineTo(x + frontW * 0.28, y + sy * 0.28);
       ctx.closePath();
       ctx.fill();
+      ctx.fillStyle = pal.archLight;
+      ctx.fillRect(x + frontW * 0.20, y + sy * 0.3 - bh - 3.5, frontW * 0.48, 3.5);
+    } else if (style === "hangar_small") {
       ctx.fillStyle = pal.windowGlassDark;
-      ctx.fillRect(x + frontW * 0.14, y - bh * 0.64, frontW * 0.72, bh * 0.64);
+      ctx.beginPath();
+      ctx.moveTo(x + frontW * 0.14, y + sy * 0.14 - bh * 0.62);
+      ctx.lineTo(x + frontW * 0.86, y + sy * 0.86 - bh * 0.62);
+      ctx.lineTo(x + frontW * 0.86, y + sy * 0.86);
+      ctx.lineTo(x + frontW * 0.14, y + sy * 0.14);
+      ctx.closePath();
+      ctx.fill();
       ctx.fillStyle = pal.hangarInterior;
-      ctx.fillRect(x + frontW * 0.22, y - bh * 0.40, frontW * 0.56, bh * 0.30);
+      ctx.beginPath();
+      ctx.moveTo(x + frontW * 0.22, y + sy * 0.22 - bh * 0.36);
+      ctx.lineTo(x + frontW * 0.78, y + sy * 0.78 - bh * 0.36);
+      ctx.lineTo(x + frontW * 0.78, y + sy * 0.78 - bh * 0.06);
+      ctx.lineTo(x + frontW * 0.22, y + sy * 0.22 - bh * 0.06);
+      ctx.closePath();
+      ctx.fill();
     } else {
-      if (style === "ops" || style === "terminal_annex") {
-        const wx = x - frontW * 0.24;
-        const wh = bh * 0.56;
-        ctx.fillStyle = pal.archMid;
-        ctx.fillRect(wx, y - wh, frontW * 0.24, wh);
-        ctx.fillStyle = pal.roofHighlight;
-        ctx.fillRect(wx, y - wh, frontW * 0.24, 1);
-      }
       ctx.fillStyle = pal.archDark;
-      ctx.fillRect(x + frontW * 0.36, y - bh - 2.8, Math.max(4, frontW * 0.24), 2.2);
+      ctx.fillRect(x + frontW * 0.36, y + sy * 0.4 - bh - 2.6, Math.max(4, frontW * 0.22), 2.2);
     }
 
-    // 6. Subtle, slender architectural glazing ribbons (harmonious & understated)
+    // 6. Slender perspective-aligned glazing ribbons
     if (style !== "hangar_small") {
       for (let fl = 0; fl < floors; fl++) {
-        const winY = y - bh * (0.34 + fl * 0.30);
+        const yOff = -bh * (0.34 + fl * 0.28);
         const winH = Math.max(1.3, bh * 0.08);
-        const winX = x + 3;
-        const winW = frontW - 6;
-        if (winW > 4) {
+        const fx0 = 3;
+        const fx1 = frontW - 3;
+        if (fx1 - fx0 > 4) {
+          const y0 = y + (fx0 / frontW) * sy + yOff;
+          const y1 = y + (fx1 / frontW) * sy + yOff;
           ctx.fillStyle = pal.windowGlassDark;
-          ctx.fillRect(winX, winY - 0.5, winW, winH + 1.0);
+          ctx.beginPath();
+          ctx.moveTo(x + fx0, y0 - 0.5);
+          ctx.lineTo(x + fx1, y1 - 0.5);
+          ctx.lineTo(x + fx1, y1 + winH + 0.5);
+          ctx.lineTo(x + fx0, y0 + winH + 0.5);
+          ctx.closePath();
+          ctx.fill();
+
           ctx.fillStyle = pal.windowGlow;
-          ctx.fillRect(winX + 0.5, winY, winW - 1.0, winH);
-          ctx.fillStyle = pal.archDark;
-          for (let m = 1; m <= 3; m++) {
-            ctx.fillRect(winX + (winW * m) / 4, winY - 0.3, 0.8, winH + 0.6);
-          }
+          ctx.beginPath();
+          ctx.moveTo(x + fx0 + 0.6, y0);
+          ctx.lineTo(x + fx1 - 0.6, y1);
+          ctx.lineTo(x + fx1 - 0.6, y1 + winH);
+          ctx.lineTo(x + fx0 + 0.6, y0 + winH);
+          ctx.closePath();
+          ctx.fill();
         }
       }
     }
@@ -765,7 +1189,6 @@ const WorldGateway = {
     ctx.beginPath();
     ctx.ellipse(0, 0, 13, 5.5, 0, 0, Math.PI * 2);
     ctx.stroke();
-    // Crisp foreshortened 'H' marking
     ctx.strokeStyle = pal.runwayLight;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
@@ -781,32 +1204,29 @@ const WorldGateway = {
 
   _drawRunwayNetwork(ctx, w, L, pal) {
     ctx.save();
-    const lHalf = 11;
-    const rHalf = 32;
     ctx.beginPath();
-    ctx.moveTo(L.rwLeftX, L.rwLeftY - lHalf);
-    ctx.lineTo(L.rwRightX, L.rwRightY - rHalf);
-    ctx.lineTo(L.rwRightX, L.rwRightY + rHalf);
-    ctx.lineTo(L.rwLeftX, L.rwLeftY + lHalf);
+    ctx.moveTo(L.rwLeftX, L.rwLeftY - L.rwLeftHalf);
+    ctx.lineTo(L.rwRightX, L.rwRightY - L.rwRightHalf);
+    ctx.lineTo(L.rwRightX, L.rwRightY + L.rwRightHalf);
+    ctx.lineTo(L.rwLeftX, L.rwLeftY + L.rwLeftHalf);
     ctx.closePath();
     ctx.fillStyle = pal.runwayFill;
     ctx.fill();
 
-    // Subtle runway edge lines
     ctx.strokeStyle = pal.runwayLight;
     ctx.lineWidth = 1.25;
     ctx.beginPath();
-    ctx.moveTo(L.rwLeftX, L.rwLeftY - lHalf + 2);
-    ctx.lineTo(L.rwRightX, L.rwRightY - rHalf + 4);
-    ctx.moveTo(L.rwLeftX, L.rwLeftY + lHalf - 2);
-    ctx.lineTo(L.rwRightX, L.rwRightY + rHalf - 4);
+    ctx.moveTo(L.rwLeftX, L.rwLeftY - L.rwLeftHalf + 2);
+    ctx.lineTo(L.rwRightX, L.rwRightY - L.rwRightHalf + 4);
+    ctx.moveTo(L.rwLeftX, L.rwLeftY + L.rwLeftHalf - 2);
+    ctx.lineTo(L.rwRightX, L.rwRightY + L.rwRightHalf - 4);
     ctx.stroke();
 
     // Piano-key runway threshold stripes & aiming blocks
-    const rwAng = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
+    const rwAng = L.rwAng;
     [0.04, 0.91].forEach((tPos) => {
       const p = L.rwPt(tPos);
-      const hw = 9 + tPos * 17;
+      const hw = L.rwLeftHalf + tPos * (L.rwRightHalf - L.rwLeftHalf);
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(rwAng);
@@ -841,30 +1261,24 @@ const WorldGateway = {
       ctx.stroke();
     }
 
-    // Open South Apron Taxiway Routing STRICTLY AROUND & BELOW Star Terminal (never under/over building roofs!)
+    // Open South Apron & Gate Lead-In Taxiway Network (strictly south/east around terminals!)
     const exitPt = L.rwPt(L.rwExitT);
     const entryPt = L.rwPt(L.rwEntryT);
     ctx.strokeStyle = pal.runwayFill;
-    ctx.lineWidth = 10;
+    ctx.lineWidth = 9.5;
     ctx.globalAlpha = 0.72;
     ctx.beginPath();
-    // 1. Arrival Exit Taxiway: Runway Exit -> East Apron -> Arched Hangar
+    // Arrival exit taxiway -> East apron -> Hangar
     ctx.moveTo(exitPt.x, exitPt.y - 12);
-    ctx.bezierCurveTo(
-      exitPt.x + 36, exitPt.y - 26,
-      L.apronEast.x + 28, L.apronEast.y + 18,
-      L.apronEast.x, L.apronEast.y
-    );
+    ctx.bezierCurveTo(exitPt.x + 36, exitPt.y - 26, L.apronEast.x + 28, L.apronEast.y + 18, L.apronEast.x, L.apronEast.y);
     ctx.quadraticCurveTo(L.hangarDoorX + 12, L.hangarDoorY + 18, L.hangarDoorX, L.hangarDoorY);
-
-    // 2. Departure South Apron Taxiway: East Apron -> South of Star Terminal -> Runway Entry
+    // Main South Apron taxiway -> West Satellite & Runway Entry
     ctx.moveTo(L.apronEast.x, L.apronEast.y);
-    ctx.bezierCurveTo(
-      L.apronSE.x, L.apronSE.y,
-      L.apronSouth.x, L.apronSouth.y,
-      L.apronSW.x, L.apronSW.y
-    );
+    ctx.bezierCurveTo(L.apronSE.x, L.apronSE.y, L.apronSouth.x, L.apronSouth.y, L.apronSW.x, L.apronSW.y);
     ctx.quadraticCurveTo(entryPt.x + 26, entryPt.y - 14, entryPt.x, entryPt.y - 6);
+    // West Satellite lead-off stub
+    ctx.moveTo(L.apronSW.x, L.apronSW.y);
+    ctx.lineTo(L.satWest.x + 8 * L.termScale, L.satWest.y + 44 * L.termScale);
     ctx.stroke();
 
     ctx.strokeStyle = "rgba(251, 191, 36, 0.44)";
@@ -872,11 +1286,120 @@ const WorldGateway = {
     ctx.setLineDash([5, 6]);
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Painted gate lead-in parking bays at terminal stands
+    L.gates.forEach(g => {
+      if (L.isNarrow && g.id === "G_SC") return;
+      ctx.save();
+      ctx.translate(g.x, g.y);
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.36)";
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(6, 0);
+      ctx.moveTo(0, -3);
+      ctx.lineTo(0, 12);
+      ctx.stroke();
+      ctx.restore();
+    });
     ctx.restore();
 
-    // Painted Helipads on Open East & West Aprons
     this._drawHelipad(ctx, L.heliPad1, pal);
     this._drawHelipad(ctx, L.heliPad2, pal);
+  },
+
+  // Connected West & East Satellite Terminals + Elevated Glazed APM Skybridges
+  _drawSatelliteTerminalsAndBridges(ctx, L, pal) {
+    const sc = L.termScale;
+    const bridges = [
+      {
+        x0: L.termX - 148 * sc, y0: L.termY - 8 * sc,
+        x1: L.satWest.x + 32 * sc, y1: L.satWest.y - 2 * sc,
+        sat: L.satWest, kind: "west"
+      }
+    ];
+    if (!L.isNarrow) {
+      bridges.push({
+        x0: L.termX + 150 * sc, y0: L.termY - 6 * sc,
+        x1: L.satEast.x - 32 * sc, y1: L.satEast.y - 2 * sc,
+        sat: L.satEast, kind: "east"
+      });
+    }
+
+    bridges.forEach(br => {
+      // Elevated skybridge APM transit corridor
+      ctx.save();
+      const ang = Math.atan2(br.y1 - br.y0, br.x1 - br.x0);
+      const len = Math.hypot(br.x1 - br.x0, br.y1 - br.y0);
+      // Tapered concrete support piers
+      for (let i = 1; i <= 2; i++) {
+        const px = br.x0 + (br.x1 - br.x0) * (i / 3);
+        const py = br.y0 + (br.y1 - br.y0) * (i / 3);
+        ctx.fillStyle = pal.archDark;
+        ctx.fillRect(px - 1.5, py + 2, 3, 9 * sc);
+      }
+      ctx.translate(br.x0, br.y0);
+      ctx.rotate(ang);
+      ctx.fillStyle = pal.shadowColor;
+      ctx.fillRect(0, 7 * sc, len, 4 * sc);
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(0, -3.2 * sc, len, 6.4 * sc);
+      ctx.fillStyle = pal.windowGlow;
+      ctx.fillRect(4 * sc, -1.2 * sc, Math.max(2, len - 8 * sc), 2.4 * sc);
+      ctx.fillStyle = pal.archLight;
+      ctx.fillRect(0, -4.0 * sc, len, 2.2 * sc);
+      ctx.restore();
+
+      this._drawSatelliteTerminal(ctx, br.sat.x, br.sat.y, sc, pal);
+    });
+  },
+
+  _drawSatelliteTerminal(ctx, cx, cy, sc, pal) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(sc, sc);
+
+    // Directional solar cast shadow
+    ctx.fillStyle = pal.shadowColor;
+    ctx.beginPath();
+    ctx.ellipse(8 * pal.sunDir, 8, 52, 13, 0.04, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Winged concourse lower wall + glazing
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.roundRect(-48, -2, 96, 12, 4);
+    ctx.fill();
+    ctx.fillStyle = pal.windowGlow;
+    ctx.fillRect(-42, 1.5, 84, 3.8);
+
+    // Sculpted wing canopy roof
+    const rg = ctx.createLinearGradient(-48, -10, 48, 4);
+    rg.addColorStop(0, pal.archLight);
+    rg.addColorStop(0.6, pal.archMid);
+    rg.addColorStop(1, pal.archDark);
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.ellipse(0, -2, 50, 10.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Central raised oval skylight cupola & mini beacon mast
+    ctx.fillStyle = pal.archLight;
+    ctx.beginPath();
+    ctx.ellipse(0, -7, 22, 6.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = pal.roofHighlight;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    ctx.fillStyle = pal.archMid;
+    ctx.beginPath();
+    ctx.moveTo(0, -24);
+    ctx.lineTo(-4, -8);
+    ctx.lineTo(4, -8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   },
 
   _drawStarTerminal(ctx, L, pal) {
@@ -885,63 +1408,68 @@ const WorldGateway = {
     ctx.translate(L.termX, L.termY);
     ctx.scale(s, s);
 
-    // Soft cast ground shadow beneath terminal footprint
+    // Large soft cast ground shadow beneath monumental terminal footprint
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.ellipse(10, 12, 174, 34, 0.04, 0, Math.PI * 2);
+    ctx.ellipse(12 * pal.sunDir, 13, 194, 38, 0.04, 0, Math.PI * 2);
     ctx.fill();
 
-    // Subtle restrained warm architectural wash beneath concourse glazing (painterly, never garish)
-    const underGlow = ctx.createRadialGradient(0, 5, 6, 0, 5, 138);
+    // Subtle restrained concourse glazing wash
+    const underGlow = ctx.createRadialGradient(0, 6, 8, 0, 6, 152);
     underGlow.addColorStop(0, pal.isNightLights ? "rgba(253, 224, 152, 0.24)" : "rgba(255, 250, 236, 0.16)");
     underGlow.addColorStop(0.55, pal.isNightLights ? "rgba(251, 191, 36, 0.08)" : "rgba(255, 255, 255, 0.05)");
     underGlow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = underGlow;
     ctx.beginPath();
-    ctx.ellipse(0, 7, 146, 30, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 8, 162, 33, 0, 0, Math.PI * 2);
     ctx.fill();
 
     const arms = [
-      { ax: -178, ay: 6, w: 13 },
-      { ax: -116, ay: -20, w: 10 },
-      { ax: 136, ay: -16, w: 10 },
-      { ax: 182, ay: 16, w: 13 },
-      { ax: 44, ay: 27, w: 11 }
+      { ax: -196, ay: 6, w: 14 },
+      { ax: -128, ay: -22, w: 11 },
+      { ax: 146, ay: -18, w: 11 },
+      { ax: 198, ay: 16, w: 14 },
+      { ax: 48, ay: 30, w: 12 }
     ];
 
     arms.forEach(a => {
       ctx.fillStyle = pal.archDark;
       ctx.beginPath();
-      ctx.moveTo(0, 12);
-      ctx.quadraticCurveTo(a.ax * 0.55, a.ay * 0.45 + 11, a.ax, a.ay + 7);
+      ctx.moveTo(0, 13);
+      ctx.quadraticCurveTo(a.ax * 0.55, a.ay * 0.45 + 12, a.ax, a.ay + 7.5);
       ctx.lineTo(a.ax, a.ay + 1.5);
       ctx.quadraticCurveTo(a.ax * 0.55, a.ay * 0.45 + 3, 0, 0);
       ctx.closePath();
       ctx.fill();
 
       ctx.strokeStyle = pal.windowGlow;
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
-      ctx.moveTo(a.ax * 0.15, a.ay * 0.15 + 6.5);
-      ctx.quadraticCurveTo(a.ax * 0.55, a.ay * 0.48 + 6.5, a.ax * 0.92, a.ay * 0.92 + 4.5);
+      ctx.moveTo(a.ax * 0.15, a.ay * 0.15 + 7);
+      ctx.quadraticCurveTo(a.ax * 0.55, a.ay * 0.48 + 7, a.ax * 0.92, a.ay * 0.92 + 4.8);
       ctx.stroke();
 
+      // Jet-bridge loading arms extending out to gate stands
       ctx.strokeStyle = pal.archMid;
-      ctx.lineWidth = 2.0;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.moveTo(a.ax * 0.62, a.ay * 0.62 + 5);
-      ctx.lineTo(a.ax * 0.62 + (a.ax > 0 ? 10 : -10), a.ay * 0.62 + 12);
+      ctx.moveTo(a.ax * 0.58, a.ay * 0.58 + 5);
+      ctx.lineTo(a.ax * 0.58 + (a.ax > 0 ? 11 : -11), a.ay * 0.58 + 13);
       ctx.stroke();
     });
 
-    // Stepped 2-tier sculpted central rotunda canopy
+    // Monumental 3-tier sculpted central rotunda canopy
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.ellipse(3, 5, 76, 23, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = pal.archMid;
     ctx.beginPath();
-    ctx.ellipse(2, 2, 62, 19, 0, 0, Math.PI * 2);
+    ctx.ellipse(1, 2, 70, 20, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = pal.archLight;
     ctx.beginPath();
-    ctx.ellipse(0, -2, 56, 16, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -2, 62, 17, 0, 0, Math.PI * 2);
     ctx.fill();
 
     arms.forEach(a => {
@@ -957,7 +1485,7 @@ const WorldGateway = {
       ctx.fill();
 
       ctx.strokeStyle = pal.roofHighlight;
-      ctx.lineWidth = 0.9;
+      ctx.lineWidth = 0.95;
       ctx.beginPath();
       ctx.moveTo(0, -1);
       ctx.quadraticCurveTo(a.ax * 0.52, a.ay * 0.43 - 1, a.ax * 0.95, a.ay * 0.95);
@@ -971,30 +1499,123 @@ const WorldGateway = {
   _drawStarTerminalSpireGeometry(ctx, pal) {
     ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.moveTo(0, -98);
-    ctx.quadraticCurveTo(7, -34, 24, -1);
-    ctx.lineTo(0, 5);
+    ctx.moveTo(0, -114);
+    ctx.quadraticCurveTo(8, -38, 28, -1);
+    ctx.lineTo(0, 6);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = pal.archLight;
     ctx.beginPath();
-    ctx.moveTo(0, -98);
-    ctx.quadraticCurveTo(-5, -34, -22, -1);
-    ctx.lineTo(0, 5);
+    ctx.moveTo(0, -114);
+    ctx.quadraticCurveTo(-6, -38, -25, -1);
+    ctx.lineTo(0, 6);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle = pal.windowGlow;
     ctx.beginPath();
-    ctx.ellipse(0, -14, 5.2, 11.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -16, 6.0, 13.5, 0, 0, Math.PI * 2);
     ctx.fill();
   },
 
-  // Redrawn cleanly after northern crawlerway vehicles so spire tip naturally stands IN FRONT of far crawlerway!
   _drawStarTerminalSpireOcclusion(ctx, L, pal) {
     ctx.save();
     ctx.translate(L.termX, L.termY);
     ctx.scale(L.termScale, L.termScale);
     this._drawStarTerminalSpireGeometry(ctx, pal);
+    ctx.restore();
+  },
+
+  _drawStaticParkedAircraft(ctx, L, pal) {
+    const sc = L.termScale;
+    const parked = [
+      { x: L.termX - 66 * sc, y: L.termY + 26 * sc, ang: -0.45, s: 0.40 * sc, v: "airliner" },
+      { x: L.termX + 82 * sc, y: L.termY + 27 * sc, ang: 2.68, s: 0.44 * sc, v: "starliner" },
+      { x: L.satWest.x - 16 * sc, y: L.satWest.y + 18 * sc, ang: 0.65, s: 0.34 * sc, v: "fighter" },
+      { x: L.hangarX - L.hangarW * 0.46, y: L.hangarY + L.hangarH * 0.86, ang: 2.25, s: 0.42 * sc, v: "bomber" }
+    ];
+    if (!L.isNarrow) {
+      parked.push(
+        { x: L.satEast.x - 24 * sc, y: L.satEast.y + 34 * sc, ang: 2.25, s: 0.38 * sc, v: "clipper" },
+        { x: L.termX + 196 * sc, y: L.termY + 8 * sc, ang: -2.95, s: 0.36 * sc, v: "shuttle" }
+      );
+    }
+    parked.forEach(pk => {
+      ctx.save();
+      ctx.translate(pk.x, pk.y);
+      ctx.rotate(pk.ang);
+      ctx.scale(pk.s, pk.s);
+      this._drawSpaceplaneModel(ctx, pk.v, pal, 0, 0, 1.0);
+      ctx.restore();
+    });
+  },
+
+  // Horizontal Integration Facility (HIF) Base + Foreground Occlusion Shell (rocket+tug spawn inside!)
+  _drawHIFBase(ctx, L, pal) {
+    const x = L.hifX - L.hifW * 0.5;
+    const y = L.hifY - L.hifH * 0.55;
+    const bw = L.hifW;
+    const bh = L.hifH;
+    ctx.save();
+    ctx.fillStyle = pal.shadowColor;
+    ctx.beginPath();
+    ctx.ellipse(L.hifX + 10 * pal.sunDir, L.hifY + 8, bw * 0.56, bh * 0.35, 0.04, 0, Math.PI * 2);
+    ctx.fill();
+    // Deep dark western assembly bay portal opening onto crawlerway
+    ctx.fillStyle = "#0B1120";
+    ctx.beginPath();
+    ctx.roundRect(L.hifDoorX, y + 3, bw * 0.25, bh - 2, 2);
+    ctx.fill();
+    const bayG = ctx.createRadialGradient(L.hifDoorX + 4, L.hifDoorY, 2, L.hifDoorX + 8, L.hifDoorY, bh * 1.1);
+    bayG.addColorStop(0, pal.hangarInterior);
+    bayG.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = bayG;
+    ctx.fillRect(L.hifDoorX - 6, y, bw * 0.40, bh + 4);
+    ctx.restore();
+  },
+
+  _drawHIFOcclusionRoof(ctx, L, pal) {
+    const x = L.hifX - L.hifW * 0.5;
+    const y = L.hifY - L.hifH * 0.55;
+    const bw = L.hifW;
+    const bh = L.hifH;
+    ctx.save();
+    // Main HIF metallic hall cladding starting cleanly to the right of the open bay aperture (doorX+2..right edge)
+    const shellX = L.hifDoorX + 2;
+    const shellW = (x + bw) - shellX;
+    const fg = ctx.createLinearGradient(shellX, y, shellX, y + bh);
+    fg.addColorStop(0, pal.archLight);
+    fg.addColorStop(1, pal.archMid);
+    ctx.fillStyle = fg;
+    ctx.fillRect(shellX, y, shellW * 0.78, bh + 4);
+
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.moveTo(shellX + shellW * 0.78, y);
+    ctx.lineTo(shellX + shellW, y + 4);
+    ctx.lineTo(shellX + shellW, y + bh + 6);
+    ctx.lineTo(shellX + shellW * 0.78, y + bh + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Beveled industrial roof + structural crane ribs
+    ctx.fillStyle = pal.archMid;
+    ctx.beginPath();
+    ctx.moveTo(L.hifDoorX - 4, y);
+    ctx.lineTo(L.hifDoorX + 8, y - 5);
+    ctx.lineTo(shellX + shellW, y - 2);
+    ctx.lineTo(shellX + shellW * 0.78, y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Header lintel right over open bay entrance so emerging crawler appears cleanly inside doorway
+    ctx.fillStyle = pal.archMid;
+    ctx.fillRect(L.hifDoorX - 4, y, 16, bh * 0.28);
+    ctx.strokeStyle = pal.roofHighlight;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(L.hifDoorX - 4, y);
+    ctx.lineTo(shellX + shellW * 0.78, y);
+    ctx.stroke();
     ctx.restore();
   },
 
@@ -1007,7 +1628,7 @@ const WorldGateway = {
     ctx.save();
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.ellipse(L.hangarX + 12, y + hh * 0.56, hw * 0.54, hh * 0.24, 0.04, 0, Math.PI * 2);
+    ctx.ellipse(L.hangarX + 12 * pal.sunDir, y + hh * 0.56, hw * 0.54, hh * 0.24, 0.04, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = pal.archDark;
@@ -1073,41 +1694,46 @@ const WorldGateway = {
     ctx.restore();
   },
 
-  _drawRadomeAndATC(ctx, L, pal) {
+  // Deep-Space Satellite Ground Station & Radar Centre + ATC Tower
+  _drawRadarCentre(ctx, L, pal) {
     ctx.save();
-    // Telemetry tracking dish beside radome
-    const dx = L.radomeX - 24;
-    const dy = L.radomeY + 4;
-    ctx.fillStyle = pal.shadowColor;
-    ctx.beginPath();
-    ctx.ellipse(dx + 4, dy + 2, 7, 2.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = pal.towerSteel;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(dx, dy);
-    ctx.lineTo(dx, dy - 10);
-    ctx.stroke();
-    ctx.fillStyle = pal.archLight;
-    ctx.beginPath();
-    ctx.arc(dx - 1, dy - 12, 5.5, 0.4, Math.PI + 0.4);
-    ctx.closePath();
-    ctx.fill();
+    const rx = L.radarX;
+    const ry = L.radarY;
 
-    // Geodesic Radome
-    ctx.fillStyle = pal.shadowColor;
+    // Paved compound apron & perimeter curb around radar ground station
+    ctx.fillStyle = pal.apronFill;
     ctx.beginPath();
-    ctx.ellipse(L.radomeX + 6, L.radomeY + 4, 11, 3.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(rx - 8, ry + 6, L.isNarrow ? 34 : 52, L.isNarrow ? 14 : 20, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = pal.archDark;
-    ctx.fillRect(L.radomeX - 4.5, L.radomeY - 12, 9, 16);
-    const radG = ctx.createRadialGradient(L.radomeX - 3, L.radomeY - 22, 1, L.radomeX, L.radomeY - 20, 12);
-    radG.addColorStop(0, pal.archLight);
-    radG.addColorStop(1, pal.archDark);
-    ctx.fillStyle = radG;
-    ctx.beginPath();
-    ctx.arc(L.radomeX, L.radomeY - 20, 10, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.strokeStyle = pal.archDark;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+
+    // Ground Station Control Bunker
+    this._draw25DBuilding(ctx, rx - 30, ry + 14, L.isNarrow ? 24 : 34, 11, pal, { style: "ops", floors: 1, perspSlope: 0.04 });
+
+    // Three Graduated Geodesic Golf-Ball Radomes on Conical Pedestals
+    const domes = L.isNarrow
+      ? [{ x: rx - 4, y: ry + 2, r: 9.5 }, { x: rx - 22, y: ry + 8, r: 6.5 }]
+      : [{ x: rx + 2, y: ry + 2, r: 12.5 }, { x: rx - 18, y: ry + 7, r: 8.5 }, { x: rx + 18, y: ry + 10, r: 6.5 }];
+
+    domes.forEach(d => {
+      ctx.fillStyle = pal.shadowColor;
+      ctx.beginPath();
+      ctx.ellipse(d.x + 5 * pal.sunDir, d.y + 3, d.r * 1.1, d.r * 0.34, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(d.x - d.r * 0.42, d.y - d.r * 0.85, d.r * 0.84, d.r * 1.15);
+
+      const radG = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 1.75, 1, d.x, d.y - d.r * 1.55, d.r);
+      radG.addColorStop(0, pal.archLight);
+      radG.addColorStop(0.65, pal.archMid);
+      radG.addColorStop(1, pal.archDark);
+      ctx.fillStyle = radG;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y - d.r * 1.55, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
     // Tall Sculpted Double-Deck ATC Control Tower
     const ax = L.atcX;
@@ -1115,8 +1741,8 @@ const WorldGateway = {
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
     ctx.moveTo(ax + 6, ay);
-    ctx.lineTo(ax + 32, ay + 6);
-    ctx.lineTo(ax + 34, ay + 11);
+    ctx.lineTo(ax + 34 * pal.sunDir, ay + 6);
+    ctx.lineTo(ax + 36 * pal.sunDir, ay + 11);
     ctx.lineTo(ax - 4, ay + 2);
     ctx.closePath();
     ctx.fill();
@@ -1166,13 +1792,56 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // Live steerable parabolic satellite dishes at the Radar Ground Station
+  _drawAnimatedRadarDishes(ctx, L, pal, step) {
+    const dishes = L.isNarrow
+      ? [{ x: L.radomeX - 18, y: L.radomeY + 4, r: 5.5, sp: 0.25, ph: 0 }]
+      : [
+          { x: L.radarX - 36, y: L.radarY + 2, r: 7.2, sp: 0.22, ph: 0.2 },
+          { x: L.radarX - 14, y: L.radarY - 4, r: 5.6, sp: 0.17, ph: 2.1 }
+        ];
+    ctx.save();
+    dishes.forEach(d => {
+      const aim = -0.85 + Math.sin(step * d.sp + d.ph) * 0.55;
+      ctx.fillStyle = pal.shadowColor;
+      ctx.beginPath();
+      ctx.ellipse(d.x + 3.5 * pal.sunDir, d.y + 2, d.r * 0.9, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = pal.towerSteel;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y + 1);
+      ctx.lineTo(d.x, d.y - d.r * 1.25);
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(d.x, d.y - d.r * 1.35);
+      ctx.rotate(aim);
+      ctx.fillStyle = pal.archLight;
+      ctx.beginPath();
+      ctx.arc(0, 0, d.r, Math.PI * 0.55, Math.PI * 1.45);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = pal.archDark;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-d.r * 0.85, 0);
+      ctx.stroke();
+      ctx.restore();
+    });
+    ctx.restore();
+  },
+
   _drawForegroundBridgeAndCoast(ctx, w, h, L, pal) {
     ctx.save();
     const p0x = w * 0.65;
-    const p0y = L.islandBotY + 12;
-    const cpx = w * 0.60;
+    const p0y = L.islandBotY + 14;
+    const cpx = w * 0.61;
     const cpy = h * 0.90;
-    const p2x = w * 0.92;
+    const p2x = w * 0.93;
     const p2y = h + 8;
 
     for (let i = 1; i <= 7; i++) {
@@ -1224,13 +1893,13 @@ const WorldGateway = {
       }
     }
 
-    // Lush foreground coastal hillside framing bottom-left
+    // Lush sculpted foreground coastal headland in extreme bottom-left corner
     ctx.fillStyle = pal.foliage;
     ctx.beginPath();
     ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.72);
-    ctx.quadraticCurveTo(w * 0.08, h * 0.78, w * 0.16, h * 0.86);
-    ctx.quadraticCurveTo(w * 0.28, h * 0.91, w * 0.42, h);
+    ctx.lineTo(0, h * 0.74);
+    ctx.quadraticCurveTo(w * 0.08, h * 0.79, w * 0.16, h * 0.87);
+    ctx.quadraticCurveTo(w * 0.28, h * 0.92, w * 0.40, h);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -1276,125 +1945,102 @@ const WorldGateway = {
   },
 
   // Pre-built non-overlapping arc-length paths for Spaceplane fleet!
-  _getTaxiToRunwayPath(L) {
+  _getTaxiToRunwayPath(L, fromPt = null) {
     const entryPt = L.rwPt(L.rwEntryT);
-    const rwAng = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
-    const pStart = { x: L.hangarDoorX - 18, y: L.hangarDoorY + 4 };
+    const rwAng = L.rwAng;
+    const pStart = fromPt || { x: L.hangarDoorX - 18, y: L.hangarDoorY + 4 };
     const pEast = L.apronEast;
     const pSW = L.apronSW;
     const pHold = { x: entryPt.x - Math.cos(rwAng) * 14, y: entryPt.y - Math.sin(rwAng) * 14 };
+    const segs = [];
+    if (!fromPt) {
+      segs.push([pStart, { x: L.hangarDoorX - 8, y: L.hangarDoorY + 26 }, { x: pEast.x + 12, y: pEast.y - 16 }, pEast]);
+      segs.push([pEast, L.apronSE, L.apronSouth, pSW]);
+    } else {
+      segs.push([pStart, { x: pStart.x, y: L.apronSouth.y + 8 }, { x: pSW.x + 28, y: pSW.y + 6 }, pSW]);
+    }
+    segs.push([pSW, { x: (pSW.x + pHold.x) * 0.5, y: pSW.y + 8 }, { x: pHold.x + 18, y: pHold.y - 16 }, pHold]);
+    return this._buildArcPath(segs, 36);
+  },
+
+  _getExitToGatePath(L, gate) {
+    const exitPt = L.rwPt(L.rwExitT);
+    const dirX = Math.cos(L.rwAng);
+    const dirY = Math.sin(L.rwAng);
+    const pEast = L.apronEast;
+    const segs = [
+      [exitPt, { x: exitPt.x + dirX * 48, y: exitPt.y + dirY * 48 }, { x: pEast.x + 42, y: pEast.y + 26 }, pEast],
+      [pEast, L.apronSE, gate.approachPt, gate]
+    ];
+    return this._buildArcPath(segs, 36);
+  },
+
+  _getGateToHangarPath(L, gate) {
+    const pEast = L.apronEast;
+    const pInside = { x: L.hangarX + 26, y: L.hangarDoorY - 5 };
     return this._buildArcPath([
-      [
-        pStart,
-        { x: L.hangarDoorX - 8, y: L.hangarDoorY + 26 },
-        { x: pEast.x + 12, y: pEast.y - 16 },
-        pEast
-      ],
-      [
-        pEast,
-        L.apronSE,
-        L.apronSouth,
-        pSW
-      ],
-      [
-        pSW,
-        { x: (pSW.x + pHold.x) * 0.5, y: pSW.y + 8 },
-        { x: pHold.x + 18, y: pHold.y - 16 },
-        pHold
-      ]
+      [gate, gate.approachPt, L.apronSE, pEast],
+      [pEast, { x: pEast.x + 10, y: pEast.y - 22 }, { x: L.hangarDoorX - 12, y: L.hangarDoorY + 14 }, pInside]
     ], 36);
   },
 
   _getTaxiToHangarPath(L) {
     const exitPt = L.rwPt(L.rwExitT);
-    const rwAng = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
-    const dirX = Math.cos(rwAng);
-    const dirY = Math.sin(rwAng);
+    const dirX = Math.cos(L.rwAng);
+    const dirY = Math.sin(L.rwAng);
     const pEast = L.apronEast;
     const pInside = { x: L.hangarX + 26, y: L.hangarDoorY - 5 };
     return this._buildArcPath([
-      [
-        exitPt,
-        { x: exitPt.x + dirX * 48, y: exitPt.y + dirY * 48 },
-        { x: pEast.x + 42, y: pEast.y + 26 },
-        pEast
-      ],
-      [
-        pEast,
-        { x: pEast.x + 10, y: pEast.y - 22 },
-        { x: L.hangarDoorX - 12, y: L.hangarDoorY + 14 },
-        pInside
-      ]
+      [exitPt, { x: exitPt.x + dirX * 48, y: exitPt.y + dirY * 48 }, { x: pEast.x + 42, y: pEast.y + 26 }, pEast],
+      [pEast, { x: pEast.x + 10, y: pEast.y - 22 }, { x: L.hangarDoorX - 12, y: L.hangarDoorY + 14 }, pInside]
     ], 38);
   },
 
-  _getApronShuttleOutPath(L) {
+  _getApronShuttleOutPath(L, gate) {
     const pStart = { x: L.hangarDoorX - 18, y: L.hangarDoorY + 4 };
     const pEast = L.apronEast;
-    const pStand = { x: L.termX - 72 * L.termScale, y: L.termY + 56 * L.termScale };
+    const tgtGate = gate || L.gates[0];
     return this._buildArcPath([
-      [
-        pStart,
-        { x: L.hangarDoorX - 8, y: L.hangarDoorY + 26 },
-        { x: pEast.x + 12, y: pEast.y - 16 },
-        pEast
-      ],
-      [
-        pEast,
-        L.apronSE,
-        L.apronSouth,
-        pStand
-      ]
+      [pStart, { x: L.hangarDoorX - 8, y: L.hangarDoorY + 26 }, { x: pEast.x + 12, y: pEast.y - 16 }, pEast],
+      [pEast, L.apronSE, tgtGate.approachPt, tgtGate]
     ], 36);
   },
 
-  _getApronShuttleReturnPath(L) {
-    const pStand = { x: L.termX - 72 * L.termScale, y: L.termY + 56 * L.termScale };
-    const pEast = L.apronEast;
-    const pInside = { x: L.hangarX + 26, y: L.hangarDoorY - 5 };
-    return this._buildArcPath([
-      [
-        pStand,
-        { x: L.termX, y: L.termY + 66 * L.termScale },
-        { x: L.apronSE.x + 10, y: L.apronSE.y + 4 },
-        pEast
-      ],
-      [
-        pEast,
-        { x: pEast.x + 10, y: pEast.y - 22 },
-        { x: L.hangarDoorX - 12, y: L.hangarDoorY + 14 },
-        pInside
-      ]
-    ], 36);
+  _getApronShuttleReturnPath(L, gate) {
+    const srcGate = gate || L.gates[0];
+    return this._getGateToHangarPath(L, srcGate);
   },
 
+  // Fast, super-smooth C1-tangent climb directly out of runway liftoff!
   _getTakeoffClimbPath(L, w, h, sp) {
-    const liftPt = L.rwPt(0.70);
-    const rwAng = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
-    const dirX = Math.cos(rwAng);
-    const dirY = Math.sin(rwAng);
+    const liftPt = L.rwPt(0.72);
+    const dirX = Math.cos(L.rwAng);
+    const dirY = Math.sin(L.rwAng);
     const endY = h * (0.06 + (sp.id === "sp_flight_2" ? 0.04 : 0));
     return this._buildArcPath([
       [
         liftPt,
-        { x: liftPt.x + dirX * 140, y: liftPt.y + dirY * 140 - 18 },
-        { x: w * 0.85, y: liftPt.y * 0.56 },
-        { x: w + 110, y: endY }
+        // Strictly collinear ahead along runway vector for seamless zero-kink rotation!
+        { x: liftPt.x + dirX * 155, y: liftPt.y + dirY * 155 },
+        { x: w * 0.88, y: liftPt.y * 0.50 },
+        { x: w + 120, y: endY }
       ]
-    ], 56);
+    ], 58);
   },
 
+  // Shallow ~3.2° approach slope with gentle flare right before touchdown!
   _getApproachPath(L) {
     const tdPt = L.rwPt(0.14);
-    const rwAng = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
-    const dirX = Math.cos(rwAng);
-    const dirY = Math.sin(rwAng);
-    const startPt = { x: -100, y: L.horizonY - 46 };
+    const glideSlopeAng = L.rwAng - 0.048; // ~2.75 deg shallower than flat runway perspective = gentle descent above runway
+    const dx = tdPt.x - (-110);
+    const startPt = { x: -110, y: Math.max(24, tdPt.y - Math.tan(glideSlopeAng) * dx - 28) };
+    const dirX = Math.cos(L.rwAng);
+    const dirY = Math.sin(L.rwAng);
     return this._buildArcPath([
       [
         startPt,
-        { x: tdPt.x * 0.25, y: startPt.y + (tdPt.y - startPt.y) * 0.42 },
-        { x: tdPt.x - dirX * 115, y: tdPt.y - dirY * 115 - 14 },
+        { x: startPt.x + dx * 0.35, y: startPt.y + (tdPt.y - startPt.y) * 0.38 },
+        { x: tdPt.x - dirX * 120, y: tdPt.y - dirY * 120 - 4 },
         tdPt
       ]
     ], 56);
@@ -1403,26 +2049,24 @@ const WorldGateway = {
   _getHeliPatrolPath(L, w, h, pad, variant) {
     const hover = { x: pad.x, y: pad.y - 28 };
     if (variant === 0) {
-      // Sweeping island & bay perimeter patrol: East Pad -> Over Launch Towers -> South Bay Channel -> Return
-      const p1 = { x: w * 0.52, y: L.islandTopY - 22 };
-      const p2 = { x: L.padX - 45, y: L.padY - 56 };
-      const p3 = { x: w * 0.28, y: L.islandBotY + 42 };
-      const p4 = { x: w * 0.62, y: L.islandBotY + 18 };
+      const p1 = { x: w * 0.54, y: L.islandTopY - 22 };
+      const p2 = { x: L.padX - 42, y: L.padY - 56 };
+      const p3 = { x: w * 0.28, y: L.islandBotY + 36 };
+      const p4 = { x: w * 0.62, y: L.islandBotY + 14 };
       return this._buildArcPath([
         [hover, { x: w * 0.78, y: L.islandTopY - 38 }, { x: w * 0.64, y: L.islandTopY - 26 }, p1],
         [p1, { x: w * 0.36, y: L.islandTopY - 18 }, { x: L.padX + 20, y: L.padY - 72 }, p2],
         [p2, { x: L.padX - 85, y: L.padY + 25 }, { x: w * 0.14, y: L.islandBotY + 12 }, p3],
-        [p3, { x: w * 0.40, y: L.islandBotY + 62 }, { x: w * 0.52, y: L.islandBotY + 42 }, p4],
+        [p3, { x: w * 0.40, y: L.islandBotY + 56 }, { x: w * 0.52, y: L.islandBotY + 36 }, p4],
         [p4, { x: w * 0.78, y: L.islandBotY - 20 }, { x: hover.x + 18, y: hover.y + 42 }, hover]
       ], 28);
     }
-    // Southern coastal channel & terminal escort circuit
-    const p1 = { x: w * 0.48, y: L.islandBotY + 38 };
+    const p1 = { x: w * 0.48, y: L.islandBotY + 34 };
     const p2 = { x: w * 0.78, y: L.termY + 46 };
     const p3 = { x: w * 0.52, y: L.islandTopY + 10 };
     return this._buildArcPath([
-      [hover, { x: w * 0.34, y: L.islandBotY + 18 }, { x: w * 0.40, y: L.islandBotY + 44 }, p1],
-      [p1, { x: w * 0.62, y: L.islandBotY + 28 }, { x: w * 0.78, y: L.islandBotY - 30 }, p2],
+      [hover, { x: w * 0.34, y: L.islandBotY + 16 }, { x: w * 0.40, y: L.islandBotY + 40 }, p1],
+      [p1, { x: w * 0.62, y: L.islandBotY + 26 }, { x: w * 0.78, y: L.islandBotY - 30 }, p2],
       [p2, { x: w * 0.78, y: L.islandTopY + 6 }, { x: w * 0.64, y: L.islandTopY - 4 }, p3],
       [p3, { x: w * 0.36, y: L.islandTopY + 26 }, { x: hover.x - 16, y: hover.y - 38 }, hover]
     ], 28);
@@ -1430,10 +2074,10 @@ const WorldGateway = {
 
   ensureEntities(w, h, now) {
     const L = this.getLayout(w, h);
-    const rwAngle = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
+    const isNarrow = L.isNarrow;
 
     if (this.stars.length === 0) {
-      const count = w < 720 ? 36 : 66;
+      const count = isNarrow ? 34 : 66;
       for (let i = 0; i < count; i++) {
         this.stars.push({
           x: Math.random() * w,
@@ -1446,7 +2090,7 @@ const WorldGateway = {
     }
 
     if (this.clouds.length === 0) {
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < (isNarrow ? 4 : 6); i++) {
         this.clouds.push({
           x: Math.random() * w,
           y: 22 + Math.random() * (h * 0.19),
@@ -1458,7 +2102,7 @@ const WorldGateway = {
     }
 
     if (this.cirrus.length === 0) {
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < (isNarrow ? 4 : 7); i++) {
         this.cirrus.push({
           x: Math.random() * w,
           y: 16 + Math.random() * (L.horizonY * 0.72),
@@ -1471,7 +2115,7 @@ const WorldGateway = {
     }
 
     if (this.waterGlints.length === 0) {
-      const count = w < 720 ? 28 : 44;
+      const count = isNarrow ? 24 : 44;
       for (let i = 0; i < count; i++) {
         const isUpper = i < count * 0.62;
         this.waterGlints.push({
@@ -1485,18 +2129,27 @@ const WorldGateway = {
       }
     }
 
-    // Realistic maritime fleet in BOTH upper bay and foreground sea channel!
+    // Populated Maritime Fleet in Upper Archipelago Bay & Lower Channel!
     if (this.ships.length === 0) {
+      const upperSpan = Math.max(18, L.islandTopY - L.horizonY);
       this.ships = [
-        { kind: "recovery_ship", zone: "lower", x: w * 0.28, y: h * 0.82, vx: 4.2, minX: w * 0.10, maxX: w * 0.56, scale: 1.0 },
-        { kind: "ferry", zone: "lower", x: w * 0.50, y: h * 0.90, vx: -5.4, minX: w * 0.18, maxX: w * 0.60, scale: 0.85 },
-        { kind: "cargo_far", zone: "upper", x: w * 0.42, y: L.horizonY + (L.islandTopY - L.horizonY) * 0.48, vx: 2.2, minX: w * 0.05, maxX: w * 0.92, scale: 0.56 },
-        { kind: "cargo_far", zone: "upper", x: w * 0.74, y: L.horizonY + (L.islandTopY - L.horizonY) * 0.32, vx: -1.8, minX: w * 0.08, maxX: w * 0.94, scale: 0.44 }
+        { kind: "recovery_ship", zone: "lower", x: w * 0.30, y: h * 0.83, vx: 4.0, minX: w * 0.14, maxX: w * 0.56, scale: 1.0 },
+        { kind: "ferry", zone: "lower", x: w * 0.48, y: h * 0.90, vx: -5.2, minX: w * 0.20, maxX: w * 0.60, scale: 0.86 },
+        { kind: "container_ship", zone: "lower", x: w * 0.18, y: h * 0.87, vx: 3.1, minX: w * 0.06, maxX: w * 0.52, scale: 0.88 },
+        { kind: "cargo_far", zone: "upper", x: w * 0.36, y: L.horizonY + upperSpan * 0.48, vx: 2.2, minX: w * 0.05, maxX: w * 0.68, scale: 0.58 },
+        { kind: "cargo_far", zone: "upper", x: w * 0.58, y: L.horizonY + upperSpan * 0.30, vx: -1.9, minX: w * 0.12, maxX: w * 0.94, scale: 0.46 }
       ];
+      if (!isNarrow) {
+        this.ships.push(
+          { kind: "ferry", zone: "upper", x: w * 0.22, y: L.horizonY + upperSpan * 0.72, vx: 2.8, minX: w * 0.06, maxX: w * 0.64, scale: 0.52 },
+          { kind: "cargo_far", zone: "upper", x: w * 0.88, y: L.horizonY + upperSpan * 0.60, vx: -2.0, minX: w * 0.80, maxX: w * 0.96, scale: 0.50 },
+          { kind: "recovery_ship", zone: "lower", x: w * 0.42, y: h * 0.95, vx: 3.4, minX: w * 0.26, maxX: w * 0.64, scale: 0.78 }
+        );
+      }
       this.boats = this.ships;
     }
 
-    // Patrol & Transport Helicopters taking off, landing & patrolling around the spaceport!
+    // Helicopters taking off, landing & patrolling around base
     if (this.helicopters.length === 0) {
       const p1Path = this._getHeliPatrolPath(L, w, h, L.heliPad1, 0);
       const startPt = this._sampleArcPath(p1Path, p1Path.totalLen * 0.18);
@@ -1508,7 +2161,7 @@ const WorldGateway = {
           t: 0,
           phaseDuration: this._rand(8, 14),
           dist: p1Path.totalLen * 0.18,
-          speed: 25,
+          speed: 24,
           x: startPt.x,
           y: startPt.y,
           altitude: 28,
@@ -1534,11 +2187,33 @@ const WorldGateway = {
       ];
     }
 
+    // Tiny Ground Handling Vehicles traversing tarmac gates & coastal highway viaduct!
+    if (this.groundVehicles.length === 0) {
+      const gvCount = isNarrow ? 3 : 6;
+      const specs = [
+        { route: "apron", kind: "fuel_truck", spd: 11.5, d: 0.15 },
+        { route: "apron", kind: "baggage_tug", spd: 13.0, d: 0.55 },
+        { route: "highway_plaza", kind: "crew_van", spd: 18.0, d: 0.22 },
+        { route: "apron", kind: "follow_me", spd: 14.5, d: 0.80 },
+        { route: "highway_port", kind: "cargo_lorry", spd: 16.0, d: 0.35 },
+        { route: "highway_plaza", kind: "shuttle_bus", spd: 17.5, d: 0.72 }
+      ];
+      for (let i = 0; i < gvCount; i++) {
+        this.groundVehicles.push({
+          ...specs[i],
+          dir: i % 2 === 0 ? 1 : -1,
+          x: L.termX,
+          y: L.termY + 38,
+          heading: 0
+        });
+      }
+    }
+
     if (!this.rocket) {
       this.rocket = {
         phase: "tow_out",
-        t: 7.5,
-        phaseDuration: this._rand(24.0, 30.0),
+        t: 11.0,
+        phaseDuration: this._rand(26.0, 32.0),
         armClose: 0.0,
         variant: this._pick(["heavy_starship", "orbital_cargo"]),
         x: 0,
@@ -1547,17 +2222,31 @@ const WorldGateway = {
       };
     }
 
+    // Offshore Falcon-Heavy Booster Launch & Leg-Deployed Landing System
+    if (!this.offshoreRocket) {
+      this.offshoreRocket = {
+        phase: "reentry_burn",
+        t: 0.5,
+        phaseDuration: 7.5,
+        legDeploy: 0,
+        x: L.offshorePadX + 4 * L.offshoreScale,
+        y: -25,
+        angle: -0.05
+      };
+    }
+
     if (this.spaceplanes.length === 0) {
       const depPath = this._getTaxiToRunwayPath(L);
-      const aprPath = this._getApronShuttleOutPath(L);
+      const aprPath = this._getApronShuttleOutPath(L, L.gates[0]);
       const sp0Start = this._sampleArcPath(depPath, depPath.totalLen * 0.42);
-      const sp2Start = this._sampleArcPath(aprPath, aprPath.totalLen * 0.30);
+      const sp2Start = this._sampleArcPath(aprPath, aprPath.totalLen * 0.35);
 
       this.spaceplanes = [
         {
           id: "sp_flight_1",
           role: "runway",
           variant: "starliner",
+          gateIdx: 0,
           phase: "taxi_to_runway",
           t: 0,
           phaseDuration: 55.0,
@@ -1575,16 +2264,17 @@ const WorldGateway = {
         {
           id: "sp_flight_2",
           role: "runway",
-          variant: "airliner",
+          variant: "fighter",
+          gateIdx: 1,
           phase: "approach",
           t: 0,
           phaseDuration: 8.0,
           dist: 60,
           speed: 68,
           x: -50,
-          y: L.horizonY - 20,
-          heading: rwAngle,
-          altitude: 22,
+          y: L.horizonY - 12,
+          heading: L.rwAng,
+          altitude: 18,
           chuteDetached: false,
           detachedChuteX: 0,
           detachedChuteY: 0,
@@ -1593,12 +2283,13 @@ const WorldGateway = {
         {
           id: "sp_apron_3",
           role: "apron",
-          variant: "clipper",
+          variant: "bomber",
+          gateIdx: 2,
           phase: "apron_taxi_out",
           t: 0,
           phaseDuration: 45.0,
-          dist: aprPath.totalLen * 0.30,
-          speed: 8.0,
+          dist: aprPath.totalLen * 0.35,
+          speed: 8.5,
           x: sp2Start.x,
           y: sp2Start.y,
           heading: sp2Start.angle,
@@ -1625,14 +2316,17 @@ const WorldGateway = {
       this.rocket.phase = "launch";
       this.rocket.t = 0;
       this.rocket.phaseDuration = this._rand(12.0, 14.5);
+    } else if (this.offshoreRocket && (this.offshoreRocket.phase === "pad_idle" || this.offshoreRocket.phase === "landed_rest") && this.offshoreRocket.t > 1.5) {
+      this.offshoreRocket.phase = "strongback_retract";
+      this.offshoreRocket.t = 0;
+      this.offshoreRocket.phaseDuration = 4.0;
     } else if (this.spaceplanes.length > 0) {
       const idle = this.spaceplanes.find(sp => sp.role === "runway" && (sp.phase === "hangar_rest" || sp.phase === "sky_wait") && sp.t > 0.8);
       if (idle) {
         idle.phase = idle.phase === "hangar_rest" ? "hangar_emerge" : "approach";
         idle.t = 0;
         idle.dist = 0;
-        idle.speed = idle.phase === "approach" ? 72 : 0;
-        idle.phaseDuration = idle.phase === "hangar_emerge" ? this._rand(9.0, 12.0) : 9.0;
+        idle.speed = idle.phase === "approach" ? 76 : 0;
       }
     }
 
@@ -1652,6 +2346,10 @@ const WorldGateway = {
   },
 
   draw(ctx, w, h, mode, dt, step) {
+    // Invalidate dynamic entity sizing cleanly across responsive desktop <-> mobile resizes
+    if (this._lastW && Math.abs(this._lastW - w) > 20) {
+      this.groundVehicles = [];
+    }
     this._lastW = w;
     this._lastH = h;
     this._lastMode = mode;
@@ -1672,7 +2370,10 @@ const WorldGateway = {
     // 3. Ships Gliding Across Upper Archipelago Bay & Lower Sea Channel
     this._updateAndDrawShips(ctx, w, h, L, pal, dt, step);
 
-    // 4. Orbital Streaks
+    // 4. Offshore Falcon-Heavy Booster Launch & Deployed-Leg Landing (Upper Bay Floating Pad!)
+    this._updateAndDrawOffshoreRocket(ctx, L, pal, dt, step, w, h);
+
+    // 5. Orbital Streaks
     if (this.orbiters.length > 0) {
       const aliveOrb = [];
       ctx.save();
@@ -1698,28 +2399,31 @@ const WorldGateway = {
       this.orbiters = aliveOrb;
     }
 
-    // 5. Dynamic Complex Lights
+    // 6. Dynamic Complex Beacons, Runway Lights & Slewing Deep-Space Radar Dishes
     this._drawComplexLights(ctx, L, pal, step);
+    this._drawAnimatedRadarDishes(ctx, L, pal, step);
 
-    // 6. Rocket Full Lifecycle along far northern crawlerway (behind Star Terminal Spire!)
+    // 7. Heavy Orbital Rocket along northern crawlerway + HIF Forewall Occlusion + Terminal Spire Occlusion!
     this._updateAndDrawRocket(ctx, L, pal, dt, step, w, h);
-
-    // 7. Foreground Star Terminal Spire Occlusion (stands proudly in front of northern crawlerway!)
+    this._drawHIFOcclusionRoof(ctx, L, pal);
     this._drawStarTerminalSpireOcclusion(ctx, L, pal);
 
-    // 8. Concurrent Arc-Length Kinematic Spaceplane Fleet
+    // 8. Tiny Apron & Highway Ground Handling Vehicles (clipped safely during underpass transit!)
+    this._updateAndDrawGroundVehicles(ctx, w, h, L, pal, dt, step);
+
+    // 9. Concurrent Arc-Length Kinematic Spaceplane Fleet
     this._updateAndDrawSpaceplane(ctx, L, pal, dt, step, w, h);
 
-    // 9. Foreground Hangar Arch Occlusion Layer
+    // 10. Foreground Arched Hangar Roof Occlusion Layer (planes taxi inside seamlessly!)
     this._drawArchedHangarOcclusionRoof(ctx, L, pal);
 
-    // 10. Patrol & Transport Helicopters Taking Off, Landing & Patrolling Around Base
+    // 11. Patrol & Transport Helicopters Taking Off, Landing & Patrolling Around Base
     this._updateAndDrawHelicopters(ctx, w, h, L, pal, dt, step);
 
-    // 11. Exhaust Smoke & Cryo Vent Particle System
+    // 12. Exhaust Smoke & Cryo Vent Particle System
     this._updateAndDrawParticles(ctx, pal, dt);
 
-    // 12. Probabilistic Rolling Dawn Fog (morning mode)
+    // 13. Probabilistic Rolling Dawn Fog (morning mode)
     this._updateAndDrawDawnFog(ctx, w, h, L, mode, dt, now);
   },
 
@@ -1806,8 +2510,8 @@ const WorldGateway = {
     ctx.beginPath();
     ctx.moveTo(-20, L.islandTopY + 78);
     ctx.lineTo(w * 0.12, L.islandBotY - 34);
-    ctx.lineTo(w * 0.61, L.islandBotY + 34);
-    ctx.lineTo(w * 0.68, h + 10);
+    ctx.lineTo(w * 0.59, L.islandBotY + 42);
+    ctx.lineTo(w * 0.66, h + 10);
     ctx.lineTo(-20, h + 10);
     ctx.closePath();
     ctx.clip();
@@ -1817,7 +2521,7 @@ const WorldGateway = {
       if (g.zone !== "lower") continue;
       g.xFrac = (g.xFrac + g.vx * dt) % 1;
       g.phase += dt * 1.25;
-      const gx = g.xFrac * (w * 0.68);
+      const gx = g.xFrac * (w * 0.66);
       const gy = (L.islandTopY + 84) + g.yFrac * (h - (L.islandTopY + 84));
       const pulse = 0.4 + 0.6 * Math.sin(g.phase);
       const a = 0.12 * pulse * (mode === "dark" ? 0.55 : 0.88);
@@ -1841,14 +2545,13 @@ const WorldGateway = {
 
       const dir = s.vx >= 0 ? 1 : -1;
       const sc = s.scale;
-      const hazeAlpha = s.zone === "upper" ? 0.62 : 0.96;
+      const hazeAlpha = s.zone === "upper" ? 0.64 : 0.96;
 
       ctx.save();
       ctx.globalAlpha = hazeAlpha;
       ctx.translate(s.x, s.y);
 
-      // Soft V-shaped foaming sea wake behind ship
-      const wakeLen = s.kind === "recovery_ship" ? 44 * sc : (s.kind === "ferry" ? 30 * sc : 22 * sc);
+      const wakeLen = s.kind === "recovery_ship" ? 44 * sc : (s.kind === "container_ship" ? 36 * sc : 24 * sc);
       const wakeGrad = ctx.createLinearGradient(0, 0, -dir * wakeLen, 0);
       wakeGrad.addColorStop(0, pal.isNightLights ? "rgba(186, 230, 253, 0.28)" : "rgba(255, 255, 255, 0.42)");
       wakeGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -1864,14 +2567,12 @@ const WorldGateway = {
       if (dir < 0) ctx.scale(-1, 1);
       ctx.scale(sc, sc);
 
-      // Soft reflection under waterline
       ctx.fillStyle = pal.shadowColor;
       ctx.beginPath();
-      ctx.ellipse(0, 4.5, s.kind === "recovery_ship" ? 19 : 13, 2.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 4.5, s.kind === "recovery_ship" ? 19 : 14, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
       if (s.kind === "recovery_ship") {
-        // Orbital Booster Recovery / Support Vessel (flat aft deck + forward bridge superstructure)
         ctx.fillStyle = pal.shipHull;
         ctx.beginPath();
         ctx.moveTo(-18, -1);
@@ -1881,10 +2582,8 @@ const WorldGateway = {
         ctx.lineTo(-17, 3);
         ctx.closePath();
         ctx.fill();
-        // Flat grey recovery deck & subtle helideck circle aft
         ctx.fillStyle = pal.archMid;
         ctx.fillRect(-16, -2.5, 20, 1.8);
-        // Forward white/slate deckhouse bridge & radar mast
         ctx.fillStyle = pal.shipSuper;
         ctx.fillRect(5, -7.5, 8, 6);
         ctx.fillStyle = pal.windowGlassDark;
@@ -1896,7 +2595,6 @@ const WorldGateway = {
         ctx.lineTo(8, -12.5);
         ctx.stroke();
       } else if (s.kind === "ferry") {
-        // Sleek Coastal Crew Ferry / Patrol Cutter
         ctx.fillStyle = pal.shipHull;
         ctx.beginPath();
         ctx.moveTo(-12, 0);
@@ -1916,8 +2614,23 @@ const WorldGateway = {
         ctx.fill();
         ctx.fillStyle = pal.windowGlow;
         ctx.fillRect(-2, -3.8, 7.5, 1.4);
+      } else if (s.kind === "container_ship") {
+        ctx.fillStyle = pal.shipHull;
+        ctx.beginPath();
+        ctx.moveTo(-18, -0.5);
+        ctx.lineTo(15, -1);
+        ctx.lineTo(19, -3);
+        ctx.lineTo(16, 3);
+        ctx.lineTo(-17, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = pal.shipSuper;
+        ctx.fillRect(8, -7, 6, 6);
+        ctx.fillStyle = pal.liveryAccent;
+        ctx.fillRect(-13, -4.5, 9, 3.2);
+        ctx.fillStyle = pal.archMid;
+        ctx.fillRect(-3, -4.8, 9, 3.5);
       } else {
-        // Distant Archipelago Cargo Freighter silhouette
         ctx.fillStyle = pal.shipHull;
         ctx.fillRect(-14, -1.5, 28, 3.5);
         ctx.fillStyle = pal.shipSuper;
@@ -1926,7 +2639,6 @@ const WorldGateway = {
         ctx.fillRect(-10, -4, 14, 2.5);
       }
 
-      // Warm maritime mast & navigation lights at evening/night
       if (pal.isNightLights) {
         ctx.fillStyle = "rgba(254, 232, 168, 0.9)";
         ctx.beginPath();
@@ -1938,6 +2650,328 @@ const WorldGateway = {
         ctx.fill();
       }
       ctx.restore();
+    }
+    ctx.restore();
+  },
+
+  // Tiny to-scale Apron Ground Support & Highway Commuter Vehicles
+  _updateAndDrawGroundVehicles(ctx, w, h, L, pal, dt, step) {
+    const apronPath = this._buildArcPath([
+      [L.hangarDoorX > 0 ? { x: L.hangarDoorX - 10, y: L.hangarDoorY + 12 } : L.apronEast,
+        L.apronEast, L.apronSE, L.apronSouth],
+      [L.apronSouth, L.apronSW, { x: L.satWest.x + 12 * L.termScale, y: L.satWest.y + 38 * L.termScale },
+        { x: L.satWest.x - 8 * L.termScale, y: L.satWest.y + 24 * L.termScale }]
+    ], 24);
+    const plazaPath = this._buildArcPath([
+      [{ x: w * 0.92, y: h + 6 }, { x: w * 0.61, y: h * 0.90 }, { x: w * 0.64, y: L.islandBotY + 16 }, { x: w * 0.65, y: L.islandBotY + 14 }],
+      [{ x: w * 0.65, y: L.islandBotY + 14 }, { x: L.underpassX + 12, y: L.underpassY + L.underpassHalf + 26 }, { x: L.underpassX, y: L.underpassY + L.underpassHalf + 7 }, { x: L.underpassX - 4, y: L.underpassY - L.underpassHalf - 6 }],
+      [{ x: L.underpassX - 4, y: L.underpassY - L.underpassHalf - 6 }, { x: L.underpassX - 18, y: L.underpassY - L.underpassHalf - 32 }, { x: L.plazaX + 58 * L.termScale, y: L.plazaY + 24 * L.termScale }, { x: L.plazaX, y: L.plazaY }]
+    ], 22);
+    const portPath = this._buildArcPath([
+      [{ x: w * 0.65, y: L.islandBotY + 14 }, { x: w * 0.44, y: L.islandBotY + 4 }, { x: w * 0.28, y: L.islandBotY - 8 }, { x: w * 0.17, y: L.islandBotY - 20 }]
+    ], 18);
+
+    ctx.save();
+    for (let i = 0; i < this.groundVehicles.length; i++) {
+      const gv = this.groundVehicles[i];
+      const path = gv.route === "apron" ? apronPath : (gv.route === "highway_port" ? portPath : plazaPath);
+      gv.d += (gv.spd / path.totalLen) * gv.dir * dt;
+      if (gv.d >= 0.98) { gv.d = 0.98; gv.dir = -1; }
+      if (gv.d <= 0.02) { gv.d = 0.02; gv.dir = 1; }
+
+      const pt = this._sampleArcPath(path, gv.d * path.totalLen);
+      gv.x = pt.x;
+      gv.y = pt.y;
+      const moveAng = gv.dir < 0 ? pt.angle + Math.PI : pt.angle;
+      gv.heading = this._lerpAngle(gv.heading, moveAng, Math.min(1, dt * 6));
+
+      // Obscure cleanly while driving through the concrete Runway Underpass!
+      const rwBand = Math.abs(gv.y - L.rwYAtX(gv.x));
+      if (gv.route === "highway_plaza" && rwBand < L.rwHalfAtX(gv.x) + 4) {
+        continue;
+      }
+
+      ctx.save();
+      ctx.translate(gv.x, gv.y);
+      ctx.rotate(gv.heading);
+
+      // Tiny cast shadow
+      ctx.fillStyle = pal.shadowColor;
+      ctx.fillRect(-3.0, -1.0, 6.0, 3.2);
+
+      // Body (realistically tiny: 4.5-6px long!)
+      ctx.fillStyle = gv.kind === "fuel_truck" ? pal.archLight : (gv.kind === "follow_me" ? "#F59E0B" : pal.bodyLight);
+      ctx.fillRect(-2.6, -1.4, 5.2, 2.8);
+      if (gv.kind === "fuel_truck") {
+        ctx.fillStyle = pal.liveryAccent;
+        ctx.fillRect(-2.2, -1.1, 3.0, 2.2);
+      }
+
+      // Micro amber ramp strobe on airport service vehicles
+      if (gv.route === "apron" && Math.sin(step * 14 + i) > 0.2) {
+        ctx.fillStyle = "#F59E0B";
+        ctx.fillRect(-0.5, -0.6, 1.1, 1.1);
+      }
+      // Subtle micro headlights in dusk/night
+      if (pal.isNightLights) {
+        const hg = ctx.createLinearGradient(2.6, 0, 12, 0);
+        hg.addColorStop(0, "rgba(255, 250, 224, 0.34)");
+        hg.addColorStop(1, "rgba(255, 250, 224, 0)");
+        ctx.fillStyle = hg;
+        ctx.beginPath();
+        ctx.moveTo(2.6, -0.8);
+        ctx.lineTo(12, -3.2);
+        ctx.lineTo(12, 3.2);
+        ctx.lineTo(2.6, 0.8);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  },
+
+  // Offshore Floating Pad Rocket (Falcon Heavy Booster Launch + Vertical Leg-Deployed Landing!)
+  _updateAndDrawOffshoreRocket(ctx, L, pal, dt, step, w, h) {
+    const r = this.offshoreRocket;
+    if (!r) return;
+    r.t += dt;
+
+    const sc = L.offshoreScale;
+    const deckX = L.offshorePadX + 4 * sc;
+    const deckY = L.offshorePadY - 4.5 * sc;
+    const bodyH = 44 * sc;
+    const bodyW = 5.4 * sc;
+
+    let visible = true;
+    let flameScale = 0;
+    let targetLegs = 0;
+    let strongbackRetract = 1;
+
+    if (r.phase === "pad_idle") {
+      r.x = deckX;
+      r.y = deckY;
+      r.angle = 0;
+      strongbackRetract = 0.25;
+      if (r.t >= r.phaseDuration) {
+        r.phase = "strongback_retract";
+        r.t = 0;
+        r.phaseDuration = 4.2;
+      }
+    } else if (r.phase === "strongback_retract") {
+      const p = Math.min(1, r.t / r.phaseDuration);
+      r.x = deckX;
+      r.y = deckY;
+      r.angle = 0;
+      strongbackRetract = 0.25 + p * 0.75;
+      if (Math.random() < 0.25) {
+        this.ventParticles.push({
+          x: deckX + (Math.random() - 0.5) * 4, y: deckY - bodyH * 0.55,
+          vx: 0.25, vy: -0.1, r: 1.8 * sc + 1, life: 0, maxLife: 34
+        });
+      }
+      if (r.t >= r.phaseDuration) {
+        r.phase = "launch";
+        r.t = 0;
+        r.phaseDuration = this._rand(10.5, 13.0);
+      }
+    } else if (r.phase === "launch") {
+      const p = Math.min(1, r.t / r.phaseDuration);
+      const climb = Math.pow(p, 2.45);
+      r.x = deckX + Math.pow(Math.max(0, p - 0.16), 2.0) * (w * 0.12);
+      r.y = deckY - climb * (deckY + 140);
+      r.angle = Math.pow(Math.max(0, p - 0.16), 1.4) * 0.34;
+      flameScale = p < 0.12 ? (0.4 + p * 5) : 1.0;
+
+      // Fiery glow reflected across upper bay water right around floating pad!
+      if (p < 0.45) {
+        const refA = (1 - p / 0.45) * 0.36;
+        const rg = ctx.createRadialGradient(deckX, deckY + 10 * sc, 2, deckX, deckY + 12 * sc, 56 * sc);
+        rg.addColorStop(0, `rgba(${pal.plumeMid}, ${refA.toFixed(3)})`);
+        rg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.ellipse(deckX, deckY + 12 * sc, 56 * sc, 12 * sc, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (Math.random() < 0.75) {
+        const nearPad = r.y > deckY - 34;
+        this.plumeParticles.push({
+          x: r.x + (Math.random() - 0.5) * (nearPad ? 10 : 3),
+          y: nearPad ? Math.min(deckY + 2, r.y + 3) : r.y + 3,
+          vx: nearPad ? (Math.random() - 0.5) * 1.4 : -Math.sin(r.angle) * 0.3,
+          vy: nearPad ? -0.15 : 0.42,
+          r: nearPad ? 4.5 : 2.6,
+          grow: nearPad ? 0.16 : 0.10,
+          hot: p < 0.65 && Math.random() < 0.45,
+          life: 0,
+          maxLife: nearPad ? 68 : 110
+        });
+      }
+      if (r.t >= r.phaseDuration) {
+        r.phase = "orbit_wait";
+        r.t = 0;
+        r.phaseDuration = this._rand(7.0, 14.0);
+      }
+    } else if (r.phase === "orbit_wait") {
+      visible = false;
+      if (r.t >= r.phaseDuration) {
+        r.phase = "reentry_burn";
+        r.t = 0;
+        r.phaseDuration = this._rand(5.0, 6.5);
+      }
+    } else if (r.phase === "reentry_burn") {
+      const p = Math.min(1, r.t / r.phaseDuration);
+      const startX = deckX + w * 0.08;
+      const midX = deckX + w * 0.015;
+      const midY = deckY - 78 * sc;
+      const ease = p * p * (3 - 2 * p);
+      r.x = startX + (midX - startX) * ease;
+      r.y = -45 + (midY - (-45)) * ease;
+      r.angle = -(1 - ease) * 0.18 - 0.05;
+      flameScale = p < 0.68 ? 0.55 : 0;
+      targetLegs = 0;
+      if (r.t >= r.phaseDuration) {
+        r.phase = "landing_burn";
+        r.t = 0;
+        r.phaseDuration = this._rand(4.8, 6.2);
+      }
+    } else if (r.phase === "landing_burn") {
+      // Final hover-slam suicide burn onto floating platform deck + 4 landing legs deploying!
+      const p = Math.min(1, r.t / r.phaseDuration);
+      const easeOut = 1 - Math.pow(1 - p, 2.3);
+      const midX = deckX + w * 0.015;
+      const midY = deckY - 78 * sc;
+      r.x = midX + (deckX - midX) * easeOut;
+      r.y = midY + (deckY - midY) * easeOut;
+      r.angle = -(1 - easeOut) * 0.06;
+      flameScale = p < 0.92 ? (0.78 - p * 0.35) : ((1 - p) * 5);
+      targetLegs = this._clamp((p - 0.38) / 0.42, 0, 1);
+
+      if (Math.random() < 0.72) {
+        this.plumeParticles.push({
+          x: r.x + (Math.random() - 0.5) * 3,
+          y: Math.min(deckY, r.y + 3),
+          vx: (p > 0.80 ? (Math.random() - 0.5) * 1.8 : (Math.random() - 0.5) * 0.5),
+          vy: p > 0.80 ? -0.18 : 0.65,
+          r: 2.5 + Math.random() * 2.5,
+          grow: 0.12,
+          hot: p < 0.85,
+          life: 0,
+          maxLife: 48
+        });
+      }
+      if (r.t >= r.phaseDuration) {
+        r.phase = "landed_rest";
+        r.t = 0;
+        r.phaseDuration = this._rand(8.0, 15.0);
+        // Deck steam burst on touchdown
+        for (let k = 0; k < 7; k++) {
+          this.ventParticles.push({
+            x: deckX + (Math.random() - 0.5) * 14, y: deckY - 1,
+            vx: (Math.random() - 0.5) * 1.1, vy: -0.22 - Math.random() * 0.25,
+            r: 2.8, life: 0, maxLife: 44
+          });
+        }
+      }
+    } else {
+      r.x = deckX;
+      r.y = deckY;
+      r.angle = 0;
+      targetLegs = 1.0;
+      strongbackRetract = 0.7;
+      if (r.t >= r.phaseDuration) {
+        r.phase = "pad_idle";
+        r.t = 0;
+        r.legDeploy = 0;
+        r.phaseDuration = this._rand(7.0, 14.0);
+      }
+    }
+
+    r.legDeploy += (targetLegs - r.legDeploy) * Math.min(1, dt * 4.5);
+
+    // Compact pad strongback arm animation
+    ctx.save();
+    ctx.translate(L.offshorePadX - 18 * sc, deckY);
+    ctx.rotate(-strongbackRetract * 0.24);
+    ctx.fillStyle = pal.towerSteel;
+    ctx.fillRect(-1.5, -bodyH * 0.85, 3, bodyH * 0.85);
+    ctx.restore();
+
+    if (!visible) return;
+
+    ctx.save();
+    ctx.translate(r.x, r.y);
+    ctx.rotate(r.angle);
+
+    // Landing burn / ascent plume
+    if (flameScale > 0.04) {
+      const flH = (16 + Math.sin(step * 42) * 3) * flameScale;
+      const flW = bodyW * 1.1;
+      const bloom = ctx.createRadialGradient(0, flH * 0.4, 1, 0, flH * 0.4, flH * 2.0);
+      bloom.addColorStop(0, `rgba(${pal.plumeMid}, ${(pal.isNightLights ? 0.50 : 0.28).toFixed(3)})`);
+      bloom.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+      ctx.fillStyle = bloom;
+      ctx.beginPath();
+      ctx.arc(0, flH * 0.4, flH * 2.0, 0, Math.PI * 2);
+      ctx.fill();
+
+      const flG = ctx.createLinearGradient(0, 0, 0, flH);
+      flG.addColorStop(0, `rgba(${pal.plumeCore}, 0.96)`);
+      flG.addColorStop(0.5, `rgba(${pal.plumeMid}, 0.85)`);
+      flG.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+      ctx.fillStyle = flG;
+      ctx.beginPath();
+      ctx.moveTo(-flW * 0.55, 0);
+      ctx.quadraticCurveTo(0, flH * 1.15, flW * 0.55, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Core + optional twin side boosters during ascent
+    const showSideBoosters = r.phase === "pad_idle" || r.phase === "strongback_retract" || r.phase === "launch";
+    const coreG = ctx.createLinearGradient(-bodyW * 0.5, 0, bodyW * 0.5, 0);
+    coreG.addColorStop(0, pal.bodyLight);
+    coreG.addColorStop(0.65, pal.bodyLight);
+    coreG.addColorStop(1, pal.bodyShade);
+    ctx.fillStyle = coreG;
+    ctx.fillRect(-bodyW * 0.5, -bodyH, bodyW, bodyH);
+
+    // Payload fairing nose on ascent; titanium grid fins on booster return
+    if (showSideBoosters) {
+      ctx.beginPath();
+      ctx.moveTo(-bodyW * 0.65, -bodyH);
+      ctx.quadraticCurveTo(0, -bodyH - bodyW * 1.6, bodyW * 0.65, -bodyH);
+      ctx.closePath();
+      ctx.fill();
+      [-1, 1].forEach(side => {
+        const bx = side * (bodyW * 0.98);
+        const bh = bodyH * 0.68;
+        ctx.fillStyle = coreG;
+        ctx.fillRect(bx - bodyW * 0.4, -bh, bodyW * 0.8, bh);
+        ctx.beginPath();
+        ctx.moveTo(bx - bodyW * 0.4, -bh);
+        ctx.quadraticCurveTo(bx, -bh - bodyW * 0.9, bx + bodyW * 0.4, -bh);
+        ctx.closePath();
+        ctx.fill();
+      });
+    } else {
+      ctx.fillStyle = pal.towerSteel;
+      ctx.fillRect(-bodyW * 0.95, -bodyH * 0.92, bodyW * 1.9, 1.8);
+    }
+
+    // Deploying Carbon-Fiber Falcon-Style Landing Legs!
+    if (r.legDeploy > 0.04) {
+      const legAng = r.legDeploy * 0.85;
+      const legLen = bodyW * 1.85;
+      ctx.strokeStyle = "#1E293B";
+      ctx.lineWidth = Math.max(1.0, 1.6 * sc);
+      [-1, 1].forEach(side => {
+        ctx.beginPath();
+        ctx.moveTo(side * bodyW * 0.45, -3 * sc);
+        ctx.lineTo(side * (bodyW * 0.45 + Math.sin(legAng) * legLen), 1.5 * sc - Math.cos(legAng) * legLen * 0.1);
+        ctx.stroke();
+      });
     }
     ctx.restore();
   },
@@ -1981,7 +3015,6 @@ const WorldGateway = {
         const path = this._getHeliPatrolPath(L, w, h, pad, hel.padIdx);
         const cruiseSpeed = 24;
         const rem = path.totalLen - hel.dist;
-        // Smooth velocity ramp up from 0 at takeoff hover and smooth deceleration to 0 right over target pad!
         let desiredSpeed = cruiseSpeed;
         if (hel.dist < 60) desiredSpeed = Math.max(4, cruiseSpeed * (hel.dist / 60));
         if (rem < 75) desiredSpeed = Math.max(3, cruiseSpeed * (rem / 75));
@@ -1998,7 +3031,6 @@ const WorldGateway = {
           hel.phaseDuration = this._rand(4.5, 5.8);
         }
       } else {
-        // Gentle vertical touchdown onto the helipad
         const p = Math.min(1, hel.t / hel.phaseDuration);
         const ease = p * p * (3 - 2 * p);
         hel.x = pad.x;
@@ -2017,10 +3049,9 @@ const WorldGateway = {
       hel.rotorSpeed += (targetRotor - hel.rotorSpeed) * Math.min(1, dt * 3.5);
       hel.rotorPhase += dt * (4 + hel.rotorSpeed * 32);
 
-      // 1. Cast ground/water shadow projected downward by altitude
       const shadowFade = Math.max(0.14, 1 - hel.altitude / 75);
       ctx.save();
-      ctx.translate(hel.x + hel.altitude * 0.16, hel.y + hel.altitude + 2);
+      ctx.translate(hel.x + hel.altitude * 0.16 * pal.sunDir, hel.y + hel.altitude + 2);
       ctx.fillStyle = pal.shadowColor;
       ctx.globalAlpha = 0.52 * shadowFade;
       ctx.beginPath();
@@ -2028,14 +3059,12 @@ const WorldGateway = {
       ctx.fill();
       ctx.restore();
 
-      // 2. Helicopter Body & Spinning Rotor Disc
       const facingLeft = Math.cos(hel.heading) < 0;
       const nosePitch = hel.phase === "patrol" ? (facingLeft ? -0.10 : 0.10) : 0;
 
       ctx.save();
       ctx.translate(hel.x, hel.y);
 
-      // Subtle downward patrol searchlight beam at evening/night when airborne
       if (pal.isNightLights && hel.altitude > 10) {
         ctx.save();
         const beamDir = facingLeft ? -1 : 1;
@@ -2055,7 +3084,6 @@ const WorldGateway = {
       ctx.rotate(nosePitch);
       if (facingLeft) ctx.scale(-1, 1);
 
-      // Landing skids
       ctx.strokeStyle = pal.towerSteel;
       ctx.lineWidth = 0.9;
       ctx.beginPath();
@@ -2067,7 +3095,6 @@ const WorldGateway = {
       ctx.lineTo(3.5, 4.2);
       ctx.stroke();
 
-      // Slender tail boom & tail rotor fin
       ctx.fillStyle = pal.bodyShade;
       ctx.beginPath();
       ctx.moveTo(-4, -0.5);
@@ -2085,7 +3112,6 @@ const WorldGateway = {
       ctx.closePath();
       ctx.fill();
 
-      // Sculpted helicopter fuselage & tinted cockpit canopy
       ctx.fillStyle = pal.bodyLight;
       ctx.beginPath();
       ctx.ellipse(1.5, 0, 7.2, 3.2, 0, 0, Math.PI * 2);
@@ -2095,7 +3121,6 @@ const WorldGateway = {
       ctx.ellipse(5.4, -0.5, 2.8, 1.7, 0.2, -Math.PI * 0.5, Math.PI * 0.5);
       ctx.fill();
 
-      // Main rotor mast + translucent spinning rotor blur disc + sweeping blade glint!
       ctx.strokeStyle = pal.towerSteel;
       ctx.lineWidth = 1.0;
       ctx.beginPath();
@@ -2117,7 +3142,6 @@ const WorldGateway = {
       ctx.lineTo(1 + bx, -5.2 + by);
       ctx.stroke();
 
-      // Anti-collision belly/tail beacon
       if (Math.sin(step * 10 + i * 2) > 0.35) {
         ctx.fillStyle = "#F87171";
         ctx.beginPath();
@@ -2136,7 +3160,7 @@ const WorldGateway = {
     const beacons = [
       { x: L.towerLeftX, y: L.padY - L.towerH - 14 },
       { x: L.towerRightX, y: L.padY - L.towerH - 14 },
-      { x: L.termX, y: L.termY - 98 * L.termScale },
+      { x: L.termX, y: L.termY - 114 * L.termScale },
       { x: L.atcX, y: L.atcY - 70 }
     ];
     beacons.forEach(b => {
@@ -2155,11 +3179,11 @@ const WorldGateway = {
       for (let i = 0; i < 12; i++) {
         const t = i / 11;
         const pt = L.rwPt(t);
-        const hw = 11 + t * 21;
+        const hw = L.rwLeftHalf + t * (L.rwRightHalf - L.rwLeftHalf);
         const isRabbit = i === rabbit;
         const rgb = i < 2 ? "52, 211, 153" : (isRabbit ? "255, 255, 255" : "254, 226, 155");
         const a = (isRabbit ? 0.88 : 0.52) * pal.lightIntensity;
-        const rad = (1.5 + t * 1.5) * 2.6;
+        const rad = (1.5 + t * 1.5) * 2.5;
         [pt.y - hw, pt.y + hw].forEach(ly => {
           const lg = ctx.createRadialGradient(pt.x, ly, 0, pt.x, ly, rad);
           lg.addColorStop(0, `rgba(${rgb}, ${a.toFixed(3)})`);
@@ -2174,11 +3198,12 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // Northern crawlerway leading strictly INSIDE Horizontal Integration Facility (p0) -> Launch Pad (p2)
   _crawlerPos(L, w, t) {
-    const p0x = L.hangarDoorX;
-    const p0y = L.hangarDoorY;
-    const cx = w * 0.48;
-    const cy = L.islandTopY + L.spanY * 0.08;
+    const p0x = L.hifX + L.hifW * 0.42; // Hidden deep inside HIF bay!
+    const p0y = L.hifY + 8;
+    const cx = w * 0.40;
+    const cy = L.islandTopY + L.spanY * 0.065;
     const p2x = L.padX;
     const p2y = L.padY;
     const inv = 1 - t;
@@ -2189,10 +3214,10 @@ const WorldGateway = {
   },
 
   _crawlerTangent(L, w, t) {
-    const p0x = L.hangarDoorX;
-    const p0y = L.hangarDoorY;
-    const cx = w * 0.48;
-    const cy = L.islandTopY + L.spanY * 0.08;
+    const p0x = L.hifX + L.hifW * 0.42;
+    const p0y = L.hifY + 8;
+    const cx = w * 0.40;
+    const cy = L.islandTopY + L.spanY * 0.065;
     const p2x = L.padX;
     const p2y = L.padY;
     const inv = 1 - t;
@@ -2201,85 +3226,88 @@ const WorldGateway = {
     return Math.atan2(-dy, -dx);
   },
 
+  // Proportionally tiny heavy-haul tow tractor pulling multi-axle SPMT rocket flatbed (realistically smaller than rocket!)
   _drawRocketTugAndFlatbed(ctx, pal, step, rocketH, rocketW, travelDir, isMoving, isBoosterOnly = false) {
     ctx.save();
     const bodyLen = isBoosterOnly ? rocketH * 0.66 : rocketH;
-    const bedStart = -bodyLen - 4;
-    const bedEnd = 8;
+    const bedStart = -bodyLen - 3;
+    const bedEnd = 6;
     const bedW = bedEnd - bedStart;
     const bedMid = (bedStart + bedEnd) * 0.5;
 
+    // Ground cast shadow under flatbed & tiny tow tractor
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.ellipse(bedMid, 6.2, bedW * 0.56 + 11, 4.0, 0, 0, Math.PI * 2);
+    ctx.ellipse(bedMid, 5.2, bedW * 0.54 + 8, 3.0, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = pal.archDark;
-    ctx.fillRect(bedStart, 0.5, bedW, 4.2);
+    ctx.fillRect(bedStart, 0.5, bedW, 3.2);
     ctx.fillStyle = pal.liveryAccent;
-    ctx.fillRect(bedStart, 0.5, bedW, 1.2);
+    ctx.fillRect(bedStart, 0.5, bedW, 1.0);
     ctx.fillStyle = pal.towerSteel;
-    ctx.fillRect(bedStart + 8, -3.2, 3.6, 4.5);
-    ctx.fillRect(bedEnd - 14, -3.2, 3.6, 4.5);
+    ctx.fillRect(bedStart + 7, -2.5, 2.8, 3.5);
+    ctx.fillRect(bedEnd - 12, -2.5, 2.8, 3.5);
 
     ctx.fillStyle = "#1E293B";
-    for (let wi = 0; wi < 7; wi++) {
-      const wx = bedStart + 4 + (wi / 6) * (bedW - 8);
+    for (let wi = 0; wi < 8; wi++) {
+      const wx = bedStart + 3 + (wi / 7) * (bedW - 6);
       ctx.beginPath();
-      ctx.arc(wx, 5.5, 1.6, 0, Math.PI * 2);
+      ctx.arc(wx, 4.4, 1.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    const tugX = travelDir < 0 ? (bedStart - 15) : (bedEnd + 15);
+    // Realistically SMALL tow truck (~9px long × 4.4px tall — tiny next to an 86px orbital rocket!)
+    const tugX = travelDir < 0 ? (bedStart - 9.5) : (bedEnd + 9.5);
     const hitchFrom = travelDir < 0 ? bedStart : bedEnd;
-    const hitchTo = travelDir < 0 ? tugX + 6.5 : tugX - 6.5;
+    const hitchTo = travelDir < 0 ? tugX + 4.2 : tugX - 4.2;
 
     ctx.strokeStyle = pal.towerSteel;
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.moveTo(hitchFrom, 3.2);
-    ctx.lineTo(hitchTo, 3.5);
+    ctx.moveTo(hitchFrom, 2.4);
+    ctx.lineTo(hitchTo, 2.6);
     ctx.stroke();
 
     ctx.save();
-    ctx.translate(tugX, 0);
+    ctx.translate(tugX, 0.8);
     if (travelDir < 0) ctx.scale(-1, 1);
 
     if (isMoving) {
-      const hA = pal.isNightLights ? 0.42 : 0.14;
-      const hg = ctx.createLinearGradient(7, 1, 40, 1);
+      const hA = pal.isNightLights ? 0.38 : 0.12;
+      const hg = ctx.createLinearGradient(4.5, 0.5, 26, 0.5);
       hg.addColorStop(0, `rgba(255, 250, 224, ${hA})`);
       hg.addColorStop(1, "rgba(255, 250, 224, 0)");
       ctx.fillStyle = hg;
       ctx.beginPath();
-      ctx.moveTo(7, -1);
-      ctx.lineTo(40, -7);
-      ctx.lineTo(40, 7);
-      ctx.lineTo(7, 3.5);
+      ctx.moveTo(4.5, -0.5);
+      ctx.lineTo(26, -4.5);
+      ctx.lineTo(26, 4.5);
+      ctx.lineTo(4.5, 2.0);
       ctx.closePath();
       ctx.fill();
     }
 
     ctx.fillStyle = pal.liveryAccent;
     ctx.beginPath();
-    ctx.roundRect(-7.5, -2.2, 15, 5.8, 1.8);
+    ctx.roundRect(-4.5, -1.6, 9.0, 3.4, 1.1);
     ctx.fill();
     ctx.fillStyle = pal.archLight;
     ctx.beginPath();
-    ctx.roundRect(-1.8, -5.6, 8.2, 3.8, 1.4);
+    ctx.roundRect(-0.8, -3.5, 4.6, 2.2, 0.9);
     ctx.fill();
     ctx.fillStyle = pal.windowGlassDark;
-    ctx.fillRect(0.5, -4.8, 5.2, 2.4);
+    ctx.fillRect(0.6, -3.0, 2.8, 1.3);
     ctx.fillStyle = "#0F172A";
     ctx.beginPath();
-    ctx.arc(-4.2, 4.2, 2.0, 0, Math.PI * 2);
-    ctx.arc(4.4, 4.2, 2.0, 0, Math.PI * 2);
+    ctx.arc(-2.5, 2.2, 1.25, 0, Math.PI * 2);
+    ctx.arc(2.6, 2.2, 1.25, 0, Math.PI * 2);
     ctx.fill();
 
     if (Math.sin(step * 11) > 0) {
       ctx.fillStyle = "#F59E0B";
       ctx.beginPath();
-      ctx.arc(2.2, -6.5, 1.5, 0, Math.PI * 2);
+      ctx.arc(1.2, -4.1, 0.9, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -2291,8 +3319,8 @@ const WorldGateway = {
     r.t += dt;
 
     const sizeMult = r.variant === "orbital_cargo" ? 0.92 : 1.0;
-    const rocketH = Math.min(82, L.towerH * 0.45) * sizeMult;
-    const rocketW = Math.max(6.8, rocketH * 0.142);
+    const rocketH = Math.min(88, L.towerH * 0.46) * sizeMult;
+    const rocketW = Math.max(7.2, rocketH * 0.145);
     const padBaseY = L.padY - 2;
     const catchY = L.padY - L.towerH * 0.54;
 
@@ -2313,7 +3341,7 @@ const WorldGateway = {
       const pos = this._crawlerPos(L, w, ease);
       r.x = pos.x;
       r.y = pos.y;
-      roadTilt = this._crawlerTangent(L, w, ease) * 0.42;
+      roadTilt = this._crawlerTangent(L, w, ease) * 0.35;
       r.angle = -Math.PI * 0.5;
       isTransporter = true;
       isMovingTow = true;
@@ -2487,7 +3515,7 @@ const WorldGateway = {
       if (r.t >= r.phaseDuration) {
         r.phase = "tow_back";
         r.t = 0;
-        r.phaseDuration = this._rand(24.0, 30.0);
+        r.phaseDuration = this._rand(26.0, 32.0);
       }
     } else if (r.phase === "tow_back") {
       isBoosterOnly = true;
@@ -2499,7 +3527,7 @@ const WorldGateway = {
       const pos = this._crawlerPos(L, w, 1 - ease);
       r.x = pos.x;
       r.y = pos.y;
-      roadTilt = this._crawlerTangent(L, w, 1 - ease) * 0.42;
+      roadTilt = this._crawlerTangent(L, w, 1 - ease) * 0.35;
       r.angle = -Math.PI * 0.5;
       if (r.t >= r.phaseDuration) {
         r.phase = "hangar_wait";
@@ -2512,11 +3540,19 @@ const WorldGateway = {
       if (r.t >= r.phaseDuration) {
         r.phase = "tow_out";
         r.t = 0;
-        r.phaseDuration = this._rand(24.0, 30.0);
+        r.phaseDuration = this._rand(26.0, 32.0);
       }
     }
 
     r.armClose += (targetArmClose - r.armClose) * Math.min(1, dt * 5.2);
+
+    // Clip crawlerway cleanly to open sky/tarmac west of HIF doorway so rocket & tow truck emerge from inside bay!
+    ctx.save();
+    if (isTransporter) {
+      ctx.beginPath();
+      ctx.rect(0, 0, L.hifDoorX + 12, h);
+      ctx.clip();
+    }
 
     if (visible && isTransporter) {
       ctx.save();
@@ -2527,7 +3563,7 @@ const WorldGateway = {
     }
 
     if (visible) {
-      const horizLift = isTransporter ? (Math.abs(Math.sin(r.angle)) * (rocketW * 0.55 + 1.5)) : 0;
+      const horizLift = isTransporter ? (Math.abs(Math.sin(r.angle)) * (rocketW * 0.52 + 1.5)) : 0;
       ctx.save();
       ctx.translate(r.x, r.y - horizLift);
       ctx.rotate(r.angle + roadTilt);
@@ -2584,7 +3620,9 @@ const WorldGateway = {
       ctx.fillRect(-rocketW * 0.56, -4, rocketW * 1.12, 4);
       ctx.restore();
     }
+    ctx.restore();
 
+    // Catch tower loading arms
     ctx.save();
     const reach = (L.towerRightX - L.towerLeftX) * 0.42;
     const extend = 0.22 + r.armClose * 0.78;
@@ -2608,11 +3646,11 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // 6 Realistic Aerospace & Military Spaceplane Designs
   _drawSpaceplaneModel(ctx, variant, pal, step, afterburner = 0, altitude = 0) {
-    // Cast ground shadow offset by altitude
-    const shadowFade = Math.max(0.12, 1 - altitude / 90);
+    const shadowFade = Math.max(0.12, 1 - altitude / 95);
     ctx.save();
-    ctx.translate(2.5 + altitude * 0.20, 3.5 + altitude * 0.62);
+    ctx.translate(2.2 + altitude * 0.18 * pal.sunDir, 3.0 + altitude * 0.58);
     ctx.scale(1.1, 0.8);
     ctx.fillStyle = pal.shadowColor;
     ctx.globalAlpha = 0.50 * shadowFade;
@@ -2622,167 +3660,236 @@ const WorldGateway = {
     ctx.restore();
 
     if (afterburner > 0.05) {
-      const fl = (18 + Math.sin(step * 45) * 4) * afterburner;
-      const g = ctx.createLinearGradient(-17, 0, -17 - fl, 0);
+      const fl = (20 + Math.sin(step * 45) * 4) * afterburner;
+      const tailX = (variant === "starliner" || variant === "airliner") ? -23 : -16;
+      const g = ctx.createLinearGradient(tailX, 0, tailX - fl, 0);
       g.addColorStop(0, "rgba(255, 252, 240, 0.95)");
       g.addColorStop(0.42, "rgba(56, 189, 248, 0.78)");
       g.addColorStop(1, "rgba(249, 115, 22, 0)");
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.moveTo(-16, -3.0);
-      ctx.lineTo(-17 - fl, 0);
-      ctx.lineTo(-16, 3.0);
+      ctx.moveTo(tailX + 1, -2.6);
+      ctx.lineTo(tailX - fl, 0);
+      ctx.lineTo(tailX + 1, 2.6);
       ctx.closePath();
       ctx.fill();
     }
 
-    if (variant === "starliner") {
-      const wingG = ctx.createLinearGradient(0, -18, 0, 18);
+    if (variant === "fighter") {
+      // Stealth Orbital Interceptor: sharp chined forebody, swept diamond wings, twin outward canted tails!
+      ctx.fillStyle = pal.militaryShade;
+      ctx.beginPath();
+      ctx.moveTo(21, 0);
+      ctx.lineTo(7, -3.2);
+      ctx.lineTo(-4, -13.5);
+      ctx.lineTo(-12, -13.5);
+      ctx.lineTo(-10, -4.5);
+      ctx.lineTo(-16, -5.5);
+      ctx.lineTo(-14, 0);
+      ctx.lineTo(-16, 5.5);
+      ctx.lineTo(-10, 4.5);
+      ctx.lineTo(-12, 13.5);
+      ctx.lineTo(-4, 13.5);
+      ctx.lineTo(7, 3.2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = pal.militaryBody;
+      ctx.beginPath();
+      ctx.moveTo(21, 0);
+      ctx.lineTo(6, -2.6);
+      ctx.lineTo(-5, -12);
+      ctx.lineTo(-10.5, -12);
+      ctx.lineTo(-9, -3.5);
+      ctx.lineTo(-14, -4);
+      ctx.lineTo(-14, 0);
+      ctx.lineTo(21, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Bubble stealth canopy
+      ctx.fillStyle = pal.windowGlow;
+      ctx.beginPath();
+      ctx.ellipse(9.5, 0, 4.5, 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Twin canted vertical stabilizers
+      ctx.fillStyle = pal.militaryShade;
+      ctx.fillRect(-13.5, -5.2, 5.5, 1.8);
+      ctx.fillRect(-13.5, 3.4, 5.5, 1.8);
+    } else if (variant === "bomber") {
+      // Flying-Wing Strategic Space Bomber: wide serrated stealth span & buried quad exhausts
+      ctx.fillStyle = pal.militaryShade;
+      ctx.beginPath();
+      ctx.moveTo(19, 0);
+      ctx.lineTo(-7, -21);
+      ctx.lineTo(-15, -19.5);
+      ctx.lineTo(-10, -9);
+      ctx.lineTo(-15, -4);
+      ctx.lineTo(-11, 0);
+      ctx.lineTo(-15, 4);
+      ctx.lineTo(-10, 9);
+      ctx.lineTo(-15, 19.5);
+      ctx.lineTo(-7, 21);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = pal.militaryBody;
+      ctx.beginPath();
+      ctx.moveTo(19, 0);
+      ctx.lineTo(-6, -19);
+      ctx.lineTo(-13, -18);
+      ctx.lineTo(-9, -8);
+      ctx.lineTo(-12, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = pal.windowGlow;
+      ctx.fillRect(8.5, -2.2, 4.2, 1.4);
+      ctx.fillRect(8.5, 0.8, 4.2, 1.4);
+    } else if (variant === "starliner") {
+      // Extended Trans-Atmospheric Passenger Liner (Concorde/Skylon silhouette: long fuselage + ogee delta wing!)
+      const wingG = ctx.createLinearGradient(0, -17, 0, 17);
       wingG.addColorStop(0, pal.bodyLight);
       wingG.addColorStop(0.5, pal.bodyMid);
       wingG.addColorStop(1, pal.bodyShade);
       ctx.fillStyle = wingG;
       ctx.beginPath();
-      ctx.moveTo(8, 0);
-      ctx.lineTo(-3, -17.5);
-      ctx.lineTo(-10.5, -17.0);
-      ctx.lineTo(-12.5, -3.5);
-      ctx.lineTo(-12.5, 3.5);
-      ctx.lineTo(-10.5, 17.0);
-      ctx.lineTo(-3, 17.5);
+      ctx.moveTo(9, 0);
+      ctx.quadraticCurveTo(0, -5, -11, -16.5);
+      ctx.lineTo(-19.5, -16.0);
+      ctx.lineTo(-21, -3.5);
+      ctx.lineTo(-21, 3.5);
+      ctx.lineTo(-19.5, 16.0);
+      ctx.quadraticCurveTo(0, 5, 9, 0);
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = pal.liveryAccent;
-      ctx.fillRect(-11, -18.2, 5.5, 1.5);
-      ctx.fillRect(-11, 16.7, 5.5, 1.5);
-
       ctx.fillStyle = pal.archDark;
-      ctx.fillRect(-14.5, -12, 8.5, 2.6);
-      ctx.fillRect(-14.5, 9.4, 8.5, 2.6);
+      ctx.fillRect(-19, -11, 9, 2.5);
+      ctx.fillRect(-19, 8.5, 9, 2.5);
 
-      const fGrad = ctx.createLinearGradient(0, -4.8, 0, 4.8);
+      const fGrad = ctx.createLinearGradient(0, -4.4, 0, 4.4);
       fGrad.addColorStop(0, pal.bodyLight);
-      fGrad.addColorStop(0.65, pal.bodyLight);
+      fGrad.addColorStop(0.66, pal.bodyLight);
       fGrad.addColorStop(1, pal.bodyShade);
       ctx.fillStyle = fGrad;
       ctx.beginPath();
-      ctx.moveTo(24, 0);
-      ctx.quadraticCurveTo(15, -4.8, -17, -3.5);
-      ctx.lineTo(-20, 0);
-      ctx.lineTo(-17, 3.5);
-      ctx.quadraticCurveTo(15, 4.8, 24, 0);
+      ctx.moveTo(29, 0);
+      ctx.quadraticCurveTo(18, -4.4, -22, -3.2);
+      ctx.lineTo(-25, 0);
+      ctx.lineTo(-22, 3.2);
+      ctx.quadraticCurveTo(18, 4.4, 29, 0);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = pal.liveryAccent;
-      ctx.fillRect(-13, 0.7, 30, 1.1);
+      ctx.fillRect(-18, 0.7, 38, 1.0);
       ctx.fillStyle = pal.windowGlow;
-      ctx.fillRect(15, -1.8, 3.8, 2.0);
-      for (let wi = 0; wi < 8; wi++) {
-        ctx.fillRect(10.5 - wi * 3.0, -2.3, 1.5, 1.0);
-        ctx.fillRect(11.5 - wi * 3.0, -0.6, 1.5, 1.0);
+      ctx.fillRect(20, -1.6, 3.8, 1.8);
+      for (let wi = 0; wi < 10; wi++) {
+        ctx.fillRect(15.5 - wi * 3.1, -2.0, 1.5, 0.9);
+        ctx.fillRect(16.0 - wi * 3.1, -0.5, 1.5, 0.9);
       }
 
       ctx.fillStyle = pal.bodyLight;
       ctx.beginPath();
-      ctx.moveTo(-10, -1.4);
-      ctx.lineTo(-19, -9.8);
-      ctx.lineTo(-21.5, -8.4);
-      ctx.lineTo(-17.5, -0.7);
+      ctx.moveTo(-14, -1.4);
+      ctx.lineTo(-24, -10.0);
+      ctx.lineTo(-26.5, -8.5);
+      ctx.lineTo(-22, -0.7);
       ctx.closePath();
       ctx.fill();
     } else if (variant === "airliner") {
+      // Extended Commercial Orbital Cruiser
       ctx.fillStyle = pal.bodyLight;
       ctx.beginPath();
-      ctx.moveTo(7, 0);
-      ctx.lineTo(-5, -15.5);
-      ctx.lineTo(-10.5, -15.5);
-      ctx.lineTo(-8, -3);
-      ctx.lineTo(-8, 3);
-      ctx.lineTo(-10.5, 15.5);
-      ctx.lineTo(-5, 15.5);
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-7, -16.5);
+      ctx.lineTo(-14, -16.5);
+      ctx.lineTo(-10, -3);
+      ctx.lineTo(-10, 3);
+      ctx.lineTo(-14, 16.5);
+      ctx.lineTo(-7, 16.5);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = pal.archDark;
-      ctx.fillRect(-12, -16.4, 8.5, 2.3);
-      ctx.fillRect(-12, 14.1, 8.5, 2.3);
+      ctx.fillRect(-15, -17.4, 8.5, 2.2);
+      ctx.fillRect(-15, 15.2, 8.5, 2.2);
 
-      const fg = ctx.createLinearGradient(0, -4, 0, 4);
+      const fg = ctx.createLinearGradient(0, -3.8, 0, 3.8);
       fg.addColorStop(0, pal.bodyLight);
       fg.addColorStop(0.68, pal.bodyLight);
       fg.addColorStop(1, pal.bodyShade);
       ctx.fillStyle = fg;
       ctx.beginPath();
-      ctx.moveTo(23, 0);
-      ctx.quadraticCurveTo(12, -3.9, -15, -2.6);
-      ctx.lineTo(-18, 0);
-      ctx.lineTo(-15, 2.6);
-      ctx.quadraticCurveTo(12, 3.9, 23, 0);
+      ctx.moveTo(27, 0);
+      ctx.quadraticCurveTo(15, -3.8, -20, -2.6);
+      ctx.lineTo(-23, 0);
+      ctx.lineTo(-20, 2.6);
+      ctx.quadraticCurveTo(15, 3.8, 27, 0);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = pal.liveryAccent;
-      ctx.fillRect(-13, 0.5, 29, 1.0);
+      ctx.fillRect(-17, 0.5, 35, 1.0);
       ctx.fillStyle = pal.windowGlow;
-      ctx.fillRect(14, -1.5, 3.6, 1.6);
-      for (let wi = 0; wi < 7; wi++) {
-        ctx.fillRect(9.5 - wi * 3.0, -1.4, 1.6, 1.0);
+      ctx.fillRect(18, -1.5, 3.6, 1.6);
+      for (let wi = 0; wi < 9; wi++) {
+        ctx.fillRect(13.5 - wi * 3.0, -1.3, 1.5, 0.9);
       }
 
       ctx.fillStyle = pal.bodyShade;
       ctx.beginPath();
-      ctx.moveTo(-9.5, -1.1);
-      ctx.lineTo(-17.5, -8.0);
-      ctx.lineTo(-19.5, -6.8);
-      ctx.lineTo(-16, -0.5);
+      ctx.moveTo(-13, -1.1);
+      ctx.lineTo(-21, -8.5);
+      ctx.lineTo(-23.5, -7.2);
+      ctx.lineTo(-19.5, -0.5);
       ctx.closePath();
       ctx.fill();
     } else if (variant === "clipper") {
+      // Sleek Blended-Body Waverider Clipper
       ctx.fillStyle = pal.bodyLight;
       ctx.beginPath();
-      ctx.moveTo(19, 0);
-      ctx.quadraticCurveTo(9, -8.0, -6, -12.8);
-      ctx.lineTo(-14.5, -11.4);
-      ctx.lineTo(-12.5, -4.2);
-      ctx.lineTo(-14.5, 0);
-      ctx.lineTo(-12.5, 4.2);
-      ctx.lineTo(-14.5, 11.4);
-      ctx.lineTo(-6, 12.8);
-      ctx.quadraticCurveTo(9, 8.0, 19, 0);
+      ctx.moveTo(21, 0);
+      ctx.quadraticCurveTo(9, -7.6, -7, -12.5);
+      ctx.lineTo(-15.5, -11.2);
+      ctx.lineTo(-13.5, -4.0);
+      ctx.lineTo(-15.5, 0);
+      ctx.lineTo(-13.5, 4.0);
+      ctx.lineTo(-15.5, 11.2);
+      ctx.lineTo(-7, 12.5);
+      ctx.quadraticCurveTo(9, 7.6, 21, 0);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = pal.archDark;
       ctx.beginPath();
-      ctx.moveTo(19, 0);
-      ctx.quadraticCurveTo(8, 6.8, -13.5, 11.0);
-      ctx.lineTo(-12.5, 4.2);
-      ctx.lineTo(-13.5, -4.2);
+      ctx.moveTo(21, 0);
+      ctx.quadraticCurveTo(8, 6.5, -14.5, 10.6);
+      ctx.lineTo(-13.5, 4.0);
+      ctx.lineTo(-14.5, -4.0);
       ctx.closePath();
       ctx.globalAlpha = 0.40;
       ctx.fill();
       ctx.globalAlpha = 1;
 
-      ctx.fillStyle = pal.bodyShade;
-      ctx.fillRect(-15, -13.5, 7.5, 2.0);
-      ctx.fillRect(-15, 11.5, 7.5, 2.0);
-
       ctx.fillStyle = pal.windowGlow;
       ctx.beginPath();
-      ctx.ellipse(11, 0, 3.4, 1.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(12, 0, 3.4, 1.7, 0, 0, Math.PI * 2);
       ctx.fill();
     } else {
+      // Winged Orbital Shuttle
       ctx.fillStyle = pal.archDark;
       ctx.beginPath();
       ctx.moveTo(16, 0);
-      ctx.lineTo(5, -5.4);
-      ctx.lineTo(-9.5, -14.2);
-      ctx.lineTo(-14, -13.2);
-      ctx.lineTo(-14, 13.2);
-      ctx.lineTo(-9.5, 14.2);
-      ctx.lineTo(5, 5.4);
+      ctx.lineTo(5, -5.2);
+      ctx.lineTo(-9.5, -14.0);
+      ctx.lineTo(-14, -13.0);
+      ctx.lineTo(-14, 13.0);
+      ctx.lineTo(-9.5, 14.0);
+      ctx.lineTo(5, 5.2);
       ctx.closePath();
       ctx.fill();
 
@@ -2790,23 +3897,20 @@ const WorldGateway = {
       ctx.beginPath();
       ctx.moveTo(14, 0);
       ctx.lineTo(4.2, -4.4);
-      ctx.lineTo(-9, -12.6);
-      ctx.lineTo(-12.8, -11.6);
-      ctx.lineTo(-12.8, 11.6);
-      ctx.lineTo(-9, 12.6);
+      ctx.lineTo(-9, -12.4);
+      ctx.lineTo(-12.8, -11.4);
+      ctx.lineTo(-12.8, 11.4);
+      ctx.lineTo(-9, 12.4);
       ctx.lineTo(4.2, 4.4);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = pal.bodyLight;
       ctx.beginPath();
-      ctx.roundRect(-13.5, -4.0, 28, 8.0, 3.8);
+      ctx.roundRect(-13.5, -3.8, 28, 7.6, 3.6);
       ctx.fill();
-      ctx.fillStyle = pal.bodyShade;
-      ctx.fillRect(-13.5, 1.0, 25, 2.6);
-
       ctx.fillStyle = pal.windowGlow;
-      ctx.fillRect(9.0, -2.0, 2.6, 4.0);
+      ctx.fillRect(9.0, -1.9, 2.6, 3.8);
       ctx.fillStyle = pal.bodyLight;
       ctx.beginPath();
       ctx.moveTo(-6.5, -1.5);
@@ -2818,18 +3922,18 @@ const WorldGateway = {
 
       ctx.fillStyle = pal.archDark;
       ctx.beginPath();
-      ctx.arc(14.6, 0, 2.5, -Math.PI * 0.5, Math.PI * 0.5);
+      ctx.arc(14.6, 0, 2.4, -Math.PI * 0.5, Math.PI * 0.5);
       ctx.fill();
     }
 
     if (Math.sin(step * 12) > 0.25) {
       ctx.fillStyle = "#ef4444";
       ctx.beginPath();
-      ctx.arc(-10.5, -12.8, 1.3, 0, Math.PI * 2);
+      ctx.arc(-11.5, -12.8, 1.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#34d399";
       ctx.beginPath();
-      ctx.arc(-10.5, 12.8, 1.3, 0, Math.PI * 2);
+      ctx.arc(-11.5, 12.8, 1.2, 0, Math.PI * 2);
       ctx.fill();
     }
   },
@@ -2839,35 +3943,48 @@ const WorldGateway = {
     return this.spaceplanes.some(other => other !== excludingCraft && busyPhases.has(other.phase));
   },
 
+  _pickFreeGateIdx(excludingCraft) {
+    const taken = new Set(
+      this.spaceplanes
+        .filter(other => other !== excludingCraft && (other.phase === "taxi_to_gate" || other.phase === "gate_turnaround" || other.phase === "apron_taxi_out"))
+        .map(other => other.gateIdx)
+    );
+    const maxG = this._lastW && this._lastW < 720 ? 2 : 4;
+    const avail = [];
+    for (let i = 0; i < maxG; i++) {
+      if (!taken.has(i)) avail.push(i);
+    }
+    return avail.length > 0 ? this._pick(avail) : Math.floor(Math.random() * maxG);
+  },
+
   _updateSingleSpaceplane(ctx, sp, L, pal, dt, step, w, h) {
     sp.t += dt;
 
     let visible = false;
     let x = sp.x || 0;
     let y = sp.y || 0;
-    let scale = 0.64 * L.termScale;
+    let scale = 0.48 * L.termScale;
     let targetHeading = sp.heading;
     let altitude = 0;
     let showChute = false;
     let chuteInflation = 0;
     let afterburner = 0;
 
-    const V_TAXI = 8.5;       // Calm, realistic ground taxi speed (px/s)
-    const V_TD = 54.0;        // Touchdown airspeed (px/s)
-    const V_VR = 58.0;        // Liftoff rotation speed (px/s)
+    const V_TAXI = 8.5;       // Steady realistic tarmac taxi speed (px/s)
+    const V_TD = 56.0;        // Shallow flared touchdown speed (px/s)
+    const V_VR = 96.0;        // Brisk realistic takeoff rotation speed (px/s)
 
     const entryPt = L.rwPt(L.rwEntryT);
     const exitPt = L.rwPt(L.rwExitT);
-    const rwAngle = Math.atan2(L.rwRightY - L.rwLeftY, L.rwRightX - L.rwLeftX);
-    const dirX = Math.cos(rwAngle);
-    const dirY = Math.sin(rwAngle);
+    const dirX = Math.cos(L.rwAng);
+    const dirY = Math.sin(L.rwAng);
+    const gate = L.gates[(sp.gateIdx || 0) % L.gates.length];
 
     if (sp.phase === "hangar_emerge") {
       visible = true;
       const p0 = { x: L.hangarX + 24, y: L.hangarDoorY - 5 };
       const p1 = { x: L.hangarDoorX - 18, y: L.hangarDoorY + 4 };
       const total = Math.max(10, Math.hypot(p1.x - p0.x, p1.y - p0.y));
-      // Smoothly ramp from 0 up to V_TAXI (continuous into taxi_to_runway / apron_taxi_out!)
       const desired = Math.min(V_TAXI, Math.max(2.5, (sp.dist / 14 + 0.25) * V_TAXI));
       sp.speed += (desired - sp.speed) * Math.min(1, dt * 3.0);
       sp.dist += sp.speed * dt;
@@ -2875,46 +3992,51 @@ const WorldGateway = {
       x = p0.x + (p1.x - p0.x) * f;
       y = p0.y + (p1.y - p0.y) * f;
       targetHeading = Math.atan2(p1.y - p0.y, p1.x - p0.x);
-      scale = 0.58 * L.termScale;
+      scale = 0.44 * L.termScale;
       if (sp.dist >= total) {
         sp.dist = 0;
         sp.t = 0;
         sp.speed = V_TAXI;
-        sp.phase = sp.role === "apron" ? "apron_taxi_out" : "taxi_to_runway";
+        sp.gateIdx = this._pickFreeGateIdx(sp);
+        sp.phase = (sp.role === "apron" || Math.random() < 0.45) ? "apron_taxi_out" : "taxi_to_runway";
       }
-    } else if (sp.phase === "apron_taxi_out") {
+    } else if (sp.phase === "apron_taxi_out" || sp.phase === "taxi_to_gate") {
       visible = true;
-      const path = this._getApronShuttleOutPath(L);
+      const path = sp.phase === "taxi_to_gate"
+        ? this._getExitToGatePath(L, gate)
+        : this._getApronShuttleOutPath(L, gate);
       const rem = path.totalLen - sp.dist;
-      const desired = rem < 22 ? Math.max(2.0, V_TAXI * (rem / 22)) : V_TAXI;
+      const desired = rem < 24 ? Math.max(2.0, V_TAXI * (rem / 24)) : V_TAXI;
       sp.speed += (desired - sp.speed) * Math.min(1, dt * 4.0);
       sp.dist += sp.speed * dt;
       const pt = this._sampleArcPath(path, sp.dist);
       x = pt.x;
       y = pt.y;
       targetHeading = pt.angle;
-      scale = (0.58 + (sp.dist / path.totalLen) * 0.08) * L.termScale;
+      scale = (0.45 + (sp.dist / path.totalLen) * 0.04) * L.termScale;
       if (sp.dist >= path.totalLen) {
         sp.phase = "gate_turnaround";
         sp.t = 0;
         sp.speed = 0;
-        sp.phaseDuration = this._rand(8.0, 16.0);
+        sp.phaseDuration = this._rand(9.0, 17.0);
       }
     } else if (sp.phase === "gate_turnaround") {
       visible = true;
-      x = L.termX - 72 * L.termScale;
-      y = L.termY + 56 * L.termScale;
-      targetHeading = -2.4;
-      scale = 0.66 * L.termScale;
+      x = gate.x;
+      y = gate.y;
+      targetHeading = gate.heading;
+      scale = 0.48 * L.termScale;
       if (sp.t >= sp.phaseDuration) {
-        sp.phase = "apron_taxi_return";
         sp.t = 0;
         sp.dist = 0;
         sp.speed = 0;
+        // Randomly depart for the runway OR return back to the Arched Hangar to despawn inside!
+        sp.phase = (sp.role === "runway" && Math.random() < 0.55) ? "taxi_to_runway" : "apron_taxi_return";
+        sp._fromGate = true;
       }
     } else if (sp.phase === "apron_taxi_return") {
       visible = true;
-      const path = this._getApronShuttleReturnPath(L);
+      const path = this._getApronShuttleReturnPath(L, gate);
       const desired = sp.dist < 20 ? Math.max(2.0, V_TAXI * (sp.dist / 20)) : V_TAXI;
       sp.speed += (desired - sp.speed) * Math.min(1, dt * 3.5);
       sp.dist += sp.speed * dt;
@@ -2922,19 +4044,19 @@ const WorldGateway = {
       x = pt.x;
       y = pt.y;
       targetHeading = pt.angle;
-      scale = (0.66 - (sp.dist / path.totalLen) * 0.08) * L.termScale;
+      scale = (0.49 - (sp.dist / path.totalLen) * 0.06) * L.termScale;
       if (sp.dist >= path.totalLen) {
-        sp.variant = this._pick(this.SPACEPLANE_VARIANTS);
+        sp.variant = this._pick(this.ALL_SPACEPLANE_VARIANTS);
         sp.phase = "hangar_rest";
         sp.t = 0;
         sp.dist = 0;
         sp.speed = 0;
-        sp.phaseDuration = this._rand(8.0, 18.0);
+        sp._fromGate = false;
+        sp.phaseDuration = this._rand(7.0, 16.0);
       }
     } else if (sp.phase === "taxi_to_runway") {
-      // Dead-steady slow arc-length taxi along open South Apron corridor strictly clear of Star Terminal!
       visible = true;
-      const path = this._getTaxiToRunwayPath(L);
+      const path = this._getTaxiToRunwayPath(L, sp._fromGate ? gate : null);
       const rem = path.totalLen - sp.dist;
       const desired = rem < 22 ? Math.max(2.2, V_TAXI * (rem / 22)) : V_TAXI;
       sp.speed += (desired - sp.speed) * Math.min(1, dt * 4.0);
@@ -2943,13 +4065,14 @@ const WorldGateway = {
       x = pt.x;
       y = pt.y;
       targetHeading = pt.angle;
-      scale = (0.58 + (sp.dist / path.totalLen) * 0.10) * L.termScale;
+      scale = (0.46 + (sp.dist / path.totalLen) * 0.05) * L.termScale;
       if (sp.dist >= path.totalLen) {
+        sp._fromGate = false;
         sp.phase = "lineup_hold";
         sp.t = 0;
         sp.dist = 0;
         sp.speed = 0;
-        sp.phaseDuration = this._rand(3.0, 5.2);
+        sp.phaseDuration = this._rand(2.8, 4.8);
       }
     } else if (sp.phase === "lineup_hold") {
       visible = true;
@@ -2957,8 +4080,8 @@ const WorldGateway = {
       const ease = p * p * (3 - 2 * p);
       x = (entryPt.x - dirX * 14) + dirX * 14 * ease;
       y = (entryPt.y - dirY * 14) + dirY * 14 * ease;
-      targetHeading = rwAngle;
-      scale = 0.68 * L.termScale;
+      targetHeading = L.rwAng;
+      scale = 0.50 * L.termScale;
       if (sp.t >= sp.phaseDuration && !this._isRunwayBusy(sp)) {
         sp.phase = "runway_takeoff";
         sp.t = 0;
@@ -2967,13 +4090,12 @@ const WorldGateway = {
         sp._airborne = false;
       }
     } else if (sp.phase === "runway_takeoff") {
-      // C1 continuous speed from 0 -> V_VR along runway, then seamless liftoff at EXACT V_VR -> 82 px/s climb!
+      // Brisk progressive acceleration 0 -> V_VR (96 px/s) down runway, transitioning C1-smoothly into 128 px/s climb!
       visible = true;
-      const liftPt = L.rwPt(0.70);
+      const liftPt = L.rwPt(0.72);
       const rollLen = Math.hypot(liftPt.x - entryPt.x, liftPt.y - entryPt.y);
 
       if (!sp._airborne) {
-        // Smooth constant thrust acceleration along runway
         const accel = (V_VR * V_VR) / (2 * Math.max(60, rollLen));
         sp.speed = Math.min(V_VR, sp.speed + accel * dt);
         sp.dist += sp.speed * dt;
@@ -2982,9 +4104,9 @@ const WorldGateway = {
         y = entryPt.y + (liftPt.y - entryPt.y) * frac;
         afterburner = Math.min(1, 0.35 + frac * 0.75);
         const rotPitch = Math.max(0, (frac - 0.80) / 0.20);
-        targetHeading = rwAngle - rotPitch * 0.12;
-        altitude = rotPitch * rotPitch * 2.5;
-        scale = (0.68 + frac * 0.12) * L.termScale;
+        targetHeading = L.rwAng - rotPitch * 0.08;
+        altitude = rotPitch * rotPitch * 2.2;
+        scale = (0.50 + frac * 0.10) * L.termScale;
 
         if (sp.dist >= rollLen) {
           sp._airborne = true;
@@ -2993,18 +4115,18 @@ const WorldGateway = {
         }
       } else {
         const climbPath = this._getTakeoffClimbPath(L, w, h, sp);
-        sp.speed = Math.min(84, sp.speed + 5.5 * dt);
+        sp.speed = Math.min(128, sp.speed + 12.0 * dt);
         sp.dist += sp.speed * dt;
         const cp = Math.min(1, sp.dist / climbPath.totalLen);
         const pt = this._sampleArcPath(climbPath, sp.dist);
         x = pt.x;
         y = pt.y;
         targetHeading = pt.angle;
-        altitude = 2.5 + Math.pow(cp, 1.35) * 95;
+        altitude = 2.2 + Math.pow(cp, 1.35) * 95;
         afterburner = cp < 0.78 ? 1.0 : Math.max(0, (1 - cp) * 4.5);
-        scale = Math.max(0.32, (0.80 - cp * 0.48)) * L.termScale;
+        scale = Math.max(0.24, (0.60 - cp * 0.36)) * L.termScale;
 
-        if (Math.random() < 0.72) {
+        if (Math.random() < 0.75) {
           this.plumeParticles.push({
             x: x - Math.cos(sp.heading) * 14 * scale,
             y: y - Math.sin(sp.heading) * 14 * scale,
@@ -3018,12 +4140,12 @@ const WorldGateway = {
           });
         }
         if (sp.dist >= climbPath.totalLen) {
-          sp.variant = this._pick(this.SPACEPLANE_VARIANTS);
+          sp.variant = this._pick(this.ALL_SPACEPLANE_VARIANTS);
           sp.phase = "sky_wait";
           sp.t = 0;
           sp.dist = 0;
           sp._airborne = false;
-          sp.phaseDuration = this._rand(6.0, 14.0);
+          sp.phaseDuration = this._rand(5.0, 13.0);
         }
       }
     } else if (sp.phase === "sky_wait") {
@@ -3034,25 +4156,25 @@ const WorldGateway = {
         sp.y = p0.y;
         sp.heading = p0.angle;
         sp.dist = 0;
-        sp.speed = 74;
+        sp.speed = 76;
         sp.phase = "approach";
         sp.t = 0;
         sp.chuteDetached = false;
       }
     } else if (sp.phase === "approach") {
-      // Arc-length glide slope easing smoothly from 74 px/s down to EXACTLY V_TD (54 px/s) at touchdown!
+      // Shallow ~3° glide slope flaring smoothly onto the runway at V_TD (56 px/s)
       visible = true;
       const appPath = this._getApproachPath(L);
       const frac = Math.min(1, sp.dist / appPath.totalLen);
-      sp.speed = 74 - (74 - V_TD) * frac;
+      sp.speed = 76 - (76 - V_TD) * frac;
       sp.dist += sp.speed * dt;
       const pt = this._sampleArcPath(appPath, sp.dist);
       x = pt.x;
       y = pt.y;
-      const flare = frac > 0.80 ? ((frac - 0.80) / 0.20) * 0.08 : 0;
+      const flare = frac > 0.78 ? ((frac - 0.78) / 0.22) * 0.055 : 0;
       targetHeading = pt.angle - flare;
-      altitude = Math.pow(1 - frac, 1.5) * 32;
-      scale = (0.42 + frac * 0.24) * L.termScale;
+      altitude = Math.pow(1 - frac, 1.55) * 24;
+      scale = (0.34 + frac * 0.16) * L.termScale;
 
       if (sp.dist >= appPath.totalLen) {
         const tdPt = L.rwPt(0.14);
@@ -3070,43 +4192,47 @@ const WorldGateway = {
         sp.phase = "chute_rollout";
         sp.t = 0;
         sp.dist = 0;
-        sp.speed = V_TD; // Exact velocity handoff! Zero speed jump!
+        sp.speed = V_TD;
       }
     } else if (sp.phase === "chute_rollout") {
-      // Exact continuous deceleration from V_TD (54 px/s) down to EXACTLY V_TAXI (8.5 px/s) at exitPt!
+      // Smooth aerodynamic drag deceleration from V_TD down to V_TAXI before rolling cleanly onto exit taxiway!
       visible = true;
       const tdPt = L.rwPt(0.14);
       const rollLen = Math.max(60, Math.hypot(exitPt.x - tdPt.x, exitPt.y - tdPt.y));
       const frac = Math.min(1, sp.dist / rollLen);
-      // Smooth aerodynamic drag deceleration v(d) matching V_TD at frac=0 and V_TAXI at frac=1!
-      sp.speed = V_TAXI + (V_TD - V_TAXI) * Math.pow(1 - frac, 1.15);
+      sp.speed = V_TAXI + (V_TD - V_TAXI) * Math.pow(1 - frac, 1.25);
       sp.dist += sp.speed * dt;
       const rwF = Math.min(1, sp.dist / rollLen);
       x = tdPt.x + (exitPt.x - tdPt.x) * rwF;
       y = tdPt.y + (exitPt.y - tdPt.y) * rwF;
-      scale = (0.66 + rwF * 0.14) * L.termScale;
-      const noseSettle = Math.max(0, 1 - rwF / 0.16) * 0.08;
-      targetHeading = rwAngle - noseSettle;
+      scale = (0.50 + rwF * 0.08) * L.termScale;
+      const noseSettle = Math.max(0, 1 - rwF / 0.16) * 0.055;
+      targetHeading = L.rwAng - noseSettle;
       altitude = 0;
 
-      if (rwF < 0.80) {
+      if (rwF < 0.78) {
         showChute = true;
         chuteInflation = rwF < 0.10 ? (rwF / 0.10) : (0.94 + Math.sin(step * 18) * 0.06);
       } else if (!sp.chuteDetached) {
         sp.chuteDetached = true;
-        sp.detachedChuteX = x - Math.cos(sp.heading) * 24 * scale;
-        sp.detachedChuteY = y - Math.sin(sp.heading) * 24 * scale;
+        sp.detachedChuteX = x - Math.cos(sp.heading) * 22 * scale;
+        sp.detachedChuteY = y - Math.sin(sp.heading) * 22 * scale;
         sp.detachedChuteAlpha = 0.85;
       }
 
       if (sp.dist >= rollLen) {
-        sp.phase = "taxi_to_hangar";
         sp.t = 0;
         sp.dist = 0;
-        sp.speed = V_TAXI; // Exact velocity handoff! Zero speed jump!
+        sp.speed = V_TAXI;
+        // Randomly taxi to a terminal gate stand (~72%) OR directly to the Arched Hangar to despawn inside!
+        if (Math.random() < 0.72) {
+          sp.gateIdx = this._pickFreeGateIdx(sp);
+          sp.phase = "taxi_to_gate";
+        } else {
+          sp.phase = "taxi_to_hangar";
+        }
       }
     } else if (sp.phase === "taxi_to_hangar") {
-      // Dead-steady slow arc-length exit taxi cleanly around Star Terminal straight inside Arched Hangar!
       visible = true;
       const path = this._getTaxiToHangarPath(L);
       sp.speed += (V_TAXI - sp.speed) * Math.min(1, dt * 4.0);
@@ -3115,15 +4241,15 @@ const WorldGateway = {
       x = pt.x;
       y = pt.y;
       targetHeading = pt.angle;
-      scale = (0.80 - (sp.dist / path.totalLen) * 0.22) * L.termScale;
+      scale = (0.58 - (sp.dist / path.totalLen) * 0.14) * L.termScale;
 
       if (sp.dist >= path.totalLen) {
-        sp.variant = this._pick(this.SPACEPLANE_VARIANTS);
+        sp.variant = this._pick(this.ALL_SPACEPLANE_VARIANTS);
         sp.phase = "hangar_rest";
         sp.t = 0;
         sp.dist = 0;
         sp.speed = 0;
-        sp.phaseDuration = this._rand(8.0, 18.0);
+        sp.phaseDuration = this._rand(7.0, 17.0);
       }
     } else {
       if (sp.t >= sp.phaseDuration) {
@@ -3145,7 +4271,7 @@ const WorldGateway = {
       ctx.globalAlpha = sp.detachedChuteAlpha;
       ctx.fillStyle = pal.chuteColor;
       ctx.beginPath();
-      ctx.ellipse(sp.detachedChuteX, sp.detachedChuteY + 3, 6.5, 2.8, 0.2, 0, Math.PI * 2);
+      ctx.ellipse(sp.detachedChuteX, sp.detachedChuteY + 3, 5.5, 2.4, 0.2, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -3159,7 +4285,7 @@ const WorldGateway = {
 
     if (showChute && chuteInflation > 0.05) {
       const tetherLen = 16 + chuteInflation * 16;
-      const chuteR = 7.8 * chuteInflation;
+      const chuteR = 7.4 * chuteInflation;
       const tailX = -15;
       const canopyX = tailX - tetherLen;
 
@@ -3190,15 +4316,15 @@ const WorldGateway = {
       ctx.stroke();
     }
 
-    const beamA = pal.isNightLights ? 0.34 : 0.12;
-    const beamG = ctx.createLinearGradient(17, 0, 62, 0);
+    const beamA = pal.isNightLights ? 0.32 : 0.10;
+    const beamG = ctx.createLinearGradient(17, 0, 58, 0);
     beamG.addColorStop(0, `rgba(255, 251, 235, ${beamA})`);
     beamG.addColorStop(1, "rgba(255, 251, 235, 0)");
     ctx.fillStyle = beamG;
     ctx.beginPath();
     ctx.moveTo(17, -1.6);
-    ctx.lineTo(62, -10);
-    ctx.lineTo(62, 10);
+    ctx.lineTo(58, -9);
+    ctx.lineTo(58, 9);
     ctx.lineTo(17, 1.6);
     ctx.closePath();
     ctx.fill();

@@ -3838,11 +3838,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v12.3
-    assert "pettr.css?v=12.3" in index_html
-    assert "dashboard.js?v=12.3" in index_html
-    assert "entity_modal.js?v=12.3" in index_html
-    assert "app.js?v=12.3" in index_html
+    # Static cache-busters bumped to v12.4
+    assert "pettr.css?v=12.4" in index_html
+    assert "dashboard.js?v=12.4" in index_html
+    assert "entity_modal.js?v=12.4" in index_html
+    assert "app.js?v=12.4" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=12.3" in index_html
-    assert "timeline.js?v=12.3" in index_html
+    assert "history.js?v=12.4" in index_html
+    assert "timeline.js?v=12.4" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4028,10 +4028,10 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
-    # Cache busters bumped to v12.3
-    assert "pettr.css?v=12.3" in index_html
-    assert "dashboard.js?v=12.3" in index_html
-    assert "notes.js?v=12.3" in index_html
+    # Cache busters bumped to v12.4
+    assert "pettr.css?v=12.4" in index_html
+    assert "dashboard.js?v=12.4" in index_html
+    assert "notes.js?v=12.4" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=12.3"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=12.4"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4267,8 +4267,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=12.3"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=12.3"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=12.4"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=12.4"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4381,10 +4381,10 @@ def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    # 1. Cache-buster v12.3 across CSS & JS assets
-    assert '/static/css/pettr.css?v=12.3' in index_html
-    for asset in ["app.js?v=12.3", "focus_cockpit.js?v=12.3", "world_gateway.js?v=12.3", "world_deepblue.js?v=12.3"]:
-        assert asset in index_html, f"Missing v12.3 cache-buster for {asset}"
+    # 1. Cache-buster v12.4 across CSS & JS assets
+    assert '/static/css/pettr.css?v=12.4' in index_html
+    for asset in ["app.js?v=12.4", "focus_cockpit.js?v=12.4", "world_gateway.js?v=12.4", "world_deepblue.js?v=12.4"]:
+        assert asset in index_html, f"Missing v12.4 cache-buster for {asset}"
 
     # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Universal Backdrop Frost moved to Theme Configuration Panel
     cockpit_section = index_html[index_html.index('id="focusCockpitModal"'):index_html.index('id="scenicRestoreBar"')]
@@ -4492,6 +4492,81 @@ def test_v12_3_universal_frost_gateway_realism_and_deepblue_tubes():
         "farEastX"
     ]:
         assert token in deepblue_js, f"Missing Deep Blue v12.3 feature: {token}"
+
+
+def test_v12_4_scenic_worlds_overhaul_theme_harmony_and_mobile():
+    """Verify v12.4 Gateway complex/HIF/offshore pad/radar/seaport/military liners, Deep Blue industrial zones/divers/fish schools/anchored flora, cool evening/morning CSS theme harmony, and mobile responsiveness."""
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    css = (root_dir / "frontend" / "css" / "pettr.css").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Cache-buster v12.4 across CSS & all world/app assets
+    assert '/static/css/pettr.css?v=12.4' in index_html
+    for asset in ["app.js?v=12.4", "wave_canvas.js?v=12.4", "world_gateway.js?v=12.4", "world_deepblue.js?v=12.4"]:
+        assert asset in index_html, f"Missing v12.4 cache-buster for {asset}"
+
+    # 2. Gateway v12.4 scenic realism, infrastructure, scale, military/liner craft & offshore F9 pad
+    for token in [
+        "ALL_SPACEPLANE_VARIANTS",
+        '"fighter"',
+        '"bomber"',
+        "satWest",
+        "satEast",
+        "_drawRadarCentre(",
+        "_drawIslandHighwayNetwork(",
+        "_drawAdjacentSeaport(",
+        "_drawOffshoreLaunchPlatform(",
+        "_drawHIFBase(",
+        "_drawHIFOcclusionRoof(",
+        "_drawStaticParkedAircraft(",
+        "this.groundVehicles",
+        "offshoreRocket",
+        "landing_burn",
+    ]:
+        assert token in gateway_js, f"Missing Gateway v12.4 token: {token}"
+
+    # 3. Deep Blue v12.4 modular zones, divers, fish schools, grounded flora & 7 cohesive subs
+    assert "_drawPylonLeg" not in deepblue_js
+    for token in [
+        "_drawHydropowerFarm(",
+        "_drawGreenhouseDome(",
+        "_drawSonarRelay(",
+        "_updateAndDrawDivers(",
+        "_cliffYAtX(",
+        "_seabedYAtX(",
+        "_drawAnchoredKelp(",
+        "this.fishSchools",
+        '"research_catamaran"',
+        '"heavy_freighter"',
+        '"industrial_tug"',
+    ]:
+        assert token in deepblue_js, f"Missing Deep Blue v12.4 token: {token}"
+
+    # 4. Deep Blue Morning & Evening cool-palette UI harmony (no amber/orange leak on panels or banner pills)
+    for selector in [
+        '[data-world="deep-blue"][data-theme="morning"] .status-pill',
+        '[data-world="deep-blue"][data-theme="morning"] .nav-tabs',
+        '[data-world="deep-blue"][data-theme="morning"] .horace-toggle-btn',
+        '[data-world="deep-blue"][data-theme="evening"] .card',
+        '[data-world="deep-blue"][data-theme="evening"] .status-pill',
+        '[data-world="deep-blue"][data-theme="evening"] .nav-tabs',
+        '[data-world="deep-blue"][data-theme="evening"] .horace-toggle-btn',
+        '[data-world="deep-blue"][data-theme="evening"] .quick-submit-btn',
+        '[data-world="deep-blue"][data-theme="evening"] .snapshot-locked-pill',
+    ]:
+        assert selector in css, f"Missing Deep Blue theme-harmony CSS selector: {selector}"
+
+    # 5. Mobile viewport & drawer bounds optimization
+    for mobile_token in [
+        "height: 100dvh;",
+        "max-height: calc(100dvh - 76px)",
+        ".cockpit-floating-pill {",
+        ".cockpit-glass-panel {",
+    ]:
+        assert mobile_token in css, f"Missing mobile optimization CSS rule: {mobile_token}"
+
 
 
 
