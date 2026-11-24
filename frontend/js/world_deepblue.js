@@ -541,14 +541,27 @@ const WorldDeepBlue = {
     const elevX = hubX - 92 * s;
     const elevDockY = hubY - 38 * s;
 
+    // Expanded Horizontal Station Outer Wings (Desktop panoramic campus expansion!)
+    const geoWestX = isNarrow ? farWestX : (hubX - 548 * s);
+    const geoWestY = hubY + 76 * s;
+    const outerEastX = isNarrow ? farEastX : (hubX + 556 * s);
+    const outerEastY = hubY + 78 * s;
+
+    // Large Mid-Background Listing Shipwreck anchored on raised canyon shelf above East wing skyline!
+    const wreck = {
+      x: w * (isNarrow ? 0.78 : 0.835),
+      y: seabedY - (isNarrow ? 122 : 162),
+      scale: isNarrow ? 0.56 : Math.min(1.06, Math.max(0.76, w / 1360))
+    };
+
     return {
       isNarrow, seabedY, hubX, hubY, s,
-      westWingX, westWingY, farWestX, farWestY,
-      eastWingX, eastWingY, farEastX, farEastY,
+      westWingX, westWingY, farWestX, farWestY, geoWestX, geoWestY,
+      eastWingX, eastWingY, farEastX, farEastY, outerEastX, outerEastY,
       airlockX, airlockY, sonarX, sonarY, hydroTurbines,
       leftAngle, leftArmLen, leftDockX, leftDockY,
       rightAngle, rightArmLen, rightDockX, rightDockY,
-      domeX, domeY, elevX, elevDockY
+      domeX, domeY, elevX, elevDockY, wreck
     };
   },
 
@@ -667,6 +680,9 @@ const WorldDeepBlue = {
     ctx.quadraticCurveTo((L.hydroTurbines[0].x + L.westWingX) * 0.5, L.seabedY - 6, L.westWingX - 42 * L.s, L.westWingY + 26 * L.s);
     ctx.stroke();
     ctx.restore();
+
+    // 4b. Large Mid-Background Hazy Canyon Shipwreck Resting on Raised Marine Ledge
+    this._drawBackgroundShipwreck(ctx, L, pal);
 
     // 5. Industrial Pre-Fab Modular Seabed Research Station + Hydropower Farm + Clear Tubes + Greenhouse
     this._drawResearchStation(ctx, L, pal);
@@ -1674,6 +1690,129 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
+  // Large Mid-Background Sunken Cargo/Expedition Shipwreck (grounded solidly on canyon terrace + hazy atmospheric depth)
+  _drawBackgroundShipwreck(ctx, L, pal) {
+    const wk = L.wreck;
+    if (!wk) return;
+    const wx = wk.x;
+    const wy = wk.y;
+    const sc = wk.scale;
+
+    ctx.save();
+    ctx.translate(wx, wy);
+    ctx.scale(sc, sc);
+
+    // Grounded mid-background rocky canyon shelf anchoring the wreck seamlessly into depth terrain
+    ctx.fillStyle = pal.reefFar;
+    ctx.globalAlpha = 0.68;
+    ctx.beginPath();
+    ctx.moveTo(-165, 165);
+    ctx.lineTo(-140, 12);
+    ctx.quadraticCurveTo(-55, -14, 15, -4);
+    ctx.quadraticCurveTo(85, -18, 138, 14);
+    ctx.lineTo(175, 165);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = pal.isDark ? 0.78 : 0.72;
+    ctx.translate(0, 6);
+    ctx.rotate(-0.14); // Subtle dramatic starboard list
+
+    // Cast wreck sediment shadow across reef ledge
+    ctx.fillStyle = pal.hullShadow;
+    ctx.beginPath();
+    ctx.ellipse(0, 12, 126, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tilted Cargo Derrick Masts + Hanging Rigging Cables
+    ctx.strokeStyle = pal.reefMid;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(-58, -14);
+    ctx.lineTo(-66, -74);
+    ctx.moveTo(-64, -58);
+    ctx.lineTo(-34, -44); // Front loading boom
+    ctx.moveTo(42, -16);
+    ctx.lineTo(54, -68);
+    ctx.stroke();
+
+    ctx.strokeStyle = pal.reefMid;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(-66, -72);
+    ctx.quadraticCurveTo(-48, -50, -34, -44);
+    ctx.moveTo(-65, -66);
+    ctx.quadraticCurveTo(0, -32, 54, -66);
+    ctx.stroke();
+
+    // Main Sunken Steel Vessel Hull split dramatically at midships breach with exposed steel frames!
+    const hullGrad = ctx.createLinearGradient(-118, -28, 118, 16);
+    hullGrad.addColorStop(0, pal.reefMid);
+    hullGrad.addColorStop(1, pal.reefNear);
+    ctx.fillStyle = hullGrad;
+    // Bow + Midships Forward Half
+    ctx.beginPath();
+    ctx.moveTo(-124, -18); // Swept raked prow
+    ctx.lineTo(-102, 12);
+    ctx.lineTo(-8, 14);
+    ctx.lineTo(4, -6);
+    ctx.lineTo(-14, -22);
+    ctx.lineTo(-92, -20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Stern Half (slightly offset list at midships fracture!)
+    ctx.beginPath();
+    ctx.moveTo(12, -16);
+    ctx.lineTo(8, 13);
+    ctx.lineTo(106, 10);
+    ctx.lineTo(118, -14);
+    ctx.lineTo(36, -20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Exposed structural hull ribs & torn deck plates in the midships breach (x: -10..+16)
+    ctx.strokeStyle = pal.hullShadow;
+    ctx.lineWidth = 2.2;
+    for (let r = -8; r <= 12; r += 5) {
+      ctx.beginPath();
+      ctx.moveTo(r, -20);
+      ctx.lineTo(r + 1.5, 11);
+      ctx.stroke();
+    }
+
+    // Hollowed Wheelhouse Bridge Superstructure + Leaning Smokestack Funnel + Hollow Windows
+    ctx.fillStyle = pal.reefMid;
+    ctx.fillRect(34, -44, 42, 26);
+    ctx.fillRect(40, -54, 24, 12);
+    ctx.fillStyle = pal.reefNear;
+    ctx.beginPath();
+    ctx.moveTo(58, -42);
+    ctx.lineTo(72, -62);
+    ctx.lineTo(82, -59);
+    ctx.lineTo(70, -40);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = pal.hullShadow;
+    for (let w = 0; w < 4; w++) {
+      ctx.fillRect(38 + w * 9, -40, 6, 4.5);
+      if (w < 3) ctx.fillRect(43 + w * 7, -51, 4.5, 3.8);
+    }
+
+    // Corals, sea fans & draped kelp colonizing the aged hull plates
+    [-86, -42, 24, 78].forEach((fx, idx) => {
+      this._drawCoralCluster(ctx, fx, idx % 2 === 0 ? -18 : 8, 9 + (idx % 2) * 3, pal.reefNear);
+    });
+
+    // Atmospheric water haze veil over entire wreck so foreground pods/subs clearly pop ahead of it
+    ctx.fillStyle = `rgba(${pal.waterHazeRgb}, 0.36)`;
+    ctx.beginPath();
+    ctx.ellipse(0, -14, 138, 62, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  },
+
   // Horizontal Armored Titanium Submarine Airlock Docking Sleeve (flared collar, guide fins, hydraulic clamps & airlock seal)
   _drawSubDockingPort(ctx, x, y, dir, pal, s) {
     ctx.save();
@@ -1736,11 +1875,47 @@ const WorldDeepBlue = {
     const hy = L.hubY;
     const seabedBaseY = L.seabedY + 20 * s;
 
-    // 0. Far-West Hydropower Tidal Turbine Farm & Far-East Depth-Hazed Outpost
+    // 0. Far-West Geothermal & Hydro-Tidal Power Farm + Far-East Marine Bio & Outer-East Diving Bell Facilities!
     this._drawHydropowerFarm(ctx, L, pal);
     if (!L.isNarrow) {
+      // Far-West Geothermal & Desalination Station connected cleanly to Hydro-Tidal Turbine Farm
+      this._drawClearGlassTube(ctx, L.geoWestX + 34 * s, L.geoWestY + 2 * s, L.farWestX - 24 * s, L.farWestY + 8 * s, 11.5 * s, s, pal, { depthAlpha: 0.76 });
+      this._drawSatelliteWing(ctx, L.geoWestX, L.geoWestY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.24 });
+      ctx.save();
+      ctx.fillStyle = pal.hullDark;
+      ctx.fillRect(L.geoWestX - 18 * s, L.geoWestY - 46 * s, 7 * s, 32 * s);
+      ctx.fillRect(L.geoWestX - 6 * s, L.geoWestY - 52 * s, 7 * s, 38 * s);
+      ctx.fillStyle = pal.subAccent;
+      ctx.fillRect(L.geoWestX - 18 * s, L.geoWestY - 42 * s, 7 * s, 3 * s);
+      ctx.fillRect(L.geoWestX - 6 * s, L.geoWestY - 48 * s, 7 * s, 3 * s);
+      ctx.restore();
+
+      // Far-East Marine Bio Pod + Outer-East Hyperbaric Diving Bell & Deep-Telemetry Annex
       this._drawClearGlassTube(ctx, L.eastWingX + 52 * s, L.eastWingY + 4 * s, L.farEastX - 28 * s, L.farEastY + 2 * s, 11.5 * s, s, pal, { depthAlpha: 0.78 });
-      this._drawSatelliteWing(ctx, L.farEastX, L.farEastY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.24 });
+      this._drawSatelliteWing(ctx, L.farEastX, L.farEastY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.22 });
+      this._drawClearGlassTube(ctx, L.farEastX + 32 * s, L.farEastY + 2 * s, L.outerEastX - 28 * s, L.outerEastY + 2 * s, 10.5 * s, s, pal, { depthAlpha: 0.72 });
+      this._drawSatelliteWing(ctx, L.outerEastX, L.outerEastY, seabedBaseY + 8 * s, pal, s, { kind: "habitat", haze: 0.24 });
+
+      // Hyperbaric Diving Bell A-Frame Gantry & Suspended Bell beside Outer-East Annex
+      ctx.save();
+      ctx.strokeStyle = pal.hullLight;
+      ctx.lineWidth = 2.0 * s;
+      ctx.beginPath();
+      ctx.moveTo(L.outerEastX + 24 * s, L.outerEastY - 4 * s);
+      ctx.lineTo(L.outerEastX + 34 * s, L.outerEastY - 36 * s);
+      ctx.lineTo(L.outerEastX + 44 * s, L.outerEastY - 4 * s);
+      ctx.stroke();
+      ctx.strokeStyle = pal.hullDark;
+      ctx.lineWidth = 1.2 * s;
+      ctx.beginPath();
+      ctx.moveTo(L.outerEastX + 34 * s, L.outerEastY - 36 * s);
+      ctx.lineTo(L.outerEastX + 34 * s, L.outerEastY - 12 * s);
+      ctx.stroke();
+      ctx.fillStyle = pal.rovBody;
+      ctx.beginPath();
+      ctx.roundRect(L.outerEastX + 28 * s, L.outerEastY - 13 * s, 12 * s, 14 * s, 4 * s);
+      ctx.fill();
+      ctx.restore();
     }
 
     // 1. Clear Acrylic Glass Walkway Tubes Linking Horizontal Wings & Hexagonal Hubs Across Canyon Floor
@@ -2026,26 +2201,33 @@ const WorldDeepBlue = {
       }
     }
 
-    // 5. To-Scale Human Maintenance Divers Entering & Exiting Station Airlocks!
+    // 5. To-Scale Human Maintenance & Shipwreck Research Divers Entering & Exiting Station Airlocks!
     if (this.divers.length === 0) {
+      const wkX = L.wreck ? L.wreck.x : w * 0.82;
+      const wkY = L.wreck ? L.wreck.y : h * 0.56;
+      const wkS = L.wreck ? L.wreck.scale : s;
       const dTargets = [
-        { tx: L.hubX - 148 * s, ty: L.hubY + 24 * s },
-        { tx: L.hydroTurbines[0].x + 14 * s, ty: L.hydroTurbines[0].y + 4 * s },
-        { tx: L.westWingX + 54 * s, ty: L.westWingY + 6 * s }
+        { tx: L.hubX - 148 * s, ty: L.hubY + 24 * s, isWreck: false },
+        { tx: L.hydroTurbines[0].x + 14 * s, ty: L.hydroTurbines[0].y + 4 * s, isWreck: false },
+        { tx: wkX - 16 * wkS, ty: wkY - 12 * wkS, isWreck: true },
+        { tx: wkX + 34 * wkS, ty: wkY - 24 * wkS, isWreck: true }
       ];
-      const count = isNarrow ? 2 : 3;
+      const count = isNarrow ? 2 : 4;
       for (let i = 0; i < count; i++) {
+        const tgt = isNarrow && i === 1 ? dTargets[2] : dTargets[i];
+        const isWreckDiv = tgt.isWreck;
         this.divers.push({
           id: `diver_${i + 1}`,
-          phase: i === 0 ? "swim_to_site" : (i === 1 ? "weld_inspect" : "inside_airlock"),
+          role: isWreckDiv ? "wreck_research" : "station_maint",
+          phase: i === 0 || isWreckDiv ? (i === 3 ? "weld_inspect" : "swim_to_site") : "inside_airlock",
           t: i === 0 ? 1.5 : 0,
-          dist: i === 0 ? 28 : 0,
-          phaseDuration: this._rand(5.0, 9.0),
-          targetPt: dTargets[i],
+          dist: isWreckDiv ? 120 : (i === 0 ? 28 : 0),
+          phaseDuration: this._rand(6.0, 11.0),
+          targetPt: tgt,
           path: null,
-          x: i === 1 ? dTargets[1].tx : L.airlockX,
-          y: i === 1 ? dTargets[1].ty : L.airlockY,
-          facingLeft: dTargets[i].tx < L.airlockX,
+          x: i === 3 ? tgt.tx : L.airlockX,
+          y: i === 3 ? tgt.ty : L.airlockY,
+          facingLeft: tgt.tx < L.airlockX,
           kickPhase: i * 1.7
         });
       }
@@ -2172,10 +2354,15 @@ const WorldDeepBlue = {
       ];
     }
 
-    // 10. 3 Maintenance ROVs
+    // 10. Maintenance & Shipwreck Research ROVs (including dedicated Shipwreck Survey ROV dispatched from Station!)
     if (this.rovs.length === 0) {
+      const wk = L.wreck || { x: w * 0.835, y: h * 0.56, scale: 0.9 };
+      const wkXNorm = wk.x / Math.max(1, w);
+      const wkYNorm = wk.y / Math.max(1, h);
       this.rovs = [
         {
+          id: "station_west_rov",
+          scale: 1.0,
           waypoints: [
             { x: 0.26, y: 0.72, beamAngle: 0.55 },
             { x: 0.35, y: 0.77, beamAngle: 0.35 },
@@ -2185,21 +2372,37 @@ const WorldDeepBlue = {
           wpIdx: 0, x: w * 0.28, y: h * 0.71, beamAngle: 0.55, pauseTimer: this._rand(2.2, 4.8), phase: 0
         },
         {
+          id: "wreck_rov",
+          scale: 0.84,
+          isWreckSurvey: true,
           waypoints: [
-            { x: 0.76, y: 0.42, beamAngle: 2.38 },
-            { x: 0.69, y: 0.36, beamAngle: 2.52 },
-            { x: 0.82, y: 0.47, beamAngle: 2.25 }
+            { x: wkXNorm - 0.045, y: wkYNorm - 0.045, beamAngle: 0.45 },
+            { x: wkXNorm, y: wkYNorm - 0.055, beamAngle: 0.95 },
+            { x: wkXNorm + 0.035, y: wkYNorm - 0.068, beamAngle: 2.25 },
+            { x: (L.eastWingX + 20) / Math.max(1, w), y: (L.eastWingY - 22) / Math.max(1, h), beamAngle: -0.25 }
           ],
-          wpIdx: 0, x: w * 0.77, y: h * 0.41, beamAngle: 2.40, pauseTimer: this._rand(2.2, 4.8), phase: 1.4
+          wpIdx: 1, x: wk.x - 24 * wk.scale, y: wk.y - 36 * wk.scale, beamAngle: 0.85, pauseTimer: this._rand(2.5, 5.0), phase: 1.4
         },
         {
+          id: "reef_south_rov",
+          scale: 1.0,
           waypoints: [
             { x: 0.74, y: 0.83, beamAngle: 2.72 },
             { x: 0.64, y: 0.85, beamAngle: 2.52 },
             { x: 0.79, y: 0.78, beamAngle: 2.90 }
           ],
           wpIdx: 0, x: w * 0.74, y: h * 0.83, beamAngle: 2.72, pauseTimer: this._rand(2.4, 5.2), phase: 2.7
-        }
+        },
+        ...(!isNarrow ? [{
+          id: "east_station_rov",
+          scale: 0.96,
+          waypoints: [
+            { x: 0.63, y: 0.48, beamAngle: 0.35 },
+            { x: 0.56, y: 0.52, beamAngle: -0.15 },
+            { x: 0.68, y: 0.54, beamAngle: 2.65 }
+          ],
+          wpIdx: 0, x: w * 0.63, y: h * 0.49, beamAngle: 0.35, pauseTimer: this._rand(2.0, 4.5), phase: 0.9
+        }] : [])
       ];
     }
 
@@ -2597,7 +2800,11 @@ const WorldDeepBlue = {
       { x: L.hubX - 62 * s, y: L.hubY - 22 * s, rBase: 7.5 },
       { x: L.hubX + 62 * s, y: L.hubY - 20 * s, rBase: 7.5 },
       { x: L.elevX, y: L.elevDockY - 38 * s, rBase: 7.5 },
-      { x: L.hydroTurbines[0].x, y: L.hydroTurbines[0].y - 38 * s, rBase: 7.5 }
+      { x: L.hydroTurbines[0].x, y: L.hydroTurbines[0].y - 38 * s, rBase: 7.5 },
+      ...(!L.isNarrow ? [
+        { x: L.geoWestX - 3 * s, y: L.geoWestY - 54 * s, rBase: 7.0 },
+        { x: L.outerEastX + 34 * s, y: L.outerEastY - 38 * s, rBase: 7.0 }
+      ] : [])
     ];
     strobePts.forEach(pt => {
       const fl = syncStrobe;
@@ -2697,15 +2904,17 @@ const WorldDeepBlue = {
       } else if (d.phase === "swim_to_site") {
         visible = true;
         if (!d.path) {
+          const arcLift = d.role === "wreck_research" ? -56 * s : 18 * s;
           d.path = this._buildArcPath([{
             type: "cubic",
             p0: exitPt,
-            p1: { x: exitPt.x, y: exitPt.y + 18 * s },
-            p2: { x: d.targetPt.x + 15 * s, y: d.targetPt.y - 6 * s },
+            p1: { x: this._lerp(exitPt.x, d.targetPt.x, 0.3), y: exitPt.y + arcLift },
+            p2: { x: this._lerp(exitPt.x, d.targetPt.x, 0.75), y: d.targetPt.y - 26 * s },
             p3: d.targetPt
-          }], 18);
+          }], d.role === "wreck_research" ? 32 : 18);
         }
-        d.dist += 11.0 * dt;
+        const swimSpd = d.role === "wreck_research" ? 24.0 : 11.0;
+        d.dist += swimSpd * dt;
         const pt = this._sampleArcPath(d.path, d.dist);
         d.x = pt.x;
         d.y = pt.y + Math.sin(d.kickPhase * 0.5) * 1.2 * s;
@@ -2720,22 +2929,26 @@ const WorldDeepBlue = {
         welding = true;
         d.x = d.targetPt.x + Math.sin(step * 1.2 + i) * 2.5 * s;
         d.y = d.targetPt.y + Math.cos(step * 1.5 + i) * 2.0 * s;
-        d.facingLeft = d.targetPt.x > L.hubX;
+        d.facingLeft = d.role === "wreck_research"
+          ? d.x > (L.wreck ? L.wreck.x : d.targetPt.x)
+          : d.targetPt.x > L.hubX;
         if (d.t >= d.phaseDuration) {
+          const retLift = d.role === "wreck_research" ? -54 * s : 16 * s;
           d.path = this._buildArcPath([{
             type: "cubic",
             p0: { x: d.x, y: d.y },
-            p1: { x: d.x, y: d.y + 14 * s },
-            p2: { x: exitPt.x, y: exitPt.y + 16 * s },
+            p1: { x: this._lerp(d.x, exitPt.x, 0.35), y: d.y - 24 * s },
+            p2: { x: this._lerp(d.x, exitPt.x, 0.72), y: exitPt.y + retLift },
             p3: exitPt
-          }], 18);
+          }], d.role === "wreck_research" ? 32 : 18);
           d.phase = "swim_back";
           d.dist = 0;
           d.t = 0;
         }
       } else if (d.phase === "swim_back") {
         visible = true;
-        d.dist += 10.5 * dt;
+        const retSpd = d.role === "wreck_research" ? 23.0 : 10.5;
+        d.dist += retSpd * dt;
         const pt = this._sampleArcPath(d.path, d.dist);
         d.x = pt.x;
         d.y = pt.y + Math.sin(d.kickPhase * 0.5) * 1.2 * s;
@@ -4027,8 +4240,10 @@ const WorldDeepBlue = {
       }
 
       const hoverY = rov.y + Math.sin(rov.phase * 1.3) * 2.2;
+      const rovScale = rov.scale || 1.0;
       ctx.save();
       ctx.translate(rov.x, hoverY);
+      ctx.scale(rovScale, rovScale);
 
       ctx.save();
       ctx.rotate(rov.beamAngle);

@@ -32,6 +32,7 @@ const WorldGateway = {
   ships: [],
   boats: [],
   helicopters: [],
+  heavyHeli: null,
   groundVehicles: [],
   spVariantIdx: 0,
   fogState: { active: false, alpha: 0, targetAlpha: 0, nextCheck: 0, offset: 0 },
@@ -137,6 +138,7 @@ const WorldGateway = {
     this.ships = [];
     this.boats = [];
     this.helicopters = [];
+    this.heavyHeli = null;
     this.groundVehicles = [];
     this.stars = [];
     this.clouds = [];
@@ -399,30 +401,13 @@ const WorldGateway = {
     const hangarDoorX = hangarX - hangarW * 0.22;
     const hangarDoorY = hangarY + hangarH * 0.44;
 
-    // 5. Expanded Deep-Space Ground Station & Larger Synchronized Dish Row + Prominent Control Tower (East Bluff)
-    const radarX = w * (isNarrow ? 0.805 : 0.888);
-    const radarY = hangarY + (isNarrow ? 50 : 54);
-    const radomeX = radarX - (isNarrow ? 12 : 42);
-    const radomeY = radarY + (isNarrow ? 24 : 38);
-    const radarDishes = isNarrow
-      ? [
-          { x: radarX - 28, y: radarY - 12, r: 10.2 },
-          { x: radarX, y: radarY - 9, r: 10.8 },
-          { x: radarX + 28, y: radarY - 6, r: 10.2 }
-        ]
-      : [
-          { x: radarX - 72, y: radarY - 22, r: 14.5 },
-          { x: radarX - 36, y: radarY - 18, r: 15.2 },
-          { x: radarX, y: radarY - 14, r: 16.0 },
-          { x: radarX + 36, y: radarY - 10, r: 15.2 },
-          { x: radarX + 72, y: radarY - 6, r: 14.5 }
-        ];
-    const atcX = w * (isNarrow ? 0.938 : 0.960);
-    const atcY = radarY + (isNarrow ? 34 : 46);
+    // 5. Relocated & Expanded Deep-Space Ground Station between Hangar & Runway + Clear East Helipad & ATC Tower
+    const atcX = w * (isNarrow ? 0.942 : 0.962);
+    const atcY = hangarY + (isNarrow ? 68 : 94);
 
-    // 6. Dedicated Helipads on Open Aprons
-    const heliPad1 = { x: w * 0.855, y: hangarY + hangarH * 0.98 + 18 };
-    const heliPad2 = { x: w * 0.26, y: islandTopY + spanY * 0.74 };
+    // 6. Dedicated Helipads (heliPad1 cleanly East near Hangar/ATC road; heliPad2 cleanly on South-West apron)
+    const heliPad1 = { x: w * (isNarrow ? 0.895 : 0.916), y: hangarY + (isNarrow ? 18 : 24) };
+    const heliPad2 = { x: w * 0.255, y: islandTopY + spanY * 0.73 };
 
     // 7. Sweeping Diagonal Main Runway across Peninsula (with exact geometric query helpers!)
     const rwLeftX = w * 0.025;
@@ -445,6 +430,26 @@ const WorldGateway = {
       const t = this._clamp((x - rwLeftX) / Math.max(1, rwRightX - rwLeftX), 0, 1);
       return rwLeftHalf + (rwRightHalf - rwLeftHalf) * t;
     };
+
+    // Place Expanded Ground Station squarely in the large clear apron bay between Hangar and Runway!
+    const radarX = w * (isNarrow ? 0.775 : 0.812);
+    const maxRadarY = rwYAtX(radarX) - rwHalfAtX(radarX) - (isNarrow ? 34 : 58);
+    const radarY = Math.min(hangarY + hangarH + (isNarrow ? 48 : 82), maxRadarY);
+    const radomeX = radarX - (isNarrow ? 12 : 36);
+    const radomeY = radarY + (isNarrow ? 22 : 34);
+    const radarDishes = isNarrow
+      ? [
+          { x: radarX - 30, y: radarY - 12, r: 10.5 },
+          { x: radarX, y: radarY - 9, r: 11.4 },
+          { x: radarX + 30, y: radarY - 6, r: 10.5 }
+        ]
+      : [
+          { x: radarX - 76, y: radarY - 22, r: 15.5 },
+          { x: radarX - 38, y: radarY - 18, r: 16.5 },
+          { x: radarX, y: radarY - 14, r: 17.5 },
+          { x: radarX + 38, y: radarY - 10, r: 16.5 },
+          { x: radarX + 76, y: radarY - 6, r: 15.5 }
+        ];
 
     const rwExitT = 0.67;
     const rwEntryT = 0.20;
@@ -774,11 +779,14 @@ const WorldGateway = {
       }
     });
 
-    // East apron ops & fuel complex strictly separated between Hangar and Radar Compound
-    const eastCampusY = Math.min(L.hangarY + L.hangarH * 0.92, L.rwYAtX(L.hangarX + L.hangarW * 0.62) - L.rwHalfAtX(L.hangarX + L.hangarW * 0.62) - 28);
+    // East apron hangar ops & dedicated Heliport 1 & Heliport 2 support buildings (spaced cleanly from Ground Station!)
     this._draw25DBuilding(fgCtx, L.hangarX - L.hangarW * 0.56, L.hangarY + L.hangarH * 0.24, L.isNarrow ? 24 : 36, 14, pal, { style: "ops", floors: 2, perspSlope: 0.025 });
+    // Heliport 1 East Support Facility (flight ops & fuel depot beside heliPad1)
+    this._draw25DBuilding(fgCtx, L.heliPad1.x + (L.isNarrow ? 16 : 24), L.heliPad1.y - 6, L.isNarrow ? 22 : 34, L.isNarrow ? 10 : 13, pal, { style: "hangar_small", floors: 1, perspSlope: 0.02 });
+    // Heliport 2 Southwest Support Facility (SAR / Medevac hangar & crew ops beside heliPad2)
+    this._draw25DBuilding(fgCtx, L.heliPad2.x - (L.isNarrow ? 34 : 52), L.heliPad2.y + 4, L.isNarrow ? 24 : 36, L.isNarrow ? 11 : 14, pal, { style: "hangar_small", floors: 1, perspSlope: 0.04 });
     if (!L.isNarrow) {
-      this._draw25DBuilding(fgCtx, L.hangarX - 24, eastCampusY + 34, 38, 14, pal, { style: "hangar_small", floors: 1, perspSlope: 0.03 });
+      this._draw25DBuilding(fgCtx, L.heliPad2.x + 26, L.heliPad2.y + 8, 28, 11, pal, { style: "ops", floors: 2, perspSlope: 0.05 });
       this._drawCryoTankFarm(fgCtx, L.atcX - 42, L.atcY + 42, pal, { compact: true });
     }
 
@@ -1063,44 +1071,80 @@ const WorldGateway = {
 
   _drawIslandHighwayNetwork(ctx, w, h, L, pal) {
     ctx.save();
-    // 1. Coastal Interchange arriving from foreground bridge onto island south bank (x = 0.65w, y = L.islandBotY + 14)
-    const entryX = w * 0.65;
-    const entryY = L.islandBotY + 14;
+    // 1. Wide Paved Coastal Shoreline Interchange seamlessly receiving the curved off-island Bridge!
+    const entryX = w * 0.642;
+    const entryY = L.islandBotY + 10;
     const portEndX = w * 0.118;
     const portEndY = L.islandBotY - 46;
 
-    // Waterfront Port Boulevard leading cleanly from bridge westwards into Adjacent Seaport Wharf!
+    // Grounded concrete interchange deck flare & landscaped triangular Y-gore median
+    ctx.fillStyle = pal.quayFill;
+    ctx.beginPath();
+    ctx.moveTo(entryX - 26, entryY + 4);
+    ctx.lineTo(entryX + 24, entryY + 6);
+    ctx.lineTo(entryX - 18, entryY - 34);
+    ctx.lineTo(entryX - 52, entryY - 22);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sweeping Waterfront Port Boulevard diverging cleanly West from Shoreline Interchange!
     ctx.strokeStyle = pal.runwayFill;
     ctx.lineWidth = L.isNarrow ? 6.5 : 8.5;
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(entryX, entryY);
-    ctx.quadraticCurveTo(w * 0.44, L.islandBotY + 4, portEndX, portEndY);
+    ctx.quadraticCurveTo(w * 0.45, L.islandBotY + 3, portEndX, portEndY);
     ctx.stroke();
-
-    ctx.strokeStyle = "rgba(255, 250, 235, 0.36)";
+    ctx.strokeStyle = "rgba(255, 250, 235, 0.38)";
     ctx.lineWidth = 0.9;
     ctx.setLineDash([5, 6]);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 2. Airport Parkway rising from interchange into Runway Underpass Tunnel Portal -> Star Terminal Arrival Plaza!
-    const southPortalY = L.underpassY + L.underpassHalf + 7;
-    const northPortalY = L.underpassY - L.underpassHalf - 6;
+    // Eastbound coastal operations connector road from Interchange toward Southeast Support Row!
+    ctx.strokeStyle = pal.runwayFill;
+    ctx.lineWidth = L.isNarrow ? 4.5 : 6.0;
+    ctx.beginPath();
+    ctx.moveTo(entryX + 4, entryY);
+    ctx.quadraticCurveTo(w * 0.74, L.islandBotY + 18, w * 0.86, L.islandBotY + 26);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 250, 235, 0.30)";
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-    // South approach segment into runway underpass
+    // Green Landscaped Triangular Y-Median Island & White Painted Chevron Gore Lines
+    ctx.fillStyle = pal.foliage;
+    ctx.beginPath();
+    ctx.moveTo(entryX - 8, entryY - 5);
+    ctx.lineTo(entryX - 30, entryY - 12);
+    ctx.lineTo(entryX - 19, entryY - 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.42)";
+    ctx.lineWidth = 1.0;
+    ctx.stroke();
+
+    // 2. Airport Parkway Rising into Sunken Open-Cut Concrete Runway Underpass Trench!
+    const southLipY = L.underpassY + L.underpassHalf + 26;
+    const southMouthY = L.underpassY + L.underpassHalf + 3;
+    const northCurbY = L.underpassY - L.underpassHalf - 2;
+    const northLipY = L.underpassY - L.underpassHalf - 25;
+
+    // South approach highway leading smoothly from interchange to sunken cut-trench lip
     ctx.strokeStyle = pal.runwayFill;
     ctx.lineWidth = L.isNarrow ? 7 : 9;
     ctx.beginPath();
     ctx.moveTo(entryX, entryY);
-    ctx.quadraticCurveTo(L.underpassX + 12, southPortalY + 26, L.underpassX, southPortalY);
+    ctx.quadraticCurveTo(L.underpassX + 12, southLipY + 18, L.underpassX + 1, southLipY);
     ctx.stroke();
 
-    // North emergence segment curving purposefully straight into Star Terminal Arrival Forecourt Loop!
+    // North emergence highway climbing cleanly out of north cut-trench into Star Terminal Plaza
     ctx.beginPath();
-    ctx.moveTo(L.underpassX - 4, northPortalY);
+    ctx.moveTo(L.underpassX - 4, northLipY);
     ctx.bezierCurveTo(
-      L.underpassX - 18, northPortalY - 28,
+      L.underpassX - 16, northLipY - 22,
       L.plazaX + 58 * L.termScale, L.plazaY + 24 * L.termScale,
       L.plazaX, L.plazaY
     );
@@ -1119,16 +1163,78 @@ const WorldGateway = {
     ctx.ellipse(L.plazaX, L.plazaY - 2, 26 * L.termScale, 7.5 * L.termScale, 0, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Concrete Tunnel Portals on both sides of the runway underpass
-    [
-      { x: L.underpassX, y: southPortalY },
-      { x: L.underpassX - 4, y: northPortalY }
-    ].forEach((pt, idx) => {
-      ctx.fillStyle = pal.archMid;
-      ctx.fillRect(pt.x - 10, pt.y - 4, 20, 7);
-      ctx.fillStyle = "#0F172A";
-      ctx.fillRect(pt.x - 6, pt.y - (idx === 0 ? 3 : 1), 12, 4.5);
-    });
+    // 3. Perspective-Accurate Sunken Open-Cut Tunnel Ramps & Runway-Parallel Concrete Parapets!
+    const sinRw = Math.sin(L.rwAng);
+    const cosRw = Math.cos(L.rwAng);
+    const rwDy12 = (sinRw / Math.max(0.2, cosRw)) * 12;
+
+    // South Portal (viewed from South): descending darkened asphalt trench + tapered concrete retaining walls + recessed culvert mouth
+    ctx.fillStyle = "#1E293B";
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 4, southLipY);
+    ctx.lineTo(L.underpassX + 6, southLipY);
+    ctx.lineTo(L.underpassX + 5, southMouthY);
+    ctx.lineTo(L.underpassX - 5, southMouthY - rwDy12 * 0.6);
+    ctx.closePath();
+    ctx.fill();
+
+    // Side concrete retaining walls descending smoothly beneath south runway embankment
+    ctx.fillStyle = pal.archMid;
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 8, southLipY);
+    ctx.lineTo(L.underpassX - 4, southLipY);
+    ctx.lineTo(L.underpassX - 5, southMouthY - rwDy12 * 0.6);
+    ctx.lineTo(L.underpassX - 11, southMouthY - 3 - rwDy12 * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX + 6, southLipY);
+    ctx.lineTo(L.underpassX + 10, southLipY);
+    ctx.lineTo(L.underpassX + 11, southMouthY - 2 + rwDy12 * 0.4);
+    ctx.lineTo(L.underpassX + 5, southMouthY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sloped South Culvert Concrete Header Beam aligned strictly along L.rwAng + recessed box shadow + tunnel lights
+    ctx.fillStyle = pal.archLight;
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 12, southMouthY - 5 - rwDy12 * 0.9);
+    ctx.lineTo(L.underpassX + 12, southMouthY - 5 + rwDy12 * 0.9);
+    ctx.lineTo(L.underpassX + 12, southMouthY - 1 + rwDy12 * 0.9);
+    ctx.lineTo(L.underpassX - 12, southMouthY - 1 - rwDy12 * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#090D16";
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 5.5, southMouthY - 1 - rwDy12 * 0.4);
+    ctx.lineTo(L.underpassX + 5.5, southMouthY - 1 + rwDy12 * 0.4);
+    ctx.lineTo(L.underpassX + 5.0, southMouthY + 3 + rwDy12 * 0.4);
+    ctx.lineTo(L.underpassX - 5.0, southMouthY + 3 - rwDy12 * 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    // North Portal (viewed from South/above): highway rises up from behind runway embankment without showing any impossible south-facing black mouth!
+    ctx.fillStyle = pal.archLight;
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 15, northCurbY - 3 - rwDy12 * 0.9);
+    ctx.lineTo(L.underpassX + 7, northCurbY - 3 + rwDy12 * 0.9);
+    ctx.lineTo(L.underpassX + 7, northCurbY + rwDy12 * 0.9);
+    ctx.lineTo(L.underpassX - 15, northCurbY - rwDy12 * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = pal.runwayFill;
+    ctx.beginPath();
+    ctx.moveTo(L.underpassX - 9, northCurbY - 1);
+    ctx.lineTo(L.underpassX + 1, northCurbY - 1);
+    ctx.lineTo(L.underpassX + 1, northLipY);
+    ctx.lineTo(L.underpassX - 9, northLipY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = pal.archMid;
+    ctx.fillRect(L.underpassX - 12, northLipY, 3, northCurbY - northLipY);
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(L.underpassX + 1, northLipY, 3, northCurbY - northLipY);
     ctx.restore();
   },
 
@@ -1201,20 +1307,29 @@ const WorldGateway = {
     const sd = pal.sunDir || 1.1;
 
     ctx.save();
-    // Heavy grounded concrete pad apron & contact shadow directly along VAB footprint
+    // Rear Low-Bay Integration Annex placed cleanly NORTH of VAB shoulder so its base is strictly HIGHER than VAB!
+    this._draw25DBuilding(ctx, x + bw * 0.56, y - 10, bw * 0.58, bh * 0.34, pal, { style: "ops", floors: 2, perspSlope: 0.02 });
+
+    // Unified heavy concrete foundation plinth & grounded contact shadow directly under VAB footprint
     ctx.fillStyle = pal.archDark;
-    ctx.fillRect(x - 4, y - 1, bw + 8, 5);
-    ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.moveTo(x + frontW, y);
-    ctx.lineTo(x + frontW + bh * 0.42 * sd + depthX * 0.65, y + 6);
-    ctx.lineTo(x + bw + bh * 0.42 * sd, y + 3);
-    ctx.lineTo(x - 2, y + 3);
+    ctx.moveTo(x - 3, y - 1);
+    ctx.lineTo(x + frontW, y + 2);
+    ctx.lineTo(x + bw + 3, y - 1);
+    ctx.lineTo(x + bw + 3, y + 4);
+    ctx.lineTo(x + frontW, y + 6);
+    ctx.lineTo(x - 3, y + 4);
     ctx.closePath();
     ctx.fill();
 
-    // Lower East Integration Low-Bay Annex tucked cleanly behind east shoulder (base strictly higher than VAB front)
-    this._draw25DBuilding(ctx, x + bw * 0.80, y - 2, bw * 0.56, bh * 0.36, pal, { style: "ops", floors: 2, perspSlope: 0.025 });
+    ctx.fillStyle = pal.shadowColor;
+    ctx.beginPath();
+    ctx.moveTo(x + frontW, y + 2);
+    ctx.lineTo(x + frontW + bh * 0.40 * sd + depthX * 0.65, y + 6);
+    ctx.lineTo(x + bw + bh * 0.40 * sd, y + 3);
+    ctx.lineTo(x - 2, y + 4);
+    ctx.closePath();
+    ctx.fill();
 
     // Primary High-Bay Core Front Wall
     const fg = ctx.createLinearGradient(x, y - bh, x + frontW, y);
@@ -1229,12 +1344,12 @@ const WorldGateway = {
     ctx.closePath();
     ctx.fill();
 
-    // Shaded Side Cladding Flank
+    // Shaded Side Cladding Flank (anchored directly down to grounded plinth y)
     ctx.fillStyle = pal.archDark;
     ctx.beginPath();
     ctx.moveTo(x + frontW, y + 2 - bh);
-    ctx.lineTo(x + bw, y - 3 - bh);
-    ctx.lineTo(x + bw, y - 3);
+    ctx.lineTo(x + bw, y - 1 - bh);
+    ctx.lineTo(x + bw, y - 1);
     ctx.lineTo(x + frontW, y + 2);
     ctx.closePath();
     ctx.fill();
@@ -1243,8 +1358,8 @@ const WorldGateway = {
     ctx.fillStyle = pal.archMid;
     ctx.beginPath();
     ctx.moveTo(x, y - bh);
-    ctx.lineTo(x + depthX * 0.85, y - bh - 5);
-    ctx.lineTo(x + bw, y - 3 - bh);
+    ctx.lineTo(x + depthX * 0.85, y - bh - 4);
+    ctx.lineTo(x + bw, y - 1 - bh);
     ctx.lineTo(x + frontW, y + 2 - bh);
     ctx.closePath();
     ctx.fill();
@@ -1321,9 +1436,9 @@ const WorldGateway = {
     ctx.ellipse(L.hangarX - L.hangarW * 0.08, L.hangarY + L.hangarH * 0.85, L.hangarW * 0.72, 24, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Soft elliptical assembly concrete hardstands beneath VAB & HIF (zero floating box outline!)
+    // Centered assembly concrete hardstands beneath VAB & HIF (aligned squarely under VAB width!)
     ctx.beginPath();
-    ctx.ellipse(L.vabX, L.vabY + 4, L.vabW * 0.88, 15, 0, 0, Math.PI * 2);
+    ctx.ellipse(L.vabX + L.vabW * 0.52, L.vabY + 2, L.vabW * 0.92, 13, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.ellipse(L.hifX, L.hifY + 7, L.hifW * 0.66, 14, 0, 0, Math.PI * 2);
@@ -1354,7 +1469,7 @@ const WorldGateway = {
       ctx.stroke();
     }
 
-    // 4. White Dashed Apron Service Roadway + Extended Branch to ATC Control Tower & Mega-Liner Heavy Haul Road!
+    // 4. White Dashed Apron Service Roadway -> Hangar -> Heliport 1 -> ATC Control Tower + Ground Station Spur + Heliport 2 Connector!
     ctx.globalAlpha = 0.56;
     ctx.strokeStyle = pal.runwayFill;
     ctx.lineWidth = L.isNarrow ? 3.5 : 4.5;
@@ -1363,8 +1478,16 @@ const WorldGateway = {
     ctx.lineTo(w * 0.44, L.vabY + 8);
     ctx.lineTo(L.hifX + 20, L.hifY + 12);
     ctx.lineTo(L.hangarX - 24, L.hangarY + L.hangarH * 0.78);
-    ctx.lineTo(L.radarX - 42, L.radarY + 26);
+    ctx.lineTo(L.heliPad1.x - 14, L.heliPad1.y + 8);
     ctx.lineTo(L.atcX - 10, L.atcY + 12);
+    // Branch spur connecting East Hangar corridor cleanly into the relocated Ground Station Compound!
+    ctx.moveTo(L.hangarX - 18, L.hangarY + L.hangarH * 0.76);
+    ctx.lineTo(L.radarX - 42, L.radarY + 28);
+    // Branch access road connecting South-West Heliport 2 to the Waterfront Port Boulevard & South Ops corridor!
+    ctx.moveTo(L.heliPad2.x + 12, L.heliPad2.y + 4);
+    ctx.quadraticCurveTo(w * 0.30, L.islandBotY - 18, w * 0.38, L.islandBotY - 2);
+    ctx.moveTo(L.heliPad2.x, L.heliPad2.y + 4);
+    ctx.lineTo(w * 0.24, L.islandBotY - 24);
     ctx.stroke();
 
     ctx.strokeStyle = "rgba(255, 255, 255, 0.38)";
@@ -1373,23 +1496,27 @@ const WorldGateway = {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // ATC Control Tower Paved Arrival Turnaround Pad
+    // ATC Control Tower Paved Arrival Turnaround Pad + Heliport 1 & Heliport 2 Paved Ramp Pads
     ctx.fillStyle = pal.runwayFill;
     ctx.globalAlpha = 0.62;
     ctx.beginPath();
     ctx.ellipse(L.atcX - 6, L.atcY + 12, 16, 6.5, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(L.heliPad1.x + 10, L.heliPad1.y + 2, 34, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(L.heliPad2.x - 10, L.heliPad2.y + 4, 42, 15, 0.05, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Dedicated Super-Heavy Mega-Liner Gate Stand & Wide Heavy-Haul Taxi Road to Main Launch Pad!
+    // Dedicated Super-Heavy Mega-Liner Gate Stand (foreshortened perspective markings!) & Heavy-Haul Taxi Road to Main Pad!
     if (L.megaGate) {
       ctx.globalAlpha = 0.72;
       ctx.fillStyle = pal.apronFill;
       ctx.beginPath();
-      ctx.ellipse(L.megaGate.x, L.megaGate.y + 4, 42 * L.termScale, 16 * L.termScale, 0, 0, Math.PI * 2);
+      ctx.ellipse(L.megaGate.x, L.megaGate.y + 4, 42 * L.termScale, 15 * L.termScale, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "rgba(250, 204, 21, 0.65)";
-      ctx.lineWidth = 1.1;
-      ctx.strokeRect(L.megaGate.x - 22 * L.termScale, L.megaGate.y - 8 * L.termScale, 44 * L.termScale, 24 * L.termScale);
+      this._drawPerspectiveGateBay(ctx, L.megaGate.x, L.megaGate.y + 2, L.megaGate.heading, 24 * L.termScale, 15 * L.termScale, pal, true);
 
       // Dedicated Heavy Taxi Roadway curving smoothly from Mega-Liner Gate -> Western Apron -> Launch Pad!
       ctx.globalAlpha = 0.56;
@@ -1410,16 +1537,13 @@ const WorldGateway = {
       ctx.setLineDash([]);
     }
 
-    // 5. Apron Ground Support Equipment Clusters (fuel tankers, stairs & baggage carts at gates)
+    // 5. Apron Ground Support Equipment Clusters & Foreshortened 2.5D Perspective Gate Stand Markings!
     ctx.globalAlpha = 0.88;
     L.gates.forEach((g, idx) => {
       if (L.isNarrow && idx >= 2) return;
       const ox = g.x + (idx % 2 === 0 ? -15 : 14);
       const oy = g.y - 5;
-      // Red/white jet-blast hazard boundary box
-      ctx.strokeStyle = "rgba(239, 68, 68, 0.42)";
-      ctx.lineWidth = 0.75;
-      ctx.strokeRect(g.x - 10, g.y - 6, 20, 14);
+      this._drawPerspectiveGateBay(ctx, g.x, g.y + 1, g.heading, 13 * L.termScale, 9 * L.termScale, pal, false);
       // Tiny parked ground cart + loader beside gate
       ctx.fillStyle = pal.archLight;
       ctx.fillRect(ox - 3, oy - 1.5, 5.5, 2.6);
@@ -1607,6 +1731,46 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // Project gate stand safety boundary, lead-in line & nosewheel stop bar strictly into 2.5D tarmac plane!
+  _drawPerspectiveGateBay(ctx, x, y, heading, halfLen, halfW, pal, isMega = false) {
+    const ch = Math.cos(heading);
+    const sh = Math.sin(heading);
+    const perspY = 0.44;
+    const pt = (lx, ly) => ({
+      x: x + (lx * ch - ly * sh),
+      y: y + (lx * sh + ly * ch) * perspY
+    });
+    const corners = [
+      pt(-halfLen, -halfW),
+      pt(halfLen, -halfW),
+      pt(halfLen, halfW),
+      pt(-halfLen, halfW)
+    ];
+
+    ctx.save();
+    ctx.strokeStyle = isMega ? "rgba(250, 204, 21, 0.62)" : "rgba(239, 68, 68, 0.44)";
+    ctx.lineWidth = isMega ? 1.15 : 0.85;
+    ctx.beginPath();
+    corners.forEach((c, idx) => (idx === 0 ? ctx.moveTo(c.x, c.y) : ctx.lineTo(c.x, c.y)));
+    ctx.closePath();
+    ctx.stroke();
+
+    // Foreshortened yellow nosewheel lead-in centerline & perpendicular stop bar
+    const cTail = pt(-halfLen * 0.92, 0);
+    const cNose = pt(halfLen * 0.65, 0);
+    const sL = pt(halfLen * 0.52, -halfW * 0.46);
+    const sR = pt(halfLen * 0.52, halfW * 0.46);
+    ctx.strokeStyle = "rgba(251, 191, 36, 0.54)";
+    ctx.lineWidth = isMega ? 1.2 : 0.95;
+    ctx.beginPath();
+    ctx.moveTo(cTail.x, cTail.y);
+    ctx.lineTo(cNose.x, cNose.y);
+    ctx.moveTo(sL.x, sL.y);
+    ctx.lineTo(sR.x, sR.y);
+    ctx.stroke();
+    ctx.restore();
+  },
+
   _drawHelipad(ctx, pad, pal) {
     ctx.save();
     ctx.translate(pad.x, pad.y);
@@ -1630,6 +1794,22 @@ const WorldGateway = {
     ctx.moveTo(-4, 0);
     ctx.lineTo(4, 0);
     ctx.stroke();
+
+    // Illuminated pad windsock mast beside apron boundary
+    ctx.strokeStyle = pal.towerSteel;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(18, 2);
+    ctx.lineTo(18, -8);
+    ctx.stroke();
+    ctx.fillStyle = "#F97316";
+    ctx.beginPath();
+    ctx.moveTo(18, -8);
+    ctx.lineTo(24.5, -6.8);
+    ctx.lineTo(24.5, -5.2);
+    ctx.lineTo(18, -5.8);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   },
 
@@ -1736,21 +1916,7 @@ const WorldGateway = {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Painted gate lead-in parking bays at terminal stands
-    L.gates.forEach(g => {
-      if (L.isNarrow && g.id === "G_SC") return;
-      ctx.save();
-      ctx.translate(g.x, g.y);
-      ctx.strokeStyle = "rgba(251, 191, 36, 0.36)";
-      ctx.lineWidth = 0.9;
-      ctx.beginPath();
-      ctx.moveTo(-6, 0);
-      ctx.lineTo(6, 0);
-      ctx.moveTo(0, -3);
-      ctx.lineTo(0, 12);
-      ctx.stroke();
-      ctx.restore();
-    });
+    // Foreshortened gate lead-in markings rendered cleanly via _drawPerspectiveGateBay in _drawTarmacDetails!
     ctx.restore();
 
     this._drawHelipad(ctx, L.heliPad1, pal);
@@ -2211,7 +2377,7 @@ const WorldGateway = {
     ctx.restore();
   },
 
-  _drawArchedHangarOcclusionRoof(ctx, L, pal) {
+  _drawArchedHangarOcclusionRoof(ctx, L, pal, doorOpenFrac = 0) {
     const x = L.hangarX - L.hangarW * 0.5;
     const y = L.hangarY;
     const hw = L.hangarW;
@@ -2252,28 +2418,70 @@ const WorldGateway = {
       ctx.lineTo(rx + 6, y + hh * 0.52);
       ctx.stroke();
     }
+
+    // Automated Bi-Parting Capsule Recovery Roof Hatch Bay on Arched Hangar Crown!
+    const hx = L.hangarX + hw * 0.04;
+    const hy = y - hh * 0.40;
+    const bayW = Math.min(34, hw * 0.22);
+    const bayH = 8.5;
+    // Fixed armored hatch coaming frame
+    ctx.fillStyle = pal.archDark;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy, bayW * 0.62, bayH * 0.68, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Recessed illuminated vertical recovery bay interior visible when sliding leaves part!
+    if (doorOpenFrac > 0.02) {
+      ctx.fillStyle = "#080D18";
+      ctx.beginPath();
+      ctx.ellipse(hx, hy, bayW * 0.50 * Math.min(1, doorOpenFrac * 1.15), bayH * 0.50, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const hg = ctx.createRadialGradient(hx, hy, 1, hx, hy, bayW * 0.52);
+      hg.addColorStop(0, `rgba(251, 191, 36, ${(0.56 * doorOpenFrac).toFixed(3)})`);
+      hg.addColorStop(1, "rgba(251, 191, 36, 0)");
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy, bayW * 0.55, bayH * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Bi-parting motorized titanium sliding doors with hazard stripes
+    const slideOff = doorOpenFrac * (bayW * 0.52);
+    [-1, 1].forEach(side => {
+      const lx = side < 0 ? (hx - bayW * 0.52 - slideOff) : (hx + slideOff);
+      ctx.fillStyle = pal.towerSteel;
+      ctx.fillRect(lx, hy - bayH * 0.42, bayW * 0.52, bayH * 0.84);
+      ctx.fillStyle = "#F59E0B";
+      ctx.fillRect(side < 0 ? (lx + bayW * 0.52 - 1.8) : lx, hy - bayH * 0.42, 1.8, bayH * 0.84);
+    });
     ctx.restore();
   },
 
-  // Large Deep-Space Satellite Ground Station Compound + Synchronized Dish Plinths + Tall Control Tower
+  // Expanded Deep-Space Satellite Ground Station Compound (between Hangar & Runway!) + Dish Plinths + Tall Control Tower
   _drawRadarCentre(ctx, L, pal) {
     ctx.save();
     const rx = L.radarX;
     const ry = L.radarY;
+    const cw = L.isNarrow ? 116 : 228;
+    const ch = L.isNarrow ? 58 : 96;
 
-    // 1. Expansive Terraced Paved Ground Station Compound & Perimeter Curbing
+    // 1. Foreshortened Trapezoidal Paved Compound & Perimeter Security Curbing (cleanly framed between Hangar & Runway)
     ctx.fillStyle = pal.apronFill;
     ctx.beginPath();
-    ctx.ellipse(rx - (L.isNarrow ? 4 : 12), ry + (L.isNarrow ? 10 : 12), L.isNarrow ? 58 : 112, L.isNarrow ? 30 : 48, 0.04, 0, Math.PI * 2);
+    ctx.moveTo(rx - cw * 0.48, ry - ch * 0.42);
+    ctx.lineTo(rx + cw * 0.48, ry - ch * 0.34);
+    ctx.lineTo(rx + cw * 0.54, ry + ch * 0.54);
+    ctx.lineTo(rx - cw * 0.54, ry + ch * 0.48);
+    ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = pal.archDark;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.3;
     ctx.stroke();
 
     // Inner northern terraced array pad cleanly framing the larger parabolic dishes
     ctx.fillStyle = pal.quayFill;
     ctx.beginPath();
-    ctx.ellipse(rx, ry - 14, L.isNarrow ? 46 : 94, L.isNarrow ? 12 : 18, 0.06, 0, Math.PI * 2);
+    ctx.ellipse(rx, ry - 15, L.isNarrow ? 48 : 98, L.isNarrow ? 12 : 19, 0.05, 0, Math.PI * 2);
     ctx.fill();
 
     // 2. Concrete Pedestal Plinth Foundations for the North Parabolic Dish Array (drawn BEHIND front radomes!)
@@ -2284,15 +2492,31 @@ const WorldGateway = {
       ctx.fill();
     });
 
-    // 3. Large Multi-Wing Telemetry Ops Centre + Southern Graduated Geodesic Radomes (zero overlap with dishes!)
-    this._draw25DBuilding(ctx, rx - (L.isNarrow ? 42 : 84), ry + (L.isNarrow ? 26 : 36), L.isNarrow ? 34 : 58, L.isNarrow ? 15 : 22, pal, { style: "ops", floors: 3, perspSlope: 0.04 });
+    // 3. Expanded Telemetry Operations Campus: West Multi-Floor Ops Hall, East Server Vault + Chiller Array & Tall Telemetry Mast
+    this._draw25DBuilding(ctx, rx - (L.isNarrow ? 42 : 88), ry + (L.isNarrow ? 22 : 34), L.isNarrow ? 34 : 58, L.isNarrow ? 14 : 20, pal, { style: "ops", floors: 3, perspSlope: 0.04 });
+    if (!L.isNarrow) {
+      this._draw25DBuilding(ctx, rx + 26, ry + 36, 44, 14, pal, { style: "hangar_small", floors: 1, perspSlope: 0.04 });
+      // Chiller/backup generator pads & parking stripes in southeast corner of Ground Station compound
+      ctx.fillStyle = pal.towerSteel;
+      ctx.fillRect(rx + 74, ry + 26, 12, 6);
+      ctx.fillRect(rx + 88, ry + 28, 12, 6);
+      // Telemetry Comms Relay Tower beside Ops Hall
+      ctx.strokeStyle = pal.towerSteel;
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      ctx.moveTo(rx - 98, ry + 24);
+      ctx.lineTo(rx - 98, ry - 14);
+      ctx.moveTo(rx - 103, ry - 6);
+      ctx.lineTo(rx - 93, ry - 6);
+      ctx.stroke();
+    }
 
     const domes = L.isNarrow
-      ? [{ x: rx - 10, y: ry + 26, r: 8.5 }, { x: rx - 28, y: ry + 30, r: 6.2 }]
+      ? [{ x: rx - 10, y: ry + 24, r: 8.5 }, { x: rx - 28, y: ry + 28, r: 6.2 }]
       : [
-          { x: rx - 26, y: ry + 40, r: 12.2 },
-          { x: rx - 50, y: ry + 42, r: 8.8 },
-          { x: rx - 4, y: ry + 44, r: 7.2 }
+          { x: rx - 26, y: ry + 36, r: 12.6 },
+          { x: rx - 50, y: ry + 39, r: 9.0 },
+          { x: rx - 2, y: ry + 40, r: 7.4 }
         ];
 
     domes.forEach(d => {
@@ -2476,12 +2700,13 @@ const WorldGateway = {
 
   _drawForegroundBridgeAndCoast(ctx, w, h, L, pal) {
     ctx.save();
-    const p0x = w * 0.65;
-    const p0y = L.islandBotY + 14;
-    const cpx = w * 0.61;
-    const cpy = h * 0.90;
-    const p2x = w * 0.93;
-    const p2y = h + 8;
+    // Align bridge tangent smoothly NW directly into the Shoreline Interchange (w*0.642, L.islandBotY+10)
+    const p0x = w * 0.642;
+    const p0y = L.islandBotY + 10;
+    const cpx = w * 0.705;
+    const cpy = h * 0.875;
+    const p2x = w * 0.935;
+    const p2y = h + 10;
 
     for (let i = 1; i <= 7; i++) {
       const t = i / 8;
@@ -2496,23 +2721,29 @@ const WorldGateway = {
     }
 
     ctx.strokeStyle = pal.archDark;
-    ctx.lineWidth = 13;
+    ctx.lineWidth = 14;
     ctx.beginPath();
     ctx.moveTo(p0x, p0y + 4);
     ctx.quadraticCurveTo(cpx, cpy + 5, p2x, p2y + 5);
     ctx.stroke();
 
-    ctx.strokeStyle = pal.archMid;
+    ctx.strokeStyle = pal.runwayFill;
     ctx.lineWidth = 10;
     ctx.beginPath();
     ctx.moveTo(p0x, p0y);
     ctx.quadraticCurveTo(cpx, cpy, p2x, p2y);
     ctx.stroke();
 
+    ctx.strokeStyle = "rgba(255, 250, 235, 0.36)";
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([5, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
     ctx.strokeStyle = pal.archLight;
-    ctx.lineWidth = 1.8;
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(p0x - 4, p0y - 2);
+    ctx.moveTo(p0x - 5, p0y - 2);
     ctx.quadraticCurveTo(cpx - 5, cpy - 2, p2x - 5, p2y - 2);
     ctx.stroke();
 
@@ -2878,6 +3109,22 @@ const WorldGateway = {
       };
     }
 
+    // Rare Heavy-Lift Recovery Helicopter Delivering Crew Capsule into Automated Arched Hangar Roof Bay
+    if (!this.heavyHeli) {
+      this.heavyHeli = {
+        phase: "dormant_wait",
+        t: 0,
+        phaseDuration: this._rand(65.0, 110.0),
+        x: w + 140,
+        y: L.horizonY + 12,
+        vx: 0,
+        rotorPhase: 0,
+        capsuleDropFrac: 0,
+        doorOpenFrac: 0,
+        heading: Math.PI
+      };
+    }
+
     // Rare Colossal Multi-Deck Sci-Fi Mega-Liner (A380-like rare spawn: Runway Land -> Dedicated Mega Gate -> Erector & Booster Tanks -> Vertical Launch)
     if (!this.megaliner) {
       this.megaliner = {
@@ -3090,11 +3337,13 @@ const WorldGateway = {
     this._updateAndDrawSpaceplane(ctx, L, pal, dt, step, w, h);
     this._updateAndDrawMegaLiner(ctx, L, pal, dt, step, w, h);
 
-    // 11. Foreground Arched Hangar Roof Occlusion Layer (planes taxi inside seamlessly!)
-    this._drawArchedHangarOcclusionRoof(ctx, L, pal);
+    // 11. Foreground Arched Hangar Roof Occlusion Layer w/ Automated Sliding Capsule Hatch Doors + Heavy Recovery Chopper
+    const doorOpenFrac = this.heavyHeli ? (this.heavyHeli.doorOpenFrac || 0) : 0;
+    this._drawArchedHangarOcclusionRoof(ctx, L, pal, doorOpenFrac);
 
-    // 12. Patrol & Transport Helicopters Taking Off, Landing & Patrolling Around Base
+    // 12. Patrol, Transport & Rare Heavy-Lift Capsule Recovery Helicopters Around Base
     this._updateAndDrawHelicopters(ctx, w, h, L, pal, dt, step);
+    this._updateAndDrawHeavyHeli(ctx, w, h, L, pal, dt, step);
 
     // 13. Exhaust Smoke, Deluge Steam & Cryo Vent Particle System
     this._updateAndDrawParticles(ctx, pal, dt);
@@ -3368,13 +3617,15 @@ const WorldGateway = {
       [L.apronSouth, L.apronSW, { x: L.satWest.x + 12 * L.termScale, y: L.satWest.y + 38 * L.termScale },
         { x: L.satWest.x - 8 * L.termScale, y: L.satWest.y + 24 * L.termScale }]
     ], 24);
+    const entryX = w * 0.642;
+    const entryY = L.islandBotY + 10;
     const plazaPath = this._buildArcPath([
-      [{ x: w * 0.92, y: h + 6 }, { x: w * 0.61, y: h * 0.90 }, { x: w * 0.64, y: L.islandBotY + 16 }, { x: w * 0.65, y: L.islandBotY + 14 }],
-      [{ x: w * 0.65, y: L.islandBotY + 14 }, { x: L.underpassX + 12, y: L.underpassY + L.underpassHalf + 26 }, { x: L.underpassX, y: L.underpassY + L.underpassHalf + 7 }, { x: L.underpassX - 4, y: L.underpassY - L.underpassHalf - 6 }],
-      [{ x: L.underpassX - 4, y: L.underpassY - L.underpassHalf - 6 }, { x: L.underpassX - 18, y: L.underpassY - L.underpassHalf - 32 }, { x: L.plazaX + 58 * L.termScale, y: L.plazaY + 24 * L.termScale }, { x: L.plazaX, y: L.plazaY }]
+      [{ x: w * 0.935, y: h + 10 }, { x: w * 0.705, y: h * 0.875 }, { x: entryX + 18, y: entryY + 18 }, { x: entryX, y: entryY }],
+      [{ x: entryX, y: entryY }, { x: L.underpassX + 12, y: L.underpassY + L.underpassHalf + 44 }, { x: L.underpassX + 1, y: L.underpassY + L.underpassHalf + 18 }, { x: L.underpassX - 4, y: L.underpassY - L.underpassHalf - 16 }],
+      [{ x: L.underpassX - 4, y: L.underpassY - L.underpassHalf - 16 }, { x: L.underpassX - 16, y: L.underpassY - L.underpassHalf - 40 }, { x: L.plazaX + 58 * L.termScale, y: L.plazaY + 24 * L.termScale }, { x: L.plazaX, y: L.plazaY }]
     ], 22);
     const portPath = this._buildArcPath([
-      [{ x: w * 0.65, y: L.islandBotY + 14 }, { x: w * 0.44, y: L.islandBotY + 4 }, { x: w * 0.28, y: L.islandBotY - 8 }, { x: w * 0.17, y: L.islandBotY - 20 }]
+      [{ x: entryX, y: entryY }, { x: w * 0.45, y: L.islandBotY + 3 }, { x: w * 0.28, y: L.islandBotY - 8 }, { x: w * 0.17, y: L.islandBotY - 20 }]
     ], 18);
 
     ctx.save();
@@ -3523,17 +3774,22 @@ const WorldGateway = {
     const boosterH = bodyH * 0.68;
     const bodyW = 5.0 * sc;
 
-    const shorePt = { x: L.offshoreShoreX + 2 * sc, y: L.offshoreShoreY - 1 };
-    const trestleEnd = { x: centerX - 18 * sc, y: L.offshorePadY + 4 * sc };
-    const causewayAng = Math.atan2(trestleEnd.y - shorePt.y, trestleEnd.x - shorePt.x);
+    const bridgeDock = { x: L.offshoreShoreX + 2 * sc, y: L.offshoreShoreY - 1 };
+    const railEnd = { x: centerX, y: deckY };
+    const bridgeLen = Math.max(10, Math.hypot(railEnd.x - bridgeDock.x, railEnd.y - bridgeDock.y));
+    const ux = (railEnd.x - bridgeDock.x) / bridgeLen;
+    const uy = (railEnd.y - bridgeDock.y) / bridgeLen;
+    const causewayAng = Math.atan2(uy, ux);
+    // Single C1-continuous linear rail track starting concealed inside Shore Hangar (f=0) -> Pad Mount (f=1)!
+    const railStart = { x: bridgeDock.x - ux * bodyH, y: bridgeDock.y - uy * bodyH };
     const causewayPos = (frac) => {
-      if (frac < 0.78) {
-        const u = Math.max(0, frac) / 0.78;
-        return { x: this._lerp(shorePt.x, trestleEnd.x, u), y: this._lerp(shorePt.y, trestleEnd.y, u), tilt: causewayAng, flame: 0 };
-      }
-      const v = Math.min(1, (frac - 0.78) / 0.22);
-      const deckSlope = Math.atan2(deckY - trestleEnd.y, centerX - trestleEnd.x);
-      return { x: this._lerp(trestleEnd.x, centerX, v), y: this._lerp(trestleEnd.y, deckY, v), tilt: this._lerp(causewayAng, deckSlope, 0.5), flame: 0 };
+      const f = this._clamp(frac, 0, 1);
+      return {
+        x: this._lerp(railStart.x, railEnd.x, f),
+        y: this._lerp(railStart.y, railEnd.y, f),
+        tilt: causewayAng,
+        flame: 0
+      };
     };
 
     let strongbackRetract = 0.28;
@@ -3623,35 +3879,40 @@ const WorldGateway = {
         ctx.restore();
       }
 
-      // Draw Center Core if present (with tilted heavy-rail flatbed carrier + locomotive bogies)
+      // Draw Center Core if present (with tilted heavy-rail flatbed carrier + locomotive bogies anchored strictly at base 0)
       if (corePos) {
         ctx.save();
+        if (Math.abs(coreAngle) > 0.15 && corePos.x < bridgeDock.x + 2 * sc) {
+          // Clip cleanly at Shore Hangar bay doorway so core glides progressively out without popping in!
+          ctx.beginPath();
+          ctx.rect(bridgeDock.x - 1, 0, w, L.offshoreShoreY + 55);
+          ctx.clip();
+        }
         ctx.translate(corePos.x, corePos.y);
         if (Math.abs(coreAngle) > 0.15) {
           ctx.save();
           ctx.rotate(corePos.tilt || 0);
-          // Heavy steel rail flatbed frame & multi-axle bogie wheelsets sitting squarely atop viaduct rails
+          // Heavy steel rail flatbed frame & multi-axle bogie wheelsets sitting squarely atop viaduct rails [0..bodyH]
           ctx.fillStyle = pal.archDark;
-          ctx.fillRect(-bodyH * 0.52, 0.5 * sc, bodyH * 1.04, 2.6 * sc);
+          ctx.fillRect(-2 * sc, 0.5 * sc, bodyH + 6 * sc, 2.6 * sc);
           ctx.fillStyle = pal.towerSteel;
-          [-bodyH * 0.36, -bodyH * 0.15, bodyH * 0.15, bodyH * 0.36].forEach(wx => {
+          [0.14 * bodyH, 0.38 * bodyH, 0.62 * bodyH, 0.86 * bodyH].forEach(wx => {
             ctx.beginPath();
             ctx.arc(wx, 3.3 * sc, 1.3 * sc, 0, Math.PI * 2);
             ctx.fill();
           });
-          // Lead Industrial Rail Locomotive + glowing headlamp leading uphill along viaduct toward platform
+          // Lead Industrial Rail Locomotive + glowing headlamp leading uphill ahead of nose toward platform
           ctx.fillStyle = pal.liveryAccent;
-          ctx.fillRect(bodyH * 0.48, -2.2 * sc, 6.8 * sc, 4.4 * sc);
+          ctx.fillRect(bodyH + 4 * sc, -2.2 * sc, 6.8 * sc, 4.4 * sc);
           ctx.fillStyle = pal.windowGlow;
-          ctx.fillRect(bodyH * 0.48 + 4.4 * sc, -1.6 * sc, 1.6 * sc, 1.8 * sc);
+          ctx.fillRect(bodyH + 8.4 * sc, -1.6 * sc, 1.6 * sc, 1.8 * sc);
           ctx.fillStyle = pal.isNightLights ? "rgba(254, 240, 138, 0.92)" : "rgba(255, 251, 235, 0.72)";
           ctx.beginPath();
-          ctx.arc(bodyH * 0.48 + 7.0 * sc, -0.4 * sc, 1.3 * sc, 0, Math.PI * 2);
+          ctx.arc(bodyH + 11.0 * sc, -0.4 * sc, 1.3 * sc, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
         }
         ctx.rotate(coreAngle);
-        ctx.translate(0, bodyH * 0.50 * Math.min(1, Math.abs(coreAngle) / 1.0));
         this._drawFhStage(ctx, pal, bodyW, bodyH, sc, 0, corePos.flame || 0, step, true);
         ctx.restore();
       }
@@ -3659,21 +3920,24 @@ const WorldGateway = {
     };
 
     if (r.phase === "core_tow_in") {
-      // Side boosters wait in tower arms while new center core rolls up elevated heavy-rail viaduct & erects vertically!
+      // C1-continuous continuation from 0.45 -> 1.00 along viaduct rails, then smooth base-pivoted erection!
       const p = Math.min(1, r.t / r.phaseDuration);
       let corePos, coreAngle;
-      if (p < 0.72) {
-        const tp = p / 0.72;
-        const ease = tp * tp * (3 - 2 * tp);
-        const f = 0.50 + ease * 0.48;
+      if (p < 0.64) {
+        const tp = p / 0.64;
+        const smoothEnd = tp < 0.82 ? tp : (0.82 + 0.18 * Math.sin(((tp - 0.82) / 0.18) * Math.PI * 0.5));
+        const f = 0.45 + smoothEnd * 0.55;
         corePos = causewayPos(f);
-        coreAngle = Math.PI * 0.5 + (corePos.tilt || 0);
+        coreAngle = Math.PI * 0.5 + causewayAng;
       } else {
-        const ep = (p - 0.72) / 0.28;
+        const ep = (p - 0.64) / 0.36;
         const ease = ep * ep * (3 - 2 * ep);
-        corePos = { x: centerX, y: deckY, tilt: 0, flame: 0 };
+        corePos = { x: centerX, y: deckY, tilt: causewayAng, flame: 0 };
         coreAngle = (Math.PI * 0.5 + causewayAng) * (1 - ease);
       }
+      r.x = corePos.x;
+      r.y = corePos.y;
+      r.angle = coreAngle;
       const leftPos = { x: centerX - armRestDx, y: deckY };
       const rightPos = { x: centerX + armRestDx, y: deckY };
       drawTowerArmsAndCrane(leftPos, rightPos, corePos, coreAngle, 0, true);
@@ -3889,10 +4153,13 @@ const WorldGateway = {
     const lY = lzY - liftY;
     const rY = lzY - liftY;
 
-    // New main center core hauled on rail flatbed along elevated causeway viaduct during dual crane reattach
-    const towProg = 0.42 + this._clamp((p - 0.35) / 0.65, 0, 1) * 0.25;
+    // New main center core emerges smoothly from Shore Hangar bay along viaduct rails (0.00 -> 0.45 matching core_tow_in handoff!)
+    const towProg = this._clamp((p - 0.35) / 0.65, 0, 1) * 0.45;
     const towCore = p > 0.35 ? causewayPos(towProg) : null;
-    const towAngle = towCore ? (Math.PI * 0.5 + (towCore.tilt || 0)) : Math.PI * 0.5;
+    const towAngle = Math.PI * 0.5 + causewayAng;
+    r.x = towCore ? towCore.x : railStart.x;
+    r.y = towCore ? towCore.y : railStart.y;
+    r.angle = towAngle;
 
     const craneFrac = 0.01 + 0.99 * smoothSwing;
     const craneTips = drawTowerArmsAndCrane({ x: lX, y: lY }, { x: rX, y: rY }, towCore, towAngle, craneFrac, lowerToArm > 0.3);
@@ -3923,7 +4190,7 @@ const WorldGateway = {
     if (r.t >= r.phaseDuration) {
       r.phase = "core_tow_in";
       r.t = 0;
-      r.phaseDuration = this._rand(5.2, 6.8);
+      r.phaseDuration = 10.5;
     }
   },
 
@@ -4101,6 +4368,225 @@ const WorldGateway = {
       }
       ctx.restore();
     }
+  },
+
+  // Rare Tandem-Rotor Heavy-Lift Recovery Helicopter Lowering Recovered Crew Capsule into Automated Arched Hangar Roof Hatch!
+  _updateAndDrawHeavyHeli(ctx, w, h, L, pal, dt, step) {
+    const hh = this.heavyHeli;
+    if (!hh) return;
+    hh.t += dt;
+    hh.rotorPhase += dt * 34;
+
+    const hatchX = L.hangarX + L.hangarW * 0.04;
+    const hatchY = L.hangarY - L.hangarH * 0.40;
+    const hoverY = hatchY - 46;
+    const entryX = w + 120;
+    const entryY = Math.max(46, hoverY - 58);
+
+    let visible = false;
+    let showCapsule = false;
+    let cableLen = 14;
+    let doorOpenFrac = 0;
+    let pitch = 0;
+    let facingLeft = true;
+
+    if (hh.phase === "dormant_wait") {
+      hh.doorOpenFrac = 0;
+      if (hh.t >= hh.phaseDuration) {
+        hh.phase = "approach";
+        hh.t = 0;
+        hh.phaseDuration = 8.5;
+        hh.x = entryX;
+        hh.y = entryY;
+      }
+      return;
+    } else if (hh.phase === "approach") {
+      visible = true;
+      showCapsule = true;
+      const p = Math.min(1, hh.t / hh.phaseDuration);
+      const ease = 1 - Math.pow(1 - p, 2.2);
+      hh.x = this._lerp(entryX, hatchX, ease);
+      hh.y = this._lerp(entryY, hoverY, ease) + Math.sin(step * 2.5) * 1.2;
+      pitch = -0.10 * (1 - ease);
+      if (p >= 1) {
+        hh.phase = "door_open";
+        hh.t = 0;
+        hh.phaseDuration = 2.6;
+      }
+    } else if (hh.phase === "door_open") {
+      visible = true;
+      showCapsule = true;
+      const p = Math.min(1, hh.t / hh.phaseDuration);
+      doorOpenFrac = p * p * (3 - 2 * p);
+      hh.x = hatchX + Math.sin(step * 1.8) * 0.8;
+      hh.y = hoverY + Math.sin(step * 2.6) * 1.0;
+      if (p >= 1) {
+        hh.phase = "lower_capsule";
+        hh.t = 0;
+        hh.phaseDuration = 6.5;
+      }
+    } else if (hh.phase === "lower_capsule") {
+      visible = true;
+      showCapsule = true;
+      doorOpenFrac = 1.0;
+      const p = Math.min(1, hh.t / hh.phaseDuration);
+      const ease = p * p * (3 - 2 * p);
+      hh.capsuleDropFrac = ease;
+      cableLen = 14 + ease * 42;
+      hh.x = hatchX + Math.sin(step * 1.7) * 0.6;
+      hh.y = hoverY + Math.sin(step * 2.4) * 0.8;
+      if (p >= 1) {
+        hh.phase = "winch_retract";
+        hh.t = 0;
+        hh.phaseDuration = 2.8;
+      }
+    } else if (hh.phase === "winch_retract") {
+      visible = true;
+      doorOpenFrac = 1.0;
+      const p = Math.min(1, hh.t / hh.phaseDuration);
+      const ease = p * p * (3 - 2 * p);
+      cableLen = 56 - ease * 44;
+      hh.x = hatchX + Math.sin(step * 1.8) * 0.7;
+      hh.y = hoverY + Math.sin(step * 2.5) * 1.0;
+      if (p >= 1) {
+        hh.phase = "door_close";
+        hh.t = 0;
+        hh.phaseDuration = 2.4;
+      }
+    } else if (hh.phase === "door_close") {
+      visible = true;
+      const p = Math.min(1, hh.t / hh.phaseDuration);
+      doorOpenFrac = 1.0 - (p * p * (3 - 2 * p));
+      hh.x = hatchX;
+      hh.y = hoverY + Math.sin(step * 2.4) * 1.0;
+      if (p >= 1) {
+        hh.phase = "depart";
+        hh.t = 0;
+        hh.phaseDuration = 7.4;
+      }
+    } else if (hh.phase === "depart") {
+      visible = true;
+      const p = Math.min(1, hh.t / hh.phaseDuration);
+      const ease = p * p;
+      hh.x = this._lerp(hatchX, -140, ease);
+      hh.y = this._lerp(hoverY, entryY - 36, ease);
+      pitch = -0.14 * Math.min(1, p * 2.0);
+      if (p >= 1) {
+        hh.phase = "dormant_wait";
+        hh.t = 0;
+        hh.phaseDuration = this._rand(65.0, 110.0);
+        hh.doorOpenFrac = 0;
+        return;
+      }
+    }
+
+    hh.doorOpenFrac = doorOpenFrac;
+    if (!visible) return;
+
+    const sc = L.isNarrow ? 0.85 : 1.15;
+
+    // 1. Hangar roof shadow underneath hovering heavy recovery helicopter
+    ctx.save();
+    ctx.fillStyle = pal.shadowColor;
+    ctx.globalAlpha = 0.38;
+    ctx.beginPath();
+    ctx.ellipse(hh.x + 10 * pal.sunDir, hatchY + 2, 16 * sc, 5 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 2. Winch Hoist Cable & Conical Heat-Shielded Crew Capsule (clipped neatly inside open hangar hatch threshold!)
+    if (hh.phase === "lower_capsule" || hh.phase === "winch_retract" || showCapsule) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(hatchX - 60, 0, 120, hatchY + 5); // Disappears seamlessly into the dark open hangar roof shaft!
+      ctx.clip();
+
+      ctx.strokeStyle = pal.towerSteel;
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(hh.x, hh.y + 4 * sc);
+      ctx.lineTo(hh.x, hh.y + cableLen);
+      ctx.stroke();
+
+      if (showCapsule) {
+        const capY = hh.y + cableLen + 4 * sc;
+        const capS = sc * 0.95;
+        ctx.save();
+        ctx.translate(hh.x, capY);
+        ctx.scale(capS, capS);
+        // Ablative charred heatshield saucer bottom
+        ctx.fillStyle = pal.archDark;
+        ctx.beginPath();
+        ctx.ellipse(0, 4.5, 6.2, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // White conical crew pressure vessel + recovery orange parachutes strap ring + glowing cabin window
+        ctx.fillStyle = pal.bodyLight;
+        ctx.beginPath();
+        ctx.moveTo(-5.8, 4.2);
+        ctx.lineTo(-2.8, -4.5);
+        ctx.lineTo(2.8, -4.5);
+        ctx.lineTo(5.8, 4.2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#F97316";
+        ctx.fillRect(-3.2, -4.5, 6.4, 1.8);
+        ctx.fillStyle = pal.windowGlow;
+        ctx.beginPath();
+        ctx.arc(0, 0.2, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // 3. Heavy-Lift Tandem Twin-Rotor Recovery Helicopter Body
+    ctx.save();
+    ctx.translate(hh.x, hh.y);
+    ctx.rotate(pitch);
+    if (!facingLeft) ctx.scale(-1, 1);
+    ctx.scale(sc, sc);
+
+    // Side flotation sponsons & winch hook turret
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(-10, 2.5, 20, 3.0);
+    // Elongated banana-hull tandem fuselage (distinctive SAR white & international orange recovery livery)
+    ctx.fillStyle = pal.bodyLight;
+    ctx.beginPath();
+    ctx.roundRect(-15, -3.8, 30, 7.2, 3.4);
+    ctx.fill();
+    ctx.fillStyle = "#F97316";
+    ctx.fillRect(-6, -3.8, 12, 3.2);
+    ctx.fillStyle = pal.windowGlassDark;
+    ctx.beginPath();
+    ctx.ellipse(-11.5, -0.8, 3.2, 1.9, 0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Twin elevated tandem rotor pylons + spinning counter-rotating rotor discs
+    [-10.5, 11.5].forEach((rx, idx) => {
+      const mastH = idx === 0 ? -5.8 : -7.4;
+      ctx.fillStyle = pal.archMid;
+      ctx.fillRect(rx - 1.8, mastH + 1.5, 3.6, Math.abs(mastH));
+      ctx.fillStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.18)" : "rgba(71, 85, 105, 0.18)";
+      ctx.beginPath();
+      ctx.ellipse(rx, mastH, 13.5, 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const bx = Math.cos(hh.rotorPhase + idx * 1.4) * 13.5;
+      const by = Math.sin(hh.rotorPhase + idx * 1.4) * 2.2;
+      ctx.strokeStyle = pal.isNightLights ? "rgba(248, 250, 252, 0.56)" : "rgba(51, 65, 85, 0.52)";
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(rx - bx, mastH - by);
+      ctx.lineTo(rx + bx, mastH + by);
+      ctx.stroke();
+    });
+
+    if (Math.sin(step * 11) > 0.25) {
+      ctx.fillStyle = "#F87171";
+      ctx.beginPath();
+      ctx.arc(0, -4.6, 1.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   },
 
   _drawComplexLights(ctx, L, pal, step) {
@@ -5056,21 +5542,217 @@ const WorldGateway = {
     return this.spaceplanes.some(other => other !== excludingCraft && busyPhases.has(other.phase));
   },
 
-  // Colossal Multi-Deck Sci-Fi Mega-Liner Rendering (with optional Twin External Cryo Booster Tanks!)
-  _drawMegaLinerModel(ctx, pal, step, afterburner = 0, altitude = 0, isVertical = false, externalBoosters = 0) {
-    const shadowFade = Math.max(0.10, 1 - altitude / 110);
+  // Colossal Multi-Deck Sci-Fi Mega-Liner Rendering (2.5D 5-Perspective Symmetrical Airplane Model + Vertical Booster Launch!)
+  _drawMegaLinerModel(ctx, pal, step, afterburner = 0, altitude = 0, isVertical = false, externalBoosters = 0, heading = 0, pitchRad = 0) {
     if (!isVertical) {
+      const { perspective, yaw } = this._quantizeSpaceplanePerspective(heading);
+      const cosY = Math.cos(yaw);
+      const sinY = Math.sin(yaw);
+      const cosP = Math.cos(pitchRad);
+      const sinP = Math.sin(pitchRad);
+      const sinE = 0.42;
+      const cosE = 0.91;
+
+      const proj = (bx, by, bz) => {
+        const rx = bx * cosP - bz * sinP;
+        const rz = bx * sinP + bz * cosP;
+        const wx = rx * cosY - by * sinY;
+        const wy = rx * sinY + by * cosY;
+        return { x: wx, y: wy * sinE - rz * cosE };
+      };
+
+      const fillPoly3D = (pts, fillStyle, strokeStyle = null, lineWidth = 0.65) => {
+        ctx.fillStyle = fillStyle;
+        ctx.beginPath();
+        pts.forEach((p, idx) => {
+          const pr = proj(p[0], p[1], p[2]);
+          if (idx === 0) ctx.moveTo(pr.x, pr.y);
+          else ctx.lineTo(pr.x, pr.y);
+        });
+        ctx.closePath();
+        ctx.fill();
+        if (strokeStyle) {
+          ctx.strokeStyle = strokeStyle;
+          ctx.lineWidth = lineWidth;
+          ctx.stroke();
+        }
+      };
+
+      // Symmetrical 4-corner foreshortened ground cast shadow
+      const shadowFade = Math.max(0.10, 1 - altitude / 110);
+      const sunOffX = 3.0 + altitude * 0.2 * pal.sunDir;
+      const sunOffY = 4.8 + altitude * 0.54;
+      const noseS = proj(36, 0, -4);
+      const tailS = proj(-30, 0, -4);
+      const lwS = proj(-16, -27, -4);
+      const rwS = proj(-16, 27, -4);
       ctx.save();
-      ctx.translate(3 + altitude * 0.2 * pal.sunDir, 5 + altitude * 0.55);
-      ctx.scale(1.15, 0.78);
       ctx.fillStyle = pal.shadowColor;
-      ctx.globalAlpha = 0.52 * shadowFade;
+      ctx.globalAlpha = 0.48 * shadowFade;
       ctx.beginPath();
-      ctx.ellipse(-3, 0, 36, 17, 0, 0, Math.PI * 2);
+      ctx.moveTo(noseS.x + sunOffX, noseS.y + sunOffY);
+      ctx.lineTo(lwS.x + sunOffX, lwS.y + sunOffY);
+      ctx.lineTo(tailS.x + sunOffX, tailS.y + sunOffY);
+      ctx.lineTo(rwS.x + sunOffX, rwS.y + sunOffY);
+      ctx.closePath();
       ctx.fill();
       ctx.restore();
+
+      const nearSide = cosY >= 0 ? 1 : -1;
+      const farSide = -nearSide;
+      const halfWing = [[22, 4.2, -0.3], [7, 9.2, -0.4], [-13, 28.5, -0.4], [-27, 26.2, -0.4], [-30, 5.8, -0.3]];
+      const darkLead = [[22, 4.2, -0.2], [7, 9.2, -0.3], [-13, 28.5, -0.3], [-16.5, 28.0, -0.3], [4.5, 8.2, -0.2], [19.5, 4.2, -0.2]];
+
+      const drawHalfWing = (side) => {
+        const wPts = halfWing.map(([bx, by, bz]) => [bx, by * side, bz]);
+        const col = side === farSide && perspective !== "front_headon" && perspective !== "rear_tailon" ? pal.bodyShade : pal.bodyLight;
+        fillPoly3D(wPts, col, pal.bodyShade, 0.65);
+        fillPoly3D(darkLead.map(([bx, by, bz]) => [bx, by * side, bz]), pal.archDark);
+
+        // Upright Outboard Winglet Stabilizer Fin (symmetrical left & right)
+        fillPoly3D([
+          [-18, 27.2 * side, -0.3],
+          [-26.5, 27.6 * side, 4.2],
+          [-28.5, 27.4 * side, 3.8],
+          [-26.5, 26.2 * side, -0.3]
+        ], pal.bodyMid, pal.bodyShade, 0.5);
+
+        // Twin Symmetric Heavy Engine Nacelles per wing (inboard & outboard)
+        [6.8, 15.2].forEach(ny => {
+          const exNose = ny > 10 ? -13 : -20;
+          const exTail = ny > 10 ? -24.5 : -31.5;
+          const nP0 = proj(exNose, ny * side, -1.2);
+          const nP1 = proj(exTail, ny * side, -1.2);
+          ctx.strokeStyle = pal.towerSteel;
+          ctx.lineWidth = 4.2;
+          ctx.beginPath();
+          ctx.moveTo(nP0.x, nP0.y);
+          ctx.lineTo(nP1.x, nP1.y);
+          ctx.stroke();
+
+          if (afterburner > 0.04) {
+            const fl = (28 + Math.sin(step * 42 + ny) * 5) * afterburner;
+            const pEx = proj(exTail - fl, ny * side, -1.2);
+            const eg = ctx.createLinearGradient(nP1.x, nP1.y, pEx.x, pEx.y);
+            eg.addColorStop(0, `rgba(${pal.plumeCore}, 0.96)`);
+            eg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.84)`);
+            eg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+            ctx.strokeStyle = eg;
+            ctx.lineWidth = 3.2;
+            ctx.beginPath();
+            ctx.moveTo(nP1.x, nP1.y);
+            ctx.lineTo(pEx.x, pEx.y);
+            ctx.stroke();
+          }
+        });
+
+        // Navigation wingtip strobes (Port = Red, Starboard = Green)
+        if (Math.sin(step * 10) > 0.2) {
+          const tip = proj(-26, 27.8 * side, -0.2);
+          ctx.fillStyle = side < 0 ? "#F87171" : "#34D399";
+          ctx.beginPath();
+          ctx.arc(tip.x, tip.y, 1.45, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      };
+
+      const drawVerticalFin = () => {
+        fillPoly3D([
+          [-16, 0, 5.4],
+          [-33.5, 0, 17.5],
+          [-37.0, 0, 15.8],
+          [-30.5, 0, 3.2]
+        ], pal.bodyLight, pal.bodyShade, 0.7);
+      };
+
+      const drawDoubleBubbleFuselage = () => {
+        const fN = 41, fM = 20, fA = -27, fT = -33;
+        const w = 6.2, h = 7.4;
+
+        // Strictly symmetric port & starboard lower/belly hull facets
+        const bellySides = perspective === "front_headon" || perspective === "rear_tailon" ? [-1, 1] : [nearSide, farSide];
+        bellySides.forEach(side => {
+          fillPoly3D([
+            [fN, 0, 0],
+            [fM, side * w, 0],
+            [fA, side * w * 0.78, 0],
+            [fT, 0, -1.2],
+            [fA, 0, -4.4],
+            [fM, 0, -5.0]
+          ], side === farSide && perspective !== "front_headon" && perspective !== "rear_tailon" ? pal.bodyMid : pal.bodyShade);
+        });
+
+        // Strictly symmetric port & starboard upper double-bubble crown facets
+        [-1, 1].forEach(side => {
+          const isLit = perspective === "front_headon" || perspective === "rear_tailon" ? (side < 0) : (side === nearSide);
+          fillPoly3D([
+            [fN, 0, 0.4],
+            [fM, 0, h],
+            [fA, 0, h * 0.78],
+            [fT, 0, 2.8],
+            [fA, side * w * 0.78, 0],
+            [fM, side * w, 0]
+          ], isLit ? pal.bodyLight : pal.bodyMid);
+        });
+
+        // Livery accents & 3 illuminated passenger decks on camera-facing flank
+        if (perspective === "side_profile" || perspective === "front_quarter" || perspective === "rear_quarter") {
+          const ls0 = proj(fM * 1.1, nearSide * w * 0.94, 1.0);
+          const ls1 = proj(fA + 3, nearSide * w * 0.76, 0.8);
+          ctx.strokeStyle = pal.liveryAccent;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(ls0.x, ls0.y);
+          ctx.lineTo(ls1.x, ls1.y);
+          ctx.stroke();
+
+          ctx.fillStyle = pal.windowGlow;
+          for (let wi = 0; wi < 12; wi++) {
+            const wbx = 22 - wi * 3.8;
+            const fw = wi < 2 ? w * 0.88 : w * (0.94 - (wi / 12) * 0.16);
+            [4.5, 2.8, 1.2].forEach(wz => {
+              const wp = proj(wbx, nearSide * fw, wz);
+              ctx.fillRect(wp.x - 0.8, wp.y - 0.45, 1.6, 0.9);
+            });
+          }
+        }
+
+        // Symmetrical Command Bridge Windshield
+        if (perspective !== "rear_tailon") {
+          fillPoly3D([
+            [33.5, 0, 3.2],
+            [27.5, -w * 0.56, 4.8],
+            [24.5, 0, 6.2],
+            [27.5, w * 0.56, 4.8]
+          ], pal.windowGlow);
+        }
+      };
+
+      if (perspective === "front_headon") {
+        drawVerticalFin();
+        drawHalfWing(-1);
+        drawHalfWing(1);
+        drawDoubleBubbleFuselage();
+      } else if (perspective === "rear_tailon") {
+        drawDoubleBubbleFuselage();
+        drawHalfWing(-1);
+        drawHalfWing(1);
+        drawVerticalFin();
+      } else if (perspective === "front_quarter") {
+        drawHalfWing(farSide);
+        drawDoubleBubbleFuselage();
+        drawVerticalFin();
+        drawHalfWing(nearSide);
+      } else {
+        drawHalfWing(farSide);
+        drawDoubleBubbleFuselage();
+        drawVerticalFin();
+        drawHalfWing(nearSide);
+      }
+      return;
     }
 
+    // === VERTICAL CRADLE & LAUNCH VIEW (Strict Mirror Symmetry + External Cryogenic Booster Tanks) ===
     // External Twin Solid/Cryo Booster Tank assemblies when being mated / launched vertically!
     if (externalBoosters > 0.02) {
       const dxSlide = (1 - Math.min(1, externalBoosters)) * 26;
@@ -5090,7 +5772,6 @@ const WorldGateway = {
           ctx.closePath();
           ctx.fill();
         }
-        // Strut yoke locking booster tank onto Mega-Liner fuselage/wing root
         ctx.strokeStyle = pal.towerSteel;
         ctx.lineWidth = 1.6;
         ctx.beginPath();
@@ -5100,7 +5781,6 @@ const WorldGateway = {
         ctx.lineTo(14, side * 6);
         ctx.stroke();
 
-        // Cylindrical orange/white insulated external booster tank + nose cone + skirt nozzle
         ctx.fillStyle = pal.liveryAccent;
         ctx.beginPath();
         ctx.roundRect(-27, py - 4.0, 50, 8.0, 2.2);
@@ -5137,7 +5817,7 @@ const WorldGateway = {
       });
     }
 
-    // Massive cranked ogee delta lifting wing
+    // Symmetrical mirrored cranked ogee delta wings
     const wG = ctx.createLinearGradient(0, -29, 0, 29);
     wG.addColorStop(0, pal.bodyLight);
     wG.addColorStop(0.5, pal.bodyMid);
@@ -5150,16 +5830,16 @@ const WorldGateway = {
     ctx.lineTo(-30, -8);
     ctx.lineTo(-30, 8);
     ctx.lineTo(-27, 26);
+    ctx.lineTo(-14, 28);
     ctx.quadraticCurveTo(4, 8, 22, 0);
     ctx.closePath();
     ctx.fill();
 
-    // Wing leading heat-shield trim & twin canted outboard stabilizer fins
+    // Twin symmetrical outboard stabilizer fins + 4 engine nacelles
     ctx.fillStyle = pal.archDark;
     ctx.fillRect(-26, -28.5, 11, 3.0);
     ctx.fillRect(-26, 25.5, 11, 3.0);
 
-    // 4 heavy engine pods (2 inboard trunk + 2 underwing nacelles)
     [-14, -6, 6, 14].forEach(py => {
       const x0 = Math.abs(py) > 10 ? -24 : -31;
       ctx.fillStyle = pal.towerSteel;
@@ -5170,10 +5850,10 @@ const WorldGateway = {
       ctx.fillRect(x0 - 1.2, py - 1.8, 2.2, 3.6);
     });
 
-    // Colossal Deep Double-Bubble Multi-Deck Fuselage
+    // Symmetrical Double-Bubble Vertical Fuselage Column + Centered Dorsal Spine Fin
     const fGrad = ctx.createLinearGradient(0, -8.5, 0, 8.5);
     fGrad.addColorStop(0, pal.bodyLight);
-    fGrad.addColorStop(0.65, pal.bodyLight);
+    fGrad.addColorStop(0.5, pal.bodyMid);
     fGrad.addColorStop(1, pal.bodyShade);
     ctx.fillStyle = fGrad;
     ctx.beginPath();
@@ -5185,30 +5865,22 @@ const WorldGateway = {
     ctx.closePath();
     ctx.fill();
 
-    // Metallic hull panel & livery stripes
     ctx.fillStyle = pal.liveryAccent;
-    ctx.fillRect(-26, 1.6, 56, 1.4);
-    ctx.fillRect(-24, -4.6, 48, 0.9);
+    ctx.fillRect(-25, -4.6, 50, 1.0);
+    ctx.fillRect(-25, 3.6, 50, 1.0);
 
-    // Command bridge & 3 Distinct Illuminated Passenger Window Decks
     ctx.fillStyle = pal.windowGlow;
-    ctx.fillRect(29, -2.5, 5.2, 2.2);
-    for (let wi = 0; wi < 12; wi++) {
-      const wx = 23 - wi * 3.8;
-      ctx.fillRect(wx, -3.5, 1.9, 1.0); // Upper Lounge Deck
-      ctx.fillRect(wx + 0.3, -1.6, 1.9, 1.0); // Main Passenger Deck
-      ctx.fillRect(wx + 0.6, 0.3, 1.9, 1.0); // Lower Mezzanine Deck
+    ctx.fillRect(29, -1.6, 5.0, 3.2);
+    for (let wi = 0; wi < 10; wi++) {
+      const wx = 22 - wi * 4.0;
+      ctx.fillRect(wx, -2.8, 1.9, 1.0);
+      ctx.fillRect(wx, 0.0, 1.9, 1.0);
+      ctx.fillRect(wx, 2.6, 1.9, 1.0);
     }
 
-    // Tall swept dorsal tail fin
+    // Centered dorsal stabilizer ridge (strictly vertical symmetry!)
     ctx.fillStyle = pal.bodyLight;
-    ctx.beginPath();
-    ctx.moveTo(-18, -2.0);
-    ctx.lineTo(-34, -16.5);
-    ctx.lineTo(-37.5, -14.2);
-    ctx.lineTo(-31, -1.0);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(-35, -1.4, 20, 2.8);
 
     if (Math.sin(step * 10) > 0.2) {
       ctx.fillStyle = "#F87171";
@@ -5446,16 +6118,15 @@ const WorldGateway = {
     }
     if (!visible) return;
 
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(ml.heading);
-    ctx.scale(scale, scale);
-
     if (showChutes && chuteInf > 0.05) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale * 0.45);
+      ctx.rotate(ml.heading);
       const canopyX = -32 - 22 * chuteInf;
       [-7.5, 7.5].forEach(cy => {
         ctx.strokeStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.58)" : "rgba(71, 85, 105, 0.56)";
-        ctx.lineWidth = 0.9;
+        ctx.lineWidth = 1.1;
         ctx.beginPath();
         ctx.moveTo(-30, 0);
         ctx.lineTo(canopyX, cy - 6);
@@ -5464,12 +6135,18 @@ const WorldGateway = {
         ctx.stroke();
         ctx.fillStyle = pal.chuteColor;
         ctx.beginPath();
-        ctx.ellipse(canopyX - 3, cy, 7.5 * chuteInf, 5.8 * chuteInf, 0, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.ellipse(canopyX - 3, cy, 8.2 * chuteInf, 6.4 * chuteInf, 0, Math.PI * 0.5, Math.PI * 1.5);
         ctx.fill();
       });
+      ctx.restore();
     }
 
-    this._drawMegaLinerModel(ctx, pal, step, afterburner, altitude, isVertical, externalBoosters);
+    const mlPitch = ml.phase === "approach" ? 0.08 : 0;
+    ctx.save();
+    ctx.translate(x, y);
+    if (isVertical) ctx.rotate(ml.heading);
+    ctx.scale(scale, scale);
+    this._drawMegaLinerModel(ctx, pal, step, afterburner, altitude, isVertical, externalBoosters, ml.heading, mlPitch);
     ctx.restore();
   },
 
