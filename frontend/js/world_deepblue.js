@@ -31,21 +31,113 @@ const WorldDeepBlue = {
   sub: null,          // Primary left-pier visiting submarine
   cargoSub: null,     // Primary right-pier visiting freighter/vessel
   roamingSubs: [],    // Multi-directional roaming visitor + background transit traffic
+  dolphinPodState: null,
   elevator: null,     // Vertical surface supply elevator state
   rovs: [],
   sonarRings: [],
   _lastW: 0,
   _lastH: 0,
 
+  DOCKING_SUB_STYLES: [
+    "passenger_liner",
+    "heavy_freighter",
+    "experimental_research",
+    "military_stealth"
+  ],
+
   SUB_STYLES: [
+    "passenger_liner",
+    "heavy_freighter",
+    "experimental_research",
+    "military_stealth",
     "bathyscaphe",
     "crew_shuttle",
     "research_catamaran",
-    "heavy_freighter",
     "manta_glider",
     "industrial_tug",
     "deep_explorer"
   ],
+
+  _getSubDockOffset(style) {
+    if (style === "passenger_liner") return 54;
+    if (style === "heavy_freighter") return 58;
+    if (style === "experimental_research") return 48;
+    if (style === "military_stealth") return 56;
+    return 46;
+  },
+
+  getScreenBudget(isNarrow) {
+    return isNarrow
+      ? {
+          maxMegafauna: 1,
+          maxPlayful: 1,
+          maxFishSchools: 1,
+          maxJellies: 1,
+          maxAnglers: 1,
+          maxSubs: 1,
+          maxROVs: 1,
+          maxDivers: 1
+        }
+      : {
+          maxMegafauna: 2,
+          maxPlayful: 1,
+          maxFishSchools: 2,
+          maxJellies: 2,
+          maxAnglers: 1,
+          maxSubs: 2,
+          maxROVs: 2,
+          maxDivers: 2
+        };
+  },
+
+  _countActiveCategory(cat) {
+    if (cat === "megafauna") {
+      let n = 0;
+      for (let i = 0; i < this.whales.length; i++) if (this.whales[i].active) n++;
+      for (let i = 0; i < this.sharks.length; i++) if (this.sharks[i].active) n++;
+      for (let i = 0; i < this.farLife.length; i++) if (this.farLife[i].kind === "manta" && this.farLife[i].active) n++;
+      for (let i = 0; i < this.fgReefSharks.length; i++) if (this.fgReefSharks[i].active) n++;
+      if (this.leviathan && this.leviathan.phase === "swimming") n += 2;
+      return n;
+    }
+    if (cat === "playful") {
+      let n = (this.dolphinPodState && this.dolphinPodState.active) ? 1 : 0;
+      for (let i = 0; i < this.seaTurtles.length; i++) if (this.seaTurtles[i].active) n++;
+      return n;
+    }
+    if (cat === "fishSchools") return this.fishSchools.filter(s => s.active).length;
+    if (cat === "jellies") return this.jellies.filter(j => j.active).length;
+    if (cat === "anglers") return this.anglerFish.filter(a => a.active).length;
+    if (cat === "subs") {
+      let n = 0;
+      if (this.sub && this.sub.phase !== "patrol_wait") n++;
+      if (this.cargoSub && this.cargoSub.phase !== "patrol_wait") n++;
+      for (let i = 0; i < this.roamingSubs.length; i++) {
+        const rs = this.roamingSubs[i];
+        if (rs.role === "visitor" ? rs.phase !== "away_wait" : rs.phase !== "wait") n++;
+      }
+      return n;
+    }
+    if (cat === "rovs") return this.rovs.filter(r => r.phase !== "docked_wait").length;
+    if (cat === "divers") return this.divers.filter(d => d.phase !== "inside_airlock").length;
+    return 0;
+  },
+
+  _canActivate(cat, isNarrow) {
+    const B = this.getScreenBudget(isNarrow);
+    const map = {
+      megafauna: B.maxMegafauna,
+      playful: B.maxPlayful,
+      fishSchools: B.maxFishSchools,
+      jellies: B.maxJellies,
+      anglers: B.maxAnglers,
+      subs: B.maxSubs,
+      rovs: B.maxROVs,
+      divers: B.maxDivers
+    };
+    const cap = map[cat];
+    return cap == null ? true : this._countActiveCategory(cat) < cap;
+  },
 
   _rand(min, max) {
     return min + Math.random() * (max - min);
@@ -197,8 +289,8 @@ const WorldDeepBlue = {
     }
     return this._quadYAt(
       { x: midX, y: L.seabedY - 58 },
-      { x: w * 0.78, y: L.seabedY - 44 },
-      { x: w, y: L.seabedY - 16 },
+      { x: w * 0.78, y: L.seabedY - 64 },
+      { x: w, y: L.seabedY - 40 },
       this._clamp(x, midX, w)
     );
   },
@@ -260,6 +352,7 @@ const WorldDeepBlue = {
     this.sub = null;
     this.cargoSub = null;
     this.roamingSubs = [];
+    this.dolphinPodState = null;
     this.elevator = null;
     this.rovs = [];
     this.sonarRings = [];
@@ -488,28 +581,28 @@ const WorldDeepBlue = {
   getLayout(w, h) {
     const isNarrow = w < 720;
     const seabedY = h * (isNarrow ? 0.79 : 0.76);
-    const hubX = w * (isNarrow ? 0.52 : 0.50);
-    const hubY = h * (isNarrow ? 0.62 : 0.585);
-    const s = isNarrow ? 0.52 : Math.min(1.06, Math.max(0.76, w / 1320));
+    const hubX = w * 0.50;
+    const hubY = h * (isNarrow ? 0.61 : 0.585);
+    const s = isNarrow ? Math.max(0.60, w / 620) : Math.min(1.06, Math.max(0.76, w / 1320));
 
     // Pre-fab horizontal station campus coordinates (wide clear berths between central hub & side wings!)
-    const westWingX = hubX - 286 * s;
+    const westWingX = isNarrow ? (hubX - 235 * s) : (hubX - 286 * s);
     const westWingY = hubY + 46 * s;
     const farWestX = hubX - 418 * s;  // Hydropower Tidal Turbine Farm!
     const farWestY = hubY + 70 * s;
 
-    const eastWingX = hubX + 292 * s; // East Sensor Wing & Rotating Sonar Relay
+    const eastWingX = isNarrow ? (hubX + 235 * s) : (hubX + 272 * s); // East Sensor Wing & Anchored Sonar Relay
     const eastWingY = hubY + 46 * s;
-    const farEastX = hubX + 420 * s;
-    const farEastY = hubY + 68 * s;
+    const farEastX = hubX + 382 * s;
+    const farEastY = hubY + 76 * s;
 
     // Diver Wet-Lock Airlock Aperture on West Fabrication Wing + Hub Lower Lock
     const airlockX = westWingX + 12 * s;
     const airlockY = westWingY + 12 * s;
 
-    // Rotating Sonar Relay Dish Pedestal on East Sensor Wing
-    const sonarX = eastWingX + 18 * s;
-    const sonarY = eastWingY - 36 * s;
+    // Anchored Rotating Sonar Relay Dish Pedestal directly on East Sensor Wing module deck roof
+    const sonarX = eastWingX - 14 * s;
+    const sonarY = eastWingY - 24 * s;
 
     // Hydropower Tidal Turbines (Far West on seabed currents)
     const hydroBaseX = isNarrow ? (hubX - 188 * s) : farWestX;
@@ -544,14 +637,14 @@ const WorldDeepBlue = {
     // Expanded Horizontal Station Outer Wings (Desktop panoramic campus expansion!)
     const geoWestX = isNarrow ? farWestX : (hubX - 548 * s);
     const geoWestY = hubY + 76 * s;
-    const outerEastX = isNarrow ? farEastX : (hubX + 556 * s);
-    const outerEastY = hubY + 78 * s;
+    const outerEastX = isNarrow ? farEastX : (hubX + 516 * s);
+    const outerEastY = hubY + 84 * s;
 
-    // Large Mid-Background Listing Shipwreck anchored on raised canyon shelf above East wing skyline!
+    // Grounded Sunken Shipwreck partially buried on unobstructed open East sandy seabed!
     const wreck = {
-      x: w * (isNarrow ? 0.78 : 0.835),
-      y: seabedY - (isNarrow ? 122 : 162),
-      scale: isNarrow ? 0.56 : Math.min(1.06, Math.max(0.76, w / 1360))
+      x: w * (isNarrow ? 0.83 : 0.772),
+      y: isNarrow ? (seabedY + 12) : (seabedY + 24),
+      scale: isNarrow ? 0.45 : Math.min(0.90, Math.max(0.72, w / 1460))
     };
 
     return {
@@ -637,7 +730,7 @@ const WorldDeepBlue = {
     ctx.moveTo(0, h);
     ctx.lineTo(0, L.seabedY - 12);
     ctx.quadraticCurveTo(w * 0.22, L.seabedY - 44, w * 0.50, L.seabedY - 58);
-    ctx.quadraticCurveTo(w * 0.78, L.seabedY - 44, w, L.seabedY - 16);
+    ctx.quadraticCurveTo(w * 0.78, L.seabedY - 64, w, L.seabedY - 40);
     ctx.lineTo(w, h);
     ctx.closePath();
     ctx.fill();
@@ -646,7 +739,7 @@ const WorldDeepBlue = {
     ctx.strokeStyle = pal.waterBounce;
     ctx.globalAlpha = pal.isDark && !pal.isGoldenCoastal ? 0.08 : 0.16;
     ctx.lineWidth = 1.2;
-    for (let row = 0; row < 6; row++) {
+    for (let row = 0; row < (L.isNarrow ? 3 : 6); row++) {
       const sy = L.seabedY + 8 + row * 24;
       if (sy > h - 8) break;
       ctx.beginPath();
@@ -660,7 +753,7 @@ const WorldDeepBlue = {
 
     // Scattered basalt boulders, benthic pebbles & seabed cable conduits
     ctx.globalAlpha = 0.78;
-    for (let b = 0; b < (L.isNarrow ? 18 : 34); b++) {
+    for (let b = 0; b < (L.isNarrow ? 10 : 34); b++) {
       const bx = w * (0.06 + (b * 0.028) % 0.88);
       const minY = this._seabedYAtX(bx, w, h, L) + 8;
       const by = minY + ((b * 37) % Math.max(20, (h - minY - 10)));
@@ -671,46 +764,49 @@ const WorldDeepBlue = {
       ctx.fill();
     }
 
-    // Armored benthic power cable conduit running cleanly across seabed from Hydropower Farm into West Wing
-    ctx.globalAlpha = 0.82;
-    ctx.strokeStyle = pal.hullDark;
-    ctx.lineWidth = 3.2 * L.s;
-    ctx.beginPath();
-    ctx.moveTo(L.hydroTurbines[0].x, L.hydroTurbines[0].y + 12 * L.s);
-    ctx.quadraticCurveTo((L.hydroTurbines[0].x + L.westWingX) * 0.5, L.seabedY - 6, L.westWingX - 42 * L.s, L.westWingY + 26 * L.s);
-    ctx.stroke();
+    // Armored benthic power cable conduit running cleanly across seabed from Hydropower Farm into West Wing (desktop)
+    if (!L.isNarrow) {
+      ctx.globalAlpha = 0.82;
+      ctx.strokeStyle = pal.hullDark;
+      ctx.lineWidth = 3.2 * L.s;
+      ctx.beginPath();
+      ctx.moveTo(L.hydroTurbines[0].x, L.hydroTurbines[0].y + 12 * L.s);
+      ctx.quadraticCurveTo((L.hydroTurbines[0].x + L.westWingX) * 0.5, L.seabedY - 6, L.westWingX - 42 * L.s, L.westWingY + 26 * L.s);
+      ctx.stroke();
+    }
     ctx.restore();
-
-    // 4b. Large Mid-Background Hazy Canyon Shipwreck Resting on Raised Marine Ledge
-    this._drawBackgroundShipwreck(ctx, L, pal);
 
     // 5. Industrial Pre-Fab Modular Seabed Research Station + Hydropower Farm + Clear Tubes + Greenhouse
     this._drawResearchStation(ctx, L, pal);
 
+    // 5b. Unobstructed Grounded Sunken Shipwreck Partially Covered in Continuous Seabed Sand (clear in front of wing terrain skirts)
+    this._drawBackgroundShipwreck(ctx, L, pal);
+
     // 6. Lush Ground-Anchored Benthic Coral Reefs, Plate Corals, Sea Fans, Sponges & Hydrothermal Chimneys
     this._drawSeabedReefs(ctx, w, h, L, pal);
-    const floorSpots = L.isNarrow ? [0.24, 0.76] : [0.20, 0.30, 0.71, 0.81];
+    const floorSpots = L.isNarrow ? [] : [0.20, 0.30, 0.67, 0.88];
     floorSpots.forEach((xf, idx) => {
       const fx = w * xf;
       const fy = Math.min(h - 14, this._seabedYAtX(fx, w, h, L) + 18 + (idx % 3) * 18);
       this._drawBenthicSpongeCluster(ctx, fx, fy, (10 + (idx % 3) * 3) * L.s, pal);
     });
 
-    // Hydrothermal basalt vent mounds on canyon outskirts
-    [w * 0.19, w * 0.81].forEach((vx, idx) => {
-      if (L.isNarrow && idx === 1) return;
-      const vy = this._seabedYAtX(vx, w, h, L) + 12;
-      ctx.save();
-      ctx.fillStyle = pal.reefNear;
-      ctx.beginPath();
-      ctx.moveTo(vx - 14 * L.s, vy + 8 * L.s);
-      ctx.lineTo(vx - 5 * L.s, vy - 18 * L.s);
-      ctx.lineTo(vx + 5 * L.s, vy - 18 * L.s);
-      ctx.lineTo(vx + 16 * L.s, vy + 8 * L.s);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-    });
+    // Hydrothermal basalt vent mounds on canyon outskirts (desktop, clear of shipwreck stern)
+    if (!L.isNarrow) {
+      [w * 0.19, w * 0.88].forEach((vx) => {
+        const vy = this._seabedYAtX(vx, w, h, L) + 12;
+        ctx.save();
+        ctx.fillStyle = pal.reefNear;
+        ctx.beginPath();
+        ctx.moveTo(vx - 14 * L.s, vy + 8 * L.s);
+        ctx.lineTo(vx - 5 * L.s, vy - 18 * L.s);
+        ctx.lineTo(vx + 5 * L.s, vy - 18 * L.s);
+        ctx.lineTo(vx + 16 * L.s, vy + 8 * L.s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+    }
 
     // 7. Framing Foreground Coral Cliffs & Strictly Ground-Anchored Reef Corals
     ctx.save();
@@ -732,7 +828,8 @@ const WorldDeepBlue = {
     ctx.fill();
 
     // Plant every foreground coral root 7px deeper than _cliffYAtX so ZERO floating!
-    [0.05, 0.11, 0.17, 0.23, 0.77, 0.83, 0.90, 0.95].forEach((cf, idx) => {
+    const fgCorals = L.isNarrow ? [0.06, 0.18, 0.82, 0.94] : [0.05, 0.11, 0.17, 0.23, 0.77, 0.83, 0.90, 0.95];
+    fgCorals.forEach((cf, idx) => {
       const cx = w * cf;
       const cy = (this._cliffYAtX(cx, w, h) || h * 0.85) + 7;
       this._drawCoralCluster(ctx, cx, cy, 17 + (idx % 3) * 4, pal.reefNear);
@@ -744,8 +841,8 @@ const WorldDeepBlue = {
   _drawSeabedReefs(ctx, w, h, L, pal) {
     const s = L.s;
     const spots = L.isNarrow
-      ? [0.09, 0.18, 0.27, 0.73, 0.83, 0.92]
-      : [0.07, 0.14, 0.22, 0.29, 0.36, 0.66, 0.74, 0.82, 0.89, 0.95];
+      ? [0.08, 0.16, 0.84, 0.92]
+      : [0.07, 0.14, 0.22, 0.29, 0.36, 0.66, 0.87, 0.95];
 
     ctx.save();
     spots.forEach((xf, idx) => {
@@ -1266,6 +1363,7 @@ const WorldDeepBlue = {
 
   // Live animated spinning blades inside the Hydropower Tidal Turbine shrouds!
   _updateAndDrawTurbines(ctx, L, pal, step) {
+    if (L.isNarrow) return;
     const s = L.s;
     const turbines = L.hydroTurbines;
     ctx.save();
@@ -1307,27 +1405,50 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Rotating Sonar & Acoustic Communications Dish Relay on East Sensor Wing
+  // Rotating Sonar & Acoustic Communications Dish Relay Anchored Flush onto East Sensor Wing
   _drawSonarRelay(ctx, L, pal) {
     const s = L.s;
     const sx = L.sonarX;
     const sy = L.sonarY;
+    const roofY = L.eastWingY - 15.5 * s;
     ctx.save();
-    // Polygonal rotary base collar
+    // Structural steel baseplate bolted directly onto East Sensor Wing roof deck
+    ctx.fillStyle = pal.hullMid;
+    ctx.fillRect(sx - 10 * s, roofY - 2.5 * s, 20 * s, 4.0 * s);
+    // Tapered braced support pedestal rising continuously from roof up into rotary housing
     ctx.fillStyle = pal.hullDark;
-    ctx.fillRect(sx - 6.5 * s, sy - 6 * s, 13 * s, 10 * s);
+    ctx.beginPath();
+    ctx.moveTo(sx - 7 * s, roofY - 2 * s);
+    ctx.lineTo(sx - 4.5 * s, sy - 6 * s);
+    ctx.lineTo(sx + 4.5 * s, sy - 6 * s);
+    ctx.lineTo(sx + 7 * s, roofY - 2 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Diagonal structural truss brace & polygonal rotary collar ring
+    ctx.strokeStyle = pal.hullLight;
+    ctx.lineWidth = Math.max(0.8, 1.1 * s);
+    ctx.beginPath();
+    ctx.moveTo(sx - 5.5 * s, roofY - 2.5 * s);
+    ctx.lineTo(sx + 4 * s, sy - 6 * s);
+    ctx.moveTo(sx + 5.5 * s, roofY - 2.5 * s);
+    ctx.lineTo(sx - 4 * s, sy - 6 * s);
+    ctx.stroke();
     ctx.fillStyle = pal.hullLight;
-    ctx.fillRect(sx - 5 * s, sy - 9 * s, 10 * s, 3 * s);
+    ctx.fillRect(sx - 5.2 * s, sy - 8.5 * s, 10.4 * s, 3.0 * s);
     ctx.restore();
   },
 
   _updateAndDrawSonarArray(ctx, L, pal, step) {
     const s = L.s;
     const sx = L.sonarX;
-    const sy = L.sonarY - 12 * s;
+    const sy = L.sonarY - 11.5 * s;
     const sweep = Math.sin(step * 0.9) * 0.85;
 
     ctx.save();
+    // Solid gimbal yoke stem anchoring dish hub directly down into rotary collar (zero floating gap!)
+    ctx.fillStyle = pal.hullMid;
+    ctx.fillRect(sx - 2.0 * s, sy - 1 * s, 4.0 * s, 6.0 * s);
+
     ctx.translate(sx, sy);
     ctx.scale(Math.cos(sweep) * 0.95 + 0.15, 1);
 
@@ -1690,10 +1811,10 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Large Mid-Background Sunken Cargo/Expedition Shipwreck (grounded solidly on canyon terrace + hazy atmospheric depth)
+  // Mid-Background Sunken Cargo/Expedition Shipwreck Partially Covered in Continuous Seabed Sand (Zero Isolated Plateau!)
   _drawBackgroundShipwreck(ctx, L, pal) {
     const wk = L.wreck;
-    if (!wk) return;
+    if (!wk || L.isNarrow) return;
     const wx = wk.x;
     const wy = wk.y;
     const sc = wk.scale;
@@ -1701,27 +1822,16 @@ const WorldDeepBlue = {
     ctx.save();
     ctx.translate(wx, wy);
     ctx.scale(sc, sc);
+    ctx.globalAlpha = pal.isDark ? 0.90 : 0.88;
 
-    // Grounded mid-background rocky canyon shelf anchoring the wreck seamlessly into depth terrain
-    ctx.fillStyle = pal.reefFar;
-    ctx.globalAlpha = 0.68;
-    ctx.beginPath();
-    ctx.moveTo(-165, 165);
-    ctx.lineTo(-140, 12);
-    ctx.quadraticCurveTo(-55, -14, 15, -4);
-    ctx.quadraticCurveTo(85, -18, 138, 14);
-    ctx.lineTo(175, 165);
-    ctx.closePath();
-    ctx.fill();
+    // 1. Resting hull & superstructure (tilted at natural seabed angle -0.12 rad)
+    ctx.save();
+    ctx.rotate(-0.12);
 
-    ctx.globalAlpha = pal.isDark ? 0.78 : 0.72;
-    ctx.translate(0, 6);
-    ctx.rotate(-0.14); // Subtle dramatic starboard list
-
-    // Cast wreck sediment shadow across reef ledge
+    // Subtle soft sand contact shadow beneath half-buried keel
     ctx.fillStyle = pal.hullShadow;
     ctx.beginPath();
-    ctx.ellipse(0, 12, 126, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 12, 126, 11, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Tilted Cargo Derrick Masts + Hanging Rigging Cables
@@ -1745,9 +1855,14 @@ const WorldDeepBlue = {
     ctx.quadraticCurveTo(0, -32, 54, -66);
     ctx.stroke();
 
-    // Main Sunken Steel Vessel Hull split dramatically at midships breach with exposed steel frames!
+    // Main Sunken Steel Vessel Hull split dramatically at midships breach with weathered steel topsides & exposed frames!
+    const steelTop = pal.isDark ? "#33627A" : "#4B809B";
+    const steelMid = pal.isDark ? "#204458" : "#2F5E78";
+    const steelRim = pal.isDark ? "#6A9DB6" : "#8CC0D6";
+    const bridgeFill = pal.isDark ? "#3B6E88" : "#5B92AE";
     const hullGrad = ctx.createLinearGradient(-118, -28, 118, 16);
-    hullGrad.addColorStop(0, pal.reefMid);
+    hullGrad.addColorStop(0, steelTop);
+    hullGrad.addColorStop(0.55, steelMid);
     hullGrad.addColorStop(1, pal.reefNear);
     ctx.fillStyle = hullGrad;
     // Bow + Midships Forward Half
@@ -1771,6 +1886,35 @@ const WorldDeepBlue = {
     ctx.closePath();
     ctx.fill();
 
+    // Oxidized rust patina freeboard accent & crisp upper sheerline gunwale highlight
+    ctx.strokeStyle = "rgba(176, 104, 66, 0.36)";
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(-108, -10);
+    ctx.lineTo(-12, -11);
+    ctx.moveTo(16, -9);
+    ctx.lineTo(110, -7);
+    ctx.stroke();
+
+    ctx.strokeStyle = steelRim;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-123, -18);
+    ctx.lineTo(-92, -20);
+    ctx.lineTo(-14, -22);
+    ctx.moveTo(14, -16);
+    ctx.lineTo(36, -20);
+    ctx.lineTo(117, -14);
+    ctx.stroke();
+
+    // Weathered Hull Portholes along Bow & Stern plates
+    ctx.fillStyle = pal.hullShadow;
+    [-90, -74, -58, -42, -26, 26, 44, 84, 98].forEach(px => {
+      ctx.beginPath();
+      ctx.arc(px, -8, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
     // Exposed structural hull ribs & torn deck plates in the midships breach (x: -10..+16)
     ctx.strokeStyle = pal.hullShadow;
     ctx.lineWidth = 2.2;
@@ -1782,10 +1926,13 @@ const WorldDeepBlue = {
     }
 
     // Hollowed Wheelhouse Bridge Superstructure + Leaning Smokestack Funnel + Hollow Windows
-    ctx.fillStyle = pal.reefMid;
+    ctx.fillStyle = bridgeFill;
     ctx.fillRect(34, -44, 42, 26);
     ctx.fillRect(40, -54, 24, 12);
-    ctx.fillStyle = pal.reefNear;
+    ctx.fillStyle = steelRim;
+    ctx.fillRect(33, -45, 44, 2);
+    ctx.fillRect(39, -55, 26, 2);
+    ctx.fillStyle = steelMid;
     ctx.beginPath();
     ctx.moveTo(58, -42);
     ctx.lineTo(72, -62);
@@ -1795,20 +1942,57 @@ const WorldDeepBlue = {
     ctx.fill();
 
     ctx.fillStyle = pal.hullShadow;
-    for (let w = 0; w < 4; w++) {
-      ctx.fillRect(38 + w * 9, -40, 6, 4.5);
-      if (w < 3) ctx.fillRect(43 + w * 7, -51, 4.5, 3.8);
+    for (let wn = 0; wn < 4; wn++) {
+      ctx.fillRect(38 + wn * 9, -40, 6, 4.5);
+      if (wn < 3) ctx.fillRect(43 + wn * 7, -51, 4.5, 3.8);
     }
 
-    // Corals, sea fans & draped kelp colonizing the aged hull plates
+    // Corals & encrustations colonizing upper hull deck plates
     [-86, -42, 24, 78].forEach((fx, idx) => {
-      this._drawCoralCluster(ctx, fx, idx % 2 === 0 ? -18 : 8, 9 + (idx % 2) * 3, pal.reefNear);
+      this._drawCoralCluster(ctx, fx, idx % 2 === 0 ? -18 : -14, 9 + (idx % 2) * 3, pal.reefNear);
+    });
+    ctx.restore();
+
+    // 2. Continuous Seabed Sand Drifts Blending Gently Across Bottom Keel (~25-30% lower bury, Zero Plateau!)
+    ctx.globalAlpha = 1;
+    const sandGrad = ctx.createLinearGradient(0, 2, 0, 22);
+    sandGrad.addColorStop(0, pal.seabedDark);
+    sandGrad.addColorStop(0.55, pal.reefMid);
+    sandGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = sandGrad;
+    ctx.beginPath();
+    ctx.moveTo(-132, 20);
+    ctx.quadraticCurveTo(-96, 3, -52, 8);
+    ctx.quadraticCurveTo(-8, 13, 28, 3);
+    ctx.quadraticCurveTo(72, 1, 108, 9);
+    ctx.quadraticCurveTo(126, 14, 134, 21);
+    ctx.lineTo(-132, 21);
+    ctx.closePath();
+    ctx.fill();
+
+    // Subtle sand ripple contours & benthic pebbles along the keel seam
+    ctx.strokeStyle = pal.waterBounce;
+    ctx.globalAlpha = pal.isDark ? 0.08 : 0.14;
+    ctx.lineWidth = 0.95;
+    ctx.beginPath();
+    ctx.moveTo(-108, 12);
+    ctx.quadraticCurveTo(-48, 7, 4, 14);
+    ctx.quadraticCurveTo(58, 6, 108, 13);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.65;
+    [-88, -32, 32, 82].forEach((px, pidx) => {
+      ctx.fillStyle = pidx % 2 === 0 ? pal.reefMid : pal.seabedDark;
+      ctx.beginPath();
+      ctx.ellipse(px, 12 + (pidx % 2) * 2.5, 6 + (pidx % 2) * 2.5, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
     });
 
-    // Atmospheric water haze veil over entire wreck so foreground pods/subs clearly pop ahead of it
-    ctx.fillStyle = `rgba(${pal.waterHazeRgb}, 0.36)`;
+    // Subtle water depth veil keeping sand-buried wreck integrated while retaining crisp details
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = `rgba(${pal.waterHazeRgb}, 0.10)`;
     ctx.beginPath();
-    ctx.ellipse(0, -14, 138, 62, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -18, 134, 56, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   },
@@ -1876,8 +2060,8 @@ const WorldDeepBlue = {
     const seabedBaseY = L.seabedY + 20 * s;
 
     // 0. Far-West Geothermal & Hydro-Tidal Power Farm + Far-East Marine Bio & Outer-East Diving Bell Facilities!
-    this._drawHydropowerFarm(ctx, L, pal);
     if (!L.isNarrow) {
+      this._drawHydropowerFarm(ctx, L, pal);
       // Far-West Geothermal & Desalination Station connected cleanly to Hydro-Tidal Turbine Farm
       this._drawClearGlassTube(ctx, L.geoWestX + 34 * s, L.geoWestY + 2 * s, L.farWestX - 24 * s, L.farWestY + 8 * s, 11.5 * s, s, pal, { depthAlpha: 0.76 });
       this._drawSatelliteWing(ctx, L.geoWestX, L.geoWestY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.24 });
@@ -2069,7 +2253,7 @@ const WorldDeepBlue = {
     if (this.kelp.length === 0) {
       const leftXs = isNarrow ? [0.05, 0.14] : [0.04, 0.10, 0.17, 0.24];
       const rightXs = isNarrow ? [0.85, 0.94] : [0.76, 0.84, 0.91, 0.96];
-      const floorXs = isNarrow ? [0.36, 0.64] : [0.21, 0.34, 0.66, 0.79];
+      const floorXs = isNarrow ? [] : [0.21, 0.33, 0.66, 0.86];
 
       leftXs.forEach((xf, idx) => {
         const kx = w * xf;
@@ -2088,36 +2272,36 @@ const WorldDeepBlue = {
       });
     }
 
-    // 2. True Whales gliding across deep background lanes
+    // 2. True Whales gliding across deep background lanes (Director-gated)
     if (this.whales.length === 0) {
       this.whales = [
-        { x: w * 0.22, y: h * 0.20, vx: 0.20, len: isNarrow ? 74 : 112, depth: 0.26, phase: 0 },
-        { x: w * 0.86, y: h * 0.14, vx: -0.16, len: isNarrow ? 62 : 90, depth: 0.18, phase: 2.4 }
+        { active: !isNarrow, waitTimer: isNarrow ? this._rand(18, 30) : 0, x: w * 0.22, y: h * 0.20, vx: 0.20, len: isNarrow ? 74 : 112, depth: 0.26, phase: 0 },
+        { active: false, waitTimer: this._rand(16, 28), x: w + 130, y: h * 0.14, vx: -0.16, len: isNarrow ? 62 : 90, depth: 0.18, phase: 2.4 }
       ];
     }
 
-    // 3. Sharks: Great Whites, Hammerheads, Whale Sharks
+    // 3. Sharks: Great Whites, Hammerheads, Whale Sharks (Director-gated)
     if (this.sharks.length === 0) {
       this.sharks = [
-        { species: "great_white", x: w * 0.30, y: h * 0.25, vx: 0.56, size: isNarrow ? 27 : 37, depth: 0.56, phase: 0.4 },
-        { species: "great_white", x: w * 0.39, y: h * 0.21, vx: 0.49, size: isNarrow ? 23 : 30, depth: 0.44, phase: 1.9 },
-        { species: "hammerhead", x: w * 0.72, y: h * 0.30, vx: -0.62, size: isNarrow ? 25 : 34, depth: 0.64, phase: 1.1 },
-        { species: "whale_shark", x: w * 0.14, y: h * 0.15, vx: 0.32, size: isNarrow ? 44 : 62, depth: 0.48, phase: 2.8 }
+        { active: true, waitTimer: 0, species: "great_white", x: w * 0.30, y: h * 0.25, vx: 0.56, size: isNarrow ? 27 : 37, depth: 0.56, phase: 0.4 },
+        { active: false, waitTimer: this._rand(9, 18), species: "great_white", x: -80, y: h * 0.21, vx: 0.49, size: isNarrow ? 23 : 30, depth: 0.44, phase: 1.9 },
+        { active: false, waitTimer: this._rand(14, 24), species: "hammerhead", x: w + 80, y: h * 0.30, vx: -0.62, size: isNarrow ? 25 : 34, depth: 0.64, phase: 1.1 },
+        { active: false, waitTimer: this._rand(20, 32), species: "whale_shark", x: -110, y: h * 0.15, vx: 0.32, size: isNarrow ? 44 : 62, depth: 0.48, phase: 2.8 }
       ];
     }
 
-    // 4. Synchronized Undulating Coastal Fish Schools!
+    // 4. Synchronized Undulating Coastal Fish Schools! (Director-gated)
     if (this.fishSchools.length === 0) {
       const schoolSpecs = isNarrow
         ? [
-            { x: w * 0.18, y: h * 0.28, vx: 0.52, depth: 0.44, count: 14, spread: 42 },
-            { x: w * 0.78, y: h * 0.20, vx: -0.44, depth: 0.36, count: 14, spread: 38 }
+            { active: true, waitTimer: 0, x: w * 0.22, y: h * 0.24, vx: 0.52, depth: 0.44, count: 12, spread: 38 },
+            { active: false, waitTimer: this._rand(14, 24), x: w + 80, y: h * 0.20, vx: -0.44, depth: 0.36, count: 12, spread: 36 }
           ]
         : [
-            { x: w * 0.16, y: h * 0.29, vx: 0.56, depth: 0.46, count: 24, spread: 64 },
-            { x: w * 0.72, y: h * 0.17, vx: -0.48, depth: 0.34, count: 26, spread: 72 },
-            { x: w * 0.42, y: h * 0.12, vx: 0.36, depth: 0.24, count: 20, spread: 56 },
-            { x: w * 0.85, y: h * 0.38, vx: -0.62, depth: 0.60, count: 18, spread: 52 }
+            { active: true, waitTimer: 0, x: w * 0.16, y: h * 0.29, vx: 0.56, depth: 0.46, count: 22, spread: 62 },
+            { active: false, waitTimer: this._rand(7, 15), x: w + 90, y: h * 0.17, vx: -0.48, depth: 0.34, count: 24, spread: 68 },
+            { active: false, waitTimer: this._rand(14, 24), x: -80, y: h * 0.12, vx: 0.36, depth: 0.24, count: 18, spread: 54 },
+            { active: false, waitTimer: this._rand(18, 28), x: w + 90, y: h * 0.38, vx: -0.62, depth: 0.60, count: 16, spread: 50 }
           ];
       this.fishSchools = schoolSpecs.map((sc, sIdx) => {
         const members = [];
@@ -2137,38 +2321,42 @@ const WorldDeepBlue = {
       for (let i = 0; i < (isNarrow ? 2 : 3); i++) {
         this.farLife.push({
           kind: "manta",
+          active: false,
+          waitTimer: this._rand(8 + i * 7, 16 + i * 9),
           depth: 0.36 + i * 0.14,
-          x: w * (0.15 + i * 0.35),
+          x: i % 2 === 0 ? w + 75 : -75,
           y: h * (0.18 + i * 0.08),
           vx: (i % 2 === 0 ? -1 : 1) * (0.40 + Math.random() * 0.22),
           span: 24 + i * 9,
           phase: Math.random() * Math.PI * 2
         });
       }
-      const schoolCount = isNarrow ? 10 : 18;
+      const schoolCount = isNarrow ? 4 : 8;
       for (let i = 0; i < schoolCount; i++) {
         const rightGroup = i >= schoolCount * 0.55;
         this.farLife.push({
           kind: "fish",
+          active: true,
           depth: 0.28 + (i % 4) * 0.09,
-          x: (rightGroup ? w * 0.68 : w * 0.08) + (i % 8) * 18 + (Math.random() - 0.5) * 24,
-          y: (rightGroup ? h * 0.14 : h * 0.27) + (Math.random() - 0.5) * 60,
+          x: (rightGroup ? w * 0.68 : w * 0.08) + (i % 6) * 18 + (Math.random() - 0.5) * 24,
+          y: (rightGroup ? h * 0.14 : h * 0.27) + (Math.random() - 0.5) * 48,
           vx: (rightGroup ? -1 : 1) * (0.52 + Math.random() * 0.26),
-          size: 4.0 + Math.random() * 2.4,
+          size: 4.0 + Math.random() * 2.2,
           phase: Math.random() * Math.PI * 2
         });
       }
     }
 
     if (this.nearLife.length === 0) {
-      for (let i = 0; i < (isNarrow ? 6 : 12); i++) {
-        const dir = i < 6 ? 1 : -1;
+      const nCount = isNarrow ? 4 : 10;
+      for (let i = 0; i < nCount; i++) {
+        const dir = i < nCount * 0.5 ? 1 : -1;
         this.nearLife.push({
           depth: 0.72 + Math.random() * 0.28,
           x: Math.random() * w,
           y: h * (0.56 + Math.random() * 0.30),
           vx: dir * (0.76 + Math.random() * 0.48),
-          size: 6 + Math.random() * 3.2,
+          size: 6 + Math.random() * 3.0,
           phase: Math.random() * Math.PI * 2
         });
       }
@@ -2177,8 +2365,10 @@ const WorldDeepBlue = {
     if (this.jellies.length === 0) {
       for (let i = 0; i < (isNarrow ? 2 : 3); i++) {
         this.jellies.push({
-          x: w * (0.12 + i * 0.34),
-          y: h * (0.30 + Math.random() * 0.36),
+          active: i === 0,
+          waitTimer: i === 0 ? 0 : this._rand(6 + i * 5, 14 + i * 6),
+          x: w * (0.14 + i * 0.34),
+          y: i === 0 ? h * 0.42 : h + 40,
           vy: -(0.12 + Math.random() * 0.10),
           size: 8 + Math.random() * 4.5,
           phase: Math.random() * Math.PI * 2,
@@ -2188,7 +2378,7 @@ const WorldDeepBlue = {
     }
 
     if (this.snow.length === 0) {
-      const count = isNarrow ? 22 : 44;
+      const count = isNarrow ? 14 : 44;
       for (let i = 0; i < count; i++) {
         this.snow.push({
           x: Math.random() * w,
@@ -2201,32 +2391,37 @@ const WorldDeepBlue = {
       }
     }
 
-    // 5. To-Scale Human Maintenance & Shipwreck Research Divers Entering & Exiting Station Airlocks!
+    // 5. To-Scale Human Maintenance & Shipwreck Research Divers (multi-action wreck photography/sampling/survey!)
     if (this.divers.length === 0) {
       const wkX = L.wreck ? L.wreck.x : w * 0.82;
       const wkY = L.wreck ? L.wreck.y : h * 0.56;
       const wkS = L.wreck ? L.wreck.scale : s;
       const dTargets = [
-        { tx: L.hubX - 148 * s, ty: L.hubY + 24 * s, isWreck: false },
-        { tx: L.hydroTurbines[0].x + 14 * s, ty: L.hydroTurbines[0].y + 4 * s, isWreck: false },
-        { tx: wkX - 16 * wkS, ty: wkY - 12 * wkS, isWreck: true },
-        { tx: wkX + 34 * wkS, ty: wkY - 24 * wkS, isWreck: true }
+        { tx: wkX - 18 * wkS, ty: wkY - 12 * wkS, altX: wkX + 36 * wkS, altY: wkY - 26 * wkS, isWreck: true },
+        { tx: L.hubX - 148 * s, ty: L.hubY + 24 * s, altX: L.hubX - 124 * s, altY: L.hubY + 30 * s, isWreck: false },
+        { tx: wkX + 28 * wkS, ty: wkY - 20 * wkS, altX: wkX - 42 * wkS, altY: wkY - 6 * wkS, isWreck: true },
+        { tx: L.hydroTurbines[0].x + 14 * s, ty: L.hydroTurbines[0].y + 4 * s, altX: L.hydroTurbines[0].x + 28 * s, altY: L.hydroTurbines[0].y + 2 * s, isWreck: false }
       ];
       const count = isNarrow ? 2 : 4;
+      const mobileTargets = [dTargets[1], dTargets[3]];
       for (let i = 0; i < count; i++) {
-        const tgt = isNarrow && i === 1 ? dTargets[2] : dTargets[i];
+        const tgt = isNarrow ? mobileTargets[i] : dTargets[i];
         const isWreckDiv = tgt.isWreck;
+        const startActive = i === 0;
         this.divers.push({
           id: `diver_${i + 1}`,
           role: isWreckDiv ? "wreck_research" : "station_maint",
-          phase: i === 0 || isWreckDiv ? (i === 3 ? "weld_inspect" : "swim_to_site") : "inside_airlock",
-          t: i === 0 ? 1.5 : 0,
-          dist: isWreckDiv ? 120 : (i === 0 ? 28 : 0),
-          phaseDuration: this._rand(6.0, 11.0),
+          phase: startActive ? "swim_to_site" : "inside_airlock",
+          action: isWreckDiv ? "photo" : "weld",
+          visitsLeft: isWreckDiv ? 2 : 1,
+          flashTimer: 1.4,
+          t: 0,
+          dist: startActive ? 95 : 0,
+          phaseDuration: startActive ? 9.0 : this._rand(8.0 + i * 5, 16.0 + i * 6),
           targetPt: tgt,
           path: null,
-          x: i === 3 ? tgt.tx : L.airlockX,
-          y: i === 3 ? tgt.ty : L.airlockY,
+          x: L.airlockX,
+          y: L.airlockY,
           facingLeft: tgt.tx < L.airlockX,
           kickPhase: i * 1.7
         });
@@ -2243,55 +2438,61 @@ const WorldDeepBlue = {
       };
     }
 
-    // 7. Left-Pier Visiting Submarine (varied from all 7 cohesive designs)
+    // 7. Left-Pier Visiting Submarine (cycles all 4 docking classes with longer 30-55s dock dwells)
     if (!this.sub) {
       const dirX = Math.cos(L.leftAngle);
       const dirY = Math.sin(L.leftAngle);
+      const startStyle = "passenger_liner";
+      const dockOff = this._getSubDockOffset(startStyle);
       const holdPt = { x: L.leftDockX + dirX * (130 * s), y: L.leftDockY + dirY * (130 * s) };
       this.sub = {
-        style: "deep_explorer",
-        phase: "approaching",
+        style: startStyle,
+        phase: isNarrow ? "docked" : "approaching",
         t: 0,
         dist: 120,
-        speed: 17.5,
-        cruiseSpeed: 18.0,
+        speed: isNarrow ? 0 : 17.0,
+        cruiseSpeed: 17.5,
+        phaseDuration: this._rand(30.0, 55.0),
         corridor: "mid_cruise",
         entryX: -150,
         entryY: h * 0.48,
-        x: -10,
-        y: h * 0.52,
+        x: isNarrow ? (L.leftDockX + dirX * (dockOff * s)) : -10,
+        y: isNarrow ? L.leftDockY : (h * 0.52),
         facingLeft: false,
-        pitch: 0.04,
+        pitch: isNarrow ? 0 : 0.04,
         heading: 0.04,
         path: null
       };
       this._assignCorridorEndpoints(this.sub, "left", w, h, L);
-      this.sub.path = this._buildSubPath(
-        { x: this.sub.entryX, y: this.sub.entryY },
-        holdPt,
-        { x: (this.sub.entryX + holdPt.x) * 0.45, y: this.sub.entryY },
-        { x: holdPt.x - 85 * s, y: holdPt.y + 12 * s }
-      );
-      this.sub.dist = Math.min(this.sub.path.totalLen * 0.35, 160);
+      if (!isNarrow) {
+        this.sub.path = this._buildSubPath(
+          { x: this.sub.entryX, y: this.sub.entryY },
+          holdPt,
+          { x: (this.sub.entryX + holdPt.x) * 0.45, y: this.sub.entryY },
+          { x: holdPt.x - 85 * s, y: holdPt.y + 12 * s }
+        );
+        this.sub.dist = Math.min(this.sub.path.totalLen * 0.35, 160);
+      }
     }
 
-    // 8. Right-Pier Modular Cargo / Tug Submarine
+    // 8. Right-Pier Visiting Submarine (cargo freighter, experimental research, military stealth, passenger liner)
     if (!this.cargoSub) {
       const dirX = Math.cos(L.rightAngle);
-      const dirY = Math.sin(L.rightAngle);
+      const startStyle = "heavy_freighter";
+      const dockOff = this._getSubDockOffset(startStyle);
       this.cargoSub = {
-        style: "heavy_freighter",
-        phase: "docked",
+        style: startStyle,
+        phase: isNarrow ? "patrol_wait" : "docked",
         t: 0,
         dist: 0,
         speed: 0,
         cruiseSpeed: 14.0,
-        phaseDuration: this._rand(10.0, 16.0),
+        phaseDuration: isNarrow ? this._rand(14.0, 24.0) : this._rand(30.0, 55.0),
         corridor: "mid_cruise",
         exitX: w + 170,
         exitY: L.rightDockY + 30,
-        x: L.rightDockX + dirX * (66 * s),
-        y: L.rightDockY + dirY * (66 * s),
+        x: L.rightDockX + dirX * (dockOff * s),
+        y: L.rightDockY,
         facingLeft: true,
         pitch: 0,
         heading: L.rightAngle + Math.PI,
@@ -2300,7 +2501,7 @@ const WorldDeepBlue = {
       this._assignCorridorEndpoints(this.cargoSub, "right", w, h, L);
     }
 
-    // 9. Extra Multi-Directional Roaming Submarines
+    // 9. Extra Multi-Directional Roaming Submarines (Director-gated so maxSubs never exceeded)
     if (this.roamingSubs.length === 0) {
       const fromPt = { x: w + 115, y: h * 0.30 };
       const hoverPt = { x: L.eastWingX - 18 * s, y: L.eastWingY - 62 * s };
@@ -2314,13 +2515,13 @@ const WorldDeepBlue = {
         {
           id: "science_visitor",
           role: "visitor",
-          style: "manta_glider",
-          phase: "patrol_in",
+          style: "experimental_research",
+          phase: "away_wait",
           t: 0,
-          dist: visitorPath.totalLen * 0.32,
-          speed: 15.0,
+          dist: 0,
+          speed: 0,
           cruiseSpeed: 15.5,
-          phaseDuration: this._rand(6.0, 11.0),
+          phaseDuration: this._rand(14.0, 24.0),
           fromPt,
           hoverPt,
           exitPt: { x: -120, y: h * 0.28 },
@@ -2334,13 +2535,13 @@ const WorldDeepBlue = {
         {
           id: "deep_transit",
           role: "transit",
-          style: "industrial_tug",
-          phase: "cruising",
-          t: 4.5,
-          dist: 240,
-          speed: 13.5,
+          style: "military_stealth",
+          phase: "wait",
+          t: 0,
+          dist: 0,
+          speed: 0,
           cruiseSpeed: 13.5,
-          phaseDuration: this._rand(22.0, 30.0),
+          phaseDuration: this._rand(18.0, 30.0),
           startPt: { x: -130, y: h * 0.32 },
           endPt: { x: w + 135, y: h * 0.28 },
           depth: 0.44,
@@ -2354,78 +2555,96 @@ const WorldDeepBlue = {
       ];
     }
 
-    // 10. Maintenance & Shipwreck Research ROVs (including dedicated Shipwreck Survey ROV dispatched from Station!)
+    // 10. Maintenance & Shipwreck Research ROVs (Round-trip Launch Pad <-> Wreck photo/sample/survey expeditions, Director-gated!)
     if (this.rovs.length === 0) {
-      const wk = L.wreck || { x: w * 0.835, y: h * 0.56, scale: 0.9 };
-      const wkXNorm = wk.x / Math.max(1, w);
-      const wkYNorm = wk.y / Math.max(1, h);
+      const wk = L.wreck || { x: w * 0.815, y: h * 0.56, scale: 0.86 };
+      const homePt = { x: (L.hubX + 46 * s) / Math.max(1, w), y: (L.hubY + 22 * s) / Math.max(1, h) };
+      const wkPts = [
+        { x: (wk.x - 42 * wk.scale) / Math.max(1, w), y: (wk.y - 34 * wk.scale) / Math.max(1, h), beamAngle: 0.45 },
+        { x: wk.x / Math.max(1, w), y: (wk.y - 44 * wk.scale) / Math.max(1, h), beamAngle: 0.95 },
+        { x: (wk.x + 48 * wk.scale) / Math.max(1, w), y: (wk.y - 52 * wk.scale) / Math.max(1, h), beamAngle: 2.15 }
+      ];
       this.rovs = [
+        {
+          id: "wreck_rov",
+          scale: isNarrow ? 0.78 : 0.88,
+          isWreckSurvey: true,
+          phase: isNarrow ? "docked_wait" : "investigate",
+          action: "survey",
+          visitsLeft: 2,
+          flashTimer: 1.5,
+          homePt,
+          waypoints: wkPts,
+          wpIdx: 1,
+          t: 0,
+          waitDuration: this._rand(12.0, 20.0),
+          x: wk.x - 10 * wk.scale,
+          y: wk.y - 42 * wk.scale,
+          beamAngle: 0.85,
+          pauseTimer: this._rand(5.5, 8.5),
+          phaseOsc: 1.4
+        },
         {
           id: "station_west_rov",
           scale: 1.0,
+          isWreckSurvey: false,
+          phase: "patrol",
+          homePt,
           waypoints: [
             { x: 0.26, y: 0.72, beamAngle: 0.55 },
             { x: 0.35, y: 0.77, beamAngle: 0.35 },
             { x: 0.22, y: 0.65, beamAngle: 0.74 },
             { x: 0.31, y: 0.64, beamAngle: 0.24 }
           ],
-          wpIdx: 0, x: w * 0.28, y: h * 0.71, beamAngle: 0.55, pauseTimer: this._rand(2.2, 4.8), phase: 0
-        },
-        {
-          id: "wreck_rov",
-          scale: 0.84,
-          isWreckSurvey: true,
-          waypoints: [
-            { x: wkXNorm - 0.045, y: wkYNorm - 0.045, beamAngle: 0.45 },
-            { x: wkXNorm, y: wkYNorm - 0.055, beamAngle: 0.95 },
-            { x: wkXNorm + 0.035, y: wkYNorm - 0.068, beamAngle: 2.25 },
-            { x: (L.eastWingX + 20) / Math.max(1, w), y: (L.eastWingY - 22) / Math.max(1, h), beamAngle: -0.25 }
-          ],
-          wpIdx: 1, x: wk.x - 24 * wk.scale, y: wk.y - 36 * wk.scale, beamAngle: 0.85, pauseTimer: this._rand(2.5, 5.0), phase: 1.4
+          wpIdx: 0,
+          visitsLeft: 3,
+          t: 0,
+          waitDuration: this._rand(10.0, 18.0),
+          x: isNarrow ? L.hubX + 46 * s : w * 0.28,
+          y: isNarrow ? L.hubY + 22 * s : h * 0.71,
+          beamAngle: 0.55,
+          pauseTimer: this._rand(2.8, 5.4),
+          phaseOsc: 0
         },
         {
           id: "reef_south_rov",
-          scale: 1.0,
+          scale: 0.96,
+          isWreckSurvey: false,
+          phase: "docked_wait",
+          homePt,
           waypoints: [
             { x: 0.74, y: 0.83, beamAngle: 2.72 },
             { x: 0.64, y: 0.85, beamAngle: 2.52 },
             { x: 0.79, y: 0.78, beamAngle: 2.90 }
           ],
-          wpIdx: 0, x: w * 0.74, y: h * 0.83, beamAngle: 2.72, pauseTimer: this._rand(2.4, 5.2), phase: 2.7
-        },
-        ...(!isNarrow ? [{
-          id: "east_station_rov",
-          scale: 0.96,
-          waypoints: [
-            { x: 0.63, y: 0.48, beamAngle: 0.35 },
-            { x: 0.56, y: 0.52, beamAngle: -0.15 },
-            { x: 0.68, y: 0.54, beamAngle: 2.65 }
-          ],
-          wpIdx: 0, x: w * 0.63, y: h * 0.49, beamAngle: 0.35, pauseTimer: this._rand(2.0, 4.5), phase: 0.9
-        }] : [])
+          wpIdx: 0,
+          visitsLeft: 3,
+          t: 0,
+          waitDuration: this._rand(14.0, 24.0),
+          x: L.hubX + 46 * s,
+          y: L.hubY + 22 * s,
+          beamAngle: 2.72,
+          pauseTimer: this._rand(2.8, 5.4),
+          phaseOsc: 2.7
+        }
       ];
     }
 
-    // 11. Deep-Sea Abyssal Angler Fish with Glowing Bioluminescent Esca Lures
+    // 11. Deep-Sea Abyssal Angler Fish with Glowing Bioluminescent Esca Lures (Director-gated)
     if (this.anglerFish.length === 0) {
-      this.anglerFish = isNarrow
-        ? [
-            { x: w * 0.16, y: h * 0.58, vx: 0.26, size: 17, phase: 0.3, depth: 0.74 },
-            { x: w * 0.84, y: h * 0.76, vx: -0.22, size: 15, phase: 2.1, depth: 0.80 }
-          ]
-        : [
-            { x: w * 0.14, y: h * 0.57, vx: 0.28, size: 22, phase: 0.3, depth: 0.74 },
-            { x: w * 0.86, y: h * 0.74, vx: -0.25, size: 20, phase: 2.0, depth: 0.82 },
-            { x: w * 0.32, y: h * 0.82, vx: 0.20, size: 18, phase: 4.1, depth: 0.68 }
-          ];
+      this.anglerFish = [
+        { active: true, waitTimer: 0, x: w * 0.14, y: h * 0.57, vx: 0.28, size: isNarrow ? 16 : 22, phase: 0.3, depth: 0.74 },
+        { active: false, waitTimer: this._rand(14, 24), x: w + 60, y: h * 0.74, vx: -0.25, size: isNarrow ? 14 : 20, phase: 2.0, depth: 0.82 },
+        { active: false, waitTimer: this._rand(20, 34), x: -60, y: h * 0.82, vx: 0.20, size: isNarrow ? 14 : 18, phase: 4.1, depth: 0.68 }
+      ];
     }
 
-    // 12. Infrequent Colossal Abyssal Sea Leviathan
+    // 12. Rarer Colossal Abyssal Sea Leviathan (deep cooldown before rare cameo crossings)
     if (!this.leviathan) {
       this.leviathan = {
         phase: "dormant_wait",
-        t: 22.0,
-        phaseDuration: 30.0,
+        t: 0,
+        phaseDuration: this._rand(180.0, 320.0),
         dir: 1,
         x: -360,
         y: h * 0.22,
@@ -2435,13 +2654,15 @@ const WorldDeepBlue = {
       };
     }
 
-    // 13. Foreground Playful Reef Wildlife (Sea Turtles, Foreground Reef Sharks & Porpoising Dolphin Pod!)
+    // 13. Foreground Playful Reef Wildlife (Sea Turtles, Foreground Reef Sharks & Porpoising Dolphin Pod — Director-gated!)
     if (this.seaTurtles.length === 0) {
-      const count = isNarrow ? 2 : 4;
+      const count = isNarrow ? 2 : 3;
       for (let i = 0; i < count; i++) {
         const dir = i % 2 === 0 ? 1 : -1;
         this.seaTurtles.push({
-          x: w * (0.14 + i * 0.22),
+          active: i === 0,
+          waitTimer: i === 0 ? 0 : this._rand(14 + i * 7, 26 + i * 8),
+          x: i === 0 ? w * 0.18 : (dir > 0 ? -75 : w + 75),
           y: h * (0.36 + (i % 3) * 0.13),
           vx: dir * (22 + i * 3),
           vy: (i % 2 === 0 ? -1 : 1) * 3.8,
@@ -2455,10 +2676,12 @@ const WorldDeepBlue = {
       for (let i = 0; i < count; i++) {
         const dir = i === 0 ? -1 : 1;
         this.fgReefSharks.push({
-          x: w * (i === 0 ? 0.72 : 0.24),
+          active: false,
+          waitTimer: this._rand(12 + i * 10, 22 + i * 12),
+          x: dir < 0 ? w + 95 : -95,
           y: h * (i === 0 ? 0.45 : 0.57),
           vx: dir * (36 + i * 8),
-          size: isNarrow ? 29 : (38 + i * 5),
+          size: isNarrow ? 28 : (36 + i * 5),
           tailPhase: i * 2.1
         });
       }
@@ -2466,14 +2689,19 @@ const WorldDeepBlue = {
     if (this.dolphins.length === 0) {
       const podDir = 1;
       const count = isNarrow ? 3 : 4;
+      this.dolphinPodState = {
+        active: false,
+        waitTimer: this._rand(16.0, 28.0),
+        dir: podDir
+      };
       for (let i = 0; i < count; i++) {
         this.dolphins.push({
-          x: w * 0.22 - i * (isNarrow ? 46 : 64),
+          x: -140 - i * (isNarrow ? 46 : 64),
           baseY: h * (0.32 + (i % 2) * 0.055),
           y: h * 0.34,
           vx: podDir * 54,
           vy: 0,
-          size: isNarrow ? 26 : (36 - (i === 3 ? 7 : 0)), // playful calf at tail of pod!
+          size: isNarrow ? 25 : (35 - (i === 3 ? 7 : 0)),
           arcPhase: i * 0.72,
           dir: podDir
         });
@@ -2510,12 +2738,13 @@ const WorldDeepBlue = {
       });
     }
 
-    if (this.sub && this.sub.phase === "docked" && this.sub.t > 1.2) {
+    // Preserve realistic longer docking dwells (only trigger early undock after 14s+)
+    if (this.sub && this.sub.phase === "docked" && this.sub.t > 14.0) {
       this.sub.phase = "undocking";
       this.sub.t = 0;
       this.sub.dist = 0;
       this.sub.speed = 0;
-    } else if (this.cargoSub && this.cargoSub.phase === "docked" && this.cargoSub.t > 1.2) {
+    } else if (this.cargoSub && this.cargoSub.phase === "docked" && this.cargoSub.t > 14.0) {
       this.cargoSub.phase = "undocking";
       this.cargoSub.t = 0;
       this.cargoSub.dist = 0;
@@ -2528,10 +2757,25 @@ const WorldDeepBlue = {
   },
 
   draw(ctx, w, h, mode, dt, step) {
-    // Reset terrain-dependent foliage & diver coordinates cleanly on desktop <-> mobile resize
+    // Reset viewport-dependent entities cleanly on desktop <-> mobile resize so Director enforces new budget immediately
     if (this._lastW && Math.abs(this._lastW - w) > 20) {
       this.kelp = [];
       this.divers = [];
+      this.rovs = [];
+      this.fishSchools = [];
+      this.whales = [];
+      this.sharks = [];
+      this.farLife = [];
+      this.nearLife = [];
+      this.jellies = [];
+      this.anglerFish = [];
+      this.seaTurtles = [];
+      this.fgReefSharks = [];
+      this.dolphins = [];
+      this.dolphinPodState = null;
+      this.roamingSubs = [];
+      this.sub = null;
+      this.cargoSub = null;
     }
     this._lastW = w;
     this._lastH = h;
@@ -2565,7 +2809,7 @@ const WorldDeepBlue = {
     this._drawStationBeacons(ctx, L, pal, step);
     this._updateAndDrawSupplyElevator(ctx, L, pal, dt, step);
 
-    // 5. To-Scale Human Maintenance Divers Cycling In/Out of Station Wet-Lock Airlock!
+    // 5. To-Scale Human Maintenance & Shipwreck Research Divers Cycling In/Out of Airlocks!
     this._updateAndDrawDivers(ctx, L, pal, dt, step);
 
     // 6. Left-Pier & Right-Pier Horizontal Flush-Docking Submarines
@@ -2577,8 +2821,8 @@ const WorldDeepBlue = {
     this._updateAndDrawSeaTurtles(ctx, w, h, pal, dt, step);
     this._updateAndDrawFgReefSharks(ctx, w, h, pal, dt, step);
 
-    // 7. 3 Maintenance ROVs with Volumetric Spotlights + Deep-Sea Angler Fish with Esca Lures
-    this._updateAndDrawROVs(ctx, w, h, pal, dt, step);
+    // 7. Director-Gated Maintenance & Shipwreck Expedition ROVs + Deep-Sea Angler Fish
+    this._updateAndDrawROVs(ctx, w, h, L, pal, dt, step);
     this._updateAndDrawAnglerFish(ctx, w, h, L, pal, dt, step);
 
     // 8. Ground-Anchored Swinging Kelp, Foreground Reef Fish & Bioluminescent Jellyfish
@@ -2690,8 +2934,8 @@ const WorldDeepBlue = {
 
   // Gentle hydrothermal vent bubble emission from canyon basalt chimneys
   _updateAndDrawVentBubbles(ctx, w, h, L, pal, dt, step) {
-    if (Math.random() < 0.28) {
-      const ventXs = L.isNarrow ? [w * 0.19] : [w * 0.19, w * 0.81];
+    const ventXs = L.isNarrow ? [] : [w * 0.19, w * 0.88];
+    if (ventXs.length > 0 && Math.random() < 0.28) {
       const vx = ventXs[Math.floor(Math.random() * ventXs.length)];
       const vy = this._seabedYAtX(vx, w, h, L) - 8 * L.s;
       if (this.bubbles.length < 48) {
@@ -2780,11 +3024,10 @@ const WorldDeepBlue = {
   _drawStationBeacons(ctx, L, pal, step) {
     const s = L.s;
     const pulse = 0.5 + 0.5 * Math.sin(step * 3.8);
-    // Synchronized uniform double-flash navigation strobe array (uniform pale ice-cyan & white peak)
+    // Synchronized uniform single-flash navigation strobe array (single crisp flash per 3.4s cycle)
     const strobeAt = (offset) => {
-      const c = ((step + offset) % 3.2);
-      if (c < 0.09) return 1.0;
-      if (c > 0.22 && c < 0.31) return 0.92;
+      const c = ((step + offset) % 3.4);
+      if (c < 0.11) return 1.0 - (c / 0.11) * 0.25;
       return 0.0;
     };
     const syncStrobe = strobeAt(0);
@@ -2800,8 +3043,8 @@ const WorldDeepBlue = {
       { x: L.hubX - 62 * s, y: L.hubY - 22 * s, rBase: 7.5 },
       { x: L.hubX + 62 * s, y: L.hubY - 20 * s, rBase: 7.5 },
       { x: L.elevX, y: L.elevDockY - 38 * s, rBase: 7.5 },
-      { x: L.hydroTurbines[0].x, y: L.hydroTurbines[0].y - 38 * s, rBase: 7.5 },
       ...(!L.isNarrow ? [
+        { x: L.hydroTurbines[0].x, y: L.hydroTurbines[0].y - 38 * s, rBase: 7.5 },
         { x: L.geoWestX - 3 * s, y: L.geoWestY - 54 * s, rBase: 7.0 },
         { x: L.outerEastX + 34 * s, y: L.outerEastY - 38 * s, rBase: 7.0 }
       ] : [])
@@ -2819,7 +3062,7 @@ const WorldDeepBlue = {
       ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
       ctx.fill();
 
-      // Synchronized crisp starburst flare on double-strobe peak
+      // Synchronized crisp starburst flare on single-strobe peak
       if (fl > 0.3) {
         ctx.strokeStyle = `rgba(255, 255, 255, ${(0.76 * fl).toFixed(3)})`;
         ctx.lineWidth = 1.0 * s;
@@ -2851,7 +3094,7 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // To-Scale Human Maintenance Divers Cycling Through Wet-Lock Airlock!
+  // To-Scale Human Maintenance & Shipwreck Research Divers (photo / sample / survey expeditions, Director-gated)
   _updateAndDrawDivers(ctx, L, pal, dt, step) {
     const s = L.s;
     const lockPt = { x: L.airlockX, y: L.airlockY };
@@ -2862,25 +3105,34 @@ const WorldDeepBlue = {
       d.t += dt;
       d.kickPhase += dt * 7.5;
       let visible = false;
-      let welding = false;
+      let working = false;
+      let flashPulse = 0;
 
       if (d.phase === "inside_airlock") {
         d.x = lockPt.x;
         d.y = lockPt.y;
         if (d.t >= d.phaseDuration) {
-          d.phase = "airlock_exit";
-          d.t = 0;
-          d.phaseDuration = 2.6;
-          // Burst of decompression air bubbles from wet-lock chamber!
-          for (let b = 0; b < 5; b++) {
-            this.bubbles.push({
-              x: lockPt.x + (Math.random() - 0.5) * 6 * s,
-              y: lockPt.y + 4 * s,
-              r: 1.0 + Math.random() * 1.4,
-              vy: -(0.5 + Math.random() * 0.4),
-              wobble: Math.random() * 6,
-              alpha: 0.45
-            });
+          if (this._canActivate("divers", L.isNarrow)) {
+            d.phase = "airlock_exit";
+            d.t = 0;
+            d.phaseDuration = 2.6;
+            if (d.role === "wreck_research") {
+              d.action = this._pick(["photo", "sample", "survey"]);
+              d.visitsLeft = 2;
+              d.flashTimer = this._rand(0.8, 1.8);
+            }
+            for (let b = 0; b < 5; b++) {
+              this.bubbles.push({
+                x: lockPt.x + (Math.random() - 0.5) * 6 * s,
+                y: lockPt.y + 4 * s,
+                r: 1.0 + Math.random() * 1.4,
+                vy: -(0.5 + Math.random() * 0.4),
+                wobble: Math.random() * 6,
+                alpha: 0.45
+              });
+            }
+          } else {
+            d.phaseDuration += this._rand(4.0, 8.0);
           }
         }
       } else if (d.phase === "airlock_exit") {
@@ -2890,13 +3142,7 @@ const WorldDeepBlue = {
         d.y = this._lerp(lockPt.y, exitPt.y, p);
         d.facingLeft = d.targetPt.x < d.x;
         if (d.t >= d.phaseDuration) {
-          d.path = this._buildArcPath([{
-            type: "cubic",
-            p0: exitPt,
-            p1: { x: exitPt.x, y: exitPt.y + 18 * s },
-            p2: { x: d.targetPt.x + (d.facingLeft ? 18 : -18) * s, y: d.targetPt.y - 6 * s },
-            p3: d.targetPt
-          }], 18);
+          d.path = null;
           d.phase = "swim_to_site";
           d.dist = 0;
           d.t = 0;
@@ -2920,30 +3166,69 @@ const WorldDeepBlue = {
         d.y = pt.y + Math.sin(d.kickPhase * 0.5) * 1.2 * s;
         d.facingLeft = pt.dx < 0;
         if (d.dist >= d.path.totalLen) {
-          d.phase = "weld_inspect";
+          d.phase = d.role === "wreck_research" ? "expedition_work" : "weld_inspect";
           d.t = 0;
-          d.phaseDuration = this._rand(7.0, 12.0);
+          d.phaseDuration = this._rand(6.5, 10.5);
+          if (d.role === "wreck_research") {
+            d.action = this._pick(["photo", "sample", "survey"]);
+          }
         }
-      } else if (d.phase === "weld_inspect") {
+      } else if (d.phase === "expedition_work" || d.phase === "weld_inspect") {
         visible = true;
-        welding = true;
-        d.x = d.targetPt.x + Math.sin(step * 1.2 + i) * 2.5 * s;
-        d.y = d.targetPt.y + Math.cos(step * 1.5 + i) * 2.0 * s;
+        working = true;
+        const activeTarget = (d.role === "wreck_research" && d.visitsLeft === 1 && d.targetPt.altX != null)
+          ? { x: d.targetPt.altX, y: d.targetPt.altY }
+          : { x: d.targetPt.tx, y: d.targetPt.ty };
+        const driftX = d.action === "survey" ? Math.sin(step * 1.1 + i) * 10.0 * s : Math.sin(step * 1.2 + i) * 3.0 * s;
+        const driftY = d.action === "sample" ? 2.5 * s + Math.cos(step * 1.6 + i) * 1.5 * s : Math.cos(step * 1.4 + i) * 2.4 * s;
+        d.x = this._lerp(d.x, activeTarget.x + driftX, Math.min(1, dt * 1.6));
+        d.y = this._lerp(d.y, activeTarget.y + driftY, Math.min(1, dt * 1.6));
         d.facingLeft = d.role === "wreck_research"
-          ? d.x > (L.wreck ? L.wreck.x : d.targetPt.x)
-          : d.targetPt.x > L.hubX;
+          ? d.x > (L.wreck ? L.wreck.x : activeTarget.x)
+          : activeTarget.x > L.hubX;
+
+        if (d.role === "wreck_research") {
+          if (d.action === "photo") {
+            d.flashTimer = (d.flashTimer || 1.2) - dt;
+            if (d.flashTimer <= 0) {
+              d.flashTimer = this._rand(2.0, 2.8);
+              d.flashBurst = 0.20;
+            }
+            if (d.flashBurst > 0) {
+              d.flashBurst = Math.max(0, d.flashBurst - dt);
+              flashPulse = d.flashBurst / 0.20;
+            }
+          } else if (d.action === "sample" && Math.random() < 0.08) {
+            this.bubbles.push({
+              x: d.x + (d.facingLeft ? -4 : 4) * s,
+              y: d.y + 4 * s,
+              r: 1.4 + Math.random() * 1.6,
+              vy: -(0.30 + Math.random() * 0.25),
+              wobble: Math.random() * 6,
+              alpha: 0.28
+            });
+          }
+        }
+
         if (d.t >= d.phaseDuration) {
-          const retLift = d.role === "wreck_research" ? -54 * s : 16 * s;
-          d.path = this._buildArcPath([{
-            type: "cubic",
-            p0: { x: d.x, y: d.y },
-            p1: { x: this._lerp(d.x, exitPt.x, 0.35), y: d.y - 24 * s },
-            p2: { x: this._lerp(d.x, exitPt.x, 0.72), y: exitPt.y + retLift },
-            p3: exitPt
-          }], d.role === "wreck_research" ? 32 : 18);
-          d.phase = "swim_back";
-          d.dist = 0;
-          d.t = 0;
+          if (d.role === "wreck_research" && (d.visitsLeft || 1) > 1) {
+            d.visitsLeft -= 1;
+            d.action = this._pick(["photo", "sample", "survey"]);
+            d.t = 0;
+            d.phaseDuration = this._rand(6.0, 9.5);
+          } else {
+            const retLift = d.role === "wreck_research" ? -54 * s : 16 * s;
+            d.path = this._buildArcPath([{
+              type: "cubic",
+              p0: { x: d.x, y: d.y },
+              p1: { x: this._lerp(d.x, exitPt.x, 0.35), y: d.y - 24 * s },
+              p2: { x: this._lerp(d.x, exitPt.x, 0.72), y: exitPt.y + retLift },
+              p3: exitPt
+            }], d.role === "wreck_research" ? 32 : 18);
+            d.phase = "swim_back";
+            d.dist = 0;
+            d.t = 0;
+          }
         }
       } else if (d.phase === "swim_back") {
         visible = true;
@@ -2966,7 +3251,7 @@ const WorldDeepBlue = {
         if (d.t >= d.phaseDuration) {
           d.phase = "inside_airlock";
           d.t = 0;
-          d.phaseDuration = this._rand(6.0, 14.0);
+          d.phaseDuration = this._rand(18.0, 32.0);
         }
       }
 
@@ -2983,33 +3268,41 @@ const WorldDeepBlue = {
         });
       }
 
-      // Draw Tiny Realistic To-Scale Human Diver (~10-12px total length!)
+      // Draw To-Scale High-Visibility Human Diver (slightly larger & amber-accented for wreck expedition clarity)
+      const isResearchDiver = d.role === "wreck_research";
+      const diverScale = s * (isResearchDiver ? 1.15 : 0.92);
       ctx.save();
       ctx.translate(d.x, d.y);
       if (d.facingLeft) ctx.scale(-1, 1);
-      ctx.scale(s * 0.92, s * 0.92);
+      ctx.scale(diverScale, diverScale);
 
-      // Crisp Helmet Headlamp Volumetric Cone + Welding Torch Arc Sparks
-      const beamAlpha = pal.isDark ? 0.44 : 0.24;
-      const hb = ctx.createLinearGradient(5, -1, 28, 0);
-      hb.addColorStop(0, `rgba(224, 247, 250, ${beamAlpha})`);
-      hb.addColorStop(1, "rgba(224, 247, 250, 0)");
+      // Crisp Helmet Headlamp Volumetric Cone (or Cyan Survey Fan!)
+      const isSurvey = working && isResearchDiver && d.action === "survey";
+      const beamAlpha = pal.isDark ? 0.54 : 0.32;
+      const beamColor = isSurvey ? "56, 224, 232" : "224, 247, 250";
+      const hb = ctx.createLinearGradient(5, -1, isSurvey ? 38 : 30, 0);
+      hb.addColorStop(0, `rgba(${beamColor}, ${(beamAlpha * (isSurvey ? 1.35 : 1)).toFixed(3)})`);
+      hb.addColorStop(1, `rgba(${beamColor}, 0)`);
       ctx.fillStyle = hb;
       ctx.beginPath();
       ctx.moveTo(5, -2);
-      ctx.lineTo(28, -7);
-      ctx.lineTo(28, 6);
+      ctx.lineTo(isSurvey ? 38 : 30, isSurvey ? -11 : -7);
+      ctx.lineTo(isSurvey ? 38 : 30, isSurvey ? 10 : 6);
       ctx.lineTo(5, 0);
       ctx.closePath();
       ctx.fill();
 
-      // Wetsuit torso & scuba tank
-      ctx.fillStyle = "#1E293B";
+      // Wetsuit torso, high-visibility shoulder harness & scuba tank
+      ctx.fillStyle = isResearchDiver ? "#334155" : "#1E293B";
       ctx.beginPath();
-      ctx.roundRect(-4, -1.6, 8, 3.2, 1.4);
+      ctx.roundRect(-4, -1.7, 8.2, 3.4, 1.4);
       ctx.fill();
+      if (isResearchDiver) {
+        ctx.fillStyle = "#FB923C";
+        ctx.fillRect(0.2, -1.7, 2.8, 3.4);
+      }
       ctx.fillStyle = "#F59E0B";
-      ctx.fillRect(-2.5, -2.9, 4.5, 1.6);
+      ctx.fillRect(-2.5, -3.1, 4.6, 1.7);
 
       // Scuba helmet with glowing aqua visor
       ctx.fillStyle = pal.subHullLight;
@@ -3032,8 +3325,42 @@ const WorldDeepBlue = {
       ctx.lineTo(-8.2, 1.6 - kick);
       ctx.stroke();
 
-      // Flickering underwater arc-welding / inspection torch flash & bright micro-sparks while on maintenance site!
-      if (welding && Math.sin(step * 28 + i * 3) > -0.2) {
+      // Expedition Action Visual Cues (Photography Strobe Flash / Sampling Tool & Silt / Exterior Survey Scanner)
+      if (working && d.role === "wreck_research") {
+        if (d.action === "photo") {
+          ctx.fillStyle = "#334155";
+          ctx.fillRect(5.2, -0.2, 2.4, 1.8);
+          if (flashPulse > 0.05) {
+            const fg = ctx.createRadialGradient(8.5, 0, 0, 8.5, 0, 22 * flashPulse);
+            fg.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * flashPulse).toFixed(3)})`);
+            fg.addColorStop(0.4, `rgba(165, 243, 252, ${(0.55 * flashPulse).toFixed(3)})`);
+            fg.addColorStop(1, "rgba(165, 243, 252, 0)");
+            ctx.fillStyle = fg;
+            ctx.beginPath();
+            ctx.arc(8.5, 0, 22 * flashPulse, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (d.action === "sample") {
+          ctx.strokeStyle = pal.rovBody;
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.moveTo(4.0, 1.2);
+          ctx.lineTo(7.5, 5.2);
+          ctx.stroke();
+          ctx.fillStyle = "rgba(148, 198, 214, 0.34)";
+          ctx.beginPath();
+          ctx.arc(8.2, 5.5 + Math.sin(step * 4) * 1.0, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (d.action === "survey") {
+          ctx.strokeStyle = "rgba(103, 232, 249, 0.65)";
+          ctx.lineWidth = 0.9;
+          const scanY = Math.sin(step * 5 + i) * 6;
+          ctx.beginPath();
+          ctx.moveTo(6.5, -0.5);
+          ctx.lineTo(26, scanY);
+          ctx.stroke();
+        }
+      } else if (working && Math.sin(step * 28 + i * 3) > -0.2) {
         ctx.fillStyle = "rgba(103, 232, 249, 0.94)";
         ctx.beginPath();
         ctx.arc(7.5, -0.5, 2.4 + Math.random() * 1.4, 0, Math.PI * 2);
@@ -3153,23 +3480,37 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Synchronized Undulating Coastal Fish Schools
+  // Synchronized Undulating Coastal Fish Schools (Director-gated)
   _updateAndDrawFishSchools(ctx, w, h, pal, dt) {
     const scaleDt = dt * 60;
+    const isNarrow = w < 720;
     ctx.save();
     for (let i = 0; i < this.fishSchools.length; i++) {
       const sc = this.fishSchools[i];
+      if (!sc.active) {
+        sc.waitTimer = (sc.waitTimer || 0) - dt;
+        if (sc.waitTimer <= 0) {
+          if (this._canActivate("fishSchools", isNarrow)) {
+            sc.active = true;
+            const goRight = Math.random() < 0.5;
+            sc.vx = (goRight ? 1 : -1) * this._rand(0.38, 0.60);
+            sc.x = goRight ? -sc.spread : (w + sc.spread);
+            sc.y = h * this._rand(0.12, 0.36);
+          } else {
+            sc.waitTimer = this._rand(2.0, 5.0);
+          }
+        }
+        continue;
+      }
+
       sc.phase += 0.036 * scaleDt;
       sc.x += sc.vx * scaleDt;
       sc.y += Math.sin(sc.phase * 0.55) * 0.18 * scaleDt;
 
-      if (sc.vx > 0 && sc.x > w + sc.spread) {
-        sc.x = -sc.spread;
-        sc.y = h * this._rand(0.12, 0.38);
-      }
-      if (sc.vx < 0 && sc.x < -sc.spread) {
-        sc.x = w + sc.spread;
-        sc.y = h * this._rand(0.12, 0.38);
+      if ((sc.vx > 0 && sc.x > w + sc.spread) || (sc.vx < 0 && sc.x < -sc.spread)) {
+        sc.active = false;
+        sc.waitTimer = this._rand(isNarrow ? 12 : 7, isNarrow ? 24 : 18);
+        continue;
       }
 
       const alpha = (0.16 + sc.depth * 0.44) * (pal.isDark && !pal.isGoldenCoastal ? 0.65 : 0.85);
@@ -3201,20 +3542,34 @@ const WorldDeepBlue = {
 
   _updateAndDrawWhales(ctx, w, h, pal, dt) {
     const scaleDt = dt * 60;
+    const isNarrow = w < 720;
     ctx.save();
     for (let i = 0; i < this.whales.length; i++) {
       const wh = this.whales[i];
+      if (!wh.active) {
+        wh.waitTimer = (wh.waitTimer || 0) - dt;
+        if (wh.waitTimer <= 0) {
+          if (this._canActivate("megafauna", isNarrow)) {
+            wh.active = true;
+            const goRight = Math.random() < 0.5;
+            wh.vx = (goRight ? 1 : -1) * this._rand(0.16, 0.22);
+            wh.x = goRight ? -wh.len * 1.4 : (w + wh.len * 1.4);
+            wh.y = h * this._rand(0.10, 0.28);
+          } else {
+            wh.waitTimer = this._rand(2.5, 5.5);
+          }
+        }
+        continue;
+      }
+
       wh.phase += 0.017 * scaleDt;
       wh.x += wh.vx * scaleDt;
       wh.y += Math.sin(wh.phase * 0.6) * 0.13 * scaleDt;
 
-      if (wh.vx > 0 && wh.x > w + wh.len * 1.4) {
-        wh.x = -wh.len * 1.4;
-        wh.y = h * this._rand(0.10, 0.28);
-      }
-      if (wh.vx < 0 && wh.x < -wh.len * 1.4) {
-        wh.x = w + wh.len * 1.4;
-        wh.y = h * this._rand(0.10, 0.28);
+      if ((wh.vx > 0 && wh.x > w + wh.len * 1.4) || (wh.vx < 0 && wh.x < -wh.len * 1.4)) {
+        wh.active = false;
+        wh.waitTimer = this._rand(isNarrow ? 16 : 9, isNarrow ? 32 : 22);
+        continue;
       }
 
       const alpha = (0.14 + wh.depth * 0.52) * (pal.isDark && !pal.isGoldenCoastal ? 0.68 : 0.78);
@@ -3252,20 +3607,35 @@ const WorldDeepBlue = {
 
   _updateAndDrawSharks(ctx, w, h, pal, dt) {
     const scaleDt = dt * 60;
+    const isNarrow = w < 720;
     ctx.save();
     for (let i = 0; i < this.sharks.length; i++) {
       const sh = this.sharks[i];
+      if (!sh.active) {
+        sh.waitTimer = (sh.waitTimer || 0) - dt;
+        if (sh.waitTimer <= 0) {
+          if (this._canActivate("megafauna", isNarrow)) {
+            sh.active = true;
+            const goRight = Math.random() < 0.5;
+            const mag = sh.species === "whale_shark" ? 0.32 : this._rand(0.46, 0.62);
+            sh.vx = (goRight ? 1 : -1) * mag;
+            sh.x = goRight ? -sh.size * 2 : (w + sh.size * 2);
+            sh.y = h * this._rand(0.14, 0.35);
+          } else {
+            sh.waitTimer = this._rand(2.0, 5.0);
+          }
+        }
+        continue;
+      }
+
       sh.phase += 0.044 * scaleDt;
       sh.x += sh.vx * scaleDt;
       sh.y += Math.sin(sh.phase * 0.45) * 0.14 * scaleDt;
 
-      if (sh.vx > 0 && sh.x > w + sh.size * 2) {
-        sh.x = -sh.size * 2;
-        sh.y = h * this._rand(0.14, 0.36);
-      }
-      if (sh.vx < 0 && sh.x < -sh.size * 2) {
-        sh.x = w + sh.size * 2;
-        sh.y = h * this._rand(0.14, 0.36);
+      if ((sh.vx > 0 && sh.x > w + sh.size * 2) || (sh.vx < 0 && sh.x < -sh.size * 2)) {
+        sh.active = false;
+        sh.waitTimer = this._rand(isNarrow ? 14 : 8, isNarrow ? 28 : 20);
+        continue;
       }
 
       const alpha = (0.18 + sh.depth * 0.55) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.86);
@@ -3371,15 +3741,42 @@ const WorldDeepBlue = {
 
   _updateAndDrawFarLife(ctx, w, h, pal, dt) {
     const scaleDt = dt * 60;
+    const isNarrow = w < 720;
     ctx.save();
     for (let i = 0; i < this.farLife.length; i++) {
       const f = this.farLife[i];
+      if (f.kind === "manta") {
+        if (!f.active) {
+          f.waitTimer = (f.waitTimer || 0) - dt;
+          if (f.waitTimer <= 0) {
+            if (this._canActivate("megafauna", isNarrow)) {
+              f.active = true;
+              const goRight = Math.random() < 0.5;
+              f.vx = (goRight ? 1 : -1) * (0.40 + Math.random() * 0.22);
+              f.x = goRight ? -75 : (w + 75);
+              f.y = h * this._rand(0.15, 0.34);
+            } else {
+              f.waitTimer = this._rand(2.5, 5.5);
+            }
+          }
+          continue;
+        }
+      }
+
       f.phase += 0.042 * scaleDt;
       f.x += f.vx * scaleDt;
       f.y += Math.sin(f.phase * 0.7) * 0.16 * scaleDt;
 
-      if (f.vx > 0 && f.x > w + 75) f.x = -75;
-      if (f.vx < 0 && f.x < -75) f.x = w + 75;
+      if (f.kind === "manta") {
+        if ((f.vx > 0 && f.x > w + 75) || (f.vx < 0 && f.x < -75)) {
+          f.active = false;
+          f.waitTimer = this._rand(isNarrow ? 16 : 9, isNarrow ? 30 : 22);
+          continue;
+        }
+      } else {
+        if (f.vx > 0 && f.x > w + 75) f.x = -75;
+        if (f.vx < 0 && f.x < -75) f.x = w + 75;
+      }
 
       const visAlpha = (0.14 + f.depth * 0.45) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.85);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${visAlpha.toFixed(3)})`;
@@ -3415,14 +3812,19 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // 7 Cohesive Theme-Synchronized Submarine Classes (Bow = +x, Stern = -x, Top = -y)
+  // 10 Cohesive Theme-Synchronized Submarine Classes (Passenger, Cargo, Experimental, Military & Patrol)
   _drawSubmarineModel(ctx, style, pal, step, thrusterGlow = 0.3, showBeam = false) {
     const hullG = ctx.createLinearGradient(0, -18, 0, 18);
     hullG.addColorStop(0, pal.subHullLight);
     hullG.addColorStop(0.52, pal.subHullMid);
     hullG.addColorStop(1, pal.subHullDark);
 
-    const beamOrigin = style === "heavy_freighter" ? 64 : (style === "deep_explorer" ? 60 : (style === "bathyscaphe" ? 28 : 48));
+    const beamOrigin = style === "heavy_freighter" ? 64
+      : (style === "deep_explorer" ? 60
+      : (style === "passenger_liner" ? 60
+      : (style === "military_stealth" ? 62
+      : (style === "experimental_research" ? 54
+      : (style === "bathyscaphe" ? 28 : 48)))));
     if (showBeam) {
       ctx.save();
       if (pal.isDark) ctx.globalCompositeOperation = "screen";
@@ -3442,7 +3844,169 @@ const WorldDeepBlue = {
       ctx.restore();
     }
 
-    if (style === "manta_glider") {
+    if (style === "passenger_liner") {
+      // Sleek Dual-Deck Oceanic Passenger Liner (ceramic-light hull, twin continuous cabin ribbons & glazed nose lounge)
+      const passG = ctx.createLinearGradient(0, -16, 0, 16);
+      passG.addColorStop(0, pal.hullLight);
+      passG.addColorStop(0.55, pal.subHullLight);
+      passG.addColorStop(1, pal.subHullMid);
+      ctx.fillStyle = passG;
+      ctx.beginPath();
+      ctx.moveTo(60, 1);
+      ctx.quadraticCurveTo(48, -14.5, 16, -15.0);
+      ctx.lineTo(-48, -14.0);
+      ctx.lineTo(-58, -7.5);
+      ctx.lineTo(-58, 8.5);
+      ctx.lineTo(-48, 13.8);
+      ctx.lineTo(24, 14.2);
+      ctx.quadraticCurveTo(48, 13.0, 60, 1);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = pal.waterBounce;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-46, -14.0);
+      ctx.lineTo(16, -15.0);
+      ctx.quadraticCurveTo(44, -14.0, 56, -2.5);
+      ctx.stroke();
+
+      // Sculpted glazed passenger bridge crest & dorsal promenade spine
+      ctx.fillStyle = pal.subHullMid;
+      ctx.beginPath();
+      ctx.moveTo(34, -14.5);
+      ctx.lineTo(20, -21.5);
+      ctx.lineTo(-16, -21.5);
+      ctx.lineTo(-22, -14.0);
+      ctx.closePath();
+      ctx.fill();
+      this._drawWindowBand(ctx, -10, -19.5, 28, 3.6, 3, pal, 1);
+
+      // Dual-deck panoramic illuminated passenger cabin window ribbons & signature cyan livery stripe
+      ctx.fillStyle = pal.subAccent;
+      ctx.fillRect(-44, 0.2, 88, 2.4);
+      this._drawWindowBand(ctx, -38, -10.5, 76, 3.6, 8, pal, 1);
+      this._drawWindowBand(ctx, -36, -5.2, 72, 3.2, 7, pal, 1);
+
+      // Forward panoramic observation dome + shrouded quiet twin stern thrusters
+      ctx.fillStyle = pal.windowMid;
+      ctx.beginPath();
+      ctx.arc(54, 1, 6.2, -Math.PI * 0.44, Math.PI * 0.44);
+      ctx.fill();
+      ctx.fillStyle = pal.subHullDark;
+      ctx.fillRect(-62, -9.5, 6, 19);
+    } else if (style === "experimental_research") {
+      // Avant-Garde Twin-Nacelle Abyssal Prototype (huge acrylic sphere bridge, glowing MHD coils & sampling arm)
+      ctx.fillStyle = hullG;
+      ctx.beginPath();
+      ctx.roundRect(-42, -12, 76, 24, 9);
+      ctx.fill();
+
+      // Lateral Twin MHD Plasma Drive Nacelles flanking hull with glowing cyan coils
+      ctx.fillStyle = pal.subHullDark;
+      ctx.beginPath();
+      ctx.roundRect(-46, -16.5, 52, 6.5, 3);
+      ctx.roundRect(-46, 10.0, 52, 6.5, 3);
+      ctx.fill();
+      ctx.fillStyle = "#22D3EE";
+      ctx.globalAlpha = 0.72 + 0.28 * Math.sin(step * 4.5);
+      [-34, -22, -10].forEach(cx => {
+        ctx.fillRect(cx, -15.0, 4.5, 3.0);
+        ctx.fillRect(cx, 11.8, 4.5, 3.0);
+      });
+      ctx.globalAlpha = 1;
+
+      // Swept forward-canted experimental tail planes + sensor mast
+      ctx.fillStyle = pal.subHullLight;
+      ctx.beginPath();
+      ctx.moveTo(-26, -12);
+      ctx.lineTo(-42, -23.5);
+      ctx.lineTo(-48, -22.0);
+      ctx.lineTo(-38, -12);
+      ctx.closePath();
+      ctx.fill();
+
+      // Giant Transparent Hemispherical Acrylic Cockpit Sphere showing warm interior deck console glow
+      const expDomeG = ctx.createRadialGradient(39, -2, 2, 37, 0, 14);
+      expDomeG.addColorStop(0, pal.glassHighlight);
+      expDomeG.addColorStop(0.42, pal.windowMid);
+      expDomeG.addColorStop(1, pal.windowRecess);
+      ctx.fillStyle = expDomeG;
+      ctx.beginPath();
+      ctx.arc(36, 0, 12.6, -Math.PI * 0.52, Math.PI * 0.52);
+      ctx.fill();
+      ctx.strokeStyle = pal.subHullLight;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      // Forward acoustic sensor boom & ventral articulated manipulator arm
+      ctx.strokeStyle = pal.rovBody;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(22, 11);
+      ctx.lineTo(38, 17);
+      ctx.lineTo(48, 14);
+      ctx.stroke();
+    } else if (style === "military_stealth") {
+      // Angular Faceted Low-Observable Naval Defense Submarine (chined stealth hull, sloped sail, VLS hatches & pump-jet)
+      const milG = ctx.createLinearGradient(0, -16, 0, 16);
+      milG.addColorStop(0, pal.subHullDark);
+      milG.addColorStop(0.55, pal.hullDeep);
+      milG.addColorStop(1, "#0B1624");
+      ctx.fillStyle = milG;
+      ctx.beginPath();
+      ctx.moveTo(62, 1.5);
+      ctx.lineTo(36, -12.5);
+      ctx.lineTo(-44, -12.5);
+      ctx.lineTo(-60, -4.5);
+      ctx.lineTo(-60, 6.5);
+      ctx.lineTo(-44, 13.0);
+      ctx.lineTo(42, 12.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sharp stealth chine bevel highlight & recessed VLS hatch panel seams
+      ctx.strokeStyle = pal.subHullMid;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-54, -2);
+      ctx.lineTo(54, -0.5);
+      ctx.stroke();
+      ctx.fillStyle = pal.hullDark;
+      [-28, -14, 0, 14].forEach(hx => {
+        ctx.fillRect(hx, -12.5, 9, 2.2);
+      });
+
+      // Tall Angular Forward-Raked Stealth Conning Sail + Retracted Periscope/ESM Masts + Armored Slit
+      ctx.fillStyle = pal.hullDeep;
+      ctx.beginPath();
+      ctx.moveTo(22, -12.5);
+      ctx.lineTo(14, -27.5);
+      ctx.lineTo(-6, -27.5);
+      ctx.lineTo(-14, -12.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = pal.subHullMid;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(4, -27.5);
+      ctx.lineTo(4, -35.5);
+      ctx.moveTo(9, -27.5);
+      ctx.lineTo(9, -32.5);
+      ctx.stroke();
+
+      // Narrow tactical bridge slit & shrouded X-fin pump-jet tail
+      ctx.fillStyle = "rgba(248, 113, 113, 0.78)";
+      ctx.fillRect(10, -22.5, 7, 1.8);
+      ctx.fillStyle = "#0F172A";
+      ctx.beginPath();
+      ctx.moveTo(-48, -9);
+      ctx.lineTo(-62, -16);
+      ctx.lineTo(-64, 16);
+      ctx.lineTo(-48, 9);
+      ctx.closePath();
+      ctx.fill();
+    } else if (style === "manta_glider") {
       // Sleek Winged Hydrofoil Reconnaissance Submersible
       ctx.fillStyle = hullG;
       ctx.beginPath();
@@ -3732,14 +4296,22 @@ const WorldDeepBlue = {
     }
 
     const navBlink = 0.55 + 0.45 * Math.sin(step * 4.2);
-    const navY = style === "bathyscaphe" ? -16.5 : (style === "deep_explorer" ? -29 : (style === "heavy_freighter" ? -26.5 : -22.5));
-    ctx.fillStyle = `rgba(56, 224, 180, ${(0.55 * navBlink).toFixed(3)})`;
+    const navY = style === "bathyscaphe" ? -16.5
+      : (style === "deep_explorer" ? -29
+      : (style === "military_stealth" ? -36
+      : (style === "heavy_freighter" ? -26.5
+      : (style === "experimental_research" ? -24.5 : -22.5))));
+    ctx.fillStyle = style === "military_stealth"
+      ? `rgba(248, 113, 113, ${(0.70 * navBlink).toFixed(3)})`
+      : `rgba(56, 224, 180, ${(0.55 * navBlink).toFixed(3)})`;
     ctx.beginPath();
-    ctx.arc(style === "heavy_freighter" ? 30 : 4, navY, 1.6, 0, Math.PI * 2);
+    ctx.arc(style === "heavy_freighter" ? 30 : (style === "military_stealth" ? 4 : (style === "experimental_research" ? -44 : 4)), navY, 1.6, 0, Math.PI * 2);
     ctx.fill();
 
     if (style !== "heavy_freighter" && thrusterGlow > 0.25) {
-      const sTail = style === "bathyscaphe" ? -33 : -56;
+      const sTail = style === "bathyscaphe" ? -33
+        : (style === "experimental_research" ? -48
+        : (style === "military_stealth" ? -64 : -58));
       const sg = ctx.createRadialGradient(sTail, 0, 1, sTail - 4, 0, 13);
       sg.addColorStop(0, `rgba(${pal.elevatorGlow}, ${(thrusterGlow * 0.45).toFixed(3)})`);
       sg.addColorStop(1, `rgba(${pal.elevatorGlow}, 0)`);
@@ -3769,14 +4341,15 @@ const WorldDeepBlue = {
     const s = L.s;
 
     const armAng = L.leftAngle;
-    const dockedPt = { x: L.leftDockX - 46 * s, y: L.leftDockY };
-    const holdPt = { x: L.leftDockX - 128 * s, y: L.leftDockY };
+    const scaleMult = sub.style === "bathyscaphe" ? 0.84 : (sub.style === "manta_glider" ? 0.90 : 0.96);
+    const dockOff = this._getSubDockOffset(sub.style) * s * scaleMult;
+    const dockedPt = { x: L.leftDockX - dockOff, y: L.leftDockY };
+    const holdPt = { x: L.leftDockX - 134 * s, y: L.leftDockY };
     const dockPitch = 0;
 
     let visible = true;
     let targetPitch = sub.pitch;
     let targetFacingLeft = sub.facingLeft;
-    const scaleMult = sub.style === "bathyscaphe" ? 0.84 : (sub.style === "manta_glider" ? 0.90 : 0.96);
 
     if (sub.phase === "approaching") {
       if (!sub.path) {
@@ -3823,7 +4396,7 @@ const WorldDeepBlue = {
         sub.phase = "docked";
         sub.t = 0;
         sub.speed = 0;
-        sub.phaseDuration = this._rand(9.5, 17.0);
+        sub.phaseDuration = this._rand(30.0, 55.0);
       }
     } else if (sub.phase === "docked") {
       sub.x = dockedPt.x;
@@ -3831,6 +4404,16 @@ const WorldDeepBlue = {
       targetFacingLeft = false;
       targetPitch = dockPitch;
       sub.speed = 0;
+      if (Math.random() < 0.035) {
+        this.bubbles.push({
+          x: L.leftDockX - 8 * s + (Math.random() - 0.5) * 14 * s,
+          y: L.leftDockY - 6 * s,
+          r: 0.9 + Math.random() * 1.2,
+          vy: -(0.35 + Math.random() * 0.25),
+          wobble: Math.random() * 6,
+          alpha: 0.30
+        });
+      }
 
       if (sub.t >= sub.phaseDuration) {
         this._assignCorridorEndpoints(sub, "left", w, h, L);
@@ -3878,31 +4461,38 @@ const WorldDeepBlue = {
         sub.phase = "patrol_wait";
         sub.t = 0;
         sub.speed = 0;
-        sub.phaseDuration = this._rand(6.5, 14.5);
-        sub.style = this._pick(["crew_shuttle", "research_catamaran", "bathyscaphe", "manta_glider", "deep_explorer"]);
-        sub.cruiseSpeed = sub.style === "bathyscaphe" ? 15.5 : 18.0;
+        sub.phaseDuration = this._rand(8.0, 18.0);
+        const oppositeStyle = this.cargoSub ? this.cargoSub.style : "";
+        const pool = this.DOCKING_SUB_STYLES.filter(st => st !== oppositeStyle);
+        sub.style = this._pick(pool.length > 0 ? pool : this.DOCKING_SUB_STYLES);
+        sub.cruiseSpeed = sub.style === "heavy_freighter" ? 14.0 : 17.5;
       }
     } else {
       visible = false;
       if (sub.t >= sub.phaseDuration) {
-        this._assignCorridorEndpoints(sub, "left", w, h, L);
-        sub.path = this._buildSubPath(
-          { x: sub.entryX, y: sub.entryY },
-          holdPt,
-          { x: (sub.entryX + holdPt.x) * 0.45, y: sub.entryY },
-          { x: holdPt.x - 85 * s, y: holdPt.y + 12 * s }
-        );
-        sub.dist = 0;
-        sub.speed = sub.cruiseSpeed;
-        sub.facingLeft = false;
-        sub.pitch = 0;
-        sub.phase = "approaching";
-        sub.t = 0;
+        if (this._canActivate("subs", L.isNarrow)) {
+          this._assignCorridorEndpoints(sub, "left", w, h, L);
+          sub.path = this._buildSubPath(
+            { x: sub.entryX, y: sub.entryY },
+            holdPt,
+            { x: (sub.entryX + holdPt.x) * 0.45, y: sub.entryY },
+            { x: holdPt.x - 85 * s, y: holdPt.y + 12 * s }
+          );
+          sub.dist = 0;
+          sub.speed = sub.cruiseSpeed;
+          sub.facingLeft = false;
+          sub.pitch = 0;
+          sub.phase = "approaching";
+          sub.t = 0;
+        } else {
+          sub.phaseDuration += this._rand(3.0, 7.0);
+        }
       }
     }
 
     sub.facingLeft = targetFacingLeft;
-    sub.pitch = this._lerp(sub.pitch, targetPitch, Math.min(1, dt * 2.8));
+    const subPitchSpeed = (sub.phase === "docked" || sub.phase === "docking") ? 6.0 : 2.8;
+    sub.pitch = this._lerp(sub.pitch, targetPitch, Math.min(1, dt * subPitchSpeed));
     if (!visible) return;
 
     const thrusterGlow = this._clamp(sub.speed / Math.max(1, sub.cruiseSpeed), 0, 1) * 0.72;
@@ -3919,6 +4509,15 @@ const WorldDeepBlue = {
     }
 
     this._renderBuoyantSub(ctx, sub, s, scaleMult, pal, step, thrusterGlow, sub.phase !== "docked");
+    if (sub.phase === "docked") {
+      ctx.save();
+      ctx.strokeStyle = `rgba(103, 232, 249, ${(0.32 + 0.24 * Math.sin(step * 2.6)).toFixed(3)})`;
+      ctx.lineWidth = 1.4 * s;
+      ctx.beginPath();
+      ctx.ellipse(L.leftDockX, L.leftDockY, 4.5 * s, 12.2 * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   },
 
   _updateAndDrawCargoSub(ctx, w, h, L, pal, dt, step) {
@@ -3926,15 +4525,15 @@ const WorldDeepBlue = {
     cs.t += dt;
     const s = L.s;
 
-    const armAng = L.rightAngle;
-    const dockedPt = { x: L.rightDockX + 54 * s, y: L.rightDockY };
+    const scaleMult = cs.style === "heavy_freighter" ? 1.0 : (cs.style === "industrial_tug" ? 0.96 : 0.94);
+    const dockOff = this._getSubDockOffset(cs.style) * s * scaleMult;
+    const dockedPt = { x: L.rightDockX + dockOff, y: L.rightDockY };
     const holdPt = { x: L.rightDockX + 138 * s, y: L.rightDockY };
     const dockPitch = 0;
 
     let visible = true;
     let targetPitch = cs.pitch;
     let targetFacingLeft = cs.facingLeft;
-    const scaleMult = cs.style === "heavy_freighter" ? 1.0 : (cs.style === "industrial_tug" ? 0.96 : 0.92);
 
     if (cs.phase === "docked") {
       cs.x = dockedPt.x;
@@ -3942,6 +4541,16 @@ const WorldDeepBlue = {
       targetFacingLeft = true;
       targetPitch = dockPitch;
       cs.speed = 0;
+      if (Math.random() < 0.035) {
+        this.bubbles.push({
+          x: L.rightDockX + 8 * s + (Math.random() - 0.5) * 14 * s,
+          y: L.rightDockY - 6 * s,
+          r: 0.9 + Math.random() * 1.2,
+          vy: -(0.35 + Math.random() * 0.25),
+          wobble: Math.random() * 6,
+          alpha: 0.30
+        });
+      }
 
       if (cs.t >= cs.phaseDuration) {
         this._assignCorridorEndpoints(cs, "right", w, h, L);
@@ -3989,26 +4598,32 @@ const WorldDeepBlue = {
         cs.phase = "patrol_wait";
         cs.t = 0;
         cs.speed = 0;
-        cs.phaseDuration = this._rand(7.0, 15.5);
-        cs.style = this._pick(["heavy_freighter", "research_catamaran", "industrial_tug", "deep_explorer"]);
+        cs.phaseDuration = this._rand(9.0, 19.0);
+        const oppositeStyle = this.sub ? this.sub.style : "";
+        const pool = this.DOCKING_SUB_STYLES.filter(st => st !== oppositeStyle);
+        cs.style = this._pick(pool.length > 0 ? pool : this.DOCKING_SUB_STYLES);
         cs.cruiseSpeed = cs.style === "heavy_freighter" ? 13.5 : 16.5;
       }
     } else if (cs.phase === "patrol_wait") {
       visible = false;
       if (cs.t >= cs.phaseDuration) {
-        this._assignCorridorEndpoints(cs, "right", w, h, L);
-        cs.path = this._buildSubPath(
-          { x: cs.exitX, y: cs.exitY },
-          holdPt,
-          { x: (cs.exitX + holdPt.x) * 0.5, y: cs.exitY },
-          { x: holdPt.x + 85 * s, y: holdPt.y + 14 * s }
-        );
-        cs.dist = 0;
-        cs.speed = cs.cruiseSpeed;
-        cs.facingLeft = true;
-        cs.pitch = 0;
-        cs.phase = "approaching";
-        cs.t = 0;
+        if (this._canActivate("subs", L.isNarrow)) {
+          this._assignCorridorEndpoints(cs, "right", w, h, L);
+          cs.path = this._buildSubPath(
+            { x: cs.exitX, y: cs.exitY },
+            holdPt,
+            { x: (cs.exitX + holdPt.x) * 0.5, y: cs.exitY },
+            { x: holdPt.x + 85 * s, y: holdPt.y + 14 * s }
+          );
+          cs.dist = 0;
+          cs.speed = cs.cruiseSpeed;
+          cs.facingLeft = true;
+          cs.pitch = 0;
+          cs.phase = "approaching";
+          cs.t = 0;
+        } else {
+          cs.phaseDuration += this._rand(3.0, 7.0);
+        }
       }
     } else if (cs.phase === "approaching") {
       const rem = Math.max(0, cs.path.totalLen - cs.dist);
@@ -4046,12 +4661,13 @@ const WorldDeepBlue = {
         cs.phase = "docked";
         cs.t = 0;
         cs.speed = 0;
-        cs.phaseDuration = this._rand(10.0, 17.0);
+        cs.phaseDuration = this._rand(30.0, 55.0);
       }
     }
 
     cs.facingLeft = targetFacingLeft;
-    cs.pitch = this._lerp(cs.pitch, targetPitch, Math.min(1, dt * 2.4));
+    const csPitchSpeed = (cs.phase === "docked" || cs.phase === "docking") ? 6.0 : 2.4;
+    cs.pitch = this._lerp(cs.pitch, targetPitch, Math.min(1, dt * csPitchSpeed));
     if (!visible) return;
 
     const thrusterGlow = cs.phase === "docked" ? 0.12 : this._clamp(cs.speed / Math.max(1, cs.cruiseSpeed), 0.1, 1) * 0.80;
@@ -4068,6 +4684,15 @@ const WorldDeepBlue = {
     }
 
     this._renderBuoyantSub(ctx, cs, s, scaleMult, pal, step, thrusterGlow, cs.phase !== "docked");
+    if (cs.phase === "docked") {
+      ctx.save();
+      ctx.strokeStyle = `rgba(103, 232, 249, ${(0.32 + 0.24 * Math.sin(step * 2.6 + 1.2)).toFixed(3)})`;
+      ctx.lineWidth = 1.4 * s;
+      ctx.beginPath();
+      ctx.ellipse(L.rightDockX, L.rightDockY, 4.5 * s, 12.2 * s, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   },
 
   _updateAndDrawExtraSubs(ctx, w, h, L, pal, dt, step) {
@@ -4137,33 +4762,37 @@ const WorldDeepBlue = {
             rs.phase = "away_wait";
             rs.t = 0;
             rs.speed = 0;
-            rs.phaseDuration = this._rand(7.5, 15.0);
+            rs.phaseDuration = this._rand(12.0, 24.0);
           }
         } else {
           vis = false;
           if (rs.t >= rs.phaseDuration) {
-            const fromLeft = Math.random() < 0.5;
-            rs.fromPt = fromLeft
-              ? { x: -105, y: h * this._rand(0.20, 0.42) }
-              : { x: w + 105, y: h * this._rand(0.20, 0.42) };
-            rs.hoverPt = {
-              x: fromLeft ? L.westWingX + 18 * s : L.eastWingX - 18 * s,
-              y: L.hubY - this._rand(38, 62) * s
-            };
-            rs.style = this._pick(["bathyscaphe", "crew_shuttle", "manta_glider", "industrial_tug"]);
-            rs.cruiseSpeed = rs.style === "bathyscaphe" ? 15.0 : 17.0;
-            rs.path = this._buildSubPath(
-              rs.fromPt,
-              rs.hoverPt,
-              { x: (rs.fromPt.x + rs.hoverPt.x) * 0.5, y: rs.fromPt.y + 10 },
-              { x: rs.hoverPt.x + (fromLeft ? -75 : 75) * s, y: rs.hoverPt.y - 6 }
-            );
-            rs.dist = 0;
-            rs.speed = rs.cruiseSpeed;
-            rs.facingLeft = !fromLeft;
-            rs.pitch = 0;
-            rs.phase = "patrol_in";
-            rs.t = 0;
+            if (this._canActivate("subs", L.isNarrow)) {
+              const fromLeft = Math.random() < 0.5;
+              rs.fromPt = fromLeft
+                ? { x: -105, y: h * this._rand(0.20, 0.42) }
+                : { x: w + 105, y: h * this._rand(0.20, 0.42) };
+              rs.hoverPt = {
+                x: fromLeft ? L.westWingX + 18 * s : L.eastWingX - 18 * s,
+                y: L.hubY - this._rand(38, 62) * s
+              };
+              rs.style = this._pick(["bathyscaphe", "crew_shuttle", "manta_glider", "industrial_tug", "experimental_research"]);
+              rs.cruiseSpeed = rs.style === "bathyscaphe" ? 15.0 : 17.0;
+              rs.path = this._buildSubPath(
+                rs.fromPt,
+                rs.hoverPt,
+                { x: (rs.fromPt.x + rs.hoverPt.x) * 0.5, y: rs.fromPt.y + 10 },
+                { x: rs.hoverPt.x + (fromLeft ? -75 : 75) * s, y: rs.hoverPt.y - 6 }
+              );
+              rs.dist = 0;
+              rs.speed = rs.cruiseSpeed;
+              rs.facingLeft = !fromLeft;
+              rs.pitch = 0;
+              rs.phase = "patrol_in";
+              rs.t = 0;
+            } else {
+              rs.phaseDuration += this._rand(4.0, 8.0);
+            }
           }
         }
 
@@ -4192,68 +4821,143 @@ const WorldDeepBlue = {
           if (p >= 1) {
             rs.phase = "wait";
             rs.t = 0;
-            rs.phaseDuration = this._rand(8.5, 19.0);
+            rs.phaseDuration = this._rand(14.0, 26.0);
           }
         } else if (rs.t >= rs.phaseDuration) {
-          const goRight = Math.random() < 0.5;
-          rs.startPt = { x: goRight ? -130 : w + 130, y: h * this._rand(0.18, 0.40) };
-          rs.endPt = { x: goRight ? w + 130 : -130, y: h * this._rand(0.16, 0.38) };
-          rs.style = this._pick(this.SUB_STYLES);
-          rs.scale = rs.style === "heavy_freighter" ? 0.44 : 0.54;
-          rs.cruiseSpeed = this._rand(12.0, 16.5);
-          rs.dist = 0;
-          rs.phase = "cruising";
-          rs.t = 0;
+          if (this._canActivate("subs", L.isNarrow)) {
+            const goRight = Math.random() < 0.5;
+            rs.startPt = { x: goRight ? -130 : w + 130, y: h * this._rand(0.18, 0.40) };
+            rs.endPt = { x: goRight ? w + 130 : -130, y: h * this._rand(0.16, 0.38) };
+            rs.style = this._pick(this.SUB_STYLES);
+            rs.scale = rs.style === "heavy_freighter" ? 0.44 : 0.54;
+            rs.cruiseSpeed = this._rand(12.0, 16.5);
+            rs.dist = 0;
+            rs.phase = "cruising";
+            rs.t = 0;
+          } else {
+            rs.phaseDuration += this._rand(4.0, 9.0);
+          }
         }
       }
     }
   },
 
-  _updateAndDrawROVs(ctx, w, h, pal, dt, step) {
+  _updateAndDrawROVs(ctx, w, h, L, pal, dt, step) {
+    const homeX = L.hubX + 46 * L.s;
+    const homeY = L.hubY + 22 * L.s;
+    const isNarrow = L.isNarrow;
+
     for (let i = 0; i < this.rovs.length; i++) {
       const rov = this.rovs[i];
-      rov.phase += dt * 1.9;
-      const wp = rov.waypoints[rov.wpIdx];
-      const tx = wp.x * w;
-      const ty = wp.y * h;
+      rov.phaseOsc = (rov.phaseOsc || 0) + dt * 1.9;
+      rov.t = (rov.t || 0) + dt;
+
+      if (rov.phase === "docked_wait") {
+        rov.x = homeX;
+        rov.y = homeY;
+        if (rov.t >= (rov.waitDuration || 12.0)) {
+          if (this._canActivate("rovs", isNarrow)) {
+            rov.phase = rov.isWreckSurvey ? "transit_out" : "patrol";
+            rov.t = 0;
+            rov.wpIdx = 0;
+            rov.visitsLeft = rov.isWreckSurvey ? 2 : 3;
+            rov.action = rov.isWreckSurvey ? this._pick(["photo", "sample", "survey"]) : "survey";
+            rov.flashTimer = this._rand(0.8, 1.8);
+            rov.pauseTimer = this._rand(5.5, 8.5);
+          } else {
+            rov.waitDuration = (rov.waitDuration || 12.0) + this._rand(4.0, 8.0);
+          }
+        }
+        continue;
+      }
+
+      const returningHome = rov.phase === "transit_back";
+      const wp = rov.waypoints[rov.wpIdx % rov.waypoints.length];
+      const tx = returningHome ? homeX : (wp.x * w);
+      const ty = returningHome ? homeY : (wp.y * h);
       const dx = tx - rov.x;
       const dy = ty - rov.y;
       const dist = Math.hypot(dx, dy);
 
       let inspecting = false;
+      let flashPulse = 0;
       if (dist > 6) {
-        const speed = 19 * dt;
+        const speed = (rov.isWreckSurvey ? 23 : 19) * dt;
         rov.x += (dx / dist) * Math.min(dist, speed);
         rov.y += (dy / dist) * Math.min(dist, speed);
         const moveAng = Math.atan2(dy, dx);
         rov.beamAngle = this._lerpAngle(rov.beamAngle, moveAng, Math.min(1, dt * 2.2));
+      } else if (returningHome) {
+        rov.phase = "docked_wait";
+        rov.t = 0;
+        rov.waitDuration = this._rand(14.0, 26.0);
+        continue;
       } else {
+        if (rov.phase === "transit_out") rov.phase = "investigate";
         inspecting = true;
-        const sweepTarget = wp.beamAngle + Math.sin(rov.phase * 0.85) * 0.28;
+        const sweepTarget = wp.beamAngle + Math.sin(rov.phaseOsc * 0.85) * 0.30;
         rov.beamAngle = this._lerpAngle(rov.beamAngle, sweepTarget, Math.min(1, dt * 2.6));
         rov.pauseTimer -= dt;
+
+        if (rov.isWreckSurvey) {
+          if (rov.action === "photo") {
+            rov.flashTimer = (rov.flashTimer || 1.2) - dt;
+            if (rov.flashTimer <= 0) {
+              rov.flashTimer = this._rand(2.0, 2.6);
+              rov.flashBurst = 0.22;
+            }
+            if (rov.flashBurst > 0) {
+              rov.flashBurst = Math.max(0, rov.flashBurst - dt);
+              flashPulse = rov.flashBurst / 0.22;
+            }
+          } else if (rov.action === "sample" && Math.random() < 0.08) {
+            this.bubbles.push({
+              x: rov.x + Math.cos(rov.beamAngle) * 5,
+              y: rov.y + 8,
+              r: 1.4 + Math.random() * 1.8,
+              vy: -(0.35 + Math.random() * 0.25),
+              wobble: Math.random() * 6,
+              alpha: 0.30
+            });
+          }
+        }
+
         if (rov.pauseTimer <= 0) {
-          const next = (rov.wpIdx + 1 + Math.floor(Math.random() * Math.max(1, rov.waypoints.length - 1))) % rov.waypoints.length;
-          rov.wpIdx = next;
-          rov.pauseTimer = this._rand(2.8, 6.4);
+          rov.visitsLeft = (rov.visitsLeft || 1) - 1;
+          if (rov.visitsLeft > 0) {
+            rov.wpIdx = (rov.wpIdx + 1) % rov.waypoints.length;
+            if (rov.isWreckSurvey) {
+              const actions = ["photo", "sample", "survey"].filter(a => a !== rov.action);
+              rov.action = this._pick(actions);
+            }
+            rov.pauseTimer = this._rand(5.5, 8.5);
+          } else {
+            rov.phase = "transit_back";
+            rov.t = 0;
+          }
         }
       }
 
-      const hoverY = rov.y + Math.sin(rov.phase * 1.3) * 2.2;
+      const surveyHoverX = (inspecting && rov.isWreckSurvey && rov.action === "survey")
+        ? Math.sin(rov.phaseOsc * 0.6) * 7.0
+        : 0;
+      const hoverY = rov.y + Math.sin(rov.phaseOsc * 1.3) * 2.2;
       const rovScale = rov.scale || 1.0;
       ctx.save();
-      ctx.translate(rov.x, hoverY);
+      ctx.translate(rov.x + surveyHoverX, hoverY);
       ctx.scale(rovScale, rovScale);
 
       ctx.save();
       ctx.rotate(rov.beamAngle);
       if (pal.isDark) ctx.globalCompositeOperation = "screen";
-      const beamLen = pal.isDark ? 160 : 98;
+      const isLaserSurvey = inspecting && rov.isWreckSurvey && rov.action === "survey";
+      const beamLen = pal.isDark ? (isLaserSurvey ? 180 : 160) : (isLaserSurvey ? 115 : 98);
       const beamSpread = pal.isDark ? 42 : 26;
+      const beamColor = isLaserSurvey ? "56, 224, 232" : pal.beamRgb;
       const bg = ctx.createLinearGradient(7, 0, beamLen, 0);
-      bg.addColorStop(0, `rgba(${pal.beamRgb}, ${(pal.beamAlpha * 1.05).toFixed(3)})`);
-      bg.addColorStop(0.52, `rgba(${pal.beamRgb}, ${(pal.beamAlpha * 0.36).toFixed(3)})`);
-      bg.addColorStop(1, `rgba(${pal.beamRgb}, 0)`);
+      bg.addColorStop(0, `rgba(${beamColor}, ${(pal.beamAlpha * (isLaserSurvey ? 1.25 : 1.05)).toFixed(3)})`);
+      bg.addColorStop(0.52, `rgba(${beamColor}, ${(pal.beamAlpha * 0.36).toFixed(3)})`);
+      bg.addColorStop(1, `rgba(${beamColor}, 0)`);
       ctx.fillStyle = bg;
       ctx.beginPath();
       ctx.moveTo(6, -3);
@@ -4262,7 +4966,50 @@ const WorldDeepBlue = {
       ctx.lineTo(6, 3);
       ctx.closePath();
       ctx.fill();
+
+      // Fine exterior laser scanlines during shipwreck survey
+      if (isLaserSurvey) {
+        ctx.strokeStyle = "rgba(103, 232, 249, 0.55)";
+        ctx.lineWidth = 0.85;
+        for (let sl = -2; sl <= 2; sl++) {
+          ctx.beginPath();
+          ctx.moveTo(8, sl * 1.1);
+          ctx.lineTo(beamLen * 0.88, sl * (beamSpread * 0.34) + Math.sin(step * 4 + sl) * 3);
+          ctx.stroke();
+        }
+      }
+
+      // Camera Strobe Flash Burst & Expanding Ring during shipwreck photography
+      if (inspecting && rov.isWreckSurvey && rov.action === "photo" && flashPulse > 0.04) {
+        const fg = ctx.createRadialGradient(14, 0, 1, 18, 0, 52 * flashPulse);
+        fg.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * flashPulse).toFixed(3)})`);
+        fg.addColorStop(0.35, `rgba(165, 243, 252, ${(0.55 * flashPulse).toFixed(3)})`);
+        fg.addColorStop(1, "rgba(165, 243, 252, 0)");
+        ctx.fillStyle = fg;
+        ctx.beginPath();
+        ctx.arc(18, 0, 52 * flashPulse, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
+
+      // Articulated Manipulator Sampling Claw + Specimen Sediment Silt Plume during shipwreck sampling
+      if (inspecting && rov.isWreckSurvey && rov.action === "sample") {
+        const reach = 7 + Math.sin(step * 2.5) * 2.5;
+        ctx.strokeStyle = pal.hullLight;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(2, 5);
+        ctx.lineTo(6, 5 + reach);
+        ctx.lineTo(10, 4 + reach);
+        ctx.moveTo(6, 5 + reach);
+        ctx.lineTo(8, 7 + reach);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(148, 198, 214, 0.32)";
+        ctx.beginPath();
+        ctx.ellipse(9, 7 + reach, 7.5, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.fillStyle = pal.rovBody;
       ctx.beginPath();
@@ -4276,7 +5023,7 @@ const WorldDeepBlue = {
       ctx.fill();
 
       if (inspecting && Math.sin(step * 9 + i) > 0.3) {
-        ctx.fillStyle = "#22D3EE";
+        ctx.fillStyle = rov.action === "sample" ? "#FBBF24" : "#22D3EE";
         ctx.beginPath();
         ctx.arc(0, -6.5, 1.5, 0, Math.PI * 2);
         ctx.fill();
@@ -4287,6 +5034,7 @@ const WorldDeepBlue = {
 
   _updateAndDrawNearLife(ctx, w, h, pal, dt) {
     const scaleDt = dt * 60;
+    const isNarrow = w < 720;
 
     ctx.save();
     for (let i = 0; i < this.nearLife.length; i++) {
@@ -4318,13 +5066,28 @@ const WorldDeepBlue = {
     ctx.save();
     for (let i = 0; i < this.jellies.length; i++) {
       const j = this.jellies[i];
+      if (!j.active) {
+        j.waitTimer = (j.waitTimer || 0) - dt;
+        if (j.waitTimer <= 0) {
+          if (this._canActivate("jellies", isNarrow)) {
+            j.active = true;
+            j.y = h + 35;
+            j.x = w * (0.12 + Math.random() * 0.76);
+          } else {
+            j.waitTimer = this._rand(2.0, 5.0);
+          }
+        }
+        continue;
+      }
+
       j.phase += 0.045 * scaleDt;
       const thrust = Math.max(0, Math.sin(j.phase));
       j.y += (j.vy - thrust * 0.16) * scaleDt;
       j.x += Math.sin(j.phase * 0.35 + i) * 0.22 * scaleDt;
       if (j.y < -45) {
-        j.y = h + 30;
-        j.x = w * (0.1 + Math.random() * 0.8);
+        j.active = false;
+        j.waitTimer = this._rand(isNarrow ? 12 : 7, isNarrow ? 24 : 18);
+        continue;
       }
 
       const bellW = j.size * (0.85 + 0.22 * Math.cos(j.phase));
@@ -4364,10 +5127,27 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Abyssal Angler Fish Prowling Deeper Canyon Terraces with Bioluminescent Esca Lures
+  // Abyssal Angler Fish Prowling Deeper Canyon Terraces with Bioluminescent Esca Lures (Director-gated)
   _updateAndDrawAnglerFish(ctx, w, h, L, pal, dt, step) {
+    const isNarrow = w < 720;
     for (let i = 0; i < this.anglerFish.length; i++) {
       const af = this.anglerFish[i];
+      if (!af.active) {
+        af.waitTimer = (af.waitTimer || 0) - dt;
+        if (af.waitTimer <= 0) {
+          if (this._canActivate("anglers", isNarrow)) {
+            af.active = true;
+            const goRight = Math.random() < 0.5;
+            af.vx = (goRight ? 1 : -1) * this._rand(0.20, 0.28);
+            af.x = goRight ? -55 : (w + 55);
+            af.y = h * this._rand(0.56, 0.84);
+          } else {
+            af.waitTimer = this._rand(3.0, 6.0);
+          }
+        }
+        continue;
+      }
+
       af.phase += dt * 3.0;
       af.x += af.vx * (dt * 60);
       af.y += Math.sin(af.phase * 0.55) * 0.14 * (dt * 60);
@@ -4375,8 +5155,11 @@ const WorldDeepBlue = {
       const maxY = h - 26;
       if (af.y < minY) af.y = minY;
       if (af.y > maxY) af.y = maxY;
-      if (af.x > w + 55) af.x = -55;
-      if (af.x < -55) af.x = w + 55;
+      if ((af.vx > 0 && af.x > w + 55) || (af.vx < 0 && af.x < -55)) {
+        af.active = false;
+        af.waitTimer = this._rand(isNarrow ? 16 : 10, isNarrow ? 30 : 22);
+        continue;
+      }
 
       const facingLeft = af.vx < 0;
       const s = af.size;
@@ -4473,6 +5256,10 @@ const WorldDeepBlue = {
 
     if (lev.phase === "dormant_wait") {
       if (lev.t >= lev.phaseDuration) {
+        if (Math.random() < 0.35) {
+          lev.phaseDuration += this._rand(90.0, 160.0);
+          return;
+        }
         lev.phase = "swimming";
         lev.t = 0;
         lev.dir = Math.random() < 0.5 ? 1 : -1;
@@ -4603,23 +5390,38 @@ const WorldDeepBlue = {
     if ((lev.dir > 0 && lev.x - bodyLen > w + 140) || (lev.dir < 0 && lev.x + bodyLen < -140)) {
       lev.phase = "dormant_wait";
       lev.t = 0;
-      lev.phaseDuration = this._rand(42.0, 68.0);
+      lev.phaseDuration = this._rand(260.0, 440.0);
     }
   },
 
-  // Foreground Playful Wildlife: Gliding Sea Turtles (rendered in front of station & docked submarines)
+  // Foreground Playful Wildlife: Gliding Sea Turtles (rendered in front of station & docked submarines, Director-gated)
   _updateAndDrawSeaTurtles(ctx, w, h, pal, dt, step) {
+    const isNarrow = w < 720;
     for (let i = 0; i < this.seaTurtles.length; i++) {
       const t = this.seaTurtles[i];
+      if (!t.active) {
+        t.waitTimer = (t.waitTimer || 0) - dt;
+        if (t.waitTimer <= 0) {
+          if (this._canActivate("playful", isNarrow)) {
+            t.active = true;
+            const goRight = Math.random() < 0.5;
+            t.vx = (goRight ? 1 : -1) * this._rand(20, 27);
+            t.x = goRight ? -75 : (w + 75);
+            t.y = h * this._rand(0.32, 0.72);
+          } else {
+            t.waitTimer = this._rand(3.0, 6.0);
+          }
+        }
+        continue;
+      }
+
       t.flapPhase += dt * 3.1;
       t.x += t.vx * dt;
       t.y += Math.sin(t.flapPhase * 0.45) * 6.0 * dt + t.vy * dt * 0.18;
-      if (t.vx > 0 && t.x > w + 80) {
-        t.x = -70;
-        t.y = h * this._rand(0.32, 0.74);
-      } else if (t.vx < 0 && t.x < -80) {
-        t.x = w + 70;
-        t.y = h * this._rand(0.32, 0.74);
+      if ((t.vx > 0 && t.x > w + 80) || (t.vx < 0 && t.x < -80)) {
+        t.active = false;
+        t.waitTimer = this._rand(isNarrow ? 16 : 10, isNarrow ? 30 : 22);
+        continue;
       }
 
       const sz = t.size;
@@ -4682,19 +5484,34 @@ const WorldDeepBlue = {
     }
   },
 
-  // Foreground Sleek Reef Sharks with Single-Mesh Connected Dorsal, Pectoral & Caudal Fins (zero detached fins!)
+  // Foreground Sleek Reef Sharks with Single-Mesh Connected Dorsal, Pectoral & Caudal Fins (Director-gated)
   _updateAndDrawFgReefSharks(ctx, w, h, pal, dt, step) {
+    const isNarrow = w < 720;
     for (let i = 0; i < this.fgReefSharks.length; i++) {
       const sh = this.fgReefSharks[i];
+      if (!sh.active) {
+        sh.waitTimer = (sh.waitTimer || 0) - dt;
+        if (sh.waitTimer <= 0) {
+          if (this._canActivate("megafauna", isNarrow)) {
+            sh.active = true;
+            const goRight = Math.random() < 0.5;
+            sh.vx = (goRight ? 1 : -1) * this._rand(34, 44);
+            sh.x = goRight ? -90 : (w + 90);
+            sh.y = h * this._rand(0.38, 0.68);
+          } else {
+            sh.waitTimer = this._rand(3.0, 6.0);
+          }
+        }
+        continue;
+      }
+
       sh.tailPhase += dt * 4.4;
       sh.x += sh.vx * dt;
       sh.y += Math.sin(sh.tailPhase * 0.35 + i) * 5.0 * dt;
-      if (sh.vx > 0 && sh.x > w + 90) {
-        sh.x = -90;
-        sh.y = h * this._rand(0.38, 0.72);
-      } else if (sh.vx < 0 && sh.x < -90) {
-        sh.x = w + 90;
-        sh.y = h * this._rand(0.38, 0.72);
+      if ((sh.vx > 0 && sh.x > w + 90) || (sh.vx < 0 && sh.x < -90)) {
+        sh.active = false;
+        sh.waitTimer = this._rand(isNarrow ? 16 : 10, isNarrow ? 30 : 22);
+        continue;
       }
 
       const sz = sh.size;
@@ -4739,8 +5556,36 @@ const WorldDeepBlue = {
     }
   },
 
-  // Playful Foreground Porpoising Dolphin Pod Swimming in Coordinated Shallow Sine-Wave Arcs
+  // Playful Foreground Porpoising Dolphin Pod Swimming in Coordinated Shallow Sine-Wave Arcs (Director-gated)
   _updateAndDrawDolphins(ctx, w, h, pal, dt, step) {
+    const isNarrow = w < 720;
+    const pod = this.dolphinPodState;
+    if (!pod) return;
+
+    if (!pod.active) {
+      pod.waitTimer = (pod.waitTimer || 0) - dt;
+      if (pod.waitTimer <= 0) {
+        if (this._canActivate("playful", isNarrow)) {
+          pod.active = true;
+          const goRight = Math.random() < 0.5;
+          pod.dir = goRight ? 1 : -1;
+          const baseH = h * this._rand(0.28, 0.42);
+          const gap = isNarrow ? 46 : 64;
+          for (let i = 0; i < this.dolphins.length; i++) {
+            const dl = this.dolphins[i];
+            dl.dir = pod.dir;
+            dl.vx = pod.dir * 54;
+            dl.x = pod.dir > 0 ? (-110 - i * gap) : (w + 110 + i * gap);
+            dl.baseY = baseH + (i % 2) * (h * 0.045);
+          }
+        } else {
+          pod.waitTimer = this._rand(3.0, 6.0);
+        }
+      }
+      return;
+    }
+
+    let anyInCourse = false;
     for (let i = 0; i < this.dolphins.length; i++) {
       const d = this.dolphins[i];
       d.arcPhase += dt * 2.7;
@@ -4748,10 +5593,8 @@ const WorldDeepBlue = {
       const leapOff = Math.sin(d.arcPhase) * 18;
       d.y = d.baseY + leapOff;
       const pitch = Math.cos(d.arcPhase) * 0.26;
-      if (d.dir > 0 && d.x > w + 160) {
-        d.x = -120 - i * 48;
-      } else if (d.dir < 0 && d.x < -160) {
-        d.x = w + 120 + i * 48;
+      if ((d.dir > 0 && d.x <= w + 150) || (d.dir < 0 && d.x >= -150)) {
+        anyInCourse = true;
       }
 
       const sz = d.size;
@@ -4794,6 +5637,11 @@ const WorldDeepBlue = {
       ctx.closePath();
       ctx.fill();
       ctx.restore();
+    }
+
+    if (!anyInCourse) {
+      pod.active = false;
+      pod.waitTimer = this._rand(isNarrow ? 18 : 12, isNarrow ? 34 : 26);
     }
   },
 

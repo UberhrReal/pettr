@@ -1161,6 +1161,9 @@ const FocusCockpit = {
       this.playHarmonicChime();
       App.showToast(`✓ Completed: "${this.activeTask.title}"! Loading next target...`);
       App.haptic("medium");
+      if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+        WaveCanvas.pulseActivity({ kind: "complete" });
+      }
 
       if (typeof Dashboard !== "undefined") {
         await Dashboard.refresh();
