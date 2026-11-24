@@ -1,21 +1,22 @@
 /**
- * PETTR World Renderer: Space — "Gateway" (v12.4 Scenic Realism, Scale, Connected Terminals, Offshore Pad & Ground Ops)
+ * PETTR World Renderer: Space — "Gateway" (v12.6 Vertical Tower Clearance, Pad Deluge, 7-Phase Falcon Heavy, Mega-Liner & Muted Ships)
  * Elevated coastal island spaceport inspired by wide-angle aerospace vistas:
- * - Substantially enlarged central Star-Shaped Spire Terminal linked by elevated glazed skybridges to West & East
- *   Satellite Terminals, multiple gate stands with random live gate-parking + static aircraft population.
- * - Perspective-aligned 2.5D campus & waterfront buildings (strictly clear of the runway), Satellite Ground Station
- *   & Radar Centre with moving dishes and 3 geodesic radomes, adjacent maritime Seaport with gantry cranes & berthed
- *   freighters, plus a coastal arrival highway viaduct branching into the port road & runway terminal underpass.
- * - True relative scale: massive terminals & buildings, tall orbital launch vehicle hauled out of an occluding
- *   Horizontal Integration Facility (HIF) by a realistically small multi-axle tow tug (zero sudden spawn/despawn).
- * - Refined spaceplane designs: military stealth fighter & flying-wing bomber alongside extended passenger liners,
- *   clippers & shuttles; shallow flared landings + brisk smooth runway takeoffs.
- * - Offshore Launch Platform in the upper bay connected by a trestle causeway, featuring Falcon-Heavy-style booster
- *   launches and vertical suicide-burn landings with deploying carbon-fiber landing legs.
- * - Tiny apron & highway ground handling vehicles, maritime ships, and patrolling helicopters.
+ * - Substantially enlarged central Star-Shaped Spire Terminal linked by elevated glazed skybridges to West, East &
+ *   North Satellite Terminals, multiple gate stands with random live gate-parking + static aircraft population.
+ * - Perspective-aligned 2.5D campus & waterfront buildings rendered into foreground occlusion cache so horizontal
+ *   rocket tow trailers glide realistically BEHIND VAB and North Campus structures.
+ * - Launch towers illuminate floodlights and fire high-pressure water deluge + lateral steam during ignition and
+ *   landing; rockets climb strictly vertically to clear tower heights before pitching downrange.
+ * - Offshore Launch Platform with center core mount, twin smaller side-booster landing pads, deck re-mating crane,
+ *   and causeway core hangar running the full Falcon Heavy core-tow -> booster-attach -> launch -> dual-booster-landing
+ *   -> crane-reattach loop.
+ * - Rare colossal multi-deck sci-fi Mega-Liner landing on runway, boarding at Star Terminal, taxiing to main pad,
+ *   and executing a vertical launch.
+ * - Dynamic rolling coastal fog banks at dawn and muted atmospheric distant container ships in the archipelago bay.
  */
 const WorldGateway = {
   cacheCanvas: null,
+  fgCacheCanvas: null,
   cacheKey: "",
   stars: [],
   clouds: [],
@@ -25,6 +26,7 @@ const WorldGateway = {
   ventParticles: [],
   rocket: null,
   offshoreRocket: null,
+  megaliner: null,
   spaceplane: null,
   spaceplanes: [],
   ships: [],
@@ -123,6 +125,7 @@ const WorldGateway = {
     this.ventParticles = [];
     this.rocket = null;
     this.offshoreRocket = null;
+    this.megaliner = null;
     this.spaceplane = null;
     this.spaceplanes = [];
     this.ships = [];
@@ -351,46 +354,48 @@ const WorldGateway = {
     const towerRightX = padX + towerW * 1.95;
 
     // Monumental Vertical Assembly Building (VAB) beside the north crawlerway
-    const vabX = w * (isNarrow ? 0.275 : 0.285);
-    const vabY = islandTopY + spanY * 0.145;
-    const vabW = isNarrow ? 46 : Math.min(82, w * 0.058);
-    const vabH = isNarrow ? 48 : Math.min(84, h * 0.094);
+    const vabX = w * (isNarrow ? 0.275 : 0.276);
+    const vabY = islandTopY + spanY * 0.148;
+    const vabW = isNarrow ? 44 : Math.min(78, w * 0.055);
+    const vabH = isNarrow ? 46 : Math.min(82, h * 0.092);
 
     // Horizontal Integration Facility (HIF) along far-northern crawlerway so rocket & tug spawn/despawn INSIDE!
-    const hifX = w * (isNarrow ? 0.62 : 0.630);
+    const hifX = w * (isNarrow ? 0.61 : 0.618);
     const hifY = islandTopY + spanY * 0.105;
-    const hifW = isNarrow ? Math.min(84, w * 0.21) : Math.min(138, w * 0.105);
+    const hifW = isNarrow ? Math.min(82, w * 0.21) : Math.min(134, w * 0.102);
     const hifH = hifW * 0.22;
     const hifDoorX = hifX - hifW * 0.42;
     const hifDoorY = hifY + 2;
 
-    // 2. Second Offshore Launch Platform (Connected Floating Pad in Upper Bay — Falcon Heavy booster recovery!)
-    const offshorePadX = w * (isNarrow ? 0.78 : 0.75);
+    // 2. Second Offshore Launch Platform (Falcon Heavy Center Pad + Dual Booster Recovery Pads)
+    const offshorePadX = w * (isNarrow ? 0.78 : 0.752);
     const offshorePadY = horizonY + Math.max(24, (islandTopY - horizonY) * 0.48);
-    const offshoreShoreX = w * (isNarrow ? 0.70 : 0.69);
+    const offshoreShoreX = w * (isNarrow ? 0.695 : 0.688);
     const offshoreShoreY = islandTopY + 3;
-    const offshoreScale = isNarrow ? 0.46 : Math.min(0.66, Math.max(0.50, w / 1950));
+    const offshoreScale = isNarrow ? 0.46 : Math.min(0.68, Math.max(0.52, w / 1900));
+    const offshoreLzLeftX = offshorePadX - 46 * offshoreScale;
+    const offshoreLzRightX = offshorePadX + 46 * offshoreScale;
 
-    // 3. Expanded Monumental Star Terminal + Connected West, East & North Concourse Terminals
-    const termX = w * 0.475;
-    const termY = islandTopY + spanY * 0.322;
-    const termScale = isNarrow ? Math.max(0.62, w / 580) : Math.min(1.58, Math.max(1.12, w / 900));
+    // 3. Expanded Monumental Star Terminal + Connected West, East & North Concourse Terminals (Zero Overlap!)
+    const termX = w * 0.468;
+    const termY = islandTopY + spanY * 0.324;
+    const termScale = isNarrow ? Math.max(0.58, w / 580) : Math.min(1.48, Math.max(1.08, w / 940));
 
-    const satWest = { x: termX - 216 * termScale, y: termY - 12 * termScale };
-    const satEast = { x: termX + 214 * termScale, y: termY - 6 * termScale };
-    const satNorth = { x: termX - 66 * termScale, y: termY - 31 * termScale };
+    const satWest = { x: termX - 208 * termScale, y: termY - 10 * termScale };
+    const satEast = { x: termX + 196 * termScale, y: termY - 4 * termScale };
+    const satNorth = { x: termX - 72 * termScale, y: termY - 27 * termScale };
 
-    // 4. Wide Arched Spaceplane Assembly Hangar (East-North)
-    const hangarX = w * (isNarrow ? 0.76 : 0.755);
-    const hangarY = islandTopY + spanY * 0.19;
-    const hangarW = Math.min(210, w * (isNarrow ? 0.24 : 0.146));
+    // 4. Wide Arched Spaceplane Assembly Hangar (East-North — spaced clear of satEast)
+    const hangarX = w * (isNarrow ? 0.775 : 0.795);
+    const hangarY = islandTopY + spanY * 0.145;
+    const hangarW = Math.min(204, w * (isNarrow ? 0.23 : 0.142));
     const hangarH = hangarW * 0.29;
     const hangarDoorX = hangarX - hangarW * 0.22;
     const hangarDoorY = hangarY + hangarH * 0.44;
 
     // 5. Expanded Deep-Space Ground Station & Synchronized Parabolic Dish Row + Prominent Control Tower (East Bluff)
-    const radarX = w * (isNarrow ? 0.805 : 0.888);
-    const radarY = hangarY + (isNarrow ? 44 : 26);
+    const radarX = w * (isNarrow ? 0.805 : 0.896);
+    const radarY = hangarY + (isNarrow ? 50 : 54);
     const radomeX = radarX - (isNarrow ? 12 : 34);
     const radomeY = radarY + (isNarrow ? 16 : 24);
     const radarDishes = isNarrow
@@ -400,14 +405,14 @@ const WorldGateway = {
           { x: radarX + 24, y: radarY + 3, r: 7.4 }
         ]
       : [
-          { x: radarX - 62, y: radarY - 11, r: 10.2 },
-          { x: radarX - 31, y: radarY - 6, r: 10.8 },
-          { x: radarX, y: radarY - 1, r: 11.4 },
-          { x: radarX + 31, y: radarY + 4, r: 10.8 },
-          { x: radarX + 62, y: radarY + 9, r: 10.2 }
+          { x: radarX - 58, y: radarY - 10, r: 10.0 },
+          { x: radarX - 29, y: radarY - 5, r: 10.6 },
+          { x: radarX, y: radarY, r: 11.2 },
+          { x: radarX + 29, y: radarY + 5, r: 10.6 },
+          { x: radarX + 58, y: radarY + 10, r: 10.0 }
         ];
-    const atcX = w * (isNarrow ? 0.938 : 0.955);
-    const atcY = radarY + (isNarrow ? 34 : 58);
+    const atcX = w * (isNarrow ? 0.938 : 0.960);
+    const atcY = radarY + (isNarrow ? 34 : 46);
 
     // 6. Dedicated Helipads on Open Aprons
     const heliPad1 = { x: w * 0.855, y: hangarY + hangarH * 0.98 + 18 };
@@ -464,6 +469,7 @@ const WorldGateway = {
       vabX, vabY, vabW, vabH,
       hifX, hifY, hifW, hifH, hifDoorX, hifDoorY,
       offshorePadX, offshorePadY, offshoreShoreX, offshoreShoreY, offshoreScale,
+      offshoreLzLeftX, offshoreLzRightX,
       termX, termY, termScale, satWest, satEast, satNorth,
       hangarX, hangarY, hangarW, hangarH, hangarDoorX, hangarDoorY,
       radarX, radarY, radomeX, radomeY, radarDishes, atcX, atcY,
@@ -477,16 +483,22 @@ const WorldGateway = {
 
   ensureStaticCache(w, h, mode) {
     const key = `${Math.round(w)}x${Math.round(h)}:${mode}`;
-    if (this.cacheCanvas && this.cacheKey === key) return;
+    if (this.cacheCanvas && this.fgCacheCanvas && this.cacheKey === key) return;
 
     if (!this.cacheCanvas) {
       this.cacheCanvas = document.createElement("canvas");
     }
+    if (!this.fgCacheCanvas) {
+      this.fgCacheCanvas = document.createElement("canvas");
+    }
     this.cacheCanvas.width = Math.max(1, Math.round(w));
     this.cacheCanvas.height = Math.max(1, Math.round(h));
+    this.fgCacheCanvas.width = this.cacheCanvas.width;
+    this.fgCacheCanvas.height = this.cacheCanvas.height;
     this.cacheKey = key;
 
     const ctx = this.cacheCanvas.getContext("2d");
+    const fgCtx = this.fgCacheCanvas.getContext("2d");
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
 
@@ -677,59 +689,13 @@ const WorldGateway = {
     ctx.setLineDash([]);
     ctx.restore();
 
-    // 9. Perspective-Aligned Campus Buildings, VAB & Logistics District (strictly clear of runway!)
-    const campusSlope = 0.03; // Gentle shallow perspective on level north apron
-    const coastSlope = Math.min(0.18, (L.rwRightY - L.rwLeftY) / Math.max(1, L.rwRightX - L.rwLeftX));
+    // 9. Perspective-Aligned North Campus Buildings, VAB & HIF (drawn onto fgCtx so horizontal tow trailer glides BEHIND them!)
+    const campusSlope = 0.02;
+    const coastSlope = Math.min(0.14, (L.rwRightY - L.rwLeftY) / Math.max(1, L.rwRightX - L.rwLeftX) * 0.72);
 
-    this._drawCryoTankFarm(ctx, L.padX + (L.isNarrow ? 36 : 56), L.padY + 2, pal);
-    this._drawVAB(ctx, L, pal);
-    this._draw25DBuilding(ctx, w * 0.362, L.islandTopY + L.spanY * 0.145, L.isNarrow ? 30 : 54, 21, pal, { style: "ops", floors: 3, perspSlope: campusSlope });
-    this._draw25DBuilding(ctx, w * 0.424, L.islandTopY + L.spanY * 0.145, L.isNarrow ? 26 : 44, 15, pal, { style: "warehouse", floors: 2, perspSlope: campusSlope });
-    this._draw25DBuilding(ctx, w * 0.486, L.islandTopY + L.spanY * 0.135, L.isNarrow ? 24 : 46, 16, pal, { style: "terminal_annex", floors: 2, perspSlope: campusSlope });
-    this._draw25DBuilding(ctx, w * 0.548, L.islandTopY + L.spanY * 0.125, L.isNarrow ? 30 : 52, 18, pal, { style: "hangar_small", floors: 1, perspSlope: campusSlope });
-    if (!L.isNarrow) {
-      this._draw25DBuilding(ctx, w * 0.695, L.islandTopY + L.spanY * 0.115, 42, 14, pal, { style: "ops", floors: 2, perspSlope: 0.04 });
-      this._draw25DBuilding(ctx, w * 0.742, L.islandTopY + L.spanY * 0.120, 44, 13, pal, { style: "warehouse", floors: 1, perspSlope: 0.04 });
-    }
+    this._drawCryoTankFarm(ctx, L.padX + (L.isNarrow ? 34 : 54), L.padY + 2, pal);
 
-    // Perspective-aligned south waterfront & airport operations buildings (mathematically clamped STRICTLY below runway!)
-    const southBuildings = [
-      { xFrac: 0.195, w: 46, h: 13, dyBelowRw: 22, style: "fire_station", floors: 1 },
-      { xFrac: 0.275, w: 54, h: 15, dyBelowRw: 25, style: "ops", floors: 2 },
-      { xFrac: 0.355, w: 60, h: 16, dyBelowRw: 26, style: "warehouse", floors: 1 },
-      { xFrac: 0.435, w: 66, h: 19, dyBelowRw: 26, style: "terminal_annex", floors: 3 },
-      { xFrac: 0.515, w: 54, h: 15, dyBelowRw: 25, style: "ops", floors: 2 },
-      { xFrac: 0.580, w: 46, h: 13, dyBelowRw: 22, style: "warehouse", floors: 1 },
-      { xFrac: 0.675, w: 68, h: 19, dyBelowRw: 28, style: "hangar_small", floors: 1 },
-      { xFrac: 0.755, w: 58, h: 17, dyBelowRw: 30, style: "parking_deck", floors: 2 },
-      { xFrac: 0.840, w: 52, h: 15, dyBelowRw: 32, style: "ops", floors: 2 }
-    ];
-    southBuildings.forEach((b, idx) => {
-      if (L.isNarrow && idx % 2 === 1) return;
-      const bx = w * b.xFrac;
-      const bw = L.isNarrow ? b.w * 0.72 : b.w;
-      const bh = L.isNarrow ? b.h * 0.85 : b.h;
-      const rwBottom = L.rwYAtX(bx) + L.rwHalfAtX(bx);
-      const by = rwBottom + b.dyBelowRw + bh;
-      // Ensure building base sits comfortably above southern seawall
-      const shoreMaxY = b.xFrac < 0.60
-        ? ((L.islandBotY - 38) + ((Math.max(0.12, b.xFrac) - 0.12) / 0.48) * 72) - 4
-        : h - 18;
-      if (by <= shoreMaxY && by - bh > rwBottom + 10) {
-        this._draw25DBuilding(ctx, bx, by, bw, bh, pal, { style: b.style, floors: b.floors, perspSlope: coastSlope });
-      }
-    });
-
-    // North-of-runway east cargo, secondary hangar & maintenance buildings near the arched hangar (strictly clear of runway!)
-    const eastCampusY = Math.min(L.hangarY + L.hangarH * 0.68, L.rwYAtX(L.hangarX + L.hangarW * 0.62) - L.rwHalfAtX(L.hangarX + L.hangarW * 0.62) - 22);
-    this._draw25DBuilding(ctx, L.hangarX - L.hangarW * 0.62, L.hangarY + L.hangarH * 0.18, L.isNarrow ? 26 : 42, 15, pal, { style: "ops", floors: 2, perspSlope: 0.03 });
-    this._draw25DBuilding(ctx, L.hangarX + L.hangarW * 0.56, eastCampusY + 14, L.isNarrow ? 28 : 44, 15, pal, { style: "hangar_small", floors: 1, perspSlope: 0.04 });
-    if (!L.isNarrow) {
-      this._draw25DBuilding(ctx, L.atcX - 46, eastCampusY + 26, 46, 14, pal, { style: "warehouse", floors: 1, perspSlope: 0.05 });
-      this._drawCryoTankFarm(ctx, L.atcX - 62, L.atcY + 44, pal, { compact: true });
-    }
-
-    // 10. Main Pad Concrete Launch Mount & Twin Catch Towers
+    // 10. Main Pad Concrete Launch Mount & Twin Catch Towers (background steel lattice)
     ctx.fillStyle = pal.archDark;
     ctx.beginPath();
     ctx.moveTo(L.padX - 48, L.padY + 12);
@@ -746,22 +712,67 @@ const WorldGateway = {
     this._drawLatticeTower(ctx, L.towerLeftX, L.padY, L.towerW, L.towerH, pal.towerSteel, 0.94);
     this._drawLatticeTower(ctx, L.towerRightX, L.padY, L.towerW, L.towerH, pal.towerSteel, 0.94);
 
-    // Horizontal Integration Facility Base (Back wall & dark interior bay where rocket/tug spawn/despawn!)
+    // Horizontal Integration Facility Rear Wall / Open Bay on background canvas
     this._drawHIFBase(ctx, L, pal);
 
-    // 11. Connected West & East Satellite Terminals + Skybridges + Monumental Central Star Terminal
-    this._drawSatelliteTerminalsAndBridges(ctx, L, pal);
-    this._drawStarTerminal(ctx, L, pal);
+    // === FOREGROUND OCCLUSION ARCHITECTURE LAYER (rendered onto fgCtx over passing horizontal crawlerway traffic!) ===
+    this._drawVAB(fgCtx, L, pal);
+    this._draw25DBuilding(fgCtx, w * 0.362, L.islandTopY + L.spanY * 0.148, L.isNarrow ? 28 : 50, 20, pal, { style: "ops", floors: 3, perspSlope: campusSlope });
+    this._draw25DBuilding(fgCtx, w * 0.435, L.islandTopY + L.spanY * 0.138, L.isNarrow ? 24 : 42, 14, pal, { style: "warehouse", floors: 2, perspSlope: campusSlope });
+    this._draw25DBuilding(fgCtx, w * 0.504, L.islandTopY + L.spanY * 0.136, L.isNarrow ? 24 : 42, 15, pal, { style: "terminal_annex", floors: 2, perspSlope: campusSlope });
+    this._draw25DBuilding(fgCtx, w * 0.556, L.islandTopY + L.spanY * 0.128, L.isNarrow ? 24 : 38, 16, pal, { style: "hangar_small", floors: 1, perspSlope: campusSlope });
+    if (!L.isNarrow) {
+      this._draw25DBuilding(fgCtx, w * 0.692, L.islandTopY + L.spanY * 0.118, 40, 14, pal, { style: "ops", floors: 2, perspSlope: 0.03 });
+    }
 
-    // 12. Static Aircraft Fleet Populating Terminal Gates & Remote Tarmac Stands (Realistically Scaled!)
-    this._drawStaticParkedAircraft(ctx, L, pal);
+    // Perspective-aligned south waterfront & airport operations buildings (clamped strictly below runway!)
+    const southBuildings = [
+      { xFrac: 0.195, w: 46, h: 13, dyBelowRw: 22, style: "fire_station", floors: 1 },
+      { xFrac: 0.275, w: 54, h: 15, dyBelowRw: 25, style: "ops", floors: 2 },
+      { xFrac: 0.355, w: 60, h: 16, dyBelowRw: 26, style: "warehouse", floors: 1 },
+      { xFrac: 0.435, w: 64, h: 18, dyBelowRw: 26, style: "terminal_annex", floors: 3 },
+      { xFrac: 0.515, w: 54, h: 15, dyBelowRw: 25, style: "ops", floors: 2 },
+      { xFrac: 0.580, w: 46, h: 13, dyBelowRw: 22, style: "warehouse", floors: 1 },
+      { xFrac: 0.675, w: 66, h: 18, dyBelowRw: 28, style: "hangar_small", floors: 1 },
+      { xFrac: 0.755, w: 56, h: 16, dyBelowRw: 30, style: "parking_deck", floors: 2 },
+      { xFrac: 0.840, w: 50, h: 14, dyBelowRw: 32, style: "ops", floors: 2 }
+    ];
+    southBuildings.forEach((b, idx) => {
+      if (L.isNarrow && idx % 2 === 1) return;
+      const bx = w * b.xFrac;
+      const bw = L.isNarrow ? b.w * 0.72 : b.w;
+      const bh = L.isNarrow ? b.h * 0.85 : b.h;
+      const rwBottom = L.rwYAtX(bx) + L.rwHalfAtX(bx);
+      const by = rwBottom + b.dyBelowRw + bh;
+      const shoreMaxY = b.xFrac < 0.60
+        ? ((L.islandBotY - 38) + ((Math.max(0.12, b.xFrac) - 0.12) / 0.48) * 72) - 4
+        : h - 18;
+      if (by <= shoreMaxY && by - bh > rwBottom + 10) {
+        this._draw25DBuilding(fgCtx, bx, by, bw, bh, pal, { style: b.style, floors: b.floors, perspSlope: coastSlope });
+      }
+    });
+
+    // East apron ops & fuel complex strictly separated between Hangar and Radar Compound
+    const eastCampusY = Math.min(L.hangarY + L.hangarH * 0.92, L.rwYAtX(L.hangarX + L.hangarW * 0.62) - L.rwHalfAtX(L.hangarX + L.hangarW * 0.62) - 28);
+    this._draw25DBuilding(fgCtx, L.hangarX - L.hangarW * 0.56, L.hangarY + L.hangarH * 0.24, L.isNarrow ? 24 : 36, 14, pal, { style: "ops", floors: 2, perspSlope: 0.025 });
+    if (!L.isNarrow) {
+      this._draw25DBuilding(fgCtx, L.hangarX - 24, eastCampusY + 34, 38, 14, pal, { style: "hangar_small", floors: 1, perspSlope: 0.03 });
+      this._drawCryoTankFarm(fgCtx, L.atcX - 42, L.atcY + 42, pal, { compact: true });
+    }
+
+    // 11. Connected West, North & East Satellite Terminals + Skybridges + Monumental Central Star Terminal
+    this._drawSatelliteTerminalsAndBridges(fgCtx, L, pal);
+    this._drawStarTerminal(fgCtx, L, pal);
+
+    // 12. Static Aircraft Fleet Populating Terminal Gates & Remote Tarmac Stands
+    this._drawStaticParkedAircraft(fgCtx, L, pal);
 
     // 13. Curved Arched Assembly Hangar Base + Radar Ground Station Centre + ATC Tower
-    this._drawArchedHangarBase(ctx, L, pal);
-    this._drawRadarCentre(ctx, L, pal);
+    this._drawArchedHangarBase(fgCtx, L, pal);
+    this._drawRadarCentre(fgCtx, L, pal);
 
     // 14. Foreground Lower-Right Curving Highway Causeway Bridge & Lower-Left Coastal Hillside
-    this._drawForegroundBridgeAndCoast(ctx, w, h, L, pal);
+    this._drawForegroundBridgeAndCoast(fgCtx, w, h, L, pal);
   },
 
   _drawOffshoreLaunchPlatform(ctx, L, pal) {
@@ -793,51 +804,71 @@ const WorldGateway = {
       ctx.fillRect(tx - 1.2, ty, 2.4, 7 * sc);
     }
 
-    // 2. Water reflection & caisson shadow beneath floating platform
+    // 2. Water reflection & caisson shadow beneath expanded Falcon Heavy floating barge
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.ellipse(px, py + 11 * sc, 64 * sc, 9 * sc, 0, 0, Math.PI * 2);
+    ctx.ellipse(px, py + 11 * sc, 82 * sc, 10 * sc, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Twin semi-submersible buoyancy pontoons & support caissons
     ctx.fillStyle = pal.shipHull;
-    ctx.fillRect(px - 52 * sc, py + 3 * sc, 104 * sc, 5 * sc);
-    [-40, -14, 14, 40].forEach(ox => {
+    ctx.fillRect(px - 70 * sc, py + 3 * sc, 140 * sc, 5 * sc);
+    [-56, -28, 0, 28, 56].forEach(ox => {
       ctx.fillStyle = pal.archDark;
       ctx.fillRect(px + ox * sc - 3 * sc, py - 2 * sc, 6 * sc, 7 * sc);
     });
 
-    // 3. Perspective floating launch & landing deck
+    // 3. Expanded Perspective Floating Deck (Center Orbital Mount + Two Side Booster Landing Pads!)
     ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.moveTo(px - 60 * sc, py);
-    ctx.lineTo(px - 44 * sc, py - 9 * sc);
-    ctx.lineTo(px + 48 * sc, py - 9 * sc);
-    ctx.lineTo(px + 60 * sc, py);
+    ctx.moveTo(px - 78 * sc, py);
+    ctx.lineTo(px - 62 * sc, py - 10 * sc);
+    ctx.lineTo(px + 62 * sc, py - 10 * sc);
+    ctx.lineTo(px + 78 * sc, py);
     ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = pal.archMid;
     ctx.beginPath();
-    ctx.moveTo(px - 56 * sc, py - 1 * sc);
-    ctx.lineTo(px - 42 * sc, py - 8 * sc);
-    ctx.lineTo(px + 46 * sc, py - 8 * sc);
-    ctx.lineTo(px + 56 * sc, py - 1 * sc);
+    ctx.moveTo(px - 74 * sc, py - 1 * sc);
+    ctx.lineTo(px - 60 * sc, py - 9 * sc);
+    ctx.lineTo(px + 60 * sc, py - 9 * sc);
+    ctx.lineTo(px + 74 * sc, py - 1 * sc);
     ctx.closePath();
     ctx.fill();
 
-    // Target X landing bullseye on deck
-    ctx.strokeStyle = pal.isNightLights ? "rgba(253, 224, 152, 0.52)" : "rgba(255, 255, 255, 0.62)";
-    ctx.lineWidth = Math.max(0.8, 1.3 * sc);
+    // Main Central Pad Plinth + Twin Flanking Smaller Booster Recovery Pads (LZ-1 / LZ-2)
+    ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.ellipse(px + 4 * sc, py - 4.5 * sc, 15 * sc, 3.2 * sc, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.ellipse(px, py - 4.5 * sc, 18 * sc, 4.2 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+    [L.offshoreLzLeftX, L.offshoreLzRightX].forEach(lzx => {
+      ctx.fillStyle = pal.landShade;
+      ctx.beginPath();
+      ctx.ellipse(lzx, py - 4.0 * sc, 13 * sc, 3.4 * sc, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = pal.isNightLights ? "rgba(253, 224, 152, 0.56)" : "rgba(255, 255, 255, 0.68)";
+      ctx.lineWidth = Math.max(0.7, 1.15 * sc);
+      ctx.beginPath();
+      ctx.ellipse(lzx, py - 4.0 * sc, 9.5 * sc, 2.4 * sc, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    });
 
-    // Compact deck blast shield & crew module on west edge
+    // Shore Core Integration Hangar at causeway head (where new center cores emerge via trailer!)
+    const shX = L.offshoreShoreX - 6 * sc;
+    const shY = L.offshoreShoreY - 2;
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(shX - 18 * sc, shY - 12 * sc, 30 * sc, 12 * sc);
+    ctx.fillStyle = pal.archMid;
+    ctx.fillRect(shX - 18 * sc, shY - 13.5 * sc, 30 * sc, 3 * sc);
+    ctx.fillStyle = "#09101E";
+    ctx.fillRect(shX + 1 * sc, shY - 9 * sc, 9 * sc, 9 * sc);
+
+    // Compact deck equipment shelter & main integration tower mast on center mount
     ctx.fillStyle = pal.archLight;
-    ctx.fillRect(px - 42 * sc, py - 12 * sc, 14 * sc, 6 * sc);
+    ctx.fillRect(px - 22 * sc, py - 13 * sc, 9 * sc, 6 * sc);
     ctx.fillStyle = pal.towerSteel;
-    ctx.fillRect(px - 22 * sc, py - 42 * sc, 4 * sc, 36 * sc); // Slimmer support mast
+    ctx.fillRect(px - 15 * sc, py - 52 * sc, 4.2 * sc, 46 * sc);
     ctx.restore();
   },
 
@@ -1232,9 +1263,12 @@ const WorldGateway = {
     ctx.ellipse(L.hangarX - L.hangarW * 0.08, L.hangarY + L.hangarH * 0.85, L.hangarW * 0.72, 24, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // North Pad/VAB/HIF Heavy Assembly Hardstand
+    // Soft elliptical assembly concrete hardstands beneath VAB & HIF (zero floating box outline!)
     ctx.beginPath();
-    ctx.roundRect(w * 0.15, L.islandTopY + 6, w * 0.56, L.spanY * 0.18, 10);
+    ctx.ellipse(L.vabX, L.vabY + 4, L.vabW * 0.88, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(L.hifX, L.hifY + 7, L.hifW * 0.66, 14, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 3. Perspective Concrete Slab Expansion Grid Lines (subtle non-noisy architectural grain!)
@@ -1639,7 +1673,7 @@ const WorldGateway = {
       {
         x0: L.termX - 44 * sc, y0: L.termY - 12 * sc,
         x1: L.satNorth.x + 12 * sc, y1: L.satNorth.y + 4 * sc,
-        sat: L.satNorth, kind: "north", sScale: sc * 0.88
+        sat: L.satNorth, kind: "north", sScale: sc * 0.72
       }
     ];
     if (!L.isNarrow) {
@@ -1878,7 +1912,7 @@ const WorldGateway = {
       { x: L.termX - 66 * sc, y: L.termY + 26 * sc, ang: -0.45, s: 0.40 * sc, v: "airliner" },
       { x: L.termX + 82 * sc, y: L.termY + 27 * sc, ang: 2.68, s: 0.44 * sc, v: "starliner" },
       { x: L.satWest.x - 16 * sc, y: L.satWest.y + 18 * sc, ang: 0.65, s: 0.34 * sc, v: "fighter" },
-      { x: L.hangarX - L.hangarW * 0.46, y: L.hangarY + L.hangarH * 0.86, ang: 2.25, s: 0.42 * sc, v: "bomber" }
+      { x: L.hangarX + L.hangarW * 0.12, y: L.hangarY + L.hangarH * 1.08, ang: 2.35, s: 0.42 * sc, v: "bomber" }
     ];
     if (!L.isNarrow) {
       parked.push(
@@ -2562,13 +2596,13 @@ const WorldGateway = {
         { kind: "recovery_ship", zone: "lower", x: w * 0.30, y: h * 0.83, vx: 4.0, minX: w * 0.14, maxX: w * 0.56, scale: 1.0 },
         { kind: "ferry", zone: "lower", x: w * 0.48, y: h * 0.90, vx: -5.2, minX: w * 0.20, maxX: w * 0.60, scale: 0.86 },
         { kind: "container_ship", zone: "lower", x: w * 0.18, y: h * 0.87, vx: 3.1, minX: w * 0.06, maxX: w * 0.52, scale: 0.84 },
-        { kind: "container_ship", zone: "upper", x: w * 0.35, y: L.horizonY + upperSpan * 0.44, vx: 2.3, minX: w * 0.04, maxX: w * 0.64, scale: 0.62 },
-        { kind: "container_ship", zone: "upper", x: w * 0.58, y: L.horizonY + upperSpan * 0.26, vx: -1.9, minX: w * 0.14, maxX: w * 0.94, scale: 0.50 },
-        { kind: "cargo_far", zone: "upper", x: w * 0.47, y: L.horizonY + upperSpan * 0.64, vx: 2.0, minX: w * 0.08, maxX: w * 0.64, scale: 0.52 }
+        { kind: "container_ship", zone: "upper", x: w * 0.35, y: L.horizonY + upperSpan * 0.44, vx: 2.0, minX: w * 0.04, maxX: w * 0.64, scale: 0.42 },
+        { kind: "container_ship", zone: "upper", x: w * 0.58, y: L.horizonY + upperSpan * 0.26, vx: -1.7, minX: w * 0.14, maxX: w * 0.94, scale: 0.36 },
+        { kind: "cargo_far", zone: "upper", x: w * 0.47, y: L.horizonY + upperSpan * 0.64, vx: 1.8, minX: w * 0.08, maxX: w * 0.64, scale: 0.44 }
       ];
       if (!isNarrow) {
         this.ships.push(
-          { kind: "container_ship", zone: "upper", x: w * 0.90, y: L.horizonY + upperSpan * 0.62, vx: -2.1, minX: w * 0.81, maxX: w * 0.96, scale: 0.64 },
+          { kind: "container_ship", zone: "upper", x: w * 0.90, y: L.horizonY + upperSpan * 0.62, vx: -1.8, minX: w * 0.81, maxX: w * 0.96, scale: 0.44 },
           { kind: "ferry", zone: "upper", x: w * 0.22, y: L.horizonY + upperSpan * 0.74, vx: 2.8, minX: w * 0.06, maxX: w * 0.62, scale: 0.52 },
           { kind: "cargo_far", zone: "upper", x: w * 0.11, y: L.horizonY + upperSpan * 0.34, vx: 1.7, minX: w * 0.03, maxX: w * 0.48, scale: 0.44 },
           { kind: "recovery_ship", zone: "lower", x: w * 0.42, y: h * 0.95, vx: 3.4, minX: w * 0.26, maxX: w * 0.64, scale: 0.78 }
@@ -2650,16 +2684,38 @@ const WorldGateway = {
       };
     }
 
-    // Offshore Falcon-Heavy Booster Launch & Leg-Deployed Landing System
+    // Offshore Falcon Heavy 7-Phase Integration, Launch, Twin Booster Landing & Crane Re-Mating System
     if (!this.offshoreRocket) {
       this.offshoreRocket = {
-        phase: "reentry_burn",
-        t: 0.5,
-        phaseDuration: 7.5,
+        phase: "booster_attach",
+        t: 0.8,
+        phaseDuration: 7.0,
         legDeploy: 0,
-        x: L.offshorePadX + 4 * L.offshoreScale,
-        y: -25,
-        angle: -0.05
+        leftLegDeploy: 0,
+        rightLegDeploy: 0,
+        x: L.offshorePadX,
+        y: L.offshorePadY - 4.5 * L.offshoreScale,
+        angle: 0
+      };
+    }
+
+    // Rare Colossal Multi-Deck Sci-Fi Mega-Liner (Runway Land -> Terminal Board -> Pad Vertical Launch)
+    if (!this.megaliner) {
+      this.megaliner = {
+        phase: "dormant_wait",
+        t: 18.0,
+        phaseDuration: 34.0,
+        dist: 0,
+        speed: 0,
+        x: -80,
+        y: L.horizonY - 14,
+        heading: L.rwAng,
+        altitude: 0,
+        pitchLift: 0,
+        chuteDetached: false,
+        detachedChuteX: 0,
+        detachedChuteY: 0,
+        detachedChuteAlpha: 0
       };
     }
 
@@ -2743,11 +2799,11 @@ const WorldGateway = {
     if (this.rocket && (this.rocket.phase === "arm_swing" || this.rocket.phase === "erect") && this.rocket.t > 1.2) {
       this.rocket.phase = "launch";
       this.rocket.t = 0;
-      this.rocket.phaseDuration = this._rand(12.0, 14.5);
-    } else if (this.offshoreRocket && (this.offshoreRocket.phase === "pad_idle" || this.offshoreRocket.phase === "landed_rest") && this.offshoreRocket.t > 1.5) {
+      this.rocket.phaseDuration = this._rand(13.0, 15.5);
+    } else if (this.offshoreRocket && (this.offshoreRocket.phase === "booster_attach" || this.offshoreRocket.phase === "pad_idle") && this.offshoreRocket.t > 1.5) {
       this.offshoreRocket.phase = "strongback_retract";
       this.offshoreRocket.t = 0;
-      this.offshoreRocket.phaseDuration = 4.0;
+      this.offshoreRocket.phaseDuration = 3.8;
     } else if (this.spaceplanes.length > 0) {
       const idle = this.spaceplanes.find(sp => sp.role === "runway" && (sp.phase === "hangar_rest" || sp.phase === "sky_wait") && sp.t > 0.8);
       if (idle) {
@@ -2789,7 +2845,7 @@ const WorldGateway = {
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
 
-    // 1. Blit offscreen cached 2.5D coastal spaceport complex
+    // 1. Blit offscreen cached 2.5D coastal terrain, runway, crawlerway & pad infrastructure
     ctx.drawImage(this.cacheCanvas, 0, 0, w, h);
 
     // 2. Subtle Animated Sky & Clipped Water Shimmer
@@ -2798,7 +2854,7 @@ const WorldGateway = {
     // 3. Ships Gliding Across Upper Archipelago Bay & Lower Sea Channel
     this._updateAndDrawShips(ctx, w, h, L, pal, dt, step);
 
-    // 4. Offshore Falcon-Heavy Booster Launch & Deployed-Leg Landing (Upper Bay Floating Pad!)
+    // 4. Offshore Falcon Heavy Launch, Dual Booster Pad Recovery & Crane Re-Mating
     this._updateAndDrawOffshoreRocket(ctx, L, pal, dt, step, w, h);
 
     // 5. Orbital Streaks
@@ -2827,31 +2883,44 @@ const WorldGateway = {
       this.orbiters = aliveOrb;
     }
 
-    // 6. Dynamic Complex Beacons, Runway Lights & Slewing Deep-Space Radar Dishes
+    // Depth-sorted heavy orbital rocket: during horizontal tow along crawlerway, glide BEHIND VAB & North buildings!
+    const rPhase = this.rocket ? this.rocket.phase : "tow_out";
+    const isHorizTow = rPhase === "tow_out" || rPhase === "tow_back";
+    if (isHorizTow) {
+      this._updateAndDrawRocket(ctx, L, pal, dt, step, w, h);
+    }
+
+    // 6. Blit Foreground 2.5D Architectural Occlusion Layer (VAB, North Campus, Star Terminals, Hangar Base, Radar, Bridge)
+    ctx.drawImage(this.fgCacheCanvas, 0, 0, w, h);
+
+    // 7. HIF Shell, Dynamic Beacons, Runway Lights & Synchronized Parabolic Dishes
+    this._drawHIFOcclusionRoof(ctx, L, pal);
     this._drawComplexLights(ctx, L, pal, step);
     this._drawAnimatedRadarDishes(ctx, L, pal, step);
 
-    // 7. Heavy Orbital Rocket along northern crawlerway + HIF Forewall Occlusion + Terminal Spire Occlusion!
-    this._updateAndDrawRocket(ctx, L, pal, dt, step, w, h);
-    this._drawHIFOcclusionRoof(ctx, L, pal);
+    // 8. Heavy Orbital Rocket on launch pad / vertical ascent / landing + Star Terminal Spire Occlusion
+    if (!isHorizTow) {
+      this._updateAndDrawRocket(ctx, L, pal, dt, step, w, h);
+    }
     this._drawStarTerminalSpireOcclusion(ctx, L, pal);
 
-    // 8. Tiny Apron & Highway Ground Handling Vehicles (clipped safely during underpass transit!)
+    // 9. Tiny Apron & Highway Ground Handling Vehicles (clipped safely during underpass transit!)
     this._updateAndDrawGroundVehicles(ctx, w, h, L, pal, dt, step);
 
-    // 9. Concurrent Arc-Length Kinematic Spaceplane Fleet
+    // 10. Concurrent Arc-Length Kinematic Spaceplane Fleet + Colossal Multi-Deck Mega-Liner
     this._updateAndDrawSpaceplane(ctx, L, pal, dt, step, w, h);
+    this._updateAndDrawMegaLiner(ctx, L, pal, dt, step, w, h);
 
-    // 10. Foreground Arched Hangar Roof Occlusion Layer (planes taxi inside seamlessly!)
+    // 11. Foreground Arched Hangar Roof Occlusion Layer (planes taxi inside seamlessly!)
     this._drawArchedHangarOcclusionRoof(ctx, L, pal);
 
-    // 11. Patrol & Transport Helicopters Taking Off, Landing & Patrolling Around Base
+    // 12. Patrol & Transport Helicopters Taking Off, Landing & Patrolling Around Base
     this._updateAndDrawHelicopters(ctx, w, h, L, pal, dt, step);
 
-    // 12. Exhaust Smoke & Cryo Vent Particle System
+    // 13. Exhaust Smoke, Deluge Steam & Cryo Vent Particle System
     this._updateAndDrawParticles(ctx, pal, dt);
 
-    // 13. Probabilistic Rolling Dawn Fog (morning mode)
+    // 14. Dynamic Rolling Dawn Fog (morning mode)
     this._updateAndDrawDawnFog(ctx, w, h, L, mode, dt, now);
   },
 
@@ -2973,7 +3042,8 @@ const WorldGateway = {
 
       const dir = s.vx >= 0 ? 1 : -1;
       const sc = s.scale;
-      const hazeAlpha = s.zone === "upper" ? 0.64 : 0.96;
+      const isUpperContainer = s.zone === "upper" && (s.kind === "container_ship" || s.kind === "cargo_far");
+      const hazeAlpha = isUpperContainer ? 0.42 : (s.zone === "upper" ? 0.50 : 0.96);
 
       ctx.save();
       ctx.globalAlpha = hazeAlpha;
@@ -3043,8 +3113,9 @@ const WorldGateway = {
         ctx.fillStyle = pal.windowGlow;
         ctx.fillRect(-2, -3.8, 7.5, 1.4);
       } else if (s.kind === "container_ship") {
-        // Multi-bay Panamax container vessel with hull, red boot-topping stripe, stacked ISO bays & aft bridge tower
-        ctx.fillStyle = pal.shipHull;
+        // Distant upper bay container vessels use muted atmospheric colors to blend naturally with horizon
+        const isDistant = s.zone === "upper";
+        ctx.fillStyle = isDistant ? pal.archDark : pal.shipHull;
         ctx.beginPath();
         ctx.moveTo(-26, -1.2);
         ctx.lineTo(22, -1.5);
@@ -3054,15 +3125,18 @@ const WorldGateway = {
         ctx.closePath();
         ctx.fill();
 
-        // Subtle maritime rust-red boot-topping waterline accent
-        ctx.save();
-        ctx.fillStyle = pal.chuteColor;
-        ctx.globalAlpha *= 0.85;
-        ctx.fillRect(-24, 1.8, 48, 1.3);
-        ctx.restore();
+        if (!isDistant) {
+          ctx.save();
+          ctx.fillStyle = pal.chuteColor;
+          ctx.globalAlpha *= 0.72;
+          ctx.fillRect(-24, 1.8, 48, 1.3);
+          ctx.restore();
+        }
 
-        // Stacked ISO cargo container bays in harmonious tones
-        const bayColors = [pal.liveryAccent, pal.chuteColor, pal.archMid, pal.archLight];
+        // Stacked ISO cargo container bays in harmonious muted tones for distant vessels
+        const bayColors = isDistant
+          ? [pal.archMid, pal.archLight, pal.islandFar, pal.archDark]
+          : [pal.liveryAccent, pal.chuteColor, pal.archMid, pal.archLight];
         [-21, -11, -1, 9].forEach((bx, bIdx) => {
           ctx.fillStyle = bayColors[bIdx % bayColors.length];
           ctx.fillRect(bx, -5.2, 8.2, 3.8);
@@ -3070,8 +3144,8 @@ const WorldGateway = {
           ctx.fillRect(bx + 0.6, -8.2, 7.0, 2.8);
         });
 
-        // White aft bridge superstructure & funnel stack
-        ctx.fillStyle = pal.shipSuper;
+        // Bridge superstructure & funnel stack
+        ctx.fillStyle = isDistant ? pal.archLight : pal.shipSuper;
         ctx.fillRect(-19, -12.0, 6.5, 7.0);
         ctx.fillStyle = pal.windowGlassDark;
         ctx.fillRect(-17.8, -11.0, 4.2, 2.2);
@@ -3184,194 +3258,22 @@ const WorldGateway = {
     ctx.restore();
   },
 
-  // Offshore Floating Pad Rocket (Falcon Heavy Booster Launch + Vertical Leg-Deployed Landing!)
-  _updateAndDrawOffshoreRocket(ctx, L, pal, dt, step, w, h) {
-    const r = this.offshoreRocket;
-    if (!r) return;
-    r.t += dt;
-
-    const sc = L.offshoreScale;
-    const deckX = L.offshorePadX + 4 * sc;
-    const deckY = L.offshorePadY - 4.5 * sc;
-    const bodyH = 44 * sc;
-    const bodyW = 5.4 * sc;
-
-    let visible = true;
-    let flameScale = 0;
-    let targetLegs = 0;
-    let strongbackRetract = 1;
-
-    if (r.phase === "pad_idle") {
-      r.x = deckX;
-      r.y = deckY;
-      r.angle = 0;
-      strongbackRetract = 0.25;
-      if (r.t >= r.phaseDuration) {
-        r.phase = "strongback_retract";
-        r.t = 0;
-        r.phaseDuration = 4.2;
-      }
-    } else if (r.phase === "strongback_retract") {
-      const p = Math.min(1, r.t / r.phaseDuration);
-      r.x = deckX;
-      r.y = deckY;
-      r.angle = 0;
-      strongbackRetract = 0.25 + p * 0.75;
-      if (Math.random() < 0.25) {
-        this.ventParticles.push({
-          x: deckX + (Math.random() - 0.5) * 4, y: deckY - bodyH * 0.55,
-          vx: 0.25, vy: -0.1, r: 1.8 * sc + 1, life: 0, maxLife: 34
-        });
-      }
-      if (r.t >= r.phaseDuration) {
-        r.phase = "launch";
-        r.t = 0;
-        r.phaseDuration = this._rand(10.5, 13.0);
-      }
-    } else if (r.phase === "launch") {
-      const p = Math.min(1, r.t / r.phaseDuration);
-      const climb = Math.pow(p, 2.45);
-      r.x = deckX + Math.pow(Math.max(0, p - 0.16), 2.0) * (w * 0.12);
-      r.y = deckY - climb * (deckY + 140);
-      r.angle = Math.pow(Math.max(0, p - 0.16), 1.4) * 0.34;
-      flameScale = p < 0.12 ? (0.4 + p * 5) : 1.0;
-
-      // Fiery glow reflected across upper bay water right around floating pad!
-      if (p < 0.45) {
-        const refA = (1 - p / 0.45) * 0.36;
-        const rg = ctx.createRadialGradient(deckX, deckY + 10 * sc, 2, deckX, deckY + 12 * sc, 56 * sc);
-        rg.addColorStop(0, `rgba(${pal.plumeMid}, ${refA.toFixed(3)})`);
-        rg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
-        ctx.fillStyle = rg;
-        ctx.beginPath();
-        ctx.ellipse(deckX, deckY + 12 * sc, 56 * sc, 12 * sc, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (Math.random() < 0.75) {
-        const nearPad = r.y > deckY - 34;
-        this.plumeParticles.push({
-          x: r.x + (Math.random() - 0.5) * (nearPad ? 10 : 3),
-          y: nearPad ? Math.min(deckY + 2, r.y + 3) : r.y + 3,
-          vx: nearPad ? (Math.random() - 0.5) * 1.4 : -Math.sin(r.angle) * 0.3,
-          vy: nearPad ? -0.15 : 0.42,
-          r: nearPad ? 4.5 : 2.6,
-          grow: nearPad ? 0.16 : 0.10,
-          hot: p < 0.65 && Math.random() < 0.45,
-          life: 0,
-          maxLife: nearPad ? 68 : 110
-        });
-      }
-      if (r.t >= r.phaseDuration) {
-        r.phase = "orbit_wait";
-        r.t = 0;
-        r.phaseDuration = this._rand(7.0, 14.0);
-      }
-    } else if (r.phase === "orbit_wait") {
-      visible = false;
-      if (r.t >= r.phaseDuration) {
-        r.phase = "reentry_burn";
-        r.t = 0;
-        r.phaseDuration = this._rand(5.0, 6.5);
-      }
-    } else if (r.phase === "reentry_burn") {
-      const p = Math.min(1, r.t / r.phaseDuration);
-      const startX = deckX + w * 0.08;
-      const midX = deckX + w * 0.015;
-      const midY = deckY - 78 * sc;
-      const ease = p * p * (3 - 2 * p);
-      r.x = startX + (midX - startX) * ease;
-      r.y = -45 + (midY - (-45)) * ease;
-      r.angle = -(1 - ease) * 0.18 - 0.05;
-      flameScale = p < 0.68 ? 0.55 : 0;
-      targetLegs = 0;
-      if (r.t >= r.phaseDuration) {
-        r.phase = "landing_burn";
-        r.t = 0;
-        r.phaseDuration = this._rand(4.8, 6.2);
-      }
-    } else if (r.phase === "landing_burn") {
-      // Final hover-slam suicide burn onto floating platform deck + 4 landing legs deploying!
-      const p = Math.min(1, r.t / r.phaseDuration);
-      const easeOut = 1 - Math.pow(1 - p, 2.3);
-      const midX = deckX + w * 0.015;
-      const midY = deckY - 78 * sc;
-      r.x = midX + (deckX - midX) * easeOut;
-      r.y = midY + (deckY - midY) * easeOut;
-      r.angle = -(1 - easeOut) * 0.06;
-      flameScale = p < 0.92 ? (0.78 - p * 0.35) : ((1 - p) * 5);
-      targetLegs = this._clamp((p - 0.38) / 0.42, 0, 1);
-
-      if (Math.random() < 0.72) {
-        this.plumeParticles.push({
-          x: r.x + (Math.random() - 0.5) * 3,
-          y: Math.min(deckY, r.y + 3),
-          vx: (p > 0.80 ? (Math.random() - 0.5) * 1.8 : (Math.random() - 0.5) * 0.5),
-          vy: p > 0.80 ? -0.18 : 0.65,
-          r: 2.5 + Math.random() * 2.5,
-          grow: 0.12,
-          hot: p < 0.85,
-          life: 0,
-          maxLife: 48
-        });
-      }
-      if (r.t >= r.phaseDuration) {
-        r.phase = "landed_rest";
-        r.t = 0;
-        r.phaseDuration = this._rand(8.0, 15.0);
-        // Deck steam burst on touchdown
-        for (let k = 0; k < 7; k++) {
-          this.ventParticles.push({
-            x: deckX + (Math.random() - 0.5) * 14, y: deckY - 1,
-            vx: (Math.random() - 0.5) * 1.1, vy: -0.22 - Math.random() * 0.25,
-            r: 2.8, life: 0, maxLife: 44
-          });
-        }
-      }
-    } else {
-      r.x = deckX;
-      r.y = deckY;
-      r.angle = 0;
-      targetLegs = 1.0;
-      strongbackRetract = 0.7;
-      if (r.t >= r.phaseDuration) {
-        r.phase = "pad_idle";
-        r.t = 0;
-        r.legDeploy = 0;
-        r.phaseDuration = this._rand(7.0, 14.0);
-      }
-    }
-
-    r.legDeploy += (targetLegs - r.legDeploy) * Math.min(1, dt * 4.5);
-
-    // Compact pad strongback arm animation
-    ctx.save();
-    ctx.translate(L.offshorePadX - 18 * sc, deckY);
-    ctx.rotate(-strongbackRetract * 0.24);
-    ctx.fillStyle = pal.towerSteel;
-    ctx.fillRect(-1.5, -bodyH * 0.85, 3, bodyH * 0.85);
-    ctx.restore();
-
-    if (!visible) return;
-
-    ctx.save();
-    ctx.translate(r.x, r.y);
-    ctx.rotate(r.angle);
-
-    // Landing burn / ascent plume
+  // Draw an individual Falcon Heavy stage (center core with fairing or grid-finned returning side booster)
+  _drawFhStage(ctx, pal, bodyW, bodyH, sc, legDeploy, flameScale, step, hasFairing) {
     if (flameScale > 0.04) {
       const flH = (16 + Math.sin(step * 42) * 3) * flameScale;
-      const flW = bodyW * 1.1;
-      const bloom = ctx.createRadialGradient(0, flH * 0.4, 1, 0, flH * 0.4, flH * 2.0);
-      bloom.addColorStop(0, `rgba(${pal.plumeMid}, ${(pal.isNightLights ? 0.50 : 0.28).toFixed(3)})`);
+      const flW = bodyW * 1.15;
+      const bloom = ctx.createRadialGradient(0, flH * 0.4, 1, 0, flH * 0.4, flH * 2.1);
+      bloom.addColorStop(0, `rgba(${pal.plumeMid}, ${(pal.isNightLights ? 0.52 : 0.28).toFixed(3)})`);
       bloom.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
       ctx.fillStyle = bloom;
       ctx.beginPath();
-      ctx.arc(0, flH * 0.4, flH * 2.0, 0, Math.PI * 2);
+      ctx.arc(0, flH * 0.4, flH * 2.1, 0, Math.PI * 2);
       ctx.fill();
 
       const flG = ctx.createLinearGradient(0, 0, 0, flH);
-      flG.addColorStop(0, `rgba(${pal.plumeCore}, 0.96)`);
-      flG.addColorStop(0.5, `rgba(${pal.plumeMid}, 0.85)`);
+      flG.addColorStop(0, `rgba(${pal.plumeCore}, 0.98)`);
+      flG.addColorStop(0.5, `rgba(${pal.plumeMid}, 0.86)`);
       flG.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
       ctx.fillStyle = flG;
       ctx.beginPath();
@@ -3381,8 +3283,6 @@ const WorldGateway = {
       ctx.fill();
     }
 
-    // Core + optional twin side boosters during ascent
-    const showSideBoosters = r.phase === "pad_idle" || r.phase === "strongback_retract" || r.phase === "launch";
     const coreG = ctx.createLinearGradient(-bodyW * 0.5, 0, bodyW * 0.5, 0);
     coreG.addColorStop(0, pal.bodyLight);
     coreG.addColorStop(0.65, pal.bodyLight);
@@ -3390,43 +3290,428 @@ const WorldGateway = {
     ctx.fillStyle = coreG;
     ctx.fillRect(-bodyW * 0.5, -bodyH, bodyW, bodyH);
 
-    // Payload fairing nose on ascent; titanium grid fins on booster return
-    if (showSideBoosters) {
+    // Interstage band & dark engine skirt
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(-bodyW * 0.52, -bodyH * 0.68, bodyW * 1.04, 1.8 * sc);
+    ctx.fillRect(-bodyW * 0.54, -2.5 * sc, bodyW * 1.08, 2.5 * sc);
+
+    if (hasFairing) {
+      ctx.fillStyle = coreG;
       ctx.beginPath();
-      ctx.moveTo(-bodyW * 0.65, -bodyH);
-      ctx.quadraticCurveTo(0, -bodyH - bodyW * 1.6, bodyW * 0.65, -bodyH);
+      ctx.moveTo(-bodyW * 0.68, -bodyH);
+      ctx.quadraticCurveTo(0, -bodyH - bodyW * 1.7, bodyW * 0.68, -bodyH);
       ctx.closePath();
       ctx.fill();
-      [-1, 1].forEach(side => {
-        const bx = side * (bodyW * 0.98);
-        const bh = bodyH * 0.68;
-        ctx.fillStyle = coreG;
-        ctx.fillRect(bx - bodyW * 0.4, -bh, bodyW * 0.8, bh);
-        ctx.beginPath();
-        ctx.moveTo(bx - bodyW * 0.4, -bh);
-        ctx.quadraticCurveTo(bx, -bh - bodyW * 0.9, bx + bodyW * 0.4, -bh);
-        ctx.closePath();
-        ctx.fill();
-      });
     } else {
+      // Aerodynamic nose cone + folded titanium grid fins on side boosters
+      ctx.fillStyle = coreG;
+      ctx.beginPath();
+      ctx.moveTo(-bodyW * 0.5, -bodyH);
+      ctx.quadraticCurveTo(0, -bodyH - bodyW * 1.05, bodyW * 0.5, -bodyH);
+      ctx.closePath();
+      ctx.fill();
       ctx.fillStyle = pal.towerSteel;
-      ctx.fillRect(-bodyW * 0.95, -bodyH * 0.92, bodyW * 1.9, 1.8);
+      ctx.fillRect(-bodyW * 0.95, -bodyH * 0.92, bodyW * 1.9, 1.7);
     }
 
-    // Deploying Carbon-Fiber Falcon-Style Landing Legs!
-    if (r.legDeploy > 0.04) {
-      const legAng = r.legDeploy * 0.85;
-      const legLen = bodyW * 1.85;
+    if (legDeploy > 0.04) {
+      const legAng = legDeploy * 0.88;
+      const legLen = bodyW * 1.95;
       ctx.strokeStyle = "#1E293B";
-      ctx.lineWidth = Math.max(1.0, 1.6 * sc);
+      ctx.lineWidth = Math.max(1.0, 1.55 * sc);
       [-1, 1].forEach(side => {
         ctx.beginPath();
         ctx.moveTo(side * bodyW * 0.45, -3 * sc);
-        ctx.lineTo(side * (bodyW * 0.45 + Math.sin(legAng) * legLen), 1.5 * sc - Math.cos(legAng) * legLen * 0.1);
+        ctx.lineTo(side * (bodyW * 0.45 + Math.sin(legAng) * legLen), 1.6 * sc - Math.cos(legAng) * legLen * 0.1);
         ctx.stroke();
       });
     }
-    ctx.restore();
+  },
+
+  // Offshore Floating Pad Rocket (7-Phase Falcon Heavy Loop: Core Tow -> Booster Attach -> Launch -> Dual Booster Recovery -> Crane Reattach)
+  _updateAndDrawOffshoreRocket(ctx, L, pal, dt, step, w, h) {
+    const r = this.offshoreRocket;
+    if (!r) return;
+    r.t += dt;
+
+    const sc = L.offshoreScale;
+    const centerX = L.offshorePadX;
+    const deckY = L.offshorePadY - 4.5 * sc;
+    const lzLeftX = L.offshoreLzLeftX;
+    const lzRightX = L.offshoreLzRightX;
+    const lzY = L.offshorePadY - 4.0 * sc;
+    const bodyH = 44 * sc;
+    const boosterH = bodyH * 0.68;
+    const bodyW = 5.0 * sc;
+
+    const shorePt = { x: L.offshoreShoreX + 2 * sc, y: L.offshoreShoreY - 1 };
+    const trestleEnd = { x: centerX - 18 * sc, y: L.offshorePadY + 4 * sc };
+    const causewayPos = (frac) => {
+      if (frac < 0.78) {
+        const u = Math.max(0, frac) / 0.78;
+        return { x: this._lerp(shorePt.x, trestleEnd.x, u), y: this._lerp(shorePt.y, trestleEnd.y, u), flame: 0 };
+      }
+      const v = Math.min(1, (frac - 0.78) / 0.22);
+      return { x: this._lerp(trestleEnd.x, centerX, v), y: this._lerp(trestleEnd.y, deckY, v), flame: 0 };
+    };
+
+    let strongbackRetract = 0.28;
+    let delugeAlpha = 0;
+
+    // 1. Tower arm staging offsets (boosters held at +/-13*sc waiting on tower arms)
+    const armRestDx = 13.5 * sc;
+    const attachedDx = bodyW * 0.98;
+    const drawTowerArmsAndCrane = (leftPos, rightPos, corePos, coreAngle, craneFrac, showBoostersOnArms) => {
+      // Strongback tower spine
+      ctx.save();
+      ctx.translate(centerX - 15 * sc, deckY);
+      ctx.rotate(-strongbackRetract * 0.24);
+      ctx.fillStyle = pal.towerSteel;
+      ctx.fillRect(-1.5, -bodyH * 0.90, 3, bodyH * 0.90);
+      ctx.restore();
+
+      // Offshore integration tower horizontal transfer arms holding side boosters
+      if (showBoostersOnArms !== false) {
+        const armY = deckY - boosterH * 0.65;
+        ctx.strokeStyle = pal.towerSteel;
+        ctx.lineWidth = Math.max(1.0, 1.4 * sc);
+        ctx.beginPath();
+        ctx.moveTo(centerX - 13 * sc, armY);
+        ctx.lineTo(leftPos.x, leftPos.y - boosterH * 0.65);
+        ctx.moveTo(centerX - 13 * sc, armY + 2 * sc);
+        ctx.lineTo(rightPos.x, rightPos.y - boosterH * 0.65);
+        ctx.stroke();
+      }
+
+      // Deck Re-Mating Crane on starboard deck
+      const craneX = centerX + 22 * sc;
+      const craneBoomY = deckY - bodyH * 0.88;
+      ctx.save();
+      ctx.strokeStyle = pal.isNightLights ? "#94A3B8" : pal.archDark;
+      ctx.lineWidth = Math.max(1.2, 1.8 * sc);
+      ctx.beginPath();
+      ctx.moveTo(craneX, deckY);
+      ctx.lineTo(craneX, craneBoomY);
+      ctx.lineTo(craneX + (craneFrac > 0.01 ? -14 * sc * (1 - craneFrac * 0.5) : 14 * sc), craneBoomY - 8 * sc);
+      ctx.stroke();
+      ctx.restore();
+
+      // Offshore water deluge cooling mist on pad deck during ignition/launch
+      if (delugeAlpha > 0.02) {
+        ctx.save();
+        [-1, 1].forEach(side => {
+          const g = ctx.createRadialGradient(centerX + side * 14 * sc, deckY + 2 * sc, 2, centerX + side * 16 * sc, deckY + 2 * sc, 26 * sc);
+          g.addColorStop(0, `rgba(226, 240, 255, ${(0.52 * delugeAlpha).toFixed(3)})`);
+          g.addColorStop(1, "rgba(226, 240, 255, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.ellipse(centerX + side * 15 * sc, deckY + 2 * sc, 26 * sc, 7 * sc, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      // Draw Center Core if present (with optional horizontal causeway trailer)
+      if (corePos) {
+        ctx.save();
+        ctx.translate(corePos.x, corePos.y);
+        if (Math.abs(coreAngle) > 0.15) {
+          // Draw tiny offshore causeway flatbed beneath horizontal core
+          ctx.fillStyle = pal.archDark;
+          ctx.fillRect(-bodyH * 0.45, 1, bodyH * 0.9, 2.4 * sc);
+          ctx.fillStyle = pal.liveryAccent;
+          ctx.fillRect(bodyH * 0.42, -1.5 * sc, 5.5 * sc, 3.2 * sc);
+        }
+        ctx.rotate(coreAngle);
+        this._drawFhStage(ctx, pal, bodyW, bodyH, sc, 0, corePos.flame || 0, step, true);
+        ctx.restore();
+      }
+    };
+
+    if (r.phase === "core_tow_in") {
+      // Side boosters wait in tower arms while new center core rolls down causeway trailer & erects vertically!
+      const p = Math.min(1, r.t / r.phaseDuration);
+      let corePos, coreAngle;
+      if (p < 0.72) {
+        const tp = p / 0.72;
+        const ease = tp * tp * (3 - 2 * tp);
+        // Second half finishes tow directly along trestle road -> main mount
+        const f = 0.35 + ease * 0.65;
+        corePos = causewayPos(f);
+        coreAngle = -Math.PI * 0.5;
+      } else {
+        const ep = (p - 0.72) / 0.28;
+        const ease = ep * ep * (3 - 2 * ep);
+        corePos = { x: centerX, y: deckY, flame: 0 };
+        coreAngle = -Math.PI * 0.5 * (1 - ease);
+      }
+      const leftPos = { x: centerX - armRestDx, y: deckY };
+      const rightPos = { x: centerX + armRestDx, y: deckY };
+      drawTowerArmsAndCrane(leftPos, rightPos, corePos, coreAngle, 0, true);
+      [-1, 1].forEach((side, idx) => {
+        const bx = idx === 0 ? leftPos.x : rightPos.x;
+        ctx.save();
+        ctx.translate(bx, deckY);
+        this._drawFhStage(ctx, pal, bodyW * 0.85, boosterH, sc, 0, 0, step, false);
+        ctx.restore();
+      });
+      if (r.t >= r.phaseDuration) {
+        r.phase = "booster_attach";
+        r.t = 0;
+        r.phaseDuration = this._rand(5.5, 7.5);
+      }
+      return;
+    }
+
+    if (r.phase === "booster_attach") {
+      // Tower arms slide both side boosters inward onto center core!
+      const p = Math.min(1, r.t / r.phaseDuration);
+      const mate = p < 0.75 ? (p / 0.75) * (p / 0.75) * (3 - 2 * (p / 0.75)) : 1;
+      const dx = this._lerp(armRestDx, attachedDx, mate);
+      const leftPos = { x: centerX - dx, y: deckY };
+      const rightPos = { x: centerX + dx, y: deckY };
+      drawTowerArmsAndCrane(leftPos, rightPos, { x: centerX, y: deckY, flame: 0 }, 0, 0, p < 0.90);
+      [-1, 1].forEach(side => {
+        ctx.save();
+        ctx.translate(centerX + side * dx, deckY);
+        this._drawFhStage(ctx, pal, bodyW * 0.85, boosterH, sc, 0, 0, step, false);
+        ctx.restore();
+      });
+      if (r.t >= r.phaseDuration) {
+        r.phase = "strongback_retract";
+        r.t = 0;
+        r.phaseDuration = 4.0;
+      }
+      return;
+    }
+
+    if (r.phase === "strongback_retract") {
+      const p = Math.min(1, r.t / r.phaseDuration);
+      strongbackRetract = 0.28 + p * 0.72;
+      delugeAlpha = Math.max(0, (p - 0.55) / 0.45);
+      const leftPos = { x: centerX - attachedDx, y: deckY };
+      const rightPos = { x: centerX + attachedDx, y: deckY };
+      if (Math.random() < 0.30) {
+        this.ventParticles.push({
+          x: centerX + (Math.random() - 0.5) * 4, y: deckY - bodyH * 0.55,
+          vx: 0.25, vy: -0.1, r: 1.8 * sc + 1, life: 0, maxLife: 34
+        });
+      }
+      drawTowerArmsAndCrane(leftPos, rightPos, { x: centerX, y: deckY, flame: 0 }, 0, 0, false);
+      [-1, 1].forEach(side => {
+        ctx.save();
+        ctx.translate(centerX + side * attachedDx, deckY);
+        this._drawFhStage(ctx, pal, bodyW * 0.85, boosterH, sc, 0, 0, step, false);
+        ctx.restore();
+      });
+      if (r.t >= r.phaseDuration) {
+        r.phase = "launch";
+        r.t = 0;
+        r.phaseDuration = this._rand(9.5, 11.5);
+      }
+      return;
+    }
+
+    if (r.phase === "launch") {
+      // Straight vertical ascent clear of tower mast before smooth gravity turn exiting top frame!
+      const p = Math.min(1, r.t / r.phaseDuration);
+      strongbackRetract = 1.0;
+      delugeAlpha = p < 0.45 ? (1 - p / 0.45) : 0;
+      const clearFrac = 0.34;
+      const clearH = 68 * sc;
+      let liftY, rx, ang;
+      if (p < clearFrac) {
+        const vp = p / clearFrac;
+        liftY = clearH * Math.pow(vp, 2.1);
+        rx = centerX;
+        ang = 0;
+      } else {
+        const tp = (p - clearFrac) / (1 - clearFrac);
+        liftY = clearH + Math.pow(tp, 1.55) * (deckY + 185 - clearH);
+        rx = centerX + Math.pow(tp, 1.9) * (w * 0.14);
+        ang = Math.pow(tp, 1.25) * 0.34;
+      }
+      r.x = rx;
+      r.y = deckY - liftY;
+      r.angle = ang;
+      const flameScale = p < 0.12 ? (0.45 + p * 4.5) : 1.05;
+
+      if (p < 0.45) {
+        const refA = (1 - p / 0.45) * 0.38;
+        const rg = ctx.createRadialGradient(centerX, deckY + 10 * sc, 2, centerX, deckY + 12 * sc, 58 * sc);
+        rg.addColorStop(0, `rgba(${pal.plumeMid}, ${refA.toFixed(3)})`);
+        rg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.ellipse(centerX, deckY + 12 * sc, 58 * sc, 12 * sc, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (Math.random() < 0.78) {
+        const nearPad = r.y > deckY - 36;
+        this.plumeParticles.push({
+          x: r.x + (Math.random() - 0.5) * (nearPad ? 12 : 3),
+          y: nearPad ? Math.min(deckY + 2, r.y + 3) : r.y + 3,
+          vx: nearPad ? (Math.random() - 0.5) * 1.6 : -Math.sin(r.angle) * 0.3,
+          vy: nearPad ? -0.15 : 0.45,
+          r: nearPad ? 4.8 : 2.8,
+          grow: nearPad ? 0.16 : 0.10,
+          hot: p < 0.65 && Math.random() < 0.45,
+          life: 0,
+          maxLife: nearPad ? 72 : 112
+        });
+      }
+
+      drawTowerArmsAndCrane({ x: centerX, y: deckY }, { x: centerX, y: deckY }, null, 0, 0, false);
+      ctx.save();
+      ctx.translate(r.x, r.y);
+      ctx.rotate(r.angle);
+      this._drawFhStage(ctx, pal, bodyW, bodyH, sc, 0, flameScale, step, true);
+      [-1, 1].forEach(side => {
+        ctx.save();
+        ctx.translate(side * attachedDx, 0);
+        this._drawFhStage(ctx, pal, bodyW * 0.85, boosterH, sc, 0, flameScale * 0.88, step, false);
+        ctx.restore();
+      });
+      ctx.restore();
+
+      if (r.t >= r.phaseDuration) {
+        r.phase = "orbit_wait";
+        r.t = 0;
+        r.phaseDuration = this._rand(5.0, 9.0);
+      }
+      return;
+    }
+
+    if (r.phase === "orbit_wait") {
+      drawTowerArmsAndCrane({ x: centerX, y: deckY }, { x: centerX, y: deckY }, null, 0, 0, false);
+      if (r.t >= r.phaseDuration) {
+        r.phase = "reentry_burn";
+        r.t = 0;
+        r.phaseDuration = this._rand(3.8, 5.0);
+      }
+      return;
+    }
+
+    if (r.phase === "reentry_burn" || r.phase === "landing_burn") {
+      // Twin Side Boosters return from space, deploy landing struts and land on their twin smaller flanking pads!
+      const isFinal = r.phase === "landing_burn";
+      const p = Math.min(1, r.t / r.phaseDuration);
+      const frac = isFinal ? (0.45 + 0.55 * p) : (0.45 * p);
+      const easeOut = 1 - Math.pow(1 - frac, 2.25);
+      const legs = isFinal ? this._clamp((p - 0.30) / 0.45, 0, 1) : 0;
+      r.leftLegDeploy = legs;
+      r.rightLegDeploy = legs;
+      r.legDeploy = legs;
+      const flame = isFinal ? (p < 0.90 ? (0.80 - p * 0.32) : ((1 - p) * 4.8)) : (p < 0.72 ? 0.55 : 0);
+
+      drawTowerArmsAndCrane({ x: centerX, y: deckY }, { x: centerX, y: deckY }, null, 0, 0, false);
+
+      [
+        { lx: lzLeftX, startOff: w * 0.05 },
+        { lx: lzRightX, startOff: w * 0.08 }
+      ].forEach((b, bi) => {
+        const bx = this._lerp(b.lx + b.startOff, b.lx, easeOut);
+        const by = this._lerp(-52, lzY, easeOut);
+        const bang = -(1 - easeOut) * (bi === 0 ? 0.14 : 0.19);
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(bang);
+        this._drawFhStage(ctx, pal, bodyW * 0.85, boosterH, sc, legs, flame, step, false);
+        ctx.restore();
+
+        if (isFinal && Math.random() < 0.55) {
+          this.plumeParticles.push({
+            x: bx + (Math.random() - 0.5) * 3,
+            y: Math.min(lzY, by + 3),
+            vx: p > 0.78 ? (Math.random() - 0.5) * 1.4 : (Math.random() - 0.5) * 0.4,
+            vy: p > 0.78 ? -0.15 : 0.55,
+            r: 2.2 + Math.random() * 2.0,
+            grow: 0.10,
+            hot: p < 0.85,
+            life: 0,
+            maxLife: 42
+          });
+        }
+      });
+
+      if (r.t >= r.phaseDuration) {
+        if (!isFinal) {
+          r.phase = "landing_burn";
+          r.t = 0;
+          r.phaseDuration = this._rand(4.5, 5.8);
+        } else {
+          r.phase = "crane_reattach";
+          r.t = 0;
+          r.phaseDuration = this._rand(7.5, 9.5);
+          for (let k = 0; k < 8; k++) {
+            const tx = k % 2 === 0 ? lzLeftX : lzRightX;
+            this.ventParticles.push({
+              x: tx + (Math.random() - 0.5) * 10, y: lzY - 1,
+              vx: (Math.random() - 0.5) * 1.0, vy: -0.20 - Math.random() * 0.25,
+              r: 2.6, life: 0, maxLife: 42
+            });
+          }
+        }
+      }
+      return;
+    }
+
+    // phase === "crane_reattach": Crane lifts both landed side boosters back to tower arms while trailer hauls new center core!
+    const p = Math.min(1, r.t / r.phaseDuration);
+    const liftPhase = this._clamp(p / 0.28, 0, 1);
+    const swingPhase = this._clamp((p - 0.22) / 0.62, 0, 1);
+    const lowerToArm = this._clamp((p - 0.80) / 0.20, 0, 1);
+    const smoothSwing = swingPhase * swingPhase * (3 - 2 * swingPhase);
+    const liftY = (liftPhase * (1 - lowerToArm * 0.42)) * 24 * sc;
+    const legRetract = Math.max(0, 1 - this._clamp(p / 0.45, 0, 1));
+    r.leftLegDeploy = legRetract;
+    r.rightLegDeploy = legRetract;
+    r.legDeploy = legRetract;
+
+    const lX = this._lerp(lzLeftX, centerX - armRestDx, smoothSwing);
+    const rX = this._lerp(lzRightX, centerX + armRestDx, smoothSwing);
+    const lY = lzY - liftY;
+    const rY = lzY - liftY;
+
+    // New main center core rolling cleanly along trestle causeway bridge behind/during crane reattach
+    const towProg = this._clamp((p - 0.35) / 0.65, 0, 1) * 0.35;
+    const towCore = p > 0.35 ? causewayPos(towProg) : null;
+
+    const craneFrac = 0.2 + 0.8 * smoothSwing;
+    drawTowerArmsAndCrane({ x: lX, y: lY }, { x: rX, y: rY }, towCore, -Math.PI * 0.5, craneFrac, lowerToArm > 0.3);
+
+    if (liftPhase > 0.05) {
+      const craneBoomTipX = (centerX + 22 * sc) - 14 * sc * (1 - craneFrac * 0.5);
+      const craneBoomTipY = deckY - bodyH * 0.88 - 8 * sc;
+      const towerJibX = lX;
+      const towerJibY = deckY - bodyH * 0.90;
+      ctx.save();
+      ctx.strokeStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.82)" : pal.towerSteel;
+      ctx.lineWidth = Math.max(0.85, 1.15 * sc);
+      ctx.beginPath();
+      ctx.moveTo(towerJibX, towerJibY);
+      ctx.lineTo(lX, lY - boosterH - 2 * sc);
+      ctx.moveTo(craneBoomTipX, craneBoomTipY);
+      ctx.lineTo(rX, rY - boosterH - 2 * sc);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    [
+      { x: lX, y: lY },
+      { x: rX, y: rY }
+    ].forEach(bp => {
+      ctx.save();
+      ctx.translate(bp.x, bp.y);
+      this._drawFhStage(ctx, pal, bodyW * 0.85, boosterH, sc, legRetract, 0, step, false);
+      ctx.restore();
+    });
+
+    if (r.t >= r.phaseDuration) {
+      r.phase = "core_tow_in";
+      r.t = 0;
+      r.phaseDuration = this._rand(5.2, 6.8);
+    }
   },
 
   _updateAndDrawHelicopters(ctx, w, h, L, pal, dt, step) {
@@ -3769,6 +4054,87 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  _isMainPadBusy(exclude) {
+    if (exclude !== "rocket" && this.rocket && this.rocket.phase !== "hangar_wait" && this.rocket.phase !== "coast_wait") {
+      return true;
+    }
+    if (exclude !== "megaliner" && this.megaliner && (this.megaliner.phase === "taxi_to_pad" || this.megaliner.phase === "pad_prep" || this.megaliner.phase === "vertical_launch")) {
+      return true;
+    }
+    return false;
+  },
+
+  // Launch tower floodlights & pressurized twin water deluge system during ignition/landing
+  _drawPadDelugeAndTowerLights(ctx, L, pal, intensity, step) {
+    if (intensity <= 0.02) return;
+    const padBaseY = L.padY - 2;
+    const txL = L.towerLeftX;
+    const txR = L.towerRightX;
+    const towerTopY = L.padY - L.towerH * 0.92;
+
+    ctx.save();
+    // Tower directional floodlight beams illuminating rocket/liner column
+    [txL, txR].forEach((tx, idx) => {
+      const side = idx === 0 ? 1 : -1;
+      for (let tier = 0; tier < 3; tier++) {
+        const ly = padBaseY - L.towerH * (0.28 + tier * 0.28);
+        const beamG = ctx.createLinearGradient(tx, ly, L.padX, ly + 22);
+        const a = (pal.isNightLights ? 0.44 : 0.24) * intensity;
+        beamG.addColorStop(0, `rgba(224, 242, 254, ${a.toFixed(3)})`);
+        beamG.addColorStop(1, "rgba(224, 242, 254, 0)");
+        ctx.fillStyle = beamG;
+        ctx.beginPath();
+        ctx.moveTo(tx + side * 3, ly - 2);
+        ctx.lineTo(L.padX + side * 12, ly - 18);
+        ctx.lineTo(L.padX + side * 12, ly + 26);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = `rgba(255, 251, 235, ${(0.92 * intensity).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(tx + side * 2, ly, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Crown beacon wash along upper tower bays
+      const crownG = ctx.createRadialGradient(tx, towerTopY, 2, tx, towerTopY, 28);
+      crownG.addColorStop(0, `rgba(186, 230, 253, ${(0.48 * intensity).toFixed(3)})`);
+      crownG.addColorStop(1, "rgba(186, 230, 253, 0)");
+      ctx.fillStyle = crownG;
+      ctx.beginPath();
+      ctx.arc(tx, towerTopY, 28, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // High-pressure water deluge spray arcs + broad billowing lateral deluge steam apron
+    [-1, 1].forEach(side => {
+      const nX = L.padX + side * 22;
+      const nY = L.padY - 2;
+      ctx.strokeStyle = `rgba(224, 247, 255, ${(0.82 * intensity).toFixed(3)})`;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(nX, nY);
+      ctx.quadraticCurveTo(L.padX + side * 9, nY - 15 - Math.sin(step * 18) * 2.0, L.padX + side * 3, L.padY + 3);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${(0.56 * intensity).toFixed(3)})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(nX + side * 4, nY + 1);
+      ctx.quadraticCurveTo(L.padX + side * 13, nY - 9 + Math.cos(step * 22) * 1.6, L.padX + side * 5, L.padY + 5);
+      ctx.stroke();
+
+      const steamG = ctx.createRadialGradient(L.padX + side * 34, L.padY + 4, 4, L.padX + side * 40, L.padY + 4, 66);
+      steamG.addColorStop(0, `rgba(248, 250, 252, ${(0.64 * intensity).toFixed(3)})`);
+      steamG.addColorStop(0.50, `rgba(224, 242, 254, ${(0.34 * intensity).toFixed(3)})`);
+      steamG.addColorStop(1, "rgba(241, 245, 249, 0)");
+      ctx.fillStyle = steamG;
+      ctx.beginPath();
+      ctx.ellipse(L.padX + side * 40, L.padY + 4, 66, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  },
+
   _updateAndDrawRocket(ctx, L, pal, dt, step, w, h) {
     const r = this.rocket;
     r.t += dt;
@@ -3789,6 +4155,7 @@ const WorldGateway = {
     let isBoosterOnly = false;
     let armY = padBaseY - rocketH * 0.72;
     let targetArmClose = 0;
+    let delugeIntensity = 0;
 
     if (r.phase === "tow_out") {
       const p = Math.min(1, r.t / r.phaseDuration);
@@ -3825,6 +4192,7 @@ const WorldGateway = {
       r.y = padBaseY;
       r.angle = 0;
       targetArmClose = p < 0.75 ? 1.0 : 0.0;
+      delugeIntensity = p > 0.78 ? (p - 0.78) / 0.22 : 0;
       if (p > 0.15 && Math.random() < 0.36) {
         this.ventParticles.push({
           x: L.padX + (Math.random() - 0.5) * rocketW,
@@ -3839,21 +4207,34 @@ const WorldGateway = {
       if (r.t >= r.phaseDuration) {
         r.phase = "launch";
         r.t = 0;
-        r.phaseDuration = this._rand(12.5, 14.5);
+        r.phaseDuration = this._rand(13.0, 15.5);
       }
     } else if (r.phase === "launch") {
+      // Launch straight vertically until completely clearing launch tower height before pitching downrange!
       const p = Math.min(1, r.t / r.phaseDuration);
-      const climb = Math.pow(p, 2.55);
-      const liftY = climb * (padBaseY + 210);
-      const turnX = Math.pow(Math.max(0, p - 0.14), 2.1) * (w * 0.22);
+      const clearFrac = 0.42;
+      const towerClearLift = L.towerH * 1.18;
+      let liftY, turnX, pitchAng;
+      if (p < clearFrac) {
+        const vp = p / clearFrac;
+        liftY = towerClearLift * Math.pow(vp, 2.2);
+        turnX = 0;
+        pitchAng = 0;
+      } else {
+        const tp = (p - clearFrac) / (1 - clearFrac);
+        liftY = towerClearLift + Math.pow(tp, 1.5) * (padBaseY + 230 - towerClearLift);
+        turnX = Math.pow(tp, 1.9) * (w * 0.23);
+        pitchAng = Math.pow(tp, 1.25) * 0.46;
+      }
       r.x = L.padX + turnX;
       r.y = padBaseY - liftY;
-      r.angle = Math.pow(Math.max(0, p - 0.14), 1.45) * 0.44;
+      r.angle = pitchAng;
       drawFlame = true;
       flameScale = p < 0.1 ? (0.45 + p * 5.5) : 1.05;
+      delugeIntensity = p < 0.48 ? Math.max(0.25, 1 - p / 0.48) : 0;
 
-      if (p < 0.42) {
-        const refA = (1 - p / 0.42) * 0.40;
+      if (p < 0.48) {
+        const refA = (1 - p / 0.48) * 0.42;
         const rg = ctx.createRadialGradient(L.padX, L.padY + 18, 4, L.padX, L.padY + 24, 95);
         rg.addColorStop(0, `rgba(${pal.plumeMid}, ${refA.toFixed(3)})`);
         rg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
@@ -3871,7 +4252,7 @@ const WorldGateway = {
         this.plumeParticles.push({
           x: tailX + (Math.random() - 0.5) * (nearPad ? 16 : 4),
           y: nearPad ? Math.min(padBaseY + 4, tailY + Math.random() * 8) : tailY,
-          vx: nearPad ? ((Math.random() - 0.5) * 2.4) : (-Math.sin(r.angle) * 0.4 + (Math.random() - 0.5) * 0.32),
+          vx: nearPad ? ((Math.random() - 0.5) * 2.6) : (-Math.sin(r.angle) * 0.4 + (Math.random() - 0.5) * 0.32),
           vy: nearPad ? -(0.22 + Math.random() * 0.48) : (0.55 + Math.random() * 0.42),
           r: nearPad ? (6 + Math.random() * 7) : (3.5 + Math.random() * 4),
           grow: nearPad ? 0.22 : 0.16,
@@ -3904,6 +4285,7 @@ const WorldGateway = {
       r.y = startY + (catchY + rocketH * 0.68 - startY) * easeOut;
       r.angle = -(1 - easeOut) * 0.26;
       armY = catchY;
+      delugeIntensity = p > 0.62 ? (p - 0.62) / 0.38 : 0;
 
       if (p > 0.46) {
         drawFlame = true;
@@ -3941,6 +4323,7 @@ const WorldGateway = {
       r.angle = 0;
       armY = r.y - rocketH * 0.68;
       targetArmClose = p < 0.92 ? 1.0 : 0.0;
+      delugeIntensity = p < 0.45 ? (1 - p / 0.45) : 0;
 
       if (p < 0.35 && Math.random() < 0.45) {
         this.ventParticles.push({
@@ -3992,7 +4375,7 @@ const WorldGateway = {
       }
     } else {
       visible = false;
-      if (r.t >= r.phaseDuration) {
+      if (r.t >= r.phaseDuration && !this._isMainPadBusy("rocket")) {
         r.phase = "tow_out";
         r.t = 0;
         r.phaseDuration = this._rand(26.0, 32.0);
@@ -4000,6 +4383,7 @@ const WorldGateway = {
     }
 
     r.armClose += (targetArmClose - r.armClose) * Math.min(1, dt * 5.2);
+    this._drawPadDelugeAndTowerLights(ctx, L, pal, delugeIntensity, step);
 
     // Clip crawlerway cleanly to open sky/tarmac west of HIF doorway so rocket & tow truck emerge from inside bay!
     ctx.save();
@@ -4395,7 +4779,367 @@ const WorldGateway = {
 
   _isRunwayBusy(excludingCraft) {
     const busyPhases = new Set(["runway_takeoff", "approach", "chute_rollout", "lineup_hold"]);
+    if (excludingCraft !== this.megaliner && this.megaliner && (this.megaliner.phase === "approach" || this.megaliner.phase === "rollout")) {
+      return true;
+    }
     return this.spaceplanes.some(other => other !== excludingCraft && busyPhases.has(other.phase));
+  },
+
+  // Colossal Multi-Deck Sci-Fi Mega-Liner Rendering
+  _drawMegaLinerModel(ctx, pal, step, afterburner = 0, altitude = 0, isVertical = false) {
+    const shadowFade = Math.max(0.10, 1 - altitude / 110);
+    if (!isVertical) {
+      ctx.save();
+      ctx.translate(3 + altitude * 0.2 * pal.sunDir, 5 + altitude * 0.55);
+      ctx.scale(1.15, 0.78);
+      ctx.fillStyle = pal.shadowColor;
+      ctx.globalAlpha = 0.52 * shadowFade;
+      ctx.beginPath();
+      ctx.ellipse(-3, 0, 36, 17, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 4 heavy hybrid propulsion plumes
+    if (afterburner > 0.04) {
+      const fl = (32 + Math.sin(step * 42) * 6) * afterburner;
+      [-14, -6, 6, 14].forEach(py => {
+        const tailX = Math.abs(py) > 10 ? -24 : -31;
+        const g = ctx.createLinearGradient(tailX, py, tailX - fl, py);
+        g.addColorStop(0, `rgba(${pal.plumeCore}, 0.98)`);
+        g.addColorStop(0.42, `rgba(${pal.plumeMid}, 0.86)`);
+        g.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(tailX + 1, py - 2.2);
+        ctx.lineTo(tailX - fl, py);
+        ctx.lineTo(tailX + 1, py + 2.2);
+        ctx.closePath();
+        ctx.fill();
+      });
+    }
+
+    // Massive cranked ogee delta lifting wing
+    const wG = ctx.createLinearGradient(0, -29, 0, 29);
+    wG.addColorStop(0, pal.bodyLight);
+    wG.addColorStop(0.5, pal.bodyMid);
+    wG.addColorStop(1, pal.bodyShade);
+    ctx.fillStyle = wG;
+    ctx.beginPath();
+    ctx.moveTo(22, 0);
+    ctx.quadraticCurveTo(4, -8, -14, -28);
+    ctx.lineTo(-27, -26);
+    ctx.lineTo(-30, -8);
+    ctx.lineTo(-30, 8);
+    ctx.lineTo(-27, 26);
+    ctx.quadraticCurveTo(4, 8, 22, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Wing leading heat-shield trim & twin canted outboard stabilizer fins
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(-26, -28.5, 11, 3.0);
+    ctx.fillRect(-26, 25.5, 11, 3.0);
+
+    // 4 heavy engine pods (2 inboard trunk + 2 underwing nacelles)
+    [-14, -6, 6, 14].forEach(py => {
+      const x0 = Math.abs(py) > 10 ? -24 : -31;
+      ctx.fillStyle = pal.towerSteel;
+      ctx.beginPath();
+      ctx.roundRect(x0, py - 2.3, 12, 4.6, 1.4);
+      ctx.fill();
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(x0 - 1.2, py - 1.8, 2.2, 3.6);
+    });
+
+    // Colossal Deep Double-Bubble Multi-Deck Fuselage
+    const fGrad = ctx.createLinearGradient(0, -8.5, 0, 8.5);
+    fGrad.addColorStop(0, pal.bodyLight);
+    fGrad.addColorStop(0.65, pal.bodyLight);
+    fGrad.addColorStop(1, pal.bodyShade);
+    ctx.fillStyle = fGrad;
+    ctx.beginPath();
+    ctx.moveTo(41, 0);
+    ctx.quadraticCurveTo(26, -8.5, -28, -5.8);
+    ctx.lineTo(-33, 0);
+    ctx.lineTo(-28, 5.8);
+    ctx.quadraticCurveTo(26, 8.5, 41, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Metallic hull panel & livery stripes
+    ctx.fillStyle = pal.liveryAccent;
+    ctx.fillRect(-26, 1.6, 56, 1.4);
+    ctx.fillRect(-24, -4.6, 48, 0.9);
+
+    // Command bridge & 3 Distinct Illuminated Passenger Window Decks
+    ctx.fillStyle = pal.windowGlow;
+    ctx.fillRect(29, -2.5, 5.2, 2.2);
+    for (let wi = 0; wi < 12; wi++) {
+      const wx = 23 - wi * 3.8;
+      ctx.fillRect(wx, -3.5, 1.9, 1.0); // Upper Lounge Deck
+      ctx.fillRect(wx + 0.3, -1.6, 1.9, 1.0); // Main Passenger Deck
+      ctx.fillRect(wx + 0.6, 0.3, 1.9, 1.0); // Lower Mezzanine Deck
+    }
+
+    // Tall swept dorsal tail fin
+    ctx.fillStyle = pal.bodyLight;
+    ctx.beginPath();
+    ctx.moveTo(-18, -2.0);
+    ctx.lineTo(-34, -16.5);
+    ctx.lineTo(-37.5, -14.2);
+    ctx.lineTo(-31, -1.0);
+    ctx.closePath();
+    ctx.fill();
+
+    if (Math.sin(step * 10) > 0.2) {
+      ctx.fillStyle = "#F87171";
+      ctx.beginPath();
+      ctx.arc(-26, -27.5, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#34D399";
+      ctx.beginPath();
+      ctx.arc(-26, 27.5, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+
+  // Rare Colossal Mega-Liner Loop: Runway Approach -> Terminal Boarding -> Taxi to Tower -> Vertical Launch
+  _updateAndDrawMegaLiner(ctx, L, pal, dt, step, w, h) {
+    const ml = this.megaliner;
+    if (!ml) return;
+    ml.t += dt;
+
+    const gate = L.gates[2] || L.gates[0];
+    const rwStart = L.rwPt(0.06);
+    const rwExit = L.rwPt(L.rwExitT);
+    const baseScale = 0.72 * L.termScale;
+    let visible = false;
+    let x = ml.x;
+    let y = ml.y;
+    let scale = baseScale;
+    let heading = ml.heading;
+    let altitude = 0;
+    let showChutes = false;
+    let chuteInf = 0;
+    let afterburner = 0;
+    let isVertical = false;
+
+    if (ml.phase === "dormant_wait") {
+      if (ml.t >= ml.phaseDuration && !this._isRunwayBusy(ml)) {
+        ml.phase = "approach";
+        ml.t = 0;
+        ml.dist = 0;
+        ml.phaseDuration = 8.4;
+        ml.chuteDetached = false;
+        ml.detachedChuteAlpha = 0;
+      }
+      return;
+    } else if (ml.phase === "approach") {
+      visible = true;
+      const p = Math.min(1, ml.t / ml.phaseDuration);
+      const startX = -75;
+      const startY = rwStart.y - 44;
+      const ease = 1 - Math.pow(1 - p, 1.5);
+      x = this._lerp(startX, rwStart.x, p);
+      y = this._lerp(startY, rwStart.y, ease);
+      altitude = (1 - ease) * 38;
+      scale = (0.44 + ease * 0.28) * L.termScale;
+      heading = L.rwAng + (1 - ease) * 0.06;
+      afterburner = 0.22;
+      if (p >= 1) {
+        ml.phase = "rollout";
+        ml.t = 0;
+        ml.dist = 0;
+        ml.speed = 50.0;
+        ml.phaseDuration = 10.0;
+      }
+    } else if (ml.phase === "rollout") {
+      visible = true;
+      const rollLen = Math.hypot(rwExit.x - rwStart.x, rwExit.y - rwStart.y);
+      const rwF = Math.min(1, ml.dist / Math.max(1, rollLen));
+      const targetV = rwF > 0.72 ? 8.0 : (50.0 - 42.0 * (rwF / 0.72));
+      ml.speed += (targetV - ml.speed) * Math.min(1, dt * 3.8);
+      ml.dist += ml.speed * dt;
+      x = rwStart.x + Math.cos(L.rwAng) * Math.min(ml.dist, rollLen);
+      y = rwStart.y + Math.sin(L.rwAng) * Math.min(ml.dist, rollLen);
+      heading = L.rwAng;
+      scale = (0.72 + Math.min(1, rwF) * 0.14) * L.termScale;
+      if (rwF < 0.78) {
+        showChutes = true;
+        chuteInf = rwF < 0.12 ? (rwF / 0.12) : 0.95;
+      } else if (!ml.chuteDetached) {
+        ml.chuteDetached = true;
+        ml.detachedChuteX = x - Math.cos(heading) * 32 * scale;
+        ml.detachedChuteY = y - Math.sin(heading) * 32 * scale;
+        ml.detachedChuteAlpha = 0.82;
+      }
+      if (ml.dist >= rollLen) {
+        ml.phase = "taxi_to_gate";
+        ml.t = 0;
+        ml.dist = 0;
+        ml.speed = 7.2;
+      }
+    } else if (ml.phase === "taxi_to_gate") {
+      visible = true;
+      const path = this._getExitToGatePath(L, gate);
+      ml.speed = 7.2;
+      ml.dist += ml.speed * dt;
+      const pt = this._sampleArcPath(path, ml.dist);
+      x = pt.x;
+      y = pt.y;
+      heading = pt.angle;
+      scale = (0.86 - (ml.dist / path.totalLen) * 0.08) * L.termScale;
+      if (ml.dist >= path.totalLen) {
+        ml.phase = "boarding";
+        ml.t = 0;
+        ml.phaseDuration = 9.5;
+      }
+    } else if (ml.phase === "boarding") {
+      visible = true;
+      x = gate.x;
+      y = gate.y + 15 * L.termScale;
+      heading = gate.heading;
+      scale = 0.78 * L.termScale;
+      if (ml.t >= ml.phaseDuration && !this._isMainPadBusy("megaliner")) {
+        ml.phase = "taxi_to_pad";
+        ml.t = 0;
+        ml.dist = 0;
+        ml.speed = 7.0;
+      }
+    } else if (ml.phase === "taxi_to_pad") {
+      visible = true;
+      const path = this._buildArcPath([
+        [gate, gate.approachPt, L.apronSouth, L.apronSW],
+        [L.apronSW, { x: L.satWest.x - 105 * L.termScale, y: L.satWest.y + 12 * L.termScale }, { x: L.padX - 18, y: L.padY + 24 }, { x: L.padX, y: L.padY }]
+      ], 34);
+      ml.speed = 7.0;
+      ml.dist += ml.speed * dt;
+      const pt = this._sampleArcPath(path, ml.dist);
+      x = pt.x;
+      y = pt.y;
+      heading = pt.angle;
+      scale = (0.78 - (ml.dist / path.totalLen) * 0.12) * L.termScale;
+      if (ml.dist >= path.totalLen) {
+        ml.phase = "pad_prep";
+        ml.t = 0;
+        ml.phaseDuration = 6.2;
+      }
+    } else if (ml.phase === "pad_prep") {
+      visible = true;
+      const p = Math.min(1, ml.t / ml.phaseDuration);
+      const ease = p * p * (3 - 2 * p);
+      scale = 0.66 * L.termScale;
+      x = L.padX;
+      y = L.padY - 33 * scale * ease;
+      heading = this._lerpAngle(heading, -Math.PI * 0.5, ease);
+      isVertical = true;
+      if (p > 0.45) {
+        this._drawPadDelugeAndTowerLights(ctx, L, pal, (p - 0.45) / 0.55, step);
+        if (Math.random() < 0.35) {
+          this.ventParticles.push({
+            x: L.padX + (Math.random() - 0.5) * 16, y: L.padY - 8,
+            vx: (Math.random() - 0.5) * 0.8, vy: -0.25,
+            r: 3.5, life: 0, maxLife: 45
+          });
+        }
+      }
+      if (ml.t >= ml.phaseDuration) {
+        ml.phase = "vertical_launch";
+        ml.t = 0;
+        ml.phaseDuration = 11.5;
+      }
+    } else if (ml.phase === "vertical_launch") {
+      visible = true;
+      isVertical = true;
+      const p = Math.min(1, ml.t / ml.phaseDuration);
+      const clearFrac = 0.42;
+      const towerClearLift = L.towerH * 1.18;
+      let liftY, turnX, tilt;
+      if (p < clearFrac) {
+        const vp = p / clearFrac;
+        liftY = towerClearLift * Math.pow(vp, 2.2);
+        turnX = 0;
+        tilt = 0;
+      } else {
+        const tp = (p - clearFrac) / (1 - clearFrac);
+        liftY = towerClearLift + Math.pow(tp, 1.55) * (L.padY + 240 - towerClearLift);
+        turnX = Math.pow(tp, 1.9) * (w * 0.18);
+        tilt = Math.pow(tp, 1.25) * 0.38;
+      }
+      scale = 0.66 * L.termScale;
+      x = L.padX + turnX;
+      y = L.padY - 33 * scale - liftY;
+      heading = -Math.PI * 0.5 + tilt;
+      altitude = Math.min(120, liftY * 0.5);
+      afterburner = p < 0.1 ? (0.55 + p * 4.5) : 1.35;
+
+      const deluge = p < 0.46 ? Math.max(0.25, 1 - p / 0.46) : 0;
+      this._drawPadDelugeAndTowerLights(ctx, L, pal, deluge, step);
+      if (Math.random() < 0.85) {
+        const nearPad = y > L.padY - 75;
+        this.plumeParticles.push({
+          x: x + (Math.random() - 0.5) * (nearPad ? 18 : 6),
+          y: nearPad ? L.padY + 2 : y + 18,
+          vx: nearPad ? (Math.random() - 0.5) * 2.8 : (Math.random() - 0.5) * 0.4,
+          vy: nearPad ? -0.25 : 0.65,
+          r: nearPad ? 7.5 : 4.2,
+          grow: nearPad ? 0.24 : 0.16,
+          hot: p < 0.72 && Math.random() < 0.45,
+          life: 0,
+          maxLife: nearPad ? 92 : 140
+        });
+      }
+      if (ml.t >= ml.phaseDuration) {
+        ml.phase = "dormant_wait";
+        ml.t = 0;
+        ml.phaseDuration = this._rand(38.0, 54.0);
+        return;
+      }
+    }
+
+    ml.x = x;
+    ml.y = y;
+    ml.heading = this._lerpAngle(ml.heading, heading, Math.min(1, dt * 6));
+    ml.altitude = altitude;
+
+    if (ml.chuteDetached && ml.detachedChuteAlpha > 0.01) {
+      ml.detachedChuteAlpha = Math.max(0, ml.detachedChuteAlpha - dt * 0.45);
+      ctx.save();
+      ctx.globalAlpha = ml.detachedChuteAlpha;
+      ctx.fillStyle = pal.chuteColor;
+      ctx.beginPath();
+      ctx.ellipse(ml.detachedChuteX, ml.detachedChuteY + 3, 7, 3, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    if (!visible) return;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ml.heading);
+    ctx.scale(scale, scale);
+
+    if (showChutes && chuteInf > 0.05) {
+      const canopyX = -32 - 22 * chuteInf;
+      [-7.5, 7.5].forEach(cy => {
+        ctx.strokeStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.58)" : "rgba(71, 85, 105, 0.56)";
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        ctx.moveTo(-30, 0);
+        ctx.lineTo(canopyX, cy - 6);
+        ctx.moveTo(-30, 0);
+        ctx.lineTo(canopyX, cy + 6);
+        ctx.stroke();
+        ctx.fillStyle = pal.chuteColor;
+        ctx.beginPath();
+        ctx.ellipse(canopyX - 3, cy, 7.5 * chuteInf, 5.8 * chuteInf, 0, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.fill();
+      });
+    }
+
+    this._drawMegaLinerModel(ctx, pal, step, afterburner, altitude, isVertical);
+    ctx.restore();
   },
 
   _pickFreeGateIdx(excludingCraft) {
@@ -4855,40 +5599,58 @@ const WorldGateway = {
 
   _updateAndDrawDawnFog(ctx, w, h, L, mode, dt, now) {
     if (mode !== "morning") {
-      this.fogState.alpha = Math.max(0, this.fogState.alpha - dt * 0.5);
+      this.fogState.alpha = Math.max(0, this.fogState.alpha - dt * 0.55);
       if (this.fogState.alpha <= 0.005) return;
     } else {
-      if (now >= this.fogState.nextCheck) {
-        const roll = Math.random() < 0.55;
+      if (now >= this.fogState.nextCheck || !this.fogState.active) {
+        const roll = Math.random() < 0.85;
         this.fogState.active = roll;
-        this.fogState.targetAlpha = roll ? (0.34 + Math.random() * 0.24) : 0;
-        this.fogState.nextCheck = now + 18000 + Math.random() * 14000;
+        this.fogState.targetAlpha = roll ? (0.42 + Math.random() * 0.24) : 0.16;
+        this.fogState.nextCheck = now + 16000 + Math.random() * 14000;
       }
-      this.fogState.alpha += (this.fogState.targetAlpha - this.fogState.alpha) * Math.min(1, dt * 0.35);
+      this.fogState.alpha += (this.fogState.targetAlpha - this.fogState.alpha) * Math.min(1, dt * 0.42);
     }
 
     if (this.fogState.alpha <= 0.01) return;
-    this.fogState.offset = (this.fogState.offset + dt * 15) % (w + 400);
+    this.fogState.offset = (this.fogState.offset + dt * 18) % (w + 480);
 
     ctx.save();
-    for (let layer = 0; layer < 2; layer++) {
-      const baseY = L.islandTopY + (L.islandBotY - L.islandTopY) * (0.28 + layer * 0.42);
-      const bandH = 74 + layer * 36;
-      const g = ctx.createLinearGradient(0, baseY - bandH * 0.5, 0, baseY + bandH * 0.6);
-      const peak = this.fogState.alpha * (layer === 0 ? 0.48 : 0.34);
+    for (let layer = 0; layer < 3; layer++) {
+      const baseY = L.islandTopY + (L.islandBotY - L.islandTopY) * (0.16 + layer * 0.32);
+      const bandH = 82 + layer * 38;
+      const g = ctx.createLinearGradient(0, baseY - bandH * 0.55, 0, baseY + bandH * 0.65);
+      const peak = this.fogState.alpha * (layer === 0 ? 0.50 : (layer === 1 ? 0.40 : 0.30));
       g.addColorStop(0, "rgba(255, 248, 242, 0)");
-      g.addColorStop(0.5, `rgba(255, 247, 240, ${peak.toFixed(3)})`);
+      g.addColorStop(0.45, `rgba(255, 247, 240, ${peak.toFixed(3)})`);
       g.addColorStop(1, "rgba(255, 248, 242, 0)");
       ctx.fillStyle = g;
 
       ctx.beginPath();
       ctx.moveTo(0, baseY + bandH);
-      for (let x = 0; x <= w + 60; x += 60) {
-        const wave = Math.sin((x + this.fogState.offset * (layer === 0 ? 1 : -0.7)) * 0.0045 + layer * 2) * 18;
-        ctx.lineTo(x, baseY - bandH * 0.35 + wave);
+      for (let x = 0; x <= w + 50; x += 50) {
+        const dir = layer % 2 === 0 ? 1 : -0.75;
+        const wave = Math.sin((x + this.fogState.offset * dir) * (0.004 + layer * 0.0012) + layer * 2.1) * (18 + layer * 4);
+        ctx.lineTo(x, baseY - bandH * 0.36 + wave);
       }
       ctx.lineTo(w, baseY + bandH);
       ctx.closePath();
+      ctx.fill();
+    }
+
+    // Soft sculpted coastal dawn mist wisps drifting across launch pad, runway & bay shore
+    for (let wi = 0; wi < 6; wi++) {
+      const fx = ((w * (0.14 + wi * 0.16) + this.fogState.offset * (wi % 2 === 0 ? 0.55 : -0.40)) % (w + 260)) - 130;
+      const fy = L.islandTopY + (L.islandBotY - L.islandTopY) * (0.12 + (wi % 3) * 0.28);
+      const rx = 120 + (wi % 3) * 55;
+      const ry = 26 + (wi % 2) * 14;
+      const wg = ctx.createRadialGradient(fx, fy, rx * 0.12, fx, fy, rx);
+      const wa = this.fogState.alpha * (0.34 - (wi % 2) * 0.08);
+      wg.addColorStop(0, `rgba(255, 245, 238, ${wa.toFixed(3)})`);
+      wg.addColorStop(0.55, `rgba(255, 248, 242, ${(wa * 0.48).toFixed(3)})`);
+      wg.addColorStop(1, "rgba(255, 248, 242, 0)");
+      ctx.fillStyle = wg;
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();

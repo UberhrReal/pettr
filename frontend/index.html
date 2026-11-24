@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=12.5">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=12.6">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -113,14 +113,14 @@
             <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Solar Cycle (Morning, Afternoon, Evening, Dark)" aria-label="Auto Theme"><i data-lucide="sun-moon"></i></button>
             <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light / Afternoon Mode" aria-label="Light Theme"><i data-lucide="sun"></i></button>
             <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode" aria-label="Dark Theme"><i data-lucide="moon"></i></button>
-            <button class="theme-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="Theme Worlds &amp; Time of Day" aria-label="Theme Worlds and Time of Day"><i data-lucide="sliders"></i></button>
+            <button class="theme-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="Theme &amp; Time of Day" aria-label="Theme and Time of Day"><i data-lucide="sliders"></i></button>
           </div>
           <div id="themeSliderDrawer" class="theme-slider-drawer" style="display: none;">
             <div class="theme-slider-header">
-              <span class="theme-drawer-section-title">Theme World</span>
+              <span class="theme-drawer-section-title">Theme</span>
               <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()" aria-label="Close theme drawer"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
             </div>
-            <div class="world-selector-grid" id="worldSelectorGrid" role="group" aria-label="Select theme world">
+            <div class="world-selector-grid" id="worldSelectorGrid" role="group" aria-label="Select theme">
               <button type="button" class="world-selector-card active" data-world-option="nature" onclick="App.setWorld('nature')" aria-pressed="true">
                 <span class="world-card-swatch is-nature" aria-hidden="true"><i data-lucide="mountain"></i></span>
                 <span class="world-card-copy">
@@ -144,8 +144,9 @@
               </button>
             </div>
             <div class="theme-drawer-divider"></div>
-            <div class="theme-slider-header" style="margin-bottom: 6px;">
-              <span id="themeSliderLabel" class="theme-slider-label">Solar Time: 12:00 · Afternoon</span>
+            <div class="theme-slider-header theme-slider-title-row">
+              <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="sun-moon" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Solar Time</span>
+              <span id="themeSliderLabel" class="theme-frost-value font-mono">12:00 · Afternoon</span>
             </div>
             <input type="range" id="themeHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)">
             <div class="theme-slider-ticks">
@@ -156,11 +157,20 @@
             </div>
             <div class="theme-drawer-divider"></div>
             <div class="theme-frost-section">
-              <div class="theme-slider-header" style="margin-bottom: 4px;">
-                <span class="theme-drawer-section-title" style="display:inline-flex;align-items:center;gap:5px;"><i data-lucide="eye" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Backdrop Frost</span>
-                <span id="themeBackdropValue" class="theme-frost-value font-mono">0%</span>
+              <div class="theme-frost-control-group">
+                <div class="theme-slider-header theme-slider-title-row">
+                  <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="droplets" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Blur</span>
+                  <span id="themeBackdropValue" class="theme-frost-value font-mono">20%</span>
+                </div>
+                <input type="range" id="themeBackdropSlider" min="0" max="100" step="2" value="20" class="theme-hour-slider" oninput="App.setBackdropFrost(this.value)" aria-label="Universal background blur" title="Adjust background blur">
               </div>
-              <input type="range" id="themeBackdropSlider" min="0" max="100" step="2" value="0" class="theme-hour-slider" oninput="App.setBackdropFrost(this.value)" aria-label="Universal background blur and dimness" title="Adjust background blur and dimness universally">
+              <div class="theme-frost-control-group" style="margin-top: 8px;">
+                <div class="theme-slider-header theme-slider-title-row">
+                  <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="contrast" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Dim</span>
+                  <span id="themeBackdropDimValue" class="theme-frost-value font-mono">0%</span>
+                </div>
+                <input type="range" id="themeBackdropDimSlider" min="0" max="100" step="2" value="0" class="theme-hour-slider" oninput="App.setBackdropDim(this.value)" aria-label="Universal background dimness" title="Adjust background dimness">
+              </div>
             </div>
           </div>
         </div>
@@ -1389,7 +1399,7 @@ Order 3D printer filament whenever
                 Once your dashboard and Tasking Priority queue are set, press <strong>Lock in</strong> to freeze the editing panes into a clean narrative briefing:
                 <br>• <strong>Procedural Accuracy</strong>: Counts of Focus tasks, Trivial errands, Scheduled events, Projects, Reminders, and your queued sequence are computed deterministically with zero hallucinations.
                 <br>• <strong>Witty Outlook Remark</strong>: Horace (via your local Ollama model when online) adds a short light-hearted observation on the day's load.
-                <br>• <strong>Diurnal Aesthetics</strong>: The Snapshot shifts gradients and subtle motion to match Morning Dawn, Daytime, Golden Hour Evening, or Midnight Night.
+                <br>• <strong>Diurnal Aesthetics</strong>: The Snapshot shifts gradients and subtle motion to match Dawn, Daytime, Golden Hour Evening, or Midnight Night.
                 <br>• <strong>Quick Actions Kept Handy</strong>: Launch <strong>Focus</strong> Cockpit, hit <strong>Unlock</strong> anytime to resume editing, <strong>Copy</strong> the brief, or open <strong>Debrief</strong> after 18:00.
               </p>
             </div>
@@ -1594,7 +1604,7 @@ Ctrl+P    • Quick-open hotkey (familiar to VS Code / Sublime users)
               </p>
               <div class="styleguide-theme-grid">
                 <div class="styleguide-theme-card">
-                  <div class="styleguide-theme-title">Morning Dawn (<code>[data-theme="morning"]</code>)</div>
+                  <div class="styleguide-theme-title">Dawn (<code>[data-theme="morning"]</code>)</div>
                   <div class="styleguide-swatches">
                     <span class="styleguide-swatch"><i style="background:#FCF8F5"></i>#FCF8F5 Base</span>
                     <span class="styleguide-swatch"><i style="background:#EA580C"></i>#EA580C Ember</span>
@@ -2198,13 +2208,15 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <!-- Focus Cockpit Modal (Deep Work Execution & Ambient Sound Deck) -->
   <div id="focusCockpitModal" class="modal-overlay cockpit-overlay" style="display: none;">
     <div class="cockpit-card">
-      <div class="cockpit-header">
+      <div class="cockpit-header cockpit-drag-handle" id="cockpitDragHandle" title="Drag to reposition Focus Cockpit">
         <div class="cockpit-header-left">
+          <span class="cockpit-drag-grip" aria-hidden="true"><i data-lucide="grip-horizontal" style="width:13px;height:13px;"></i></span>
           <span class="cockpit-live-dot"></span>
           <span class="cockpit-badge-title">FOCUS COCKPIT</span>
           <span class="cockpit-weekly-badge font-mono" id="cockpitWeeklyHoursBadge" onclick="App.switchTab('history'); Dashboard.scrollToYourStats(); FocusCockpit.minimize();" title="Click to view Your Stats">⚡ This Week: 0.0h</span>
         </div>
         <div class="cockpit-header-actions">
+          <button type="button" class="action-icon-btn cockpit-recentre-btn" id="cockpitRecentreBtn" onclick="FocusCockpit.recentre()" title="Recentre Focus Cockpit" aria-label="Recentre Focus Cockpit"><i data-lucide="locate-fixed" style="width:14px;height:14px;"></i></button>
           <button type="button" class="action-icon-btn cockpit-close-btn" onclick="FocusCockpit.minimize()" title="Collapse to Corner Cockpit"><i data-lucide="minimize-2" style="width:14px;height:14px;"></i></button>
         </div>
       </div>
@@ -2333,8 +2345,11 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </button>
       <div id="scenicTimePopover" class="scenic-time-popover" style="display: none;" onclick="event.stopPropagation()">
         <div class="scenic-time-popover-header">
-          <span id="scenicTimePopoverLabel" class="theme-slider-label">Solar Time: Auto</span>
-          <button type="button" class="scenic-time-auto-chip" id="scenicThemeAutoBtn" onclick="App.setTheme('auto')">Auto</button>
+          <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="sun-moon" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Solar Time</span>
+          <div style="display:inline-flex;align-items:center;gap:6px;">
+            <span id="scenicTimePopoverLabel" class="theme-frost-value font-mono">Auto</span>
+            <button type="button" class="scenic-time-auto-chip" id="scenicThemeAutoBtn" onclick="App.setTheme('auto')">Auto</button>
+          </div>
         </div>
         <input type="range" id="scenicHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)" aria-label="Solar time of day">
         <div class="scenic-time-presets" role="group" aria-label="Time of day presets">
@@ -2344,9 +2359,14 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <button type="button" class="scenic-diurnal-chip" data-scenic-diurnal="dark" onclick="App.setThemeHourPreset(23)">Night</button>
         </div>
         <div class="scenic-frost-row">
-          <span class="scenic-frost-label"><i data-lucide="eye" style="width:11px;height:11px;color:var(--accent-cyan);"></i> Frost</span>
-          <input type="range" id="scenicBackdropSlider" min="0" max="100" step="2" value="0" class="theme-hour-slider scenic-frost-slider" oninput="App.setBackdropFrost(this.value)" aria-label="Universal background blur and dimness">
-          <span id="scenicBackdropValue" class="theme-frost-value font-mono">0%</span>
+          <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="droplets" style="width:11px;height:11px;color:var(--accent-cyan);"></i> Blur</span>
+          <input type="range" id="scenicBackdropSlider" min="0" max="100" step="2" value="20" class="theme-hour-slider scenic-frost-slider" oninput="App.setBackdropFrost(this.value)" aria-label="Universal background blur">
+          <span id="scenicBackdropValue" class="theme-frost-value font-mono">20%</span>
+        </div>
+        <div class="scenic-frost-row is-compact">
+          <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="contrast" style="width:11px;height:11px;color:var(--accent-cyan);"></i> Dim</span>
+          <input type="range" id="scenicBackdropDimSlider" min="0" max="100" step="2" value="0" class="theme-hour-slider scenic-frost-slider" oninput="App.setBackdropDim(this.value)" aria-label="Universal background dimness">
+          <span id="scenicBackdropDimValue" class="theme-frost-value font-mono">0%</span>
         </div>
       </div>
     </div>
@@ -2618,23 +2638,23 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=12.5"></script>
-  <script src="/static/js/app.js?v=12.5"></script>
-  <script src="/static/js/drag_drop.js?v=12.5"></script>
-  <script src="/static/js/world_gateway.js?v=12.5"></script>
-  <script src="/static/js/world_deepblue.js?v=12.5"></script>
-  <script src="/static/js/wave_canvas.js?v=12.5"></script>
-  <script src="/static/js/tactile.js?v=12.5"></script>
-  <script src="/static/js/entity_modal.js?v=12.5"></script>
-  <script src="/static/js/timeline.js?v=12.5"></script>
-  <script src="/static/js/mindmap.js?v=12.5"></script>
-  <script src="/static/js/dashboard.js?v=12.5"></script>
-  <script src="/static/js/exploded.js?v=12.5"></script>
-  <script src="/static/js/notes.js?v=12.5"></script>
-  <script src="/static/js/history.js?v=12.5"></script>
-  <script src="/static/js/command_palette.js?v=12.5"></script>
-  <script src="/static/js/focus_cockpit.js?v=12.5"></script>
-  <script src="/static/js/evening_debrief.js?v=12.5"></script>
-  <script src="/static/js/horace_chat.js?v=12.5"></script>
+  <script src="/static/js/pin_lock.js?v=12.6"></script>
+  <script src="/static/js/app.js?v=12.6"></script>
+  <script src="/static/js/drag_drop.js?v=12.6"></script>
+  <script src="/static/js/world_gateway.js?v=12.6"></script>
+  <script src="/static/js/world_deepblue.js?v=12.6"></script>
+  <script src="/static/js/wave_canvas.js?v=12.6"></script>
+  <script src="/static/js/tactile.js?v=12.6"></script>
+  <script src="/static/js/entity_modal.js?v=12.6"></script>
+  <script src="/static/js/timeline.js?v=12.6"></script>
+  <script src="/static/js/mindmap.js?v=12.6"></script>
+  <script src="/static/js/dashboard.js?v=12.6"></script>
+  <script src="/static/js/exploded.js?v=12.6"></script>
+  <script src="/static/js/notes.js?v=12.6"></script>
+  <script src="/static/js/history.js?v=12.6"></script>
+  <script src="/static/js/command_palette.js?v=12.6"></script>
+  <script src="/static/js/focus_cockpit.js?v=12.6"></script>
+  <script src="/static/js/evening_debrief.js?v=12.6"></script>
+  <script src="/static/js/horace_chat.js?v=12.6"></script>
 </body>
 </html>

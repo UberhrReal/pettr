@@ -320,7 +320,7 @@ const App = {
 
   getDiurnalTheme(hour) {
     if (hour >= 6 && hour < 12) {
-      return { theme: "morning", label: "Morning Dawn" };
+      return { theme: "morning", label: "Dawn" };
     } else if (hour >= 12 && hour < 17) {
       return { theme: "light", label: "Afternoon" };
     } else if (hour >= 17 && hour < 21) {
@@ -438,7 +438,7 @@ const App = {
         "deep-blue": "Deep Blue (Underwater)"
       };
       this.haptic("light");
-      this.showToast(`Theme world: ${labels[valid] || valid}`, 1800);
+      this.showToast(`Theme: ${labels[valid] || valid}`, 1800);
     }
     this.renderIcons();
   },
@@ -541,42 +541,48 @@ const App = {
     }
   },
 
-  backdropFrost: 0,
+  backdropBlur: 20,
+  backdropDim: 0,
+  backdropFrost: 20,
 
   initBackdropFrost() {
-    let saved = 0;
+    let savedBlur = 20;
+    let savedDim = 0;
     try {
-      const raw = localStorage.getItem("pettr_backdrop_frost");
-      const fallback = localStorage.getItem("pettr_cockpit_backdrop");
-      const picked = (raw !== null && raw !== "") ? raw : fallback;
-      if (picked !== null && picked !== "") {
-        const parsed = parseInt(picked, 10);
-        if (!isNaN(parsed)) saved = parsed;
+      const rawBlur = localStorage.getItem("pettr_backdrop_blur");
+      const rawLegacy = localStorage.getItem("pettr_backdrop_frost") || localStorage.getItem("pettr_cockpit_backdrop");
+      const pickedBlur = (rawBlur !== null && rawBlur !== "") ? rawBlur : rawLegacy;
+      if (pickedBlur !== null && pickedBlur !== "") {
+        const parsedBlur = parseInt(pickedBlur, 10);
+        if (!isNaN(parsedBlur)) savedBlur = parsedBlur;
+      }
+      const rawDim = localStorage.getItem("pettr_backdrop_dim");
+      if (rawDim !== null && rawDim !== "") {
+        const parsedDim = parseInt(rawDim, 10);
+        if (!isNaN(parsedDim)) savedDim = parsedDim;
       }
     } catch (_) {}
-    this.setBackdropFrost(saved, false);
+    this.setBackdropBlur(savedBlur, false);
+    this.setBackdropDim(savedDim, false);
   },
 
-  setBackdropFrost(val, persist = true) {
-    const pct = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+  setBackdropBlur(val, persist = true) {
+    const raw = (val === undefined || val === null || val === "") ? 20 : Number(val);
+    const pct = Math.max(0, Math.min(100, Math.round(isNaN(raw) ? 20 : raw)));
+    this.backdropBlur = pct;
     this.backdropFrost = pct;
     if (persist) {
       try {
+        localStorage.setItem("pettr_backdrop_blur", String(pct));
         localStorage.setItem("pettr_backdrop_frost", String(pct));
       } catch (_) {}
     }
 
-    const ratio = pct / 100;
-    const blurPx = (ratio * 18).toFixed(1);
-    const dimAlpha = (Math.pow(ratio, 1.15) * 0.68).toFixed(3);
-
+    const blurPx = ((pct / 100) * 18).toFixed(1);
     document.documentElement.style.setProperty("--backdrop-frost-blur", `${blurPx}px`);
-    document.documentElement.style.setProperty("--backdrop-frost-dim", dimAlpha);
-
     const frostEl = document.getElementById("universalBackdropFrost");
     if (frostEl) {
       frostEl.style.setProperty("--backdrop-frost-blur", `${blurPx}px`);
-      frostEl.style.setProperty("--backdrop-frost-dim", dimAlpha);
     }
 
     ["themeBackdropSlider", "scenicBackdropSlider"].forEach(id => {
@@ -587,6 +593,37 @@ const App = {
       const lbl = document.getElementById(id);
       if (lbl) lbl.textContent = `${pct}%`;
     });
+  },
+
+  setBackdropDim(val, persist = true) {
+    const raw = (val === undefined || val === null || val === "") ? 0 : Number(val);
+    const pct = Math.max(0, Math.min(100, Math.round(isNaN(raw) ? 0 : raw)));
+    this.backdropDim = pct;
+    if (persist) {
+      try {
+        localStorage.setItem("pettr_backdrop_dim", String(pct));
+      } catch (_) {}
+    }
+
+    const dimAlpha = (Math.pow(pct / 100, 1.15) * 0.72).toFixed(3);
+    document.documentElement.style.setProperty("--backdrop-frost-dim", dimAlpha);
+    const frostEl = document.getElementById("universalBackdropFrost");
+    if (frostEl) {
+      frostEl.style.setProperty("--backdrop-frost-dim", dimAlpha);
+    }
+
+    ["themeBackdropDimSlider", "scenicBackdropDimSlider"].forEach(id => {
+      const sl = document.getElementById(id);
+      if (sl && sl.value !== String(pct)) sl.value = String(pct);
+    });
+    ["themeBackdropDimValue", "scenicBackdropDimValue"].forEach(id => {
+      const lbl = document.getElementById(id);
+      if (lbl) lbl.textContent = `${pct}%`;
+    });
+  },
+
+  setBackdropFrost(val, persist = true) {
+    return this.setBackdropBlur(val, persist);
   },
 
   initTheme() {
@@ -710,7 +747,7 @@ const App = {
     const popLabel = document.getElementById("scenicTimePopoverLabel");
     if (popLabel) {
       const { label } = this.getDiurnalTheme(activeHour);
-      popLabel.textContent = `Solar Time: ${String(activeHour).padStart(2, "0")}:00 · ${label}${savedMode === "auto" ? " (Auto)" : ""}`;
+      popLabel.textContent = `${String(activeHour).padStart(2, "0")}:00 · ${label}`;
     }
 
     const autoBtn = document.getElementById("scenicThemeAutoBtn");
@@ -726,10 +763,14 @@ const App = {
       btn.setAttribute("aria-pressed", isMatch ? "true" : "false");
     });
 
-    const scenicFrostSlider = document.getElementById("scenicBackdropSlider");
-    if (scenicFrostSlider) scenicFrostSlider.value = String(this.backdropFrost || 0);
-    const scenicFrostVal = document.getElementById("scenicBackdropValue");
-    if (scenicFrostVal) scenicFrostVal.textContent = `${this.backdropFrost || 0}%`;
+    const scenicBlurSlider = document.getElementById("scenicBackdropSlider");
+    if (scenicBlurSlider) scenicBlurSlider.value = String(this.backdropBlur ?? 20);
+    const scenicBlurVal = document.getElementById("scenicBackdropValue");
+    if (scenicBlurVal) scenicBlurVal.textContent = `${this.backdropBlur ?? 20}%`;
+    const scenicDimSlider = document.getElementById("scenicBackdropDimSlider");
+    if (scenicDimSlider) scenicDimSlider.value = String(this.backdropDim ?? 0);
+    const scenicDimVal = document.getElementById("scenicBackdropDimValue");
+    if (scenicDimVal) scenicDimVal.textContent = `${this.backdropDim ?? 0}%`;
   },
 
   closeThemeSlider() {
@@ -746,7 +787,8 @@ const App = {
     drawer.style.display = isShown ? "none" : "block";
     if (!isShown) {
       this.syncWorldSelectorUI();
-      this.setBackdropFrost(this.backdropFrost, false);
+      this.setBackdropBlur(this.backdropBlur, false);
+      this.setBackdropDim(this.backdropDim, false);
       const savedMode = localStorage.getItem("pettr_theme_mode") || "auto";
       const currentHour = savedMode === "slider"
         ? parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10)
@@ -766,7 +808,7 @@ const App = {
     const labelEl = document.getElementById("themeSliderLabel");
     if (!labelEl) return;
     const { label } = this.getDiurnalTheme(parseInt(hour, 10));
-    labelEl.textContent = `Solar Time: ${String(hour).padStart(2, "0")}:00 · ${label}`;
+    labelEl.textContent = `${String(hour).padStart(2, "0")}:00 · ${label}`;
   },
 
   onThemeSliderInput(hour) {

@@ -25,9 +25,13 @@ const FocusCockpit = {
   currentSoundType: "none", // 'none', 'brown', 'pink', 'rain'
   volume: 0.35,
   backdropIntensity: 0,
+  dragOffsetX: 0,
+  dragOffsetY: 0,
+  _dragActive: false,
 
   init() {
     this.initBackdropPreference();
+    this.initDraggable();
     // Dismiss task picker when clicking outside
     document.addEventListener("click", (e) => {
       const picker = document.getElementById("cockpitTaskPicker");
@@ -66,6 +70,94 @@ const FocusCockpit = {
     }
   },
 
+  applyDragPosition() {
+    const card = document.querySelector("#focusCockpitModal .cockpit-card");
+    if (card) {
+      card.style.transform = `translate3d(${Math.round(this.dragOffsetX)}px, ${Math.round(this.dragOffsetY)}px, 0)`;
+    }
+    const recBtn = document.getElementById("cockpitRecentreBtn");
+    if (recBtn) {
+      recBtn.classList.toggle("is-dragged", Math.hypot(this.dragOffsetX, this.dragOffsetY) > 4);
+    }
+  },
+
+  initDraggable() {
+    const handle = document.getElementById("cockpitDragHandle");
+    if (!handle || handle.dataset.dragBound === "1") return;
+    handle.dataset.dragBound = "1";
+
+    let startX = 0;
+    let startY = 0;
+    let baseX = 0;
+    let baseY = 0;
+    let minDx = -9999;
+    let maxDx = 9999;
+    let minDy = -9999;
+    let maxDy = 9999;
+
+    const onMove = (e) => {
+      if (!this._dragActive) return;
+      const rawDx = baseX + (e.clientX - startX);
+      const rawDy = baseY + (e.clientY - startY);
+      this.dragOffsetX = Math.max(minDx, Math.min(maxDx, rawDx));
+      this.dragOffsetY = Math.max(minDy, Math.min(maxDy, rawDy));
+      this.applyDragPosition();
+    };
+
+    const onUp = () => {
+      if (!this._dragActive) return;
+      this._dragActive = false;
+      const card = document.querySelector("#focusCockpitModal .cockpit-card");
+      if (card) card.classList.remove("is-dragging");
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
+      if (e.target && e.target.closest("button, a, input, textarea, .cockpit-weekly-badge")) return;
+      const card = document.querySelector("#focusCockpitModal .cockpit-card");
+      if (!card) return;
+
+      const rect = card.getBoundingClientRect();
+      const naturalLeft = rect.left - this.dragOffsetX;
+      const naturalTop = rect.top - this.dragOffsetY;
+      const pad = 16;
+      minDx = pad - naturalLeft;
+      maxDx = Math.max(minDx, (window.innerWidth - pad) - (naturalLeft + rect.width));
+      minDy = pad - naturalTop;
+      maxDy = Math.max(minDy, (window.innerHeight - pad) - (naturalTop + rect.height));
+
+      this._dragActive = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      baseX = this.dragOffsetX;
+      baseY = this.dragOffsetY;
+      card.classList.remove("is-recentering");
+      card.style.animation = "none";
+      card.classList.add("is-dragging");
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+      if (e.cancelable) e.preventDefault();
+    });
+  },
+
+  recentre() {
+    const card = document.querySelector("#focusCockpitModal .cockpit-card");
+    this.dragOffsetX = 0;
+    this.dragOffsetY = 0;
+    if (card) {
+      card.classList.add("is-recentering");
+      this.applyDragPosition();
+      window.setTimeout(() => card.classList.remove("is-recentering"), 260);
+    } else {
+      this.applyDragPosition();
+    }
+    App.haptic("light");
+  },
+
   updateSliderVisibility() {
     const wrap = document.getElementById("cockpitDurationSliderWrap") || document.querySelector(".cockpit-duration-slider-wrap");
     if (!wrap) return;
@@ -86,6 +178,8 @@ const FocusCockpit = {
       this.isMinimized = false;
       modal.style.display = "flex";
       document.body.classList.add("cockpit-active");
+      this.initDraggable();
+      this.applyDragPosition();
       const floating = document.getElementById("cockpitFloatingPill");
       if (floating) floating.style.display = "none";
       this.updateTimerDisplay();
@@ -116,6 +210,8 @@ const FocusCockpit = {
 
     modal.style.display = "flex";
     document.body.classList.add("cockpit-active");
+    this.initDraggable();
+    this.applyDragPosition();
 
     App.renderIcons();
     App.haptic("medium");

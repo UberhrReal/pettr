@@ -377,15 +377,27 @@ body {
 
 /* --- Universal Header (Dynamic Welcome Splash that Shrinks on Scroll) --- */
 .app-header {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--card-border);
   padding: 26px 32px 14px 32px;
   position: sticky;
   top: 0;
   z-index: 1000;
   transition: padding 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.2s ease;
+}
+
+/* Header glass backdrop pseudo-layer avoids creating a Backdrop Root over #themeSliderDrawer */
+.app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--glass-sheet-elevated);
+  backdrop-filter: blur(26px) saturate(165%);
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
 }
 
 .app-header.header-compact {
@@ -4426,7 +4438,7 @@ body {
    Focus Cockpit & Web Audio Ambient Sound Deck
    ========================================================================== */
 .cockpit-overlay {
-  z-index: 9999;
+  z-index: 10040;
   background: rgba(0, 0, 0, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -5678,7 +5690,9 @@ body {
     max-height: calc(100dvh - 76px) !important;
     overflow-y: auto !important;
     z-index: 10001 !important;
-    background: var(--bg-card) !important;
+    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent) !important;
+    backdrop-filter: blur(44px) saturate(195%) !important;
+    -webkit-backdrop-filter: blur(44px) saturate(195%) !important;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65) !important;
   }
 
@@ -9244,9 +9258,9 @@ body {
    Translucent sheets over #bgWaveCanvas so live diurnal waves & particles shine through
    ========================================================================== */
 .app-header {
-  background: var(--glass-sheet-elevated);
-  backdrop-filter: blur(26px) saturate(165%);
-  -webkit-backdrop-filter: blur(26px) saturate(165%);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), var(--shadow-sm);
 }
@@ -9402,12 +9416,20 @@ body {
 .cockpit-floating-pill,
 .pin-card,
 .cmd-palette-box,
-.theme-slider-drawer,
 .mindmap-tooltip,
 .horace-panel {
   background: var(--glass-sheet-elevated) !important;
   backdrop-filter: blur(28px) saturate(165%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(165%) !important;
+  border-color: var(--glass-edge);
+  box-shadow: var(--glass-inset-gleam), var(--shadow-floating-hover);
+}
+
+.theme-slider-drawer,
+.scenic-time-popover {
+  background: color-mix(in srgb, var(--bg-secondary) 88%, transparent) !important;
+  backdrop-filter: blur(44px) saturate(195%) !important;
+  -webkit-backdrop-filter: blur(44px) saturate(195%) !important;
   border-color: var(--glass-edge);
   box-shadow: var(--glass-inset-gleam), var(--shadow-floating-hover);
 }
@@ -12848,8 +12870,24 @@ body.scenic-hidden-mode .toast-container {
   pointer-events: auto;
 }
 
+.theme-slider-title-row {
+  margin-bottom: 4px;
+}
+
+.theme-slider-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
 .theme-frost-section {
   padding-top: 2px;
+}
+
+.theme-frost-control-group {
+  display: flex;
+  flex-direction: column;
 }
 
 .theme-frost-value {
@@ -12866,6 +12904,12 @@ body.scenic-hidden-mode .toast-container {
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid color-mix(in srgb, var(--glass-edge) 75%, transparent);
+}
+
+.scenic-frost-row.is-compact {
+  margin-top: 6px;
+  padding-top: 0;
+  border-top: none;
 }
 
 .scenic-frost-label {
@@ -12890,6 +12934,41 @@ body.scenic-hidden-mode .toast-container {
   border: 1px solid var(--glass-edge) !important;
   border-radius: 22px !important;
   box-shadow: var(--glass-inset-gleam), 0 28px 68px -12px rgba(0, 0, 0, 0.36) !important;
+  will-change: transform;
+}
+
+.cockpit-card.is-recentering {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cockpit-drag-handle {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.cockpit-card.is-dragging .cockpit-drag-handle {
+  cursor: grabbing;
+}
+
+.cockpit-drag-grip {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-dim);
+  opacity: 0.72;
+  margin-right: 2px;
+}
+
+.cockpit-drag-handle:hover .cockpit-drag-grip {
+  opacity: 1;
+  color: var(--text-muted);
+}
+
+.cockpit-recentre-btn.is-dragged {
+  color: var(--focus-indigo) !important;
+  border-color: color-mix(in srgb, var(--focus-indigo) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--focus-indigo) 14%, transparent) !important;
 }
 
 .cockpit-badge-title {
