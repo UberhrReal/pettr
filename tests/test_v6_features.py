@@ -3838,11 +3838,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v12.4
-    assert "pettr.css?v=12.4" in index_html
-    assert "dashboard.js?v=12.4" in index_html
-    assert "entity_modal.js?v=12.4" in index_html
-    assert "app.js?v=12.4" in index_html
+    # Static cache-busters bumped to v12.5
+    assert "pettr.css?v=12.5" in index_html
+    assert "dashboard.js?v=12.5" in index_html
+    assert "entity_modal.js?v=12.5" in index_html
+    assert "app.js?v=12.5" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=12.4" in index_html
-    assert "timeline.js?v=12.4" in index_html
+    assert "history.js?v=12.5" in index_html
+    assert "timeline.js?v=12.5" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4028,10 +4028,10 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
-    # Cache busters bumped to v12.4
-    assert "pettr.css?v=12.4" in index_html
-    assert "dashboard.js?v=12.4" in index_html
-    assert "notes.js?v=12.4" in index_html
+    # Cache busters bumped to v12.5
+    assert "pettr.css?v=12.5" in index_html
+    assert "dashboard.js?v=12.5" in index_html
+    assert "notes.js?v=12.5" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=12.4"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=12.5"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4267,8 +4267,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=12.4"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=12.4"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=12.5"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=12.5"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4381,10 +4381,10 @@ def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    # 1. Cache-buster v12.4 across CSS & JS assets
-    assert '/static/css/pettr.css?v=12.4' in index_html
-    for asset in ["app.js?v=12.4", "focus_cockpit.js?v=12.4", "world_gateway.js?v=12.4", "world_deepblue.js?v=12.4"]:
-        assert asset in index_html, f"Missing v12.4 cache-buster for {asset}"
+    # 1. Cache-buster v12.5 across CSS & JS assets
+    assert '/static/css/pettr.css?v=12.5' in index_html
+    for asset in ["app.js?v=12.5", "focus_cockpit.js?v=12.5", "world_gateway.js?v=12.5", "world_deepblue.js?v=12.5"]:
+        assert asset in index_html, f"Missing v12.5 cache-buster for {asset}"
 
     # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Universal Backdrop Frost moved to Theme Configuration Panel
     cockpit_section = index_html[index_html.index('id="focusCockpitModal"'):index_html.index('id="scenicRestoreBar"')]
@@ -4502,10 +4502,10 @@ def test_v12_4_scenic_worlds_overhaul_theme_harmony_and_mobile():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    # 1. Cache-buster v12.4 across CSS & all world/app assets
-    assert '/static/css/pettr.css?v=12.4' in index_html
-    for asset in ["app.js?v=12.4", "wave_canvas.js?v=12.4", "world_gateway.js?v=12.4", "world_deepblue.js?v=12.4"]:
-        assert asset in index_html, f"Missing v12.4 cache-buster for {asset}"
+    # 1. Cache-buster v12.5 across CSS & all world/app assets
+    assert '/static/css/pettr.css?v=12.5' in index_html
+    for asset in ["app.js?v=12.5", "wave_canvas.js?v=12.5", "world_gateway.js?v=12.5", "world_deepblue.js?v=12.5"]:
+        assert asset in index_html, f"Missing v12.5 cache-buster for {asset}"
 
     # 2. Gateway v12.4 scenic realism, infrastructure, scale, military/liner craft & offshore F9 pad
     for token in [
@@ -4566,6 +4566,43 @@ def test_v12_4_scenic_worlds_overhaul_theme_harmony_and_mobile():
         ".cockpit-glass-panel {",
     ]:
         assert mobile_token in css, f"Missing mobile optimization CSS rule: {mobile_token}"
+
+
+def test_v12_5_gateway_infrastructure_container_ships_and_deepblue_design():
+    """Verify v12.5 expanded Gateway Ground Station w/ synchronous periodic dish array, VAB & Control Tower, rich tarmac details, expanded Star+Satellite terminals, upper-bay container ships, and Deep Blue caustics/moonpool/vent bubbles."""
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Cache-buster v12.5
+    assert '/static/css/pettr.css?v=12.5' in index_html
+    for asset in ["world_gateway.js?v=12.5", "world_deepblue.js?v=12.5"]:
+        assert asset in index_html, f"Missing v12.5 cache-buster for {asset}"
+
+    # 2. Gateway v12.5 upgrades
+    for token in [
+        "_drawVAB(",
+        "_drawControlTower(",
+        "_drawTarmacDetails(",
+        "satNorth",
+        "radarDishes",
+        "_lastDishAim",
+        'kind: "container_ship", zone: "upper"',
+        '"parking_deck"',
+        '"fire_station"',
+    ]:
+        assert token in gateway_js, f"Missing Gateway v12.5 token: {token}"
+
+    # 3. Deep Blue v12.5 architectural & atmospheric refinements (zero stilt symbol anywhere)
+    assert "_drawPylonLeg" not in deepblue_js
+    for token in [
+        "_drawSeabedCaustics(",
+        "_updateAndDrawVentBubbles(",
+        "Wet-Dock Moonpool Arch",
+        "grow-light fixture ribs",
+    ]:
+        assert token in deepblue_js, f"Missing Deep Blue v12.5 token: {token}"
 
 
 

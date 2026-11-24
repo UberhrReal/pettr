@@ -582,8 +582,21 @@ const WorldDeepBlue = {
     ctx.fillRect(0, 0, w, 60);
     ctx.restore();
 
-    // 3. Far hazy canyon ridges & distant seamounts
+    // 3. Multi-Layered Far Hazy Canyon Ridges & Ultra-Distant Seamounts
     ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w + 40; x += 44) {
+      const deepPeak = Math.pow(Math.abs((x / w) - 0.54) * 1.9, 1.35) * 124;
+      const crag2 = Math.cos(x * 0.0042 + 1.1) * 34 + Math.sin(x * 0.011) * 10;
+      ctx.lineTo(x, L.seabedY - 88 - deepPeak - crag2);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fillStyle = pal.reefFar;
+    ctx.globalAlpha = 0.22;
+    ctx.fill();
+
     ctx.beginPath();
     ctx.moveTo(0, h);
     for (let x = 0; x <= w + 40; x += 36) {
@@ -890,6 +903,26 @@ const WorldDeepBlue = {
     });
 
     if (!opts.noFloodlight) {
+      // Illuminated Wet-Dock Moonpool Arch recessed along central plinth base
+      const archX = cx + botW * 0.02;
+      const archY = botY + 11 * s;
+      const archW = 34 * s;
+      const archH = 19 * s;
+      ctx.fillStyle = pal.hullDeep;
+      ctx.beginPath();
+      ctx.moveTo(archX - archW * 0.5, archY);
+      ctx.lineTo(archX - archW * 0.42, archY - archH);
+      ctx.lineTo(archX + archW * 0.42, archY - archH);
+      ctx.lineTo(archX + archW * 0.5, archY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(${pal.elevatorGlow}, ${pal.isDark ? 0.28 : 0.18})`;
+      ctx.fillRect(archX - archW * 0.34, archY - archH * 0.82, archW * 0.68, archH * 0.78);
+      ctx.strokeStyle = pal.trimGold;
+      ctx.lineWidth = 1.2 * s;
+      ctx.strokeRect(archX - archW * 0.38, archY - archH * 0.88, archW * 0.76, archH * 0.86);
+
       this._drawExteriorFloodlight(ctx, cx - botW * 0.24, midY + 2 * s, 44 * s, (botY - midY) + 14 * s, pal);
       this._drawExteriorFloodlight(ctx, cx + botW * 0.18, midY + 2 * s, 40 * s, (botY - midY) + 14 * s, pal);
     }
@@ -1198,6 +1231,16 @@ const WorldDeepBlue = {
       ctx.arc(k * 5.0 * s, -16.5 * s, 2.8 * s, Math.PI, 0);
       ctx.fill();
     }
+
+    // Overhead horticultural grow-light fixture ribs inside dome
+    ctx.strokeStyle = pal.isDark ? "rgba(134, 239, 172, 0.78)" : "rgba(34, 197, 94, 0.45)";
+    ctx.lineWidth = 1.3 * s;
+    ctx.beginPath();
+    ctx.moveTo(-18 * s, -22 * s);
+    ctx.lineTo(18 * s, -22 * s);
+    ctx.moveTo(-22 * s, -12 * s);
+    ctx.lineTo(22 * s, -12 * s);
+    ctx.stroke();
     ctx.restore();
 
     // Glass specular highlight arc
@@ -1280,6 +1323,15 @@ const WorldDeepBlue = {
     ctx.moveTo(4 * s, floorTop - 4.0 * s);
     ctx.lineTo(len - 4 * s, floorTop - 4.0 * s);
     ctx.stroke();
+
+    // Vertical handrail stanchions & interior technician silhouettes along transparent gallery
+    const stanchions = Math.max(4, Math.floor(len / (14 * s)));
+    ctx.fillStyle = pal.hullDark;
+    ctx.globalAlpha = hazeAlpha * 0.48;
+    for (let k = 1; k < stanchions; k++) {
+      ctx.fillRect((k / stanchions) * len, floorTop - 4.0 * s, 0.9 * s, 4.0 * s);
+    }
+    ctx.globalAlpha = hazeAlpha;
 
     const segs = Math.max(3, Math.floor(len / (22 * s)));
     ctx.globalAlpha = hazeAlpha;
@@ -1639,6 +1691,21 @@ const WorldDeepBlue = {
     ctx.beginPath();
     ctx.ellipse(0, 0, 14 * s, 6 * s, 0, 0, Math.PI * 2);
     ctx.stroke();
+
+    // Compact ROV Launch Davit Crane Arm & Corner Pad Beacon Markers
+    ctx.strokeStyle = pal.hullLight;
+    ctx.lineWidth = 1.6 * s;
+    ctx.beginPath();
+    ctx.moveTo(19 * s, 0);
+    ctx.lineTo(19 * s, -15 * s);
+    ctx.lineTo(11 * s, -21 * s);
+    ctx.stroke();
+    ctx.fillStyle = pal.subAccent;
+    [-22, 22].forEach(lx => {
+      ctx.beginPath();
+      ctx.arc(lx * s, 0, 1.4 * s, 0, Math.PI * 2);
+      ctx.fill();
+    });
     ctx.restore();
   },
 
@@ -2058,11 +2125,12 @@ const WorldDeepBlue = {
     // 1. Blit offscreen cached water, grounded pre-fab complex, hydropower farm & benthic terrain
     ctx.drawImage(this.cacheCanvas, 0, 0, w, h);
 
-    // 2. Animated Ocean Surface Shimmer & Slanted Sunbeams (warm golden shafts on shallow coastal Golden Hour!)
+    // 2. Animated Ocean Surface Shimmer, Slanted Sunbeams & Dynamic Seabed Caustics!
     this._drawSurfaceShimmer(ctx, w, pal, step);
     if (pal.rayAlpha > 0.05) {
       this._drawGodRays(ctx, w, h, pal, step, mode);
     }
+    this._drawSeabedCaustics(ctx, w, h, L, pal, step, mode);
 
     // 3. Far-Depth Megafauna, Undulating Fish Schools & Background Transit Submarines
     this._updateAndDrawWhales(ctx, w, h, pal, dt);
@@ -2091,8 +2159,50 @@ const WorldDeepBlue = {
     this._drawAnchoredKelp(ctx, pal, step);
     this._updateAndDrawNearLife(ctx, w, h, pal, dt);
 
-    // 9. Rising Bubbles, Marine Snow & Reactive Sonar Rings
+    // 9. Rising Bubbles, Hydrothermal Vent Plumes, Marine Snow & Reactive Sonar Rings
+    this._updateAndDrawVentBubbles(ctx, w, h, L, pal, dt, step);
     this._updateAndDrawAmbientParticles(ctx, w, h, pal, dt);
+  },
+
+  // Dynamic undulating caustic light ripples dancing along sandy canyon terrain & station roofs
+  _drawSeabedCaustics(ctx, w, h, L, pal, step, mode) {
+    if (mode === "dark") return;
+    const isGolden = mode === "evening";
+    const alpha = isGolden ? 0.14 : (mode === "morning" ? 0.16 : 0.12);
+    const rgb = isGolden ? "255, 224, 158" : "186, 248, 255";
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.strokeStyle = `rgba(${rgb}, ${alpha})`;
+    ctx.lineCap = "round";
+    for (let i = 0; i < (w < 720 ? 6 : 10); i++) {
+      const cx = w * (0.12 + (i / 10) * 0.78) + Math.sin(step * 0.9 + i * 1.4) * 18;
+      const cy = Math.min(h - 14, L.seabedY + 28 + (i % 4) * 26 + Math.cos(step * 1.1 + i) * 6);
+      const rx = 24 + (i % 3) * 14;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, 4.2, Math.sin(step * 0.4 + i) * 0.08, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+
+  // Gentle hydrothermal vent bubble emission from canyon basalt chimneys
+  _updateAndDrawVentBubbles(ctx, w, h, L, pal, dt, step) {
+    if (Math.random() < 0.28) {
+      const ventXs = L.isNarrow ? [w * 0.19] : [w * 0.19, w * 0.81];
+      const vx = ventXs[Math.floor(Math.random() * ventXs.length)];
+      const vy = this._seabedYAtX(vx, w, h, L) - 8 * L.s;
+      if (this.bubbles.length < 48) {
+        this.bubbles.push({
+          x: vx + (Math.random() - 0.5) * 6 * L.s,
+          y: vy,
+          r: 1.0 + Math.random() * 1.6,
+          vy: -(0.55 + Math.random() * 0.45),
+          wobble: step + Math.random() * 6,
+          alpha: pal.isDark ? 0.42 : 0.34
+        });
+      }
+    }
   },
 
   _drawSurfaceShimmer(ctx, w, pal, step) {
@@ -2345,20 +2455,19 @@ const WorldDeepBlue = {
       if (d.facingLeft) ctx.scale(-1, 1);
       ctx.scale(s * 0.92, s * 0.92);
 
-      // Tiny helmet beam
-      if (pal.isDark) {
-        const hb = ctx.createLinearGradient(5, -1, 24, 0);
-        hb.addColorStop(0, "rgba(224, 247, 250, 0.36)");
-        hb.addColorStop(1, "rgba(224, 247, 250, 0)");
-        ctx.fillStyle = hb;
-        ctx.beginPath();
-        ctx.moveTo(5, -2);
-        ctx.lineTo(24, -6);
-        ctx.lineTo(24, 5);
-        ctx.lineTo(5, 0);
-        ctx.closePath();
-        ctx.fill();
-      }
+      // Crisp Helmet Headlamp Volumetric Cone + Welding Torch Arc Sparks
+      const beamAlpha = pal.isDark ? 0.44 : 0.24;
+      const hb = ctx.createLinearGradient(5, -1, 28, 0);
+      hb.addColorStop(0, `rgba(224, 247, 250, ${beamAlpha})`);
+      hb.addColorStop(1, "rgba(224, 247, 250, 0)");
+      ctx.fillStyle = hb;
+      ctx.beginPath();
+      ctx.moveTo(5, -2);
+      ctx.lineTo(28, -7);
+      ctx.lineTo(28, 6);
+      ctx.lineTo(5, 0);
+      ctx.closePath();
+      ctx.fill();
 
       // Wetsuit torso & scuba tank
       ctx.fillStyle = "#1E293B";
@@ -2389,12 +2498,18 @@ const WorldDeepBlue = {
       ctx.lineTo(-8.2, 1.6 - kick);
       ctx.stroke();
 
-      // Flickering underwater arc-welding / inspection torch flash while on maintenance site!
+      // Flickering underwater arc-welding / inspection torch flash & bright micro-sparks while on maintenance site!
       if (welding && Math.sin(step * 28 + i * 3) > -0.2) {
-        ctx.fillStyle = "rgba(103, 232, 249, 0.92)";
+        ctx.fillStyle = "rgba(103, 232, 249, 0.94)";
         ctx.beginPath();
-        ctx.arc(7.5, -0.5, 2.2 + Math.random() * 1.4, 0, Math.PI * 2);
+        ctx.arc(7.5, -0.5, 2.4 + Math.random() * 1.4, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = "rgba(253, 224, 71, 0.90)";
+        for (let sp = 0; sp < 3; sp++) {
+          ctx.beginPath();
+          ctx.arc(8 + Math.random() * 5, (Math.random() - 0.5) * 5, 0.75, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
       ctx.restore();
     }
