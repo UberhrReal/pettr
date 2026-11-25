@@ -47,7 +47,64 @@ const WorldGateway = {
   ALL_SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner", "fighter", "bomber"],
   JET_STUNT_TYPES: ["bomb_burst", "delta_loop", "delta_roll", "upside_down", "echelon_roll"],
   MEGALINER_VARIANTS: ["double_deck", "blended_wing"],
+  JET_LIVERIES: [
+    {
+      name: "blue_angels",
+      body: "#12326B",
+      shade: "#0A1D42",
+      belly: "#0F2958",
+      accent: "#FACC15",
+      spine: "#FACC15",
+      smokePalette: ["254, 249, 215"]
+    },
+    {
+      name: "thunderbirds",
+      body: "#F8FAFC",
+      shade: "#CBD5E1",
+      belly: "#E2E8F0",
+      accent: "#DC2626",
+      spine: "#1D4ED8",
+      smokePalette: ["255, 255, 255"]
+    },
+    {
+      name: "red_arrows",
+      body: "#C81E2B",
+      shade: "#7F1D1D",
+      belly: "#F8FAFC",
+      accent: "#F8FAFC",
+      spine: "#1D4ED8",
+      smokePalette: ["248, 113, 113", "255, 255, 255", "96, 165, 250", "255, 255, 255", "248, 113, 113"]
+    },
+    {
+      name: "black_knights",
+      body: "#1E293B",
+      shade: "#0F172A",
+      belly: "#0B1120",
+      accent: "#EF4444",
+      spine: "#E2E8F0",
+      smokePalette: ["241, 245, 249"]
+    },
+    {
+      name: "aggressor_flanker",
+      body: "#38BDF8",
+      shade: "#334155",
+      belly: "#475569",
+      accent: "#F97316",
+      spine: "#1E293B",
+      smokePalette: ["224, 242, 254"]
+    },
+    {
+      name: "golden_eagles",
+      body: "#1F2937",
+      shade: "#111827",
+      belly: "#F8FAFC",
+      accent: "#F59E0B",
+      spine: "#F59E0B",
+      smokePalette: ["254, 243, 199"]
+    }
+  ],
   _lastJetStunt: "",
+  _lastJetLivery: "",
   _lastMegaVariant: "",
 
   _pickMegaLinerVariant() {
@@ -158,6 +215,7 @@ const WorldGateway = {
     this.waterGlints = [];
     this.orbiters = [];
     this.jetFormations = [];
+    this._lastJetLivery = "";
     this._lastMegaVariant = "";
     this.fogState = { active: false, alpha: 0, targetAlpha: 0, nextCheck: 0, offset: 0 };
   },
@@ -3356,48 +3414,58 @@ const WorldGateway = {
       : (pool[Math.floor(Math.random() * pool.length)] || "delta_roll");
     this._lastJetStunt = chosenStunt;
 
+    const livPool = this.JET_LIVERIES.filter(l => l.name !== this._lastJetLivery);
+    const chosenLivery = (opts.livery && this.JET_LIVERIES.find(l => l.name === opts.livery))
+      || livPool[Math.floor(Math.random() * livPool.length)]
+      || this.JET_LIVERIES[0];
+    this._lastJetLivery = chosenLivery.name;
+
     const dir = Math.random() < 0.72 ? 1 : -1;
-    const duration = this._rand(2.8, 3.3);
-    const spanX = w + 180;
+    const duration = this._rand(7.6, 8.4);
+    const spanX = w + 260;
     const speed = spanX / duration;
-    const startX = dir > 0 ? -90 : (w + 90);
-    const startY = chosenStunt === "delta_loop" ? h * 0.24 : h * this._rand(0.11, 0.20);
+    const startX = dir > 0 ? -130 : (w + 130);
+    const startY = chosenStunt === "delta_loop"
+      ? Math.max(Math.min(115, h * 0.145) * 2 + 24, h * 0.34)
+      : h * this._rand(0.12, 0.21);
     const vx = dir * speed;
     const vy = (chosenStunt === "delta_loop" || chosenStunt === "bomb_burst")
       ? 0
-      : -speed * this._rand(0.04, 0.08);
+      : -speed * this._rand(0.035, 0.065);
 
     const offsets = isNarrow
       ? (chosenStunt === "echelon_roll"
-          ? [{ ox: 0, oy: 0, tint: "accent" }, { ox: -22, oy: 12, tint: "white" }, { ox: -44, oy: 24, tint: "white" }]
-          : [{ ox: 0, oy: 0, tint: "accent" }, { ox: -22, oy: -11, tint: "white" }, { ox: -20, oy: 12, tint: "white" }])
+          ? [{ ox: 0, oy: 0 }, { ox: -24, oy: 14 }, { ox: -48, oy: 28 }]
+          : [{ ox: 0, oy: 0 }, { ox: -24, oy: -14 }, { ox: -24, oy: 14 }])
       : (chosenStunt === "echelon_roll"
           ? [
-              { ox: 0, oy: 0, tint: "accent" },
-              { ox: -24, oy: 12, tint: "white" },
-              { ox: -48, oy: 24, tint: "white" },
-              { ox: -72, oy: 36, tint: "white" },
-              { ox: -96, oy: 48, tint: "white" }
+              { ox: 0, oy: 0 },
+              { ox: -25, oy: 15 },
+              { ox: -50, oy: 30 },
+              { ox: -75, oy: 45 },
+              { ox: -100, oy: 60 }
             ]
           : [
-              { ox: 0, oy: 0, tint: "accent" },
-              { ox: -26, oy: -12, tint: "white" },
-              { ox: -24, oy: 13, tint: "white" },
-              { ox: -52, oy: -23, tint: "white" },
-              { ox: -48, oy: 25, tint: "white" }
+              { ox: 0, oy: 0 },
+              { ox: -26, oy: -16 },
+              { ox: -26, oy: 16 },
+              { ox: -52, oy: -32 },
+              { ox: -52, oy: 32 }
             ]);
 
     const burstVecs = [
-      { ax: 0.12, ay: -0.95 },
-      { ax: 0.36, ay: -0.78 },
-      { ax: 0.34, ay: 0.78 },
-      { ax: -0.22, ay: -0.88 },
-      { ax: -0.18, ay: 0.92 }
+      { ax: 0.16, ay: -0.96 },
+      { ax: 0.42, ay: -0.78 },
+      { ax: 0.40, ay: 0.78 },
+      { ax: -0.18, ay: -0.88 },
+      { ax: -0.16, ay: 0.90 }
     ];
 
+    const smokeList = chosenLivery.smokePalette || ["255, 255, 255"];
     this.jetFormations.push({
       isMajor: Boolean(opts.isMajor),
       stunt: chosenStunt,
+      livery: chosenLivery,
       elapsed: 0,
       duration,
       speed,
@@ -3409,31 +3477,42 @@ const WorldGateway = {
       vx,
       vy,
       angle: Math.atan2(vy, vx),
-      scale: isNarrow ? 0.85 : 1.05,
+      scale: isNarrow ? 0.96 : 1.24,
       emitAccum: 0,
       jets: offsets.map((o, idx) => ({
         ox: o.ox,
         oy: o.oy,
-        tint: o.tint,
+        oz: 0,
+        prevX: null,
+        prevY: null,
+        smoothAngle: null,
+        smokeRgb: smokeList[idx % smokeList.length],
         burst: burstVecs[idx] || { ax: 0, ay: -0.5 },
         trail: []
       }))
     });
   },
 
-  _drawFighterJet(ctx, pal, sc, step, rollAngle = 0) {
+  _drawFighterJet(ctx, pal, sc, step, rollAngle = 0, livery = null) {
+    const liv = livery || {
+      body: pal.militaryBody,
+      shade: pal.militaryShade,
+      belly: pal.archDark,
+      accent: pal.liveryAccent,
+      spine: pal.bodyLight
+    };
     ctx.save();
     ctx.scale(sc, sc);
-    // Crisp orange-white dual supersonic afterburner glow
-    const abPulse = 0.82 + 0.18 * Math.sin(step * 48);
-    const fg = ctx.createLinearGradient(-9, 0, -21 * abPulse, 0);
+    // Crisp luminous dual supersonic afterburner plume
+    const abPulse = 0.85 + 0.15 * Math.sin(step * 42);
+    const fg = ctx.createLinearGradient(-9.5, 0, -23 * abPulse, 0);
     fg.addColorStop(0, `rgba(${pal.plumeCore}, 0.98)`);
-    fg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.82)`);
+    fg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.84)`);
     fg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
     ctx.fillStyle = fg;
     ctx.beginPath();
     ctx.moveTo(-9.5, -1.7);
-    ctx.lineTo(-21 * abPulse, 0);
+    ctx.lineTo(-23 * abPulse, 0);
     ctx.lineTo(-9.5, 1.7);
     ctx.closePath();
     ctx.fill();
@@ -3441,104 +3520,159 @@ const WorldGateway = {
     const cosR = Math.cos(rollAngle);
     const sinR = Math.sin(rollAngle);
     const isInverted = cosR < 0;
-    const wingScale = (Math.abs(cosR) < 0.15 ? (cosR < 0 ? -0.15 : 0.15) : cosR);
+    const wingScale = (Math.abs(cosR) < 0.14 ? (cosR < 0 ? -0.14 : 0.14) : cosR);
 
-    // Swept Delta Main Wings foreshortened through 3D axial roll
+    // Swept Delta Main Wings + LERX strakes foreshortened cleanly through 3D axial roll
     ctx.save();
     ctx.scale(1, wingScale);
-    ctx.fillStyle = pal.militaryShade;
-    ctx.fillRect(-10.2, -1.7, 3.0, 3.4);
+    ctx.fillStyle = liv.shade;
+    ctx.fillRect(-10.6, -1.8, 3.2, 3.6);
 
-    ctx.fillStyle = isInverted ? pal.archDark : pal.militaryBody;
+    ctx.fillStyle = isInverted ? liv.belly : liv.body;
     ctx.beginPath();
-    ctx.moveTo(11.5, 0);
-    ctx.lineTo(2.5, -2.0);
-    ctx.lineTo(-7.2, -8.8);
-    ctx.lineTo(-9.2, -8.2);
-    ctx.lineTo(-8.5, -1.8);
-    ctx.lineTo(-8.5, 1.8);
-    ctx.lineTo(-9.2, 8.2);
-    ctx.lineTo(-7.2, 8.8);
-    ctx.lineTo(2.5, 2.0);
+    ctx.moveTo(12.2, 0);
+    ctx.lineTo(5.8, -1.5);
+    ctx.lineTo(2.4, -2.3);
+    ctx.lineTo(-7.2, -9.4);
+    ctx.lineTo(-9.5, -8.8);
+    ctx.lineTo(-8.8, -2.0);
+    ctx.lineTo(-8.8, 2.0);
+    ctx.lineTo(-9.5, 8.8);
+    ctx.lineTo(-7.2, 9.4);
+    ctx.lineTo(2.4, 2.3);
+    ctx.lineTo(5.8, 1.5);
     ctx.closePath();
     ctx.fill();
 
-    // Wingtip tactical livery accents
-    ctx.fillStyle = pal.liveryAccent;
-    ctx.fillRect(-8.4, -8.0, 2.4, 1.1);
-    ctx.fillRect(-8.4, 6.9, 2.4, 1.1);
+    // Swept wing leading-edge chevrons & high-contrast wingtip team trim
+    ctx.fillStyle = liv.accent;
+    ctx.beginPath();
+    ctx.moveTo(1.8, -2.4);
+    ctx.lineTo(-7.2, -9.4);
+    ctx.lineTo(-8.2, -9.0);
+    ctx.lineTo(0.4, -2.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(1.8, 2.4);
+    ctx.lineTo(-7.2, 9.4);
+    ctx.lineTo(-8.2, 9.0);
+    ctx.lineTo(0.4, 2.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(-8.8, -8.4, 3.2, 1.2);
+    ctx.fillRect(-8.8, 7.2, 3.2, 1.2);
+
+    // Signature team belly/dorsal center arrow flash visible both upright and inverted!
+    ctx.fillStyle = isInverted ? liv.accent : liv.spine;
+    ctx.beginPath();
+    ctx.moveTo(8.5, 0);
+    ctx.lineTo(-4.8, -1.2);
+    ctx.lineTo(-7.0, 0);
+    ctx.lineTo(-4.8, 1.2);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
 
-    // Central fuselage spine + canopy (flips orientation cleanly when rolling inverted)
-    ctx.fillStyle = isInverted ? pal.militaryShade : pal.bodyLight;
-    ctx.globalAlpha = 0.88;
+    // Sculpted central fuselage spine + tinted bubble canopy (flips orientation smoothly across roll)
+    ctx.fillStyle = isInverted ? liv.belly : liv.spine;
+    ctx.globalAlpha = 0.94;
     ctx.beginPath();
-    ctx.moveTo(11.5, 0);
-    ctx.lineTo(3.5, isInverted ? 1.5 : -1.4);
-    ctx.lineTo(-7.8, isInverted ? 1.5 : -1.4);
-    ctx.lineTo(-7.8, isInverted ? -0.3 : 0.3);
+    ctx.moveTo(12.2, 0);
+    ctx.lineTo(3.8, isInverted ? 1.6 : -1.5);
+    ctx.lineTo(-8.2, isInverted ? 1.5 : -1.5);
+    ctx.lineTo(-8.2, isInverted ? -0.3 : 0.3);
     ctx.closePath();
     ctx.fill();
     ctx.globalAlpha = 1;
 
+    // Nose radome tip accent
+    ctx.fillStyle = liv.accent;
+    ctx.beginPath();
+    ctx.moveTo(12.2, 0);
+    ctx.lineTo(9.0, -0.75);
+    ctx.lineTo(9.0, 0.75);
+    ctx.closePath();
+    ctx.fill();
+
+    // Teardrop canopy dome with bright specular reflection
     ctx.fillStyle = pal.windowGlassDark;
     ctx.beginPath();
-    ctx.ellipse(3.6, isInverted ? 0.5 : -0.4, 2.8, 0.95, 0, 0, Math.PI * 2);
+    ctx.ellipse(3.6, isInverted ? 0.55 : -0.45, 3.0, 1.05, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = pal.windowGlow;
     ctx.beginPath();
-    ctx.ellipse(4.1, isInverted ? 0.7 : -0.6, 1.4, 0.45, 0, 0, Math.PI * 2);
+    ctx.ellipse(4.1, isInverted ? 0.75 : -0.65, 1.5, 0.48, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Canted vertical stabilizer projecting cleanly according to roll angle (points down when upside down!)
+    // Twin/Canted Vertical Tail Stabilizer with painted squadron flash
     const tailDir = isInverted ? 1 : -1;
-    const tailHeight = Math.max(2.2, Math.abs(cosR) * 4.4 + Math.abs(sinR) * 1.4);
-    ctx.fillStyle = pal.archDark;
+    const tailHeight = Math.max(2.2, Math.abs(cosR) * 4.7 + Math.abs(sinR) * 1.4);
+    ctx.fillStyle = liv.shade;
     ctx.beginPath();
     ctx.moveTo(-4.8, tailDir * 1.3);
-    ctx.lineTo(-8.6, tailDir * (1.3 + tailHeight));
-    ctx.lineTo(-9.4, tailDir * (1.1 + tailHeight));
-    ctx.lineTo(-8.2, tailDir * 1.2);
+    ctx.lineTo(-8.8, tailDir * (1.3 + tailHeight));
+    ctx.lineTo(-9.8, tailDir * (1.1 + tailHeight));
+    ctx.lineTo(-8.4, tailDir * 1.2);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = liv.accent;
+    ctx.fillRect(-8.9, tailDir > 0 ? (1.2 + tailHeight * 0.72) : -(1.2 + tailHeight * 0.96), 1.8, tailHeight * 0.24);
     ctx.restore();
   },
 
   _updateAndDrawJetFormations(ctx, w, h, L, pal, dt, step) {
     if (!this.jetFormations || this.jetFormations.length === 0) return;
+    const smooth5 = t => {
+      const c = this._clamp(t, 0, 1);
+      return c * c * c * (c * (c * 6 - 15) + 10);
+    };
     const activeFormations = [];
 
     for (let f = 0; f < this.jetFormations.length; f++) {
       const fm = this.jetFormations[f];
       fm.elapsed = (fm.elapsed || 0) + dt;
-      const p = fm.elapsed / Math.max(0.5, fm.duration || 3.0);
+      const p = fm.elapsed / Math.max(0.5, fm.duration || 8.0);
       fm.emitAccum += dt;
-      const shouldEmit = fm.emitAccum >= 0.012;
+      const shouldEmit = fm.emitAccum >= 0.016;
       if (shouldEmit) fm.emitAccum = 0;
 
-      // Update formation reference path per aerial stunt
+      // Update formation reference path per aerial stunt using true arc-length C2 continuous geometry
       if (fm.stunt === "delta_loop") {
         const loopCx = w * 0.50;
-        const loopR = Math.min(82, h * 0.105);
-        const loopCy = Math.max(loopR + 18, h * 0.16);
+        const loopR = Math.min(115, h * 0.145);
+        const loopCy = Math.max(loopR + 24, h * 0.19);
         const baseY = loopCy + loopR;
-        if (p < 0.28) {
-          const hp = p / 0.28;
-          fm.x = this._lerp(fm.startX, loopCx, hp);
-          fm.y = baseY;
-          fm.angle = fm.dir > 0 ? 0 : Math.PI;
-        } else if (p < 0.72) {
-          const lp = (p - 0.28) / 0.44;
-          const theta = lp * Math.PI * 2;
-          fm.x = loopCx + fm.dir * Math.sin(theta) * loopR;
-          fm.y = loopCy + Math.cos(theta) * loopR;
-          fm.angle = Math.atan2(-Math.sin(theta), fm.dir * Math.cos(theta));
-        } else {
-          const ep = Math.min(1.4, (p - 0.72) / 0.28);
-          fm.x = this._lerp(loopCx, fm.dir > 0 ? w + 90 : -90, ep);
-          fm.y = baseY;
-          fm.angle = fm.dir > 0 ? 0 : Math.PI;
-        }
+        const endX = fm.dir > 0 ? w + 130 : -130;
+        const dIn = Math.abs(loopCx - fm.startX);
+        const dLoop = Math.PI * 2 * loopR;
+        const dOut = Math.abs(endX - loopCx);
+        const dTotal = Math.max(1, dIn + dLoop + dOut);
+        const p1 = dIn / dTotal;
+        const p2 = (dIn + dLoop) / dTotal;
+        const loopPos = (u) => {
+          if (u < p1) {
+            return { x: this._lerp(fm.startX, loopCx, u / p1), y: baseY };
+          }
+          if (u < p2) {
+            const lf = (u - p1) / (p2 - p1);
+            // Realistic pull-up speed easing: faster entering bottom, slightly slower cresting apex at pi
+            const theta = lf * Math.PI * 2 + 0.14 * Math.sin(lf * Math.PI * 2);
+            return {
+              x: loopCx + fm.dir * Math.sin(theta) * loopR,
+              y: loopCy + Math.cos(theta) * loopR
+            };
+          }
+          const ep = (u - p2) / (1 - p2);
+          return { x: fm.dir > 0 ? (loopCx + ep * dOut) : (loopCx - ep * dOut), y: baseY };
+        };
+        const cur = loopPos(Math.min(1.18, p));
+        const du = 0.002;
+        const prevP = loopPos(Math.max(0, Math.min(1.18, p) - du));
+        const nextP = loopPos(Math.min(1.18, p) + du);
+        fm.x = cur.x;
+        fm.y = cur.y;
+        fm.angle = Math.atan2(nextP.y - prevP.y, nextP.x - prevP.x);
       } else {
         fm.x += fm.vx * dt;
         fm.y += fm.vy * dt;
@@ -3547,99 +3681,158 @@ const WorldGateway = {
 
       const ca = Math.cos(fm.angle);
       const sa = Math.sin(fm.angle);
-      const trailMargin = 140;
+      const trailMargin = 160;
       const leaderOnCourse = fm.dir > 0 ? fm.x < w + trailMargin : fm.x > -trailMargin;
       let anyAlive = leaderOnCourse || p < 1.05;
 
+      // Compute smooth 3D slot offsets & Euler attitudes for every aircraft in formation
+      const renderList = [];
       for (let j = 0; j < fm.jets.length; j++) {
         const jet = fm.jets[j];
         let ox = jet.ox;
         let oy = jet.oy;
-        let jetAngle = fm.angle;
+        let oz = 0;
         let rollAngle = 0;
+        let jx, jy, jetAngle = fm.angle;
 
-        if (fm.stunt === "bomb_burst" && p > 0.38) {
-          const b = (p - 0.38) / 0.62;
-          const bEase = b * (0.45 + 0.55 * b);
-          const fanScale = w < 720 ? 120 : 195;
+        if (fm.stunt === "bomb_burst") {
+          const b = this._clamp((p - 0.34) / 0.66, 0, 1);
+          const bEase = smooth5(b);
+          const fanScale = w < 720 ? 150 : 245;
           ox += jet.burst.ax * fanScale * bEase;
           oy += jet.burst.ay * fanScale * bEase;
-          jetAngle = fm.angle + jet.burst.ay * 0.90 * b * fm.dir;
-          rollAngle = b * Math.PI * 1.4 * (j % 2 === 0 ? 1 : -1);
+          rollAngle = bEase * Math.PI * 2 * (j % 2 === 0 ? 1 : -1);
+          jx = fm.x + ca * ox - sa * oy;
+          jy = fm.y + sa * ox + ca * oy;
+          if (jet.prevX != null && p > 0.35) {
+            const dxV = jx - jet.prevX;
+            const dyV = jy - jet.prevY;
+            if (Math.hypot(dxV, dyV) > 0.04) {
+              const tgtAng = Math.atan2(dyV, dxV);
+              jet.smoothAngle = jet.smoothAngle == null ? tgtAng : this._lerpAngle(jet.smoothAngle, tgtAng, Math.min(1, dt * 10));
+              jetAngle = jet.smoothAngle;
+            }
+          } else {
+            jet.smoothAngle = fm.angle;
+          }
         } else if (fm.stunt === "delta_roll") {
-          const rp = this._clamp((p - 0.16) / 0.68, 0, 1);
-          const easeR = rp * rp * (3 - 2 * rp);
-          rollAngle = easeR * Math.PI * 2;
-          oy = jet.oy * Math.cos(rollAngle);
-          ox = jet.ox - Math.abs(jet.oy) * Math.sin(rollAngle) * 0.22;
-        } else if (fm.stunt === "upside_down") {
-          rollAngle = Math.PI + 0.22 * Math.sin(p * Math.PI * 4);
-        } else if (fm.stunt === "echelon_roll") {
-          const startSlot = 0.14 + j * 0.09;
-          const rp = this._clamp((p - startSlot) / 0.26, 0, 1);
+          // Authentic 3D axial barrel roll rotating wingmen through depth (oy, oz) + smooth helical arc
+          const rp = smooth5((p - 0.16) / 0.68);
           rollAngle = rp * Math.PI * 2;
+          const cr = Math.cos(rollAngle);
+          const sr = Math.sin(rollAngle);
+          oy = jet.oy * cr;
+          oz = jet.oy * sr;
+          jx = fm.x + ca * ox - sa * oy;
+          jy = fm.y + sa * ox + ca * oy + sr * 24;
+        } else if (fm.stunt === "upside_down") {
+          // Smooth half-roll inverted entry -> steady inverted pass -> recovery roll back upright
+          if (p < 0.14) {
+            rollAngle = 0;
+          } else if (p < 0.28) {
+            rollAngle = smooth5((p - 0.14) / 0.14) * Math.PI;
+          } else if (p < 0.72) {
+            rollAngle = Math.PI;
+          } else if (p < 0.86) {
+            rollAngle = Math.PI + smooth5((p - 0.72) / 0.14) * Math.PI;
+          } else {
+            rollAngle = Math.PI * 2;
+          }
+          jx = fm.x + ca * ox - sa * oy;
+          jy = fm.y + sa * ox + ca * oy;
+        } else if (fm.stunt === "echelon_roll") {
+          const startSlot = 0.12 + j * 0.08;
+          const rp = smooth5((p - startSlot) / 0.34);
+          rollAngle = rp * Math.PI * 2;
+          jy = fm.y + sa * ox + ca * oy - Math.sin(rollAngle) * 8;
+          jx = fm.x + ca * ox - sa * oy;
+        } else {
+          // delta_loop: gentle symmetric wing-tuck & clean tangent alignment
+          jx = fm.x + ca * ox - sa * oy;
+          jy = fm.y + sa * ox + ca * oy;
         }
 
+        jet.prevX = jx;
+        jet.prevY = jy;
         const jCa = Math.cos(jetAngle);
         const jSa = Math.sin(jetAngle);
-        const jx = fm.x + ca * ox - sa * oy;
-        const jy = fm.y + sa * ox + ca * oy;
 
-        if (shouldEmit && jx > -120 && jx < w + 120 && jy > -80 && jy < h * 0.62) {
+        if (shouldEmit && jx > -140 && jx < w + 140 && jy > -100 && jy < h * 0.65) {
           jet.trail.push({
-            x: jx - jCa * 10 * fm.scale,
-            y: jy - jSa * 10 * fm.scale,
+            x: jx - jCa * 11 * fm.scale,
+            y: jy - jSa * 11 * fm.scale,
             age: 0,
-            maxAge: this._rand(3.0, 4.0),
-            r0: (w < 720 ? 1.5 : 2.1) + Math.random() * 0.4
+            maxAge: this._rand(4.5, 5.4),
+            r0: (w < 720 ? 1.6 : 2.3) + Math.random() * 0.35
           });
         }
 
-        // Age smoke trail segments with gentle upward thermal drift & radial diffusion
+        // Age smoke ribbon vertices gently upward with ambient atmospheric drift
         const alivePts = [];
         for (let tIdx = 0; tIdx < jet.trail.length; tIdx++) {
           const pt = jet.trail[tIdx];
           pt.age += dt;
           if (pt.age >= pt.maxAge) continue;
-          pt.y -= 2.6 * dt;
-          pt.x -= fm.dir * 2.0 * dt;
+          pt.y -= 2.2 * dt;
+          pt.x -= fm.dir * 1.6 * dt;
           alivePts.push(pt);
         }
         jet.trail = alivePts;
         if (alivePts.length > 0) anyAlive = true;
 
-        // 1. Render Billowing Smoke Ribbon & Luminous Inner Core
-        if (jet.trail.length > 1) {
-          const smokeBaseRgb = pal.smokeRgb;
-          for (let tIdx = 0; tIdx < jet.trail.length; tIdx++) {
-            const pt = jet.trail[tIdx];
-            const frac = pt.age / pt.maxAge;
-            const env = Math.min(1, frac * 6) * Math.pow(1 - frac, 1.45);
-            const rOuter = pt.r0 + frac * 7.5 * fm.scale;
-            const aOuter = (pal.isNightLights ? 0.25 : 0.36) * env;
-            if (aOuter <= 0.004) continue;
-            ctx.fillStyle = `rgba(${smokeBaseRgb}, ${aOuter.toFixed(3)})`;
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, rOuter, 0, Math.PI * 2);
-            ctx.fill();
+        renderList.push({ jet, jx, jy, oz, jetAngle, rollAngle });
+      }
 
-            if (frac < 0.45) {
-              const aCore = (1 - frac / 0.45) * (pal.isNightLights ? 0.36 : 0.50);
-              ctx.fillStyle = `rgba(${jet.tint === "accent" && pal.isNightLights ? pal.plumeMid : "255, 255, 255"}, ${aCore.toFixed(3)})`;
-              ctx.beginPath();
-              ctx.arc(pt.x, pt.y, Math.max(0.8, pt.r0 * (1 - frac * 0.4)), 0, Math.PI * 2);
-              ctx.fill();
-            }
+      // 1. Render Silky Continuous Smoke Ribbons per aircraft (single continuous path per opacity tier so zero dotted overlap!)
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (let rIdx = 0; rIdx < renderList.length; rIdx++) {
+        const { jet } = renderList[rIdx];
+        const pts = jet.trail;
+        if (pts.length < 2) continue;
+        const smokeRgb = jet.smokeRgb || pal.smokeRgb;
+        const bands = 5;
+        for (let bi = 0; bi < bands; bi++) {
+          const i0 = Math.floor((bi / bands) * (pts.length - 1));
+          const i1 = Math.min(pts.length - 1, Math.floor(((bi + 1) / bands) * (pts.length - 1)) + 1);
+          if (i1 <= i0) continue;
+          const midPt = pts[(i0 + i1) >> 1];
+          const frac = midPt.age / Math.max(0.1, midPt.maxAge);
+          const env = Math.min(1, frac * 6) * Math.pow(1 - frac, 1.25);
+          if (env <= 0.01) continue;
+
+          ctx.strokeStyle = `rgba(${smokeRgb}, ${(env * (pal.isNightLights ? 0.30 : 0.36)).toFixed(3)})`;
+          ctx.lineWidth = (midPt.r0 * 1.8 + frac * 11.5) * fm.scale;
+          ctx.beginPath();
+          ctx.moveTo(pts[i0].x, pts[i0].y);
+          for (let k = i0 + 1; k <= i1; k++) ctx.lineTo(pts[k].x, pts[k].y);
+          ctx.stroke();
+
+          if (frac < 0.55) {
+            const aCore = (1 - frac / 0.55) * (pal.isNightLights ? 0.56 : 0.72);
+            ctx.strokeStyle = `rgba(${smokeRgb}, ${aCore.toFixed(3)})`;
+            ctx.lineWidth = Math.max(1.4, midPt.r0 * 1.25 * fm.scale * (1 - frac * 0.45));
+            ctx.beginPath();
+            ctx.moveTo(pts[i0].x, pts[i0].y);
+            for (let k = i0 + 1; k <= i1; k++) ctx.lineTo(pts[k].x, pts[k].y);
+            ctx.stroke();
           }
         }
+      }
+      ctx.restore();
 
-        // 2. Render Supersonic Interceptor Jet if inside sky corridor
-        if (jx > -80 && jx < w + 80 && jy > -60 && jy < h) {
+      // 2. Depth-sort jets by oz (for true 3D barrel roll occlusion) and draw
+      renderList.sort((a, b) => a.oz - b.oz);
+      for (let rIdx = 0; rIdx < renderList.length; rIdx++) {
+        const item = renderList[rIdx];
+        if (item.jx > -100 && item.jx < w + 100 && item.jy > -80 && item.jy < h) {
+          const depthMul = this._clamp(1 + item.oz * 0.0042, 0.80, 1.20);
           ctx.save();
-          ctx.translate(jx, jy);
-          ctx.rotate(jetAngle);
+          ctx.translate(item.jx, item.jy);
+          ctx.rotate(item.jetAngle);
           if (fm.dir < 0) ctx.scale(1, -1);
-          this._drawFighterJet(ctx, pal, fm.scale, step, rollAngle);
+          this._drawFighterJet(ctx, pal, fm.scale * depthMul, step, item.rollAngle, fm.livery);
           ctx.restore();
         }
       }

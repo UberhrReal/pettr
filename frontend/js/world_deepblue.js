@@ -12,6 +12,7 @@
  */
 const WorldDeepBlue = {
   cacheCanvas: null,
+  stationCacheCanvas: null,
   cacheKey: "",
   farLife: [],
   nearLife: [],
@@ -661,11 +662,36 @@ const WorldDeepBlue = {
       scale: isNarrow ? 0.45 : Math.min(0.90, Math.max(0.72, w / 1460))
     };
 
-    // Vibrantly populated Manta Ray Cleaning Station Coral Pinnacle on clear West-Midground sandy terrace
+    // Habitat-Surrounding Manta Ray Cleaning Station Reefs (encompassing seabed BEHIND and IN FRONT OF station)
+    const csScale = isNarrow ? 0.62 : Math.min(1.04, Math.max(0.78, w / 1380));
+    const backReefs = isNarrow
+      ? [
+          { x: w * 0.25, y: this._seabedYAtX(w * 0.25, w, h, { seabedY }) - 14, scale: csScale * 0.92 },
+          { x: w * 0.75, y: this._seabedYAtX(w * 0.75, w, h, { seabedY }) - 14, scale: csScale * 0.92 }
+        ]
+      : [
+          { x: w * 0.220, y: this._seabedYAtX(w * 0.220, w, h, { seabedY }) - 16, scale: csScale * 0.90 },
+          { x: w * 0.365, y: this._seabedYAtX(w * 0.365, w, h, { seabedY }) - 20, scale: csScale * 0.96 },
+          { x: w * 0.635, y: this._seabedYAtX(w * 0.635, w, h, { seabedY }) - 20, scale: csScale * 0.96 },
+          { x: w * 0.725, y: this._seabedYAtX(w * 0.725, w, h, { seabedY }) - 16, scale: csScale * 0.88 }
+        ];
+    const frontReefs = isNarrow
+      ? [
+          { x: w * 0.29, y: Math.min(h - 48, seabedY + 66), scale: csScale * 0.96 },
+          { x: w * 0.69, y: Math.min(h - 48, seabedY + 66), scale: csScale * 0.94 }
+        ]
+      : [
+          { x: w * 0.275, y: Math.min(h - 52, seabedY + 48), scale: csScale * 0.94 },
+          { x: w * 0.425, y: Math.min(h - 46, seabedY + 56), scale: csScale * 1.04 },
+          { x: w * 0.565, y: Math.min(h - 48, seabedY + 52), scale: csScale * 0.96 },
+          { x: w * 0.680, y: Math.min(h - 52, seabedY + 44), scale: csScale * 0.86 }
+        ];
     const cleaningStation = {
-      x: w * (isNarrow ? 0.30 : 0.285),
-      y: Math.min(h - 48, seabedY + (isNarrow ? 66 : 52)),
-      scale: isNarrow ? 0.62 : Math.min(1.04, Math.max(0.78, w / 1380))
+      x: frontReefs[0].x,
+      y: frontReefs[0].y,
+      scale: csScale,
+      backReefs,
+      frontReefs
     };
 
     return {
@@ -681,16 +707,25 @@ const WorldDeepBlue = {
 
   ensureStaticCache(w, h, mode) {
     const key = `${Math.round(w)}x${Math.round(h)}:${mode}`;
-    if (this.cacheCanvas && this.cacheKey === key) return;
+    if (this.cacheCanvas && this.stationCacheCanvas && this.cacheKey === key) return;
 
+    const cw = Math.max(1, Math.round(w));
+    const ch = Math.max(1, Math.round(h));
     if (!this.cacheCanvas) {
       this.cacheCanvas = document.createElement("canvas");
     }
-    this.cacheCanvas.width = Math.max(1, Math.round(w));
-    this.cacheCanvas.height = Math.max(1, Math.round(h));
+    if (!this.stationCacheCanvas) {
+      this.stationCacheCanvas = document.createElement("canvas");
+    }
+    this.cacheCanvas.width = cw;
+    this.cacheCanvas.height = ch;
+    this.stationCacheCanvas.width = cw;
+    this.stationCacheCanvas.height = ch;
     this.cacheKey = key;
 
     const ctx = this.cacheCanvas.getContext("2d");
+    const sCtx = this.stationCacheCanvas.getContext("2d");
+    sCtx.clearRect(0, 0, cw, ch);
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
 
@@ -797,66 +832,69 @@ const WorldDeepBlue = {
     }
     ctx.restore();
 
-    // 5. Industrial Pre-Fab Modular Seabed Research Station + Hydropower Farm + Clear Tubes + Greenhouse
-    this._drawResearchStation(ctx, L, pal);
+    // 4b. Background Cleaning Station Coral Bommies BEHIND Habitat Wings & Walkways (drawn on background cache)
+    this._drawCleaningStationBackReefs(ctx, L, pal);
+
+    // 5. Industrial Pre-Fab Modular Seabed Research Station + Hydropower Farm + Clear Tubes + Greenhouse (on stationCacheCanvas for true behind/front occlusion!)
+    this._drawResearchStation(sCtx, L, pal);
 
     // 5b. Unobstructed Grounded Sunken Shipwreck Partially Covered in Continuous Seabed Sand (clear in front of wing terrain skirts)
-    this._drawBackgroundShipwreck(ctx, L, pal);
+    this._drawBackgroundShipwreck(sCtx, L, pal);
 
-    // 6. Lush Ground-Anchored Benthic Coral Reefs, Manta Cleaning Station Pinnacle, Sponges & Chimneys
-    this._drawSeabedReefs(ctx, w, h, L, pal);
-    this._drawCleaningStationReef(ctx, L, pal);
-    const floorSpots = L.isNarrow ? [] : [0.18, 0.67, 0.88];
+    // 6. Lush Ground-Anchored Benthic Coral Reefs, Habitat-Surrounding Foreground Cleaning Pinnacles, Sponges & Chimneys
+    this._drawSeabedReefs(sCtx, w, h, L, pal);
+    this._drawCleaningStationReef(sCtx, L, pal);
+    const floorSpots = L.isNarrow ? [] : [0.18, 0.88];
     floorSpots.forEach((xf, idx) => {
       const fx = w * xf;
       const fy = Math.min(h - 14, this._seabedYAtX(fx, w, h, L) + 18 + (idx % 3) * 18);
-      this._drawBenthicSpongeCluster(ctx, fx, fy, (10 + (idx % 3) * 3) * L.s, pal);
+      this._drawBenthicSpongeCluster(sCtx, fx, fy, (10 + (idx % 3) * 3) * L.s, pal);
     });
 
     // Hydrothermal basalt vent mounds on canyon outskirts (desktop, clear of shipwreck stern)
     if (!L.isNarrow) {
       [w * 0.19, w * 0.88].forEach((vx) => {
         const vy = this._seabedYAtX(vx, w, h, L) + 12;
-        ctx.save();
-        ctx.fillStyle = pal.reefNear;
-        ctx.beginPath();
-        ctx.moveTo(vx - 14 * L.s, vy + 8 * L.s);
-        ctx.lineTo(vx - 5 * L.s, vy - 18 * L.s);
-        ctx.lineTo(vx + 5 * L.s, vy - 18 * L.s);
-        ctx.lineTo(vx + 16 * L.s, vy + 8 * L.s);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        sCtx.save();
+        sCtx.fillStyle = pal.reefNear;
+        sCtx.beginPath();
+        sCtx.moveTo(vx - 14 * L.s, vy + 8 * L.s);
+        sCtx.lineTo(vx - 5 * L.s, vy - 18 * L.s);
+        sCtx.lineTo(vx + 5 * L.s, vy - 18 * L.s);
+        sCtx.lineTo(vx + 16 * L.s, vy + 8 * L.s);
+        sCtx.closePath();
+        sCtx.fill();
+        sCtx.restore();
       });
     }
 
     // 7. Framing Foreground Coral Cliffs & Strictly Ground-Anchored Reef Corals
-    ctx.save();
-    ctx.fillStyle = pal.reefNear;
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    ctx.lineTo(0, h * 0.67);
-    ctx.quadraticCurveTo(w * 0.06, h * 0.72, w * 0.14, h * 0.82);
-    ctx.quadraticCurveTo(w * 0.22, h * 0.90, w * 0.30, h);
-    ctx.closePath();
-    ctx.fill();
+    sCtx.save();
+    sCtx.fillStyle = pal.reefNear;
+    sCtx.beginPath();
+    sCtx.moveTo(0, h);
+    sCtx.lineTo(0, h * 0.67);
+    sCtx.quadraticCurveTo(w * 0.06, h * 0.72, w * 0.14, h * 0.82);
+    sCtx.quadraticCurveTo(w * 0.22, h * 0.90, w * 0.30, h);
+    sCtx.closePath();
+    sCtx.fill();
 
-    ctx.beginPath();
-    ctx.moveTo(w, h);
-    ctx.lineTo(w, h * 0.66);
-    ctx.quadraticCurveTo(w * 0.93, h * 0.73, w * 0.86, h * 0.84);
-    ctx.quadraticCurveTo(w * 0.78, h * 0.92, w * 0.70, h);
-    ctx.closePath();
-    ctx.fill();
+    sCtx.beginPath();
+    sCtx.moveTo(w, h);
+    sCtx.lineTo(w, h * 0.66);
+    sCtx.quadraticCurveTo(w * 0.93, h * 0.73, w * 0.86, h * 0.84);
+    sCtx.quadraticCurveTo(w * 0.78, h * 0.92, w * 0.70, h);
+    sCtx.closePath();
+    sCtx.fill();
 
     // Plant every foreground coral root 7px deeper than _cliffYAtX so ZERO floating!
     const fgCorals = L.isNarrow ? [0.06, 0.18, 0.82, 0.94] : [0.05, 0.11, 0.17, 0.23, 0.77, 0.83, 0.90, 0.95];
     fgCorals.forEach((cf, idx) => {
       const cx = w * cf;
       const cy = (this._cliffYAtX(cx, w, h) || h * 0.85) + 7;
-      this._drawCoralCluster(ctx, cx, cy, 17 + (idx % 3) * 4, pal.reefNear);
+      this._drawCoralCluster(sCtx, cx, cy, 17 + (idx % 3) * 4, pal.reefNear);
     });
-    ctx.restore();
+    sCtx.restore();
   },
 
   // Rich Ground-Anchored Seabed Reef Terraces, Staghorn Branches, Plate Corals & Sea Fans
@@ -864,7 +902,7 @@ const WorldDeepBlue = {
     const s = L.s;
     const spots = L.isNarrow
       ? [0.08, 0.16, 0.84, 0.92]
-      : [0.07, 0.14, 0.21, 0.36, 0.66, 0.87, 0.95];
+      : [0.07, 0.14, 0.20, 0.87, 0.95];
 
     ctx.save();
     spots.forEach((xf, idx) => {
@@ -914,26 +952,24 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Ground-Anchored Manta Ray Cleaning Station Coral Bommie Pinnacle (tiered table corals, brain domes, crevices & polyps)
-  _drawCleaningStationReef(ctx, L, pal) {
-    const cs = L.cleaningStation;
-    if (!cs) return;
-    const sc = cs.scale;
+  // Shared Ground-Anchored Coral Bommie Pinnacle Renderer (supports front foreground & water-hazed background reefs)
+  _drawSingleCleaningPinnacle(ctx, rx, ry, sc, pal, isBg = false, variantIdx = 0) {
     ctx.save();
-    ctx.translate(cs.x, cs.y);
+    ctx.translate(rx, ry);
+    if (variantIdx % 2 === 1) ctx.scale(-1, 1);
 
     // 1. Continuous Seabed Sand Apron & Basalt Carbonate Base (firmly grounded, zero floating!)
-    const moundG = ctx.createRadialGradient(0, 6 * sc, 8 * sc, 0, 10 * sc, 64 * sc);
-    moundG.addColorStop(0, pal.reefMid);
+    const moundG = ctx.createRadialGradient(0, 6 * sc, 8 * sc, 0, 10 * sc, 62 * sc);
+    moundG.addColorStop(0, isBg ? pal.reefFar : pal.reefMid);
     moundG.addColorStop(0.65, pal.seabedDark);
     moundG.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = moundG;
     ctx.beginPath();
-    ctx.ellipse(0, 10 * sc, 64 * sc, 16 * sc, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 10 * sc, 62 * sc, 15 * sc, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 2. Sculpted Multi-Tiered Coral Bommie Pinnacle Silhouette with dark shelter crevices for cleaner wrasse
-    ctx.fillStyle = pal.reefNear;
+    ctx.fillStyle = isBg ? pal.reefMid : pal.reefNear;
     ctx.beginPath();
     ctx.moveTo(-44 * sc, 10 * sc);
     ctx.quadraticCurveTo(-38 * sc, -10 * sc, -24 * sc, -16 * sc);
@@ -943,7 +979,7 @@ const WorldDeepBlue = {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = pal.reefMid;
+    ctx.fillStyle = isBg ? pal.reefFar : pal.reefMid;
     ctx.beginPath();
     ctx.ellipse(-18 * sc, 2 * sc, 16 * sc, 8 * sc, 0.1, 0, Math.PI * 2);
     ctx.ellipse(16 * sc, 3 * sc, 14 * sc, 7 * sc, -0.1, 0, Math.PI * 2);
@@ -957,9 +993,10 @@ const WorldDeepBlue = {
     ctx.fill();
 
     // 3. Layered Acropora Table Coral Ledges + Brain Corals + Vibrant Staghorn Branches
-    const tableTeal = pal.isDark ? "rgba(45, 212, 191, 0.42)" : "rgba(20, 184, 166, 0.56)";
-    const brainCoral = pal.isDark ? "rgba(244, 114, 182, 0.34)" : "rgba(244, 114, 182, 0.48)";
-    const amberPolyp = pal.isDark ? "rgba(56, 189, 248, 0.50)" : "rgba(245, 158, 11, 0.54)";
+    const hFade = isBg ? 0.65 : 1.0;
+    const tableTeal = pal.isDark ? `rgba(45, 212, 191, ${(0.42 * hFade).toFixed(2)})` : `rgba(20, 184, 166, ${(0.56 * hFade).toFixed(2)})`;
+    const brainCoral = pal.isDark ? `rgba(244, 114, 182, ${(0.34 * hFade).toFixed(2)})` : `rgba(244, 114, 182, ${(0.48 * hFade).toFixed(2)})`;
+    const amberPolyp = pal.isDark ? `rgba(56, 189, 248, ${(0.50 * hFade).toFixed(2)})` : `rgba(245, 158, 11, ${(0.54 * hFade).toFixed(2)})`;
 
     ctx.fillStyle = tableTeal;
     ctx.beginPath();
@@ -968,14 +1005,12 @@ const WorldDeepBlue = {
     ctx.ellipse(0, -31 * sc, 15 * sc, 3.8 * sc, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Sculpted grooved brain-coral dome on shoulder
     ctx.fillStyle = brainCoral;
     ctx.beginPath();
     ctx.arc(-11 * sc, -19 * sc, 7.5 * sc, Math.PI, 0);
     ctx.fill();
 
-    // Branching antler corals rising up the crown
-    ctx.strokeStyle = pal.isDark ? "rgba(103, 232, 249, 0.46)" : "rgba(251, 146, 180, 0.62)";
+    ctx.strokeStyle = pal.isDark ? `rgba(103, 232, 249, ${(0.46 * hFade).toFixed(2)})` : `rgba(251, 146, 180, ${(0.62 * hFade).toFixed(2)})`;
     ctx.lineWidth = Math.max(1.2, 2.2 * sc);
     ctx.lineCap = "round";
     [-12, -2, 8, 22].forEach((bx, idx) => {
@@ -989,7 +1024,6 @@ const WorldDeepBlue = {
       ctx.stroke();
     });
 
-    // Polyp glow dots nestled across coral table edges
     ctx.fillStyle = amberPolyp;
     [-26, -15, -6, 3, 12, 24].forEach((px, idx) => {
       ctx.beginPath();
@@ -997,7 +1031,31 @@ const WorldDeepBlue = {
       ctx.fill();
     });
 
+    if (isBg) {
+      ctx.fillStyle = `rgba(${pal.waterHazeRgb}, 0.24)`;
+      ctx.beginPath();
+      ctx.ellipse(0, -10 * sc, 54 * sc, 32 * sc, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
+  },
+
+  _drawCleaningStationBackReefs(ctx, L, pal) {
+    const cs = L.cleaningStation;
+    if (!cs || !cs.backReefs) return;
+    cs.backReefs.forEach((rf, idx) => {
+      this._drawSingleCleaningPinnacle(ctx, rf.x, rf.y, rf.scale, pal, true, idx);
+    });
+  },
+
+  // Habitat-Surrounding Foreground Manta Ray Cleaning Station Coral Pinnacles
+  _drawCleaningStationReef(ctx, L, pal) {
+    const cs = L.cleaningStation;
+    if (!cs) return;
+    const list = cs.frontReefs || [cs];
+    list.forEach((rf, idx) => {
+      this._drawSingleCleaningPinnacle(ctx, rf.x, rf.y, rf.scale, pal, false, idx);
+    });
   },
 
   _drawBenthicSpongeCluster(ctx, x, y, sc, pal) {
@@ -2824,52 +2882,121 @@ const WorldDeepBlue = {
       }
     }
 
-    // 14. Manta Ray Cleaning Station: Graceful Circling Mantas + Electric-Blue Cleaner Wrasse Service Crew
+    // 14. Habitat-Surrounding Manta Ray Cleaning Stations (Back + Front Mantas & Cleaner Wrasse across entire seabed)
     if (this.cleaningMantas.length === 0 && L.cleaningStation) {
       const cs = L.cleaningStation;
-      const mCount = isNarrow ? 1 : 2;
-      for (let i = 0; i < mCount; i++) {
+      const bReefs = cs.backReefs || [cs];
+      const fReefs = cs.frontReefs || [cs];
+
+      const backCount = isNarrow ? 1 : 2;
+      for (let i = 0; i < backCount; i++) {
+        const anchor = isNarrow ? bReefs[0] : (i === 0 ? bReefs[1] : bReefs[2]);
+        const cx = isNarrow ? w * 0.50 : anchor.x;
+        const cy = L.hubY + (isNarrow ? 12 : (i === 0 ? -8 : 14)) * s;
         this.cleaningMantas.push({
+          layer: "back",
+          orbitAngle: i * 2.4 + 0.4,
+          orbitSpeed: (i === 0 ? 0.28 : 0.24) * (i % 2 === 0 ? 1 : -1),
+          centerX: cx,
+          centerY: cy,
+          orbitRx: (isNarrow ? 92 : 168) * cs.scale,
+          orbitRy: (isNarrow ? 14 : 20) * cs.scale,
+          span: (isNarrow ? 30 : 40) * cs.scale,
+          wingPhase: i * 1.9,
+          hoverTimer: 0,
+          hoverCooldown: 5.5 + i * 3.5,
+          state: "circling",
+          x: cx,
+          y: cy,
+          facingLeft: i % 2 === 1,
+          bank: 0,
+          isFront: false
+        });
+      }
+
+      const frontCount = isNarrow ? 1 : 2;
+      for (let i = 0; i < frontCount; i++) {
+        const cx = isNarrow ? w * 0.48 : w * (i === 0 ? 0.36 : 0.59);
+        const cy = (fReefs[i % fReefs.length] ? fReefs[i % fReefs.length].y : cs.y) - 46 * cs.scale;
+        this.cleaningMantas.push({
+          layer: "front",
           orbitAngle: i * 2.85 + 0.55,
-          orbitSpeed: (i === 0 ? 0.36 : 0.28) * (i % 2 === 0 ? 1 : -1),
-          orbitRx: (isNarrow ? 58 : (82 + i * 26)) * cs.scale,
-          orbitRy: (isNarrow ? 15 : (18 + i * 7)) * cs.scale,
-          altY: (48 + i * 24) * cs.scale,
-          span: (isNarrow ? 34 : (46 - i * 6)) * cs.scale,
-          wingPhase: i * 2.1,
+          orbitSpeed: (i === 0 ? 0.34 : 0.27) * (i % 2 === 0 ? 1 : -1),
+          centerX: cx,
+          centerY: cy,
+          orbitRx: (isNarrow ? 88 : (152 + i * 28)) * cs.scale,
+          orbitRy: (isNarrow ? 16 : (20 + i * 6)) * cs.scale,
+          span: (isNarrow ? 35 : (47 - i * 5)) * cs.scale,
+          wingPhase: i * 2.1 + 1.0,
           hoverTimer: i === 0 ? 2.4 : 0,
           hoverCooldown: 6.0 + i * 4.0,
           state: i === 0 ? "hover_clean" : "circling",
-          x: cs.x,
-          y: cs.y - (46 + i * 22) * cs.scale,
+          x: cx,
+          y: cy,
           facingLeft: i % 2 === 1,
           bank: 0,
-          isFront: i === 0
+          isFront: true
         });
       }
     }
 
     if (this.cleanerWrasse.length === 0 && L.cleaningStation) {
       const cs = L.cleaningStation;
-      const wrCount = isNarrow ? 4 : 7;
-      const zones = ["gill", "belly", "left_wing", "right_wing", "cephalic", "gill", "belly"];
-      for (let i = 0; i < wrCount; i++) {
-        const homeX = cs.x + (i - (wrCount - 1) * 0.5) * 9 * cs.scale;
-        const homeY = cs.y - (14 + (i % 3) * 6) * cs.scale;
+      const bReefs = cs.backReefs || [];
+      const fReefs = cs.frontReefs || [cs];
+      const zones = ["gill", "belly", "left_wing", "right_wing", "cephalic"];
+      const backMIndices = [];
+      const frontMIndices = [];
+      this.cleaningMantas.forEach((m, idx) => {
+        if (m.layer === "back") backMIndices.push(idx);
+        else frontMIndices.push(idx);
+      });
+
+      const backWrCount = isNarrow ? 2 : 4;
+      for (let i = 0; i < backWrCount; i++) {
+        const rf = bReefs[i % Math.max(1, bReefs.length)] || cs;
+        const homeX = rf.x + ((i % 2 === 0 ? -8 : 8) * rf.scale);
+        const homeY = rf.y - (14 + (i % 2) * 5) * rf.scale;
         this.cleanerWrasse.push({
           id: i,
+          layer: "back",
           homeX,
           homeY,
           x: homeX,
-          y: homeY - 12 * cs.scale,
-          targetMantaIdx: i % (isNarrow ? 1 : 2),
+          y: homeY - 8 * rf.scale,
+          targetPool: backMIndices,
+          targetMantaIdx: backMIndices[i % Math.max(1, backMIndices.length)] || 0,
           zone: zones[i % zones.length],
-          state: i < 4 ? "cleaning" : "reef_dance",
-          timer: 1.5 + i * 0.8,
+          state: i % 2 === 0 ? "cleaning" : "reef_dance",
+          timer: 1.4 + i * 0.7,
           wigglePhase: i * 1.4,
+          size: (3.4 + (i % 2) * 0.5) * rf.scale,
+          facingLeft: i % 2 === 1,
+          sparkleCd: 0.6 + i * 0.3
+        });
+      }
+
+      const frontWrCount = isNarrow ? 4 : 8;
+      for (let i = 0; i < frontWrCount; i++) {
+        const rf = fReefs[i % fReefs.length];
+        const homeX = rf.x + (((i % 3) - 1) * 11 * rf.scale);
+        const homeY = rf.y - (15 + (i % 3) * 5) * rf.scale;
+        this.cleanerWrasse.push({
+          id: backWrCount + i,
+          layer: "front",
+          homeX,
+          homeY,
+          x: homeX,
+          y: homeY - 12 * rf.scale,
+          targetPool: frontMIndices,
+          targetMantaIdx: frontMIndices[i % Math.max(1, frontMIndices.length)] || 0,
+          zone: zones[i % zones.length],
+          state: i < 5 ? "cleaning" : "reef_dance",
+          timer: 1.5 + i * 0.65,
+          wigglePhase: i * 1.3 + 0.5,
           size: (3.6 + (i % 3) * 0.55) * cs.scale,
           facingLeft: i % 2 === 1,
-          sparkleCd: 0.4 + i * 0.3
+          sparkleCd: 0.4 + i * 0.28
         });
       }
     }
@@ -3014,23 +3141,27 @@ const WorldDeepBlue = {
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
 
-    // 1. Blit offscreen cached water, grounded pre-fab complex, hydropower farm & benthic terrain
+    // 1. Blit offscreen cached water ocean column, sandy valley floor & background cleaning reefs
     ctx.drawImage(this.cacheCanvas, 0, 0, w, h);
 
-    // 2. Animated Ocean Surface Shimmer, Slanted Sunbeams & Dynamic Seabed Caustics!
+    // 2. Animated Ocean Surface Shimmer & Slanted Sunbeams
     this._drawSurfaceShimmer(ctx, w, pal, step);
     if (pal.rayAlpha > 0.05) {
       this._drawGodRays(ctx, w, h, pal, step, mode);
     }
-    this._drawSeabedCaustics(ctx, w, h, L, pal, step, mode);
 
-    // 3. Distant Abyssal Leviathan, Far-Depth Megafauna, Undulating Fish Schools & Background Transit Submarines
+    // 3. Abyssal Solid Leviathans, Far-Depth Megafauna, Fish Schools, Transit Subs & Rear Cleaning Station Mantas/Wrasse BEHIND Station
     this._updateAndDrawLeviathan(ctx, w, h, pal, dt, step);
     this._updateAndDrawWhales(ctx, w, h, pal, dt);
     this._updateAndDrawSharks(ctx, w, h, pal, dt);
     this._updateAndDrawFishSchools(ctx, w, h, pal, dt);
     this._updateAndDrawFarLife(ctx, w, h, pal, dt);
     this._updateAndDrawExtraSubs(ctx, w, h, L, pal, dt, step);
+    this._updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step, "back");
+
+    // 3b. Blit Research Complex, Shipwreck, Surrounding Foreground Cleaning Reefs & Cliffs IN FRONT of Rear Mantas/Depth Life!
+    ctx.drawImage(this.stationCacheCanvas, 0, 0, w, h);
+    this._drawSeabedCaustics(ctx, w, h, L, pal, step, mode);
 
     // 4. Live Rotating Hydropower Turbines, Spinning Sonar Array, Beacons, Strobes & Supply Elevator
     this._updateAndDrawTurbines(ctx, L, pal, step);
@@ -3050,8 +3181,8 @@ const WorldDeepBlue = {
     this._updateAndDrawSubmersible(ctx, w, h, L, pal, dt, step);
     this._updateAndDrawCargoSub(ctx, w, h, L, pal, dt, step);
 
-    // 6a. Manta Ray Cleaning Station (circling mantas & electric-blue cleaner wrasse servicing around west coral pinnacle)
-    this._updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step);
+    // 6a. Foreground Manta Ray Cleaning Station Reef Whips, Circling Mantas & Electric-Blue Cleaner Wrasse Across Seabed
+    this._updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step, "front");
 
     // 6b. Foreground Playful Marine Life IN FRONT OF Habitat & Submarines (Dolphins, Sea Turtles & Reef Sharks)
     this._updateAndDrawDolphins(ctx, w, h, pal, dt, step);
@@ -5644,7 +5775,7 @@ const WorldDeepBlue = {
     }
   },
 
-  // Task-Complete-Only Colossal Serpentine Sea Leviathan with 4 Special Stunt Animations
+  // Task-Complete-Only Colossal Serpentine Sea Leviathan with 4 Special Stunt Animations (100% Solid Opaque Depth Styling)
   _drawLeviathanBody(ctx, cfg, pal, step) {
     const bodyLen = cfg.bodyLen;
     const segs = 26;
@@ -5652,10 +5783,12 @@ const WorldDeepBlue = {
     const jawOpen = cfg.jawOpen || 0;
     const baseRoll = cfg.rollAngle || 0;
     const rollWave = Boolean(cfg.rollWave);
-    const alpha = (pal.isDark ? 0.48 : 0.48) * (cfg.alphaMult == null ? 1 : cfg.alphaMult);
+    const ventralCol = cfg.isPartner ? pal.subHullMid : pal.seabedLight;
+    const dorsalCol = cfg.isPartner ? pal.reefFar : pal.reefMid;
+    const finCol = cfg.isPartner ? pal.reefMid : pal.reefNear;
 
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = 1;
     if (cfg.dir < 0) {
       ctx.translate(cfg.x, cfg.y);
       ctx.scale(-1, 1);
@@ -5681,80 +5814,8 @@ const WorldDeepBlue = {
       botPts.push({ x: px, y: py + radius * cr });
     }
 
-    // Ventral pelagic body silhouette (brighter light counter-shading)
-    ctx.fillStyle = cfg.isPartner ? pal.seabedLight : pal.reefFar;
-    ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 24, midPts[0].y - 6 * (segCos[0] >= 0 ? 1 : -1));
-    topPts.forEach(p => ctx.lineTo(p.x, p.y));
-    for (let i = botPts.length - 1; i >= 0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Sculpted darker armored dorsal carapace
-    ctx.fillStyle = pal.reefMid;
-    ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5 * (segCos[0] >= 0 ? 1 : -1));
-    topPts.forEach(p => ctx.lineTo(p.x, p.y));
-    for (let i = midPts.length - 1; i >= 0; i--) ctx.lineTo(midPts[i].x, midPts[i].y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Glowing maw/throat cavity + upper/lower teeth & hinged lower mandible when roaring or lunging
-    const jawDrop = jawOpen * 26;
-    if (jawOpen > 0.04) {
-      const glowG = ctx.createRadialGradient(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 1, topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22);
-      glowG.addColorStop(0, `rgba(${pal.jellyRgb}, ${(0.88 * jawOpen).toFixed(3)})`);
-      glowG.addColorStop(1, `rgba(${pal.jellyRgb}, 0)`);
-      ctx.fillStyle = glowG;
-      ctx.beginPath();
-      ctx.arc(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.fillStyle = pal.reefMid;
-    ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 20, midPts[0].y + 4 + jawDrop);
-    ctx.lineTo(botPts[1].x + 4, botPts[1].y + 5 + jawDrop * 0.72);
-    ctx.lineTo(botPts[2].x, botPts[2].y);
-    ctx.lineTo(midPts[1].x, midPts[1].y);
-    ctx.closePath();
-    ctx.fill();
-
-    if (jawOpen > 0.12) {
-      ctx.fillStyle = "rgba(226, 232, 240, 0.78)";
-      for (let tIdx = 0; tIdx < 4; tIdx++) {
-        const tx = topPts[0].x + 16 - tIdx * 5;
-        ctx.beginPath();
-        ctx.moveTo(tx - 1.5, midPts[0].y - 1);
-        ctx.lineTo(tx, midPts[0].y + 5.5);
-        ctx.lineTo(tx + 1.5, midPts[0].y - 1);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(tx - 1.4, midPts[0].y + 4 + jawDrop * 0.9);
-        ctx.lineTo(tx, midPts[0].y - 1.5 + jawDrop * 0.9);
-        ctx.lineTo(tx + 1.4, midPts[0].y + 4 + jawDrop * 0.9);
-        ctx.fill();
-      }
-    }
-
-    // Giant Sweeping Manta Pectoral Wing Fin + Secondary Pelvic Fin (flip cleanly across roll angle)
-    const finFlip = segCos[5];
-    ctx.fillStyle = pal.reefMid;
-    ctx.beginPath();
-    ctx.moveTo(midPts[3].x, midPts[3].y);
-    ctx.quadraticCurveTo(midPts[6].x - 24, botPts[5].y + 62 * finFlip, midPts[9].x - 36, botPts[6].y + 28 * finFlip);
-    ctx.lineTo(midPts[7].x, midPts[5].y);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(midPts[13].x, midPts[13].y);
-    ctx.quadraticCurveTo(midPts[15].x - 10, botPts[14].y + 32 * segCos[14], midPts[17].x - 14, botPts[15].y + 14 * segCos[15]);
-    ctx.lineTo(midPts[15].x, midPts[14].y);
-    ctx.closePath();
-    ctx.fill();
-
     // Crisp Serrated Armored Dorsal Ridge Plates + Tall Forked Lunate Tail Fluke
+    ctx.fillStyle = dorsalCol;
     for (let i = 2; i < segs - 2; i++) {
       const p = topPts[i];
       const next = topPts[i + 1];
@@ -5776,20 +5837,103 @@ const WorldDeepBlue = {
     ctx.closePath();
     ctx.fill();
 
+    // Solid Opaque Ventral Pelagic Body Silhouette
+    ctx.fillStyle = ventralCol;
+    ctx.beginPath();
+    ctx.moveTo(topPts[0].x + 24, midPts[0].y - 6 * (segCos[0] >= 0 ? 1 : -1));
+    topPts.forEach(p => ctx.lineTo(p.x, p.y));
+    for (let i = botPts.length - 1; i >= 0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Solid Opaque Armored Dorsal Carapace + crisp separation contour rim
+    ctx.fillStyle = dorsalCol;
+    ctx.beginPath();
+    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5 * (segCos[0] >= 0 ? 1 : -1));
+    topPts.forEach(p => ctx.lineTo(p.x, p.y));
+    for (let i = midPts.length - 1; i >= 0; i--) ctx.lineTo(midPts[i].x, midPts[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = pal.waterBounce;
+    ctx.lineWidth = 1.25;
+    ctx.beginPath();
+    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5 * (segCos[0] >= 0 ? 1 : -1));
+    topPts.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // Glowing maw/throat cavity + upper/lower teeth & hinged lower mandible when roaring or lunging
+    const jawDrop = jawOpen * 26;
+    if (jawOpen > 0.04) {
+      const glowG = ctx.createRadialGradient(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 1, topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22);
+      glowG.addColorStop(0, `rgba(${pal.jellyRgb}, ${(0.88 * jawOpen).toFixed(3)})`);
+      glowG.addColorStop(1, `rgba(${pal.jellyRgb}, 0)`);
+      ctx.fillStyle = glowG;
+      ctx.beginPath();
+      ctx.arc(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = dorsalCol;
+    ctx.beginPath();
+    ctx.moveTo(topPts[0].x + 20, midPts[0].y + 4 + jawDrop);
+    ctx.lineTo(botPts[1].x + 4, botPts[1].y + 5 + jawDrop * 0.72);
+    ctx.lineTo(botPts[2].x, botPts[2].y);
+    ctx.lineTo(midPts[1].x, midPts[1].y);
+    ctx.closePath();
+    ctx.fill();
+
+    if (jawOpen > 0.12) {
+      ctx.fillStyle = "#E2E8F0";
+      for (let tIdx = 0; tIdx < 4; tIdx++) {
+        const tx = topPts[0].x + 16 - tIdx * 5;
+        ctx.beginPath();
+        ctx.moveTo(tx - 1.5, midPts[0].y - 1);
+        ctx.lineTo(tx, midPts[0].y + 5.5);
+        ctx.lineTo(tx + 1.5, midPts[0].y - 1);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(tx - 1.4, midPts[0].y + 4 + jawDrop * 0.9);
+        ctx.lineTo(tx, midPts[0].y - 1.5 + jawDrop * 0.9);
+        ctx.lineTo(tx + 1.4, midPts[0].y + 4 + jawDrop * 0.9);
+        ctx.fill();
+      }
+    }
+
+    // Giant Sweeping Solid Pectoral Wing Fin + Secondary Pelvic Fin (crisp rim separating fins cleanly from solid flank)
+    const finFlip = segCos[5];
+    ctx.fillStyle = finCol;
+    ctx.beginPath();
+    ctx.moveTo(midPts[3].x, midPts[3].y);
+    ctx.quadraticCurveTo(midPts[6].x - 24, botPts[5].y + 62 * finFlip, midPts[9].x - 36, botPts[6].y + 28 * finFlip);
+    ctx.lineTo(midPts[7].x, midPts[5].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = pal.waterBounce;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(midPts[13].x, midPts[13].y);
+    ctx.quadraticCurveTo(midPts[15].x - 10, botPts[14].y + 32 * segCos[14], midPts[17].x - 14, botPts[15].y + 14 * segCos[15]);
+    ctx.lineTo(midPts[15].x, midPts[14].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
     // Multi-ocular glowing eye cluster + rippling head-to-tail bioluminescent flank nodes
     [
       { dx: 8, dy: -6, r: 2.8 },
       { dx: 1, dy: -8, r: 2.1 },
       { dx: -5, dy: -6, r: 1.6 }
     ].forEach((ey, ei) => {
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.82 - ei * 0.14).toFixed(2)})`;
+      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.92 - ei * 0.14).toFixed(2)})`;
       ctx.beginPath();
       ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy * (segCos[0] >= 0 ? 1 : -1), ey.r, 0, Math.PI * 2);
       ctx.fill();
     });
     for (let i = 2; i < segs - 1; i++) {
       const wavePulse = 0.35 + 0.65 * Math.max(0, Math.sin(step * 4.2 - i * 0.48));
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.72).toFixed(3)})`;
+      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.85).toFixed(3)})`;
       ctx.beginPath();
       ctx.arc(midPts[i].x, midPts[i].y - 3 * (1 - i / segs) * segCos[i], (1 - i / segs) * 2.4 + 0.9, 0, Math.PI * 2);
       ctx.fill();
@@ -5860,10 +6004,10 @@ const WorldDeepBlue = {
             });
           }
         } else {
-          // Draw fleeing shark ahead of the lunging Leviathan
+          // Draw solid fleeing shark ahead of the lunging Leviathan
           ctx.save();
-          ctx.globalAlpha = pal.isDark ? 0.52 : 0.62;
-          ctx.fillStyle = `rgba(${pal.farCreatureRgb}, 0.92)`;
+          ctx.globalAlpha = 0.92;
+          ctx.fillStyle = pal.reefNear;
           ctx.translate(prey.x, prey.y);
           if (prey.vx < 0) ctx.scale(-1, 1);
           const sz = prey.size;
@@ -5899,7 +6043,7 @@ const WorldDeepBlue = {
       lev.y = yMain;
       const mainFront = Math.cos(braid) >= 0;
       const mainCfg = { x: lev.x, y: yMain, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen: 0, rollAngle: Math.sin(braid) * 0.28, rollWave: false };
-      const partCfg = { x: lev.x - lev.partner.lagX, y: yPartner, dir: lev.dir, bodyLen: lev.partner.length, swimPhase: lev.partner.swimPhase, jawOpen: 0, rollAngle: -Math.sin(braid) * 0.28, rollWave: false, isPartner: true, alphaMult: 0.90 };
+      const partCfg = { x: lev.x - lev.partner.lagX, y: yPartner, dir: lev.dir, bodyLen: lev.partner.length, swimPhase: lev.partner.swimPhase, jawOpen: 0, rollAngle: -Math.sin(braid) * 0.28, rollWave: false, isPartner: true };
       if (mainFront) {
         this._drawLeviathanBody(ctx, partCfg, pal, step);
         this._drawLeviathanBody(ctx, mainCfg, pal, step);
@@ -6328,91 +6472,100 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Live Updating & 2.5D Interleaved Rendering of Manta Ray Cleaning Station + Cleaner Wrasse Crew
-  _updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step) {
+  // Live Updating & Multi-Layer (Behind-Station + Foreground) Rendering of Habitat-Surrounding Cleaning Station Mantas & Cleaner Wrasse
+  _updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step, layer = "all") {
     const cs = L.cleaningStation;
     if (!cs) return;
     const mantas = this.cleaningMantas;
     const wrasses = this.cleanerWrasse;
     const sc = cs.scale;
+    const shouldStep = layer === "back" || layer === "all";
 
-    // 1. Update circling mantas with periodic gentle hover-clean pauses directly over the coral bommie
-    for (let i = 0; i < mantas.length; i++) {
-      const m = mantas[i];
-      m.wingPhase += dt * (m.state === "hover_clean" ? 2.1 : 3.2);
-      const prevSin = Math.sin(m.orbitAngle);
+    // 1. Update circling & hovering mantas once per frame across both rear & front seabed orbits
+    if (shouldStep) {
+      for (let i = 0; i < mantas.length; i++) {
+        const m = mantas[i];
+        m.wingPhase += dt * (m.state === "hover_clean" ? 2.1 : 3.2);
+        const prevSin = Math.sin(m.orbitAngle);
 
-      if (m.state === "hover_clean") {
-        m.hoverTimer -= dt;
-        // Subtle station-keeping drift in gentle current over pinnacle crown
-        m.orbitAngle += m.orbitSpeed * 0.14 * dt;
-        if (m.hoverTimer <= 0) {
-          m.state = "circling";
-          m.hoverCooldown = this._rand(7.0, 13.0);
+        if (m.state === "hover_clean") {
+          m.hoverTimer -= dt;
+          m.orbitAngle += m.orbitSpeed * 0.14 * dt;
+          if (m.hoverTimer <= 0) {
+            m.state = "circling";
+            m.hoverCooldown = this._rand(7.0, 13.0);
+          }
+        } else {
+          m.orbitAngle += m.orbitSpeed * dt;
+          m.hoverCooldown -= dt;
+          if (m.hoverCooldown <= 0 && prevSin > 0.45 && Math.abs(Math.cos(m.orbitAngle)) < 0.25) {
+            m.state = "hover_clean";
+            m.hoverTimer = this._rand(4.2, 6.8);
+          }
         }
-      } else {
-        m.orbitAngle += m.orbitSpeed * dt;
-        m.hoverCooldown -= dt;
-        // Enter peaceful hover when sweeping gracefully across front of reef crown
-        if (m.hoverCooldown <= 0 && prevSin > 0.45 && Math.abs(Math.cos(m.orbitAngle)) < 0.25) {
-          m.state = "hover_clean";
-          m.hoverTimer = this._rand(4.2, 6.8);
-        }
-      }
 
-      const cosA = Math.cos(m.orbitAngle);
-      const sinA = Math.sin(m.orbitAngle);
-      const vx = -Math.sin(m.orbitAngle) * m.orbitSpeed;
-      m.x = cs.x + cosA * m.orbitRx;
-      m.y = cs.y - m.altY + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 2.8 * sc;
-      m.facingLeft = vx < 0;
-      m.bank = cosA * (m.orbitSpeed > 0 ? -0.09 : 0.09) + Math.cos(m.wingPhase) * 0.03;
-      m.isFront = sinA >= 0;
-    }
-
-    // 2. Back-pass mantas gliding behind coral pinnacle crown
-    for (let i = 0; i < mantas.length; i++) {
-      if (!mantas[i].isFront) {
-        this._drawCleaningManta(ctx, mantas[i], pal, step, 0.85, pal.isDark ? 0.78 : 0.74);
+        const cosA = Math.cos(m.orbitAngle);
+        const sinA = Math.sin(m.orbitAngle);
+        const vx = -Math.sin(m.orbitAngle) * m.orbitSpeed;
+        const cxBase = m.centerX != null ? m.centerX : cs.x;
+        const cyBase = m.centerY != null ? m.centerY : (cs.y - 46 * sc);
+        m.x = cxBase + cosA * m.orbitRx;
+        m.y = cyBase + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 2.8 * sc;
+        m.facingLeft = vx < 0;
+        m.bank = cosA * (m.orbitSpeed > 0 ? -0.09 : 0.09) + Math.cos(m.wingPhase) * 0.03;
+        m.isFront = m.layer === "back" ? false : (sinA >= 0);
       }
     }
 
-    // 3. Subtle swaying live coral sea-whips & gentle polyp shimmer crowning the bommie (creates 2.5D depth occlusion!)
-    ctx.save();
-    ctx.translate(cs.x, cs.y);
-    ctx.strokeStyle = pal.isDark ? "rgba(45, 212, 191, 0.56)" : "rgba(251, 146, 180, 0.72)";
-    ctx.lineWidth = Math.max(1.2, 2.0 * sc);
-    ctx.lineCap = "round";
-    [-16, -5, 6, 17].forEach((wx, idx) => {
-      const sway = Math.sin(step * 1.9 + idx * 1.3) * 4.5 * sc;
-      const wh = (14 + (idx % 2) * 5) * sc;
-      const baseY = -22 * sc;
-      ctx.beginPath();
-      ctx.moveTo(wx * sc, baseY + 4 * sc);
-      ctx.quadraticCurveTo((wx + 1) * sc + sway * 0.5, baseY - wh * 0.5, wx * sc + sway, baseY - wh);
-      ctx.stroke();
-    });
-    if (pal.isDark) {
-      const pGlow = 0.35 + 0.25 * Math.sin(step * 2.4);
-      ctx.fillStyle = `rgba(56, 224, 232, ${pGlow.toFixed(3)})`;
-      [-14, 0, 14].forEach((px, idx) => {
-        ctx.beginPath();
-        ctx.arc(px * sc, (-28 - (idx % 2) * 4) * sc, 1.5 * sc, 0, Math.PI * 2);
-        ctx.fill();
+    const drawLayerMantas = (wantLayer, wantIsFront) => {
+      for (let i = 0; i < mantas.length; i++) {
+        const m = mantas[i];
+        const mLayer = m.layer || "front";
+        if (mLayer !== wantLayer) continue;
+        if (wantIsFront !== null && m.isFront !== wantIsFront) continue;
+        const dScale = wantLayer === "back" ? 0.80 : (m.isFront ? 1.04 : 0.88);
+        const mAlpha = wantLayer === "back" ? (pal.isDark ? 0.82 : 0.78) : (m.isFront ? 0.96 : (pal.isDark ? 0.82 : 0.78));
+        this._drawCleaningManta(ctx, m, pal, step, dScale, mAlpha);
+      }
+    };
+
+    const drawLayerReefWhips = (reefs, isBg) => {
+      if (!reefs) return;
+      reefs.forEach((rf, rIdx) => {
+        const rSc = rf.scale || sc;
+        ctx.save();
+        ctx.translate(rf.x, rf.y);
+        ctx.strokeStyle = pal.isDark
+          ? `rgba(45, 212, 191, ${isBg ? "0.34" : "0.56"})`
+          : `rgba(251, 146, 180, ${isBg ? "0.42" : "0.72"})`;
+        ctx.lineWidth = Math.max(1.2, 2.0 * rSc);
+        ctx.lineCap = "round";
+        [-16, -5, 6, 17].forEach((wx, idx) => {
+          const sway = Math.sin(step * 1.9 + idx * 1.3 + rIdx) * 4.5 * rSc;
+          const wh = (14 + (idx % 2) * 5) * rSc;
+          const baseY = -22 * rSc;
+          ctx.beginPath();
+          ctx.moveTo(wx * rSc, baseY + 4 * rSc);
+          ctx.quadraticCurveTo((wx + 1) * rSc + sway * 0.5, baseY - wh * 0.5, wx * rSc + sway, baseY - wh);
+          ctx.stroke();
+        });
+        if (pal.isDark) {
+          const pGlow = (0.35 + 0.25 * Math.sin(step * 2.4 + rIdx)) * (isBg ? 0.65 : 1);
+          ctx.fillStyle = `rgba(56, 224, 232, ${pGlow.toFixed(3)})`;
+          [-14, 0, 14].forEach((px, idx) => {
+            ctx.beginPath();
+            ctx.arc(px * rSc, (-28 - (idx % 2) * 4) * rSc, 1.5 * rSc, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        ctx.restore();
       });
-    }
-    ctx.restore();
+    };
 
-    // 4. Front-pass mantas sweeping right across foreground of cleaning station
-    for (let i = 0; i < mantas.length; i++) {
-      if (mantas[i].isFront) {
-        this._drawCleaningManta(ctx, mantas[i], pal, step, 1.04, 0.96);
-      }
-    }
-
-    // 5. Electric-blue Cleaner Wrasse darting up from reef crevices to inspect & clean circling mantas
+    // 2. Step all Cleaner Wrasse & Clean Sparkles once per frame
     const getZoneOffset = (wr, m) => {
-      const sp = m.span * (m.isFront ? 1.04 : 0.85);
+      const mLayer = m.layer || "front";
+      const sp = m.span * (mLayer === "back" ? 0.80 : (m.isFront ? 1.04 : 0.88));
       const dir = m.facingLeft ? -1 : 1;
       const jitX = Math.cos(wr.id * 2.1) * sp * 0.09;
       const jitY = Math.sin(wr.id * 2.1) * sp * 0.08;
@@ -6423,87 +6576,122 @@ const WorldDeepBlue = {
       return { x: -sp * 0.18 * dir + jitX, y: sp * 0.12 + jitY };
     };
 
-    for (let i = 0; i < wrasses.length; i++) {
-      const wr = wrasses[i];
-      wr.wigglePhase += dt * (wr.state === "cleaning" ? 4.4 : 3.2);
-      wr.timer -= dt;
-      const tgtManta = mantas[wr.targetMantaIdx % Math.max(1, mantas.length)];
+    if (shouldStep) {
+      for (let i = 0; i < wrasses.length; i++) {
+        const wr = wrasses[i];
+        wr.wigglePhase += dt * (wr.state === "cleaning" ? 4.4 : 3.2);
+        wr.timer -= dt;
+        const tgtManta = mantas[wr.targetMantaIdx % Math.max(1, mantas.length)];
 
-      let aimX = wr.homeX + Math.sin(step * 1.6 + wr.id) * 14 * sc;
-      let aimY = wr.homeY - 10 * sc + Math.cos(step * 1.9 + wr.id) * 6 * sc;
-      let spd = 28 * sc;
+        let aimX = wr.homeX + Math.sin(step * 1.6 + wr.id) * 14 * sc;
+        let aimY = wr.homeY - 10 * sc + Math.cos(step * 1.9 + wr.id) * 6 * sc;
+        let spd = 28 * sc;
 
-      if (wr.state === "reef_dance") {
-        if (wr.timer <= 0 && tgtManta) {
-          wr.state = "dart_to_manta";
-          wr.timer = this._rand(2.0, 3.2);
+        if (wr.state === "reef_dance") {
+          if (wr.timer <= 0 && tgtManta) {
+            wr.state = "dart_to_manta";
+            wr.timer = this._rand(2.0, 3.2);
+          }
+        } else if (wr.state === "dart_to_manta" && tgtManta) {
+          const off = getZoneOffset(wr, tgtManta);
+          aimX = tgtManta.x + off.x;
+          aimY = tgtManta.y + off.y;
+          spd = 68 * sc;
+          if (Math.hypot(aimX - wr.x, aimY - wr.y) < 12 * sc || wr.timer <= 0) {
+            wr.state = "cleaning";
+            wr.timer = this._rand(3.0, 5.2);
+          }
+        } else if (wr.state === "cleaning" && tgtManta) {
+          const off = getZoneOffset(wr, tgtManta);
+          const peck = Math.sin(step * 8.0 + wr.id * 1.9) * 3.5 * sc;
+          aimX = tgtManta.x + off.x + peck;
+          aimY = tgtManta.y + off.y + Math.cos(step * 6.5 + wr.id) * 3.0 * sc;
+          spd = 60 * sc;
+          wr.sparkleCd -= dt;
+          if (wr.sparkleCd <= 0 && this.cleanSparkles.length < 22) {
+            wr.sparkleCd = this._rand(0.55, 1.15);
+            this.cleanSparkles.push({
+              layer: wr.layer || "front",
+              x: wr.x,
+              y: wr.y,
+              r: (1.2 + Math.random() * 1.1) * sc,
+              vy: -(4.0 + Math.random() * 4.0) * sc,
+              life: 0,
+              maxLife: 1.1
+            });
+          }
+          if (wr.timer <= 0) {
+            wr.state = "return_reef";
+            wr.timer = this._rand(1.8, 3.0);
+          }
+        } else {
+          aimX = wr.homeX;
+          aimY = wr.homeY;
+          spd = 54 * sc;
+          if (Math.hypot(aimX - wr.x, aimY - wr.y) < 10 * sc || wr.timer <= 0) {
+            wr.state = "reef_dance";
+            wr.timer = this._rand(1.6, 3.6);
+            const pool = wr.targetPool && wr.targetPool.length > 0 ? wr.targetPool : null;
+            if (pool) {
+              const pos = pool.indexOf(wr.targetMantaIdx);
+              wr.targetMantaIdx = pool[(pos + 1) % pool.length];
+            } else {
+              wr.targetMantaIdx = (wr.targetMantaIdx + 1) % Math.max(1, mantas.length);
+            }
+          }
         }
-      } else if (wr.state === "dart_to_manta" && tgtManta) {
-        const off = getZoneOffset(wr, tgtManta);
-        aimX = tgtManta.x + off.x;
-        aimY = tgtManta.y + off.y;
-        spd = 62 * sc;
-        if (Math.hypot(aimX - wr.x, aimY - wr.y) < 10 * sc || wr.timer <= 0) {
-          wr.state = "cleaning";
-          wr.timer = this._rand(3.0, 5.2);
+
+        const dx = aimX - wr.x;
+        const dy = aimY - wr.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const stepDist = Math.min(dist, spd * dt);
+        wr.x += (dx / dist) * stepDist;
+        wr.y += (dy / dist) * stepDist;
+        if (Math.abs(dx) > 0.6) {
+          wr.facingLeft = dx < 0;
         }
-      } else if (wr.state === "cleaning" && tgtManta) {
-        const off = getZoneOffset(wr, tgtManta);
-        const peck = Math.sin(step * 8.0 + wr.id * 1.9) * 3.5 * sc;
-        aimX = tgtManta.x + off.x + peck;
-        aimY = tgtManta.y + off.y + Math.cos(step * 6.5 + wr.id) * 3.0 * sc;
-        spd = 54 * sc;
-        wr.sparkleCd -= dt;
-        if (wr.sparkleCd <= 0 && this.cleanSparkles.length < 18) {
-          wr.sparkleCd = this._rand(0.55, 1.15);
-          this.cleanSparkles.push({
-            x: wr.x,
-            y: wr.y,
-            r: (1.2 + Math.random() * 1.1) * sc,
-            vy: -(4.0 + Math.random() * 4.0) * sc,
-            life: 0,
-            maxLife: 1.1
-          });
-        }
-        if (wr.timer <= 0) {
-          wr.state = "return_reef";
-          wr.timer = this._rand(1.8, 3.0);
-        }
-      } else {
-        aimX = wr.homeX;
-        aimY = wr.homeY;
-        spd = 48 * sc;
-        if (Math.hypot(aimX - wr.x, aimY - wr.y) < 8 * sc || wr.timer <= 0) {
-          wr.state = "reef_dance";
-          wr.timer = this._rand(1.6, 3.6);
-          wr.targetMantaIdx = (wr.targetMantaIdx + 1) % Math.max(1, mantas.length);
-        }
+        wr.pitch = this._clamp(dy / Math.max(12, Math.abs(dx)), -0.35, 0.35);
       }
 
-      const dx = aimX - wr.x;
-      const dy = aimY - wr.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      const stepDist = Math.min(dist, spd * dt);
-      wr.x += (dx / dist) * stepDist;
-      wr.y += (dy / dist) * stepDist;
-      if (Math.abs(dx) > 0.6) {
-        wr.facingLeft = dx < 0;
+      if (this.cleanSparkles.length > 0) {
+        const aliveS = [];
+        for (let i = 0; i < this.cleanSparkles.length; i++) {
+          const sp = this.cleanSparkles[i];
+          sp.life += dt;
+          sp.y += sp.vy * dt;
+          if (sp.life < sp.maxLife) aliveS.push(sp);
+        }
+        this.cleanSparkles = aliveS;
       }
-      wr.pitch = this._clamp(dy / Math.max(12, Math.abs(dx)), -0.35, 0.35);
-
-      this._drawCleanerWrasse(ctx, wr, pal, step);
     }
 
-    // 6. Subtle rising micro-clean sparkles around serviced mantas
+    // 3. Render requested layer ("back", "front", or "all")
+    if (layer === "back" || layer === "all") {
+      drawLayerMantas("back", null);
+      drawLayerReefWhips(cs.backReefs, true);
+      for (let i = 0; i < wrasses.length; i++) {
+        if ((wrasses[i].layer || "front") === "back") {
+          this._drawCleanerWrasse(ctx, wrasses[i], pal, step);
+        }
+      }
+    }
+    if (layer === "front" || layer === "all") {
+      drawLayerMantas("front", false);
+      drawLayerReefWhips(cs.frontReefs || [cs], false);
+      drawLayerMantas("front", true);
+      for (let i = 0; i < wrasses.length; i++) {
+        if ((wrasses[i].layer || "front") === "front") {
+          this._drawCleanerWrasse(ctx, wrasses[i], pal, step);
+        }
+      }
+    }
+
     if (this.cleanSparkles.length > 0) {
-      const aliveS = [];
       ctx.save();
       for (let i = 0; i < this.cleanSparkles.length; i++) {
         const sp = this.cleanSparkles[i];
-        sp.life += dt;
-        sp.y += sp.vy * dt;
-        if (sp.life >= sp.maxLife) continue;
-        aliveS.push(sp);
+        const spLayer = sp.layer || "front";
+        if (layer !== "all" && spLayer !== layer) continue;
         const a = (1 - sp.life / sp.maxLife) * (pal.isDark ? 0.78 : 0.68);
         ctx.fillStyle = `rgba(125, 211, 252, ${a.toFixed(3)})`;
         ctx.beginPath();
@@ -6511,7 +6699,6 @@ const WorldDeepBlue = {
         ctx.fill();
       }
       ctx.restore();
-      this.cleanSparkles = aliveS;
     }
   },
 
