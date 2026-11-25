@@ -1,54 +1,129 @@
 /**
- * PETTR Automatic Festive Holiday Theme Engine (v13.0)
- * Mirrors the calendar holiday registry across Nature, Gateway, and Deep Blue worlds,
- * adding non-intrusive, battery-conscious, world-authentic seasonal decorations year-round.
+ * PETTR Automatic Festive Holiday Theme Engine (v13.4)
+ * Mirrors the calendar holiday registry across Dashboard UI Crests plus Nature, Gateway, and Deep Blue worlds,
+ * adding world-authentic, atmospheric, battery-conscious seasonal overlays year-round.
  */
 const HolidayThemes = {
   MAJOR_HOLIDAYS: {
-    "1-1": { id: "new_year", family: "new_year", name: "New Year's Day", icon: "✨", accent: "250, 204, 21", secondary: "56, 189, 248" },
-    "2-14": { id: "valentines", family: "valentines", name: "Valentine's Day", icon: "💖", accent: "244, 114, 182", secondary: "251, 113, 133" },
-    "3-17": { id: "st_patricks", family: "st_patricks", name: "St. Patrick's Day", icon: "☘️", accent: "52, 211, 153", secondary: "250, 204, 21" },
-    "4-22": { id: "earth_day", family: "earth_day", name: "Earth Day", icon: "🌍", accent: "52, 211, 153", secondary: "56, 189, 248" },
-    "6-21": { id: "midsummer", family: "midsummer", name: "Summer Solstice", icon: "☀️", accent: "251, 191, 36", secondary: "251, 146, 60" },
-    "8-9": { id: "sg_national_day", family: "national_day", name: "Singapore National Day", icon: "🇸🇬", accent: "239, 68, 68", secondary: "255, 255, 255" },
-    "10-31": { id: "halloween", family: "halloween", name: "Halloween", icon: "🎃", accent: "249, 115, 22", secondary: "168, 85, 247" },
-    "12-24": { id: "christmas_eve", family: "christmas", name: "Christmas Eve", icon: "🎄", accent: "239, 68, 68", secondary: "52, 211, 153" },
-    "12-25": { id: "christmas", family: "christmas", name: "Christmas Day", icon: "🎄", accent: "239, 68, 68", secondary: "52, 211, 153" },
-    "12-26": { id: "boxing_day", family: "christmas", name: "Boxing Day", icon: "🎁", accent: "239, 68, 68", secondary: "250, 204, 21" },
-    "12-31": { id: "new_years_eve", family: "new_year", name: "New Year's Eve", icon: "🥂", accent: "250, 204, 21", secondary: "167, 139, 250" }
+    "1-1": {
+      id: "new_year", family: "new_year", name: "New Year's Day", icon: "✨",
+      kicker: "First Light", tagline: "First light of a bright new year.",
+      accent: "250, 204, 21", secondary: "56, 189, 248", tertiary: "244, 114, 182",
+      decorations: ["✨", "🥂", "🎆", "🌟"]
+    },
+    "2-14": {
+      id: "valentines", family: "valentines", name: "Valentine's Day", icon: "💖",
+      kicker: "Hearts & Roses", tagline: "Warmth, roses, and cherished company.",
+      accent: "244, 114, 182", secondary: "251, 113, 133", tertiary: "253, 164, 175",
+      decorations: ["🌹", "💖", "✨", "💌"]
+    },
+    "3-17": {
+      id: "st_patricks", family: "st_patricks", name: "St. Patrick's Day", icon: "☘️",
+      kicker: "Emerald Folklore", tagline: "Emerald clovers and cheerful good fortune.",
+      accent: "16, 185, 129", secondary: "250, 204, 21", tertiary: "52, 211, 153",
+      decorations: ["☘️", "🌈", "🪙", "✨"]
+    },
+    "4-22": {
+      id: "earth_day", family: "earth_day", name: "Earth Day", icon: "🌍",
+      kicker: "Blue Planet", tagline: "Wild forests, open skies, and living oceans.",
+      accent: "16, 185, 129", secondary: "56, 189, 248", tertiary: "45, 212, 191",
+      decorations: ["🌍", "🌿", "🐋", "✨"]
+    },
+    "6-21": {
+      id: "midsummer", family: "midsummer", name: "Summer Solstice", icon: "☀️",
+      kicker: "Solstice Sun", tagline: "The longest sunlit horizon of the year.",
+      accent: "245, 158, 11", secondary: "251, 146, 60", tertiary: "253, 224, 71",
+      decorations: ["☀️", "🌻", "🌾", "✨"]
+    },
+    "8-9": {
+      id: "sg_national_day", family: "national_day", name: "Singapore National Day", icon: "🇸🇬",
+      kicker: "Majulah Singapura", tagline: "Crimson, white, and fireworks across the bay.",
+      accent: "239, 68, 68", secondary: "255, 255, 255", tertiary: "252, 165, 165",
+      decorations: ["🇸🇬", "🎆", "🦁", "✨"]
+    },
+    "10-31": {
+      id: "halloween", family: "halloween", name: "Halloween", icon: "🎃",
+      kicker: "All Hallows' Eve", tagline: "Amber lanterns, midnight bats, and playful mystery.",
+      accent: "249, 115, 22", secondary: "168, 85, 247", tertiary: "245, 158, 11",
+      decorations: ["🎃", "🕯️", "🦇", "🌙"]
+    },
+    "12-24": {
+      id: "christmas_eve", family: "christmas", name: "Christmas Eve", icon: "🎄",
+      kicker: "Silent Night", tagline: "Twinkling fairy lights and wintry anticipation.",
+      accent: "220, 38, 38", secondary: "22, 163, 74", tertiary: "250, 204, 21",
+      decorations: ["🎄", "🕯️", "❄️", "⭐"]
+    },
+    "12-25": {
+      id: "christmas", family: "christmas", name: "Christmas Day", icon: "🎄",
+      kicker: "Winter Solstice", tagline: "Warm hearths, snowfall, and peaceful holiday joy.",
+      accent: "220, 38, 38", secondary: "22, 163, 74", tertiary: "250, 204, 21",
+      decorations: ["🎄", "❄️", "🎁", "✨"]
+    },
+    "12-26": {
+      id: "boxing_day", family: "christmas", name: "Boxing Day", icon: "🎁",
+      kicker: "Fireside Rest", tagline: "Cosy blankets, warm cocoa, and quiet strolling.",
+      accent: "220, 38, 38", secondary: "250, 204, 21", tertiary: "52, 211, 153",
+      decorations: ["🎁", "🧣", "❄️", "☕"]
+    },
+    "12-31": {
+      id: "new_years_eve", family: "new_year", name: "New Year's Eve", icon: "🥂",
+      kicker: "Midnight Countdown", tagline: "Toasts at midnight and sparks over the harbour.",
+      accent: "250, 204, 21", secondary: "167, 139, 250", tertiary: "56, 189, 248",
+      decorations: ["🥂", "🎆", "🕰️", "✨"]
+    }
   },
 
   MOVABLE_HOLIDAYS: [
     // Lunar New Year
-    [2025, 1, 28, 1, 30, { id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮", accent: "239, 68, 68", secondary: "250, 204, 21" }],
-    [2026, 2, 16, 2, 18, { id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮", accent: "239, 68, 68", secondary: "250, 204, 21" }],
-    [2027, 2, 5, 2, 7, { id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮", accent: "239, 68, 68", secondary: "250, 204, 21" }],
-    [2028, 1, 26, 1, 28, { id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮", accent: "239, 68, 68", secondary: "250, 204, 21" }],
-    [2029, 2, 13, 2, 15, { id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮", accent: "239, 68, 68", secondary: "250, 204, 21" }],
+    ...[
+      [2025, 1, 28, 1, 30], [2026, 2, 16, 2, 18], [2027, 2, 5, 2, 7],
+      [2028, 1, 26, 1, 28], [2029, 2, 13, 2, 15]
+    ].map(([y, sm, sd, em, ed]) => [y, sm, sd, em, ed, {
+      id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮",
+      kicker: "Spring Festival", tagline: "Crimson silk lanterns, reunion feasts, and warm fortune.",
+      accent: "239, 68, 68", secondary: "250, 204, 21", tertiary: "251, 146, 60",
+      decorations: ["🏮", "🧧", "🍊", "✨"]
+    }]),
     // Easter Weekend
-    [2025, 4, 18, 4, 21, { id: "easter", family: "easter", name: "Easter", icon: "🌸", accent: "249, 168, 212", secondary: "167, 243, 208" }],
-    [2026, 4, 3, 4, 6, { id: "easter", family: "easter", name: "Easter", icon: "🌸", accent: "249, 168, 212", secondary: "167, 243, 208" }],
-    [2027, 3, 26, 3, 29, { id: "easter", family: "easter", name: "Easter", icon: "🌸", accent: "249, 168, 212", secondary: "167, 243, 208" }],
-    [2028, 4, 14, 4, 17, { id: "easter", family: "easter", name: "Easter", icon: "🌸", accent: "249, 168, 212", secondary: "167, 243, 208" }],
-    [2029, 3, 30, 4, 2, { id: "easter", family: "easter", name: "Easter", icon: "🌸", accent: "249, 168, 212", secondary: "167, 243, 208" }],
+    ...[
+      [2025, 4, 18, 4, 21], [2026, 4, 3, 4, 6], [2027, 3, 26, 3, 29],
+      [2028, 4, 14, 4, 17], [2029, 3, 30, 4, 2]
+    ].map(([y, sm, sd, em, ed]) => [y, sm, sd, em, ed, {
+      id: "easter", family: "easter", name: "Easter", icon: "🌸",
+      kicker: "Spring Bloom", tagline: "Pastel spring blossoms and gentle renewal.",
+      accent: "244, 114, 182", secondary: "52, 211, 153", tertiary: "196, 181, 253",
+      decorations: ["🌸", "🐣", "🌷", "✨"]
+    }]),
     // Mid-Autumn Festival
-    [2025, 10, 6, 10, 6, { id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕", accent: "253, 224, 71", secondary: "251, 146, 60" }],
-    [2026, 9, 25, 9, 25, { id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕", accent: "253, 224, 71", secondary: "251, 146, 60" }],
-    [2027, 9, 15, 9, 15, { id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕", accent: "253, 224, 71", secondary: "251, 146, 60" }],
-    [2028, 10, 3, 10, 3, { id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕", accent: "253, 224, 71", secondary: "251, 146, 60" }],
-    [2029, 9, 22, 9, 22, { id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕", accent: "253, 224, 71", secondary: "251, 146, 60" }],
-    // Diwali
-    [2025, 10, 20, 10, 20, { id: "diwali", family: "diwali", name: "Diwali", icon: "🪔", accent: "251, 191, 36", secondary: "236, 72, 153" }],
-    [2026, 11, 8, 11, 8, { id: "diwali", family: "diwali", name: "Diwali", icon: "🪔", accent: "251, 191, 36", secondary: "236, 72, 153" }],
-    [2027, 10, 29, 10, 29, { id: "diwali", family: "diwali", name: "Diwali", icon: "🪔", accent: "251, 191, 36", secondary: "236, 72, 153" }],
-    [2028, 10, 17, 10, 17, { id: "diwali", family: "diwali", name: "Diwali", icon: "🪔", accent: "251, 191, 36", secondary: "236, 72, 153" }],
-    [2029, 11, 5, 11, 5, { id: "diwali", family: "diwali", name: "Diwali", icon: "🪔", accent: "251, 191, 36", secondary: "236, 72, 153" }],
+    ...[
+      [2025, 10, 6, 10, 6], [2026, 9, 25, 9, 25], [2027, 9, 15, 9, 15],
+      [2028, 10, 3, 10, 3], [2029, 9, 22, 9, 22]
+    ].map(([y, sm, sd, em, ed]) => [y, sm, sd, em, ed, {
+      id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕",
+      kicker: "Harvest Moon", tagline: "Luminous harvest moon, glowing lanterns, and mooncakes.",
+      accent: "245, 158, 11", secondary: "253, 224, 71", tertiary: "251, 146, 60",
+      decorations: ["🌕", "🏮", "🥮", "🐇"]
+    }]),
+    // Diwali / Festival of Lights
+    ...[
+      [2025, 10, 20, 10, 20], [2026, 11, 8, 11, 8], [2027, 10, 29, 10, 29],
+      [2028, 10, 17, 10, 17], [2029, 11, 5, 11, 5]
+    ].map(([y, sm, sd, em, ed]) => [y, sm, sd, em, ed, {
+      id: "diwali", family: "diwali", name: "Diwali", icon: "🪔",
+      kicker: "Festival of Lights", tagline: "Golden earthen lamps and radiant courtyard light.",
+      accent: "245, 158, 11", secondary: "236, 72, 153", tertiary: "253, 224, 71",
+      decorations: ["🪔", "✨", "🪷", "🎇"]
+    }]),
     // Thanksgiving
-    [2025, 11, 27, 11, 27, { id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁", accent: "234, 88, 12", secondary: "250, 204, 21" }],
-    [2026, 11, 26, 11, 26, { id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁", accent: "234, 88, 12", secondary: "250, 204, 21" }],
-    [2027, 11, 25, 11, 25, { id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁", accent: "234, 88, 12", secondary: "250, 204, 21" }],
-    [2028, 11, 23, 11, 23, { id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁", accent: "234, 88, 12", secondary: "250, 204, 21" }],
-    [2029, 11, 22, 11, 22, { id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁", accent: "234, 88, 12", secondary: "250, 204, 21" }]
+    ...[
+      [2025, 11, 27, 11, 27], [2026, 11, 26, 11, 26], [2027, 11, 25, 11, 25],
+      [2028, 11, 23, 11, 23], [2029, 11, 22, 11, 22]
+    ].map(([y, sm, sd, em, ed]) => [y, sm, sd, em, ed, {
+      id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁",
+      kicker: "Autumn Harvest", tagline: "Amber maple leaves, harvest warmth, and gratitude.",
+      accent: "234, 88, 12", secondary: "217, 119, 6", tertiary: "245, 158, 11",
+      decorations: ["🍁", "🍂", "🕯️", "🌾"]
+    }])
   ],
 
   _previewHolidayId: null,
@@ -59,7 +134,18 @@ const HolidayThemes = {
   _fwTimer: 0,
   _bats: [],
   _sleigh: null,
-  _sleighTimer: 6,
+  _sleighTimer: 5,
+  _surfaceBursts: [],
+  _surfaceBurstTimer: 0.6,
+
+  _escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  },
 
   _lookupById(hid) {
     if (!hid) return null;
@@ -70,7 +156,12 @@ const HolidayThemes = {
       const entry = this.MOVABLE_HOLIDAYS[i][5];
       if (entry.id === hid) return { ...entry };
     }
-    return { id: hid, family: "generic", name: hid.replace(/_/g, " "), icon: "🎉", accent: "250, 204, 21", secondary: "56, 189, 248" };
+    return {
+      id: hid, family: "generic", name: hid.replace(/_/g, " "), icon: "🎉",
+      kicker: "Celebration", tagline: "Wishing you a joyful holiday.",
+      accent: "245, 158, 11", secondary: "56, 189, 248", tertiary: "250, 204, 21",
+      decorations: ["✨", "🎉", "🌟", "🎈"]
+    };
   },
 
   setPreviewHoliday(idOrNull) {
@@ -80,6 +171,12 @@ const HolidayThemes = {
     this._fireworks = [];
     this._bats = [];
     this._sleigh = null;
+    this._surfaceBursts = [];
+    const active = this.getActiveHoliday();
+    this.applyHolidayUITheme(active);
+    if (typeof Dashboard !== "undefined" && Dashboard.renderHolidayDecorations) {
+      try { Dashboard.renderHolidayDecorations(active); } catch (_) {}
+    }
     if (typeof WaveCanvas !== "undefined" && WaveCanvas.ctx) {
       try { WaveCanvas.draw(0.016); } catch (_) {}
     }
@@ -88,6 +185,7 @@ const HolidayThemes = {
   setServerHoliday(info) {
     if (!info || !info.id) {
       this._serverHoliday = null;
+      this.applyHolidayUITheme(this.getActiveHoliday());
       return;
     }
     const base = this._lookupById(info.id) || {};
@@ -97,6 +195,7 @@ const HolidayThemes = {
       name: info.name || base.name || "Holiday",
       icon: info.icon || base.icon || "🎉"
     };
+    this.applyHolidayUITheme(this.getActiveHoliday());
   },
 
   getHolidayForDate(dateObj = null) {
@@ -131,10 +230,79 @@ const HolidayThemes = {
     return null;
   },
 
+  applyHolidayUITheme(hol) {
+    const root = document.documentElement;
+    if (!root) return;
+    if (!hol || !hol.id) {
+      root.removeAttribute("data-holiday");
+      root.removeAttribute("data-holiday-family");
+      root.style.removeProperty("--holiday-accent");
+      root.style.removeProperty("--holiday-secondary");
+      root.style.removeProperty("--holiday-tertiary");
+      return;
+    }
+    const base = this._lookupById(hol.id) || {};
+    const merged = { ...base, ...hol };
+    root.setAttribute("data-holiday", merged.id || "generic");
+    root.setAttribute("data-holiday-family", merged.family || "generic");
+    if (merged.accent) root.style.setProperty("--holiday-accent", merged.accent);
+    if (merged.secondary) root.style.setProperty("--holiday-secondary", merged.secondary);
+    if (merged.tertiary) root.style.setProperty("--holiday-tertiary", merged.tertiary);
+  },
+
+  _getFamilyFlourishSvg(family) {
+    switch (family) {
+      case "thanksgiving":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v14M9 5l3.5-2-1 3.8 3.8.5-2.8 2.8 1.5 2.4-5-1.2-5 1.2 1.5-2.4L2.7 7.3l3.8-.5-1-3.8L9 5z"/></svg>';
+      case "christmas":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5v15M2.5 5.2l13 7.6M15.5 5.2l-13 7.6"/><circle cx="9" cy="9" r="1.8" fill="currentColor"/></svg>';
+      case "lantern":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="9" height="9" rx="4.2"/><path d="M9 2v2.5M9 13.5V16M6.2 15.5v-1.8M11.8 15.5v-1.8M6.5 9h5"/></svg>';
+      case "halloween":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5a6.2 6.2 0 1 0 2 10.6 5.2 5.2 0 0 1-2-10.6z"/><path d="M11 8l2-1.8L15 8l-1.8 1.4z"/></svg>';
+      case "diwali":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.2c1.6 2 1.8 3.7 0 5-1.8-1.3-1.6-3 0-5z"/><path d="M3 10.5c1.8 3.2 4 4.3 6 4.3s4.2-1.1 6-4.3H3z"/></svg>';
+      case "mid_autumn":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="4.8"/><path d="M2.5 13.8c2-.9 3.6-.9 5.5 0s3.8.9 7.5 0"/></svg>';
+      case "valentines":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14.8S3 10.8 3 6.6A3.2 3.2 0 0 1 9 4.7a3.2 3.2 0 0 1 6 1.9c0 4.2-6 8.2-6 8.2z"/></svg>';
+      case "st_patricks":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5.2" r="2.6"/><circle cx="5.8" cy="10" r="2.6"/><circle cx="12.2" cy="10" r="2.6"/><path d="M9 11.5c0 2.4-1 3.8-2.2 4.6"/></svg>';
+      case "easter":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"><circle cx="9" cy="9" r="2"/><path d="M9 3c1.6 0 2.2 1.6 1 3M14.7 7.2c.5 1.5-.8 2.6-2.4 1.9M12.5 13.8c-1.3.9-2.7 0-2.5-1.7M5.5 13.8c-1.3-.9-1.2-2.6.4-2.8M3.3 7.2c.5-1.5 2.2-1.8 3-.4"/></svg>';
+      case "earth_day":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><path d="M9 13V7M9 10c2.2 0 3.2-1.4 3.2-3.2-1.8 0-3.2 1-3.2 3.2z"/></svg>';
+      case "midsummer":
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="9" cy="9" r="3.4"/><path d="M9 1.8v2M9 14.2v2M1.8 9h2M14.2 9h2M3.9 3.9l1.4 1.4M12.7 12.7l1.4 1.4M14.1 3.9l-1.4 1.4M5.3 12.7l-1.4 1.4"/></svg>';
+      default:
+        return '<svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 1.5L10.8 7.2 16.5 9l-5.7 1.8L9 16.5l-1.8-5.7L1.5 9l5.7-1.8z"/></svg>';
+    }
+  },
+
+  getBadgeMarkup(holiday) {
+    if (!holiday || !holiday.name) return "";
+    const base = this._lookupById(holiday.id) || {};
+    const merged = { ...base, ...holiday };
+    const flourish = this._getFamilyFlourishSvg(merged.family || "generic");
+    const kicker = this._escapeHtml(merged.kicker || "Celebration");
+    const title = this._escapeHtml(merged.name || "Holiday");
+    const icon = this._escapeHtml(merged.icon || "✨");
+
+    return [
+      `<span class="holiday-badge-ornament holiday-badge-ornament--left" aria-hidden="true">${flourish}</span>`,
+      `<span class="holiday-badge-emblem" aria-hidden="true">${icon}</span>`,
+      `<span class="holiday-badge-copy">`,
+      `<span class="holiday-badge-kicker">${kicker}</span>`,
+      `<span class="holiday-badge-title">${title}</span>`,
+      `</span>`,
+      `<span class="holiday-badge-ornament holiday-badge-ornament--right" aria-hidden="true">${flourish}</span>`
+    ].join("");
+  },
+
   _ensureParticles(hol, w, h, dt) {
     const isNarrow = w < 720;
     const sig = `${hol.id}:${isNarrow ? "m" : "d"}`;
-    const targetCount = isNarrow ? 16 : 32;
+    const targetCount = isNarrow ? 18 : 34;
     if (this._particleSig !== sig || this._particles.length === 0) {
       this._particleSig = sig;
       this._particles = [];
@@ -146,7 +314,8 @@ const HolidayThemes = {
     const rises = fam === "lantern" || fam === "diwali" || fam === "mid_autumn" || fam === "earth_day" || fam === "midsummer";
     for (let i = 0; i < this._particles.length; i++) {
       const p = this._particles[i];
-      p.phase += dt * 1.6;
+      p.phase += dt * 1.65;
+      p.rot += p.rotSpd * dt;
       if (rises) {
         p.y -= p.vy * dt;
         p.x += Math.sin(p.phase) * p.sway * dt + p.vx * dt;
@@ -173,36 +342,125 @@ const HolidayThemes = {
     return {
       x: Math.random() * w,
       y: randomY ? Math.random() * h : (isRise ? h + 15 : -15),
-      vx: (Math.random() - 0.5) * 14,
-      vy: (fam === "christmas" ? 22 : (isRise ? 16 : 26)) + Math.random() * 18,
-      sway: 10 + Math.random() * 16,
-      size: 2.2 + Math.random() * 3.8,
+      vx: (fam === "thanksgiving" ? -12 : 0) + (Math.random() - 0.5) * 16,
+      vy: (fam === "christmas" ? 22 : (isRise ? 16 : 24)) + Math.random() * 18,
+      sway: 10 + Math.random() * 18,
+      size: (fam === "thanksgiving" ? 4.8 : 2.4) + Math.random() * 4.2,
       phase: Math.random() * Math.PI * 2,
-      variant: Math.floor(Math.random() * 3),
-      alpha: 0.45 + Math.random() * 0.45
+      rot: Math.random() * Math.PI * 2,
+      rotSpd: (Math.random() - 0.5) * 2.1,
+      variant: Math.floor(Math.random() * 4),
+      alpha: 0.48 + Math.random() * 0.44
     };
+  },
+
+  _drawSeasonalAtmosphere(ctx, w, h, hol, isDark) {
+    const fam = hol.family;
+    ctx.save();
+    let topRgb = null;
+    let botRgb = null;
+    let topA = 0.08;
+    let botA = 0.12;
+
+    if (fam === "thanksgiving") {
+      topRgb = "234, 88, 12";
+      botRgb = "245, 158, 11";
+      topA = isDark ? 0.12 : 0.07;
+      botA = isDark ? 0.18 : 0.09;
+    } else if (fam === "lantern" || fam === "mid_autumn") {
+      topRgb = fam === "lantern" ? "220, 38, 38" : "245, 158, 11";
+      botRgb = "250, 204, 21";
+      topA = isDark ? 0.11 : 0.05;
+      botA = isDark ? 0.14 : 0.06;
+    } else if (fam === "halloween") {
+      topRgb = "147, 51, 234";
+      botRgb = "249, 115, 22";
+      topA = isDark ? 0.15 : 0.06;
+      botA = isDark ? 0.16 : 0.07;
+    } else if (fam === "diwali") {
+      topRgb = "236, 72, 153";
+      botRgb = "251, 191, 36";
+      topA = isDark ? 0.11 : 0.05;
+      botA = isDark ? 0.18 : 0.08;
+    } else if (fam === "christmas") {
+      topRgb = "186, 230, 253";
+      botRgb = "52, 211, 153";
+      topA = isDark ? 0.10 : 0.05;
+      botA = isDark ? 0.08 : 0.04;
+    }
+
+    if (topRgb) {
+      const tg = ctx.createLinearGradient(0, 0, 0, h * 0.24);
+      tg.addColorStop(0, `rgba(${topRgb}, ${topA})`);
+      tg.addColorStop(1, `rgba(${topRgb}, 0)`);
+      ctx.fillStyle = tg;
+      ctx.fillRect(0, 0, w, h * 0.24);
+    }
+    if (botRgb) {
+      const bg = ctx.createLinearGradient(0, h * 0.78, 0, h);
+      bg.addColorStop(0, `rgba(${botRgb}, 0)`);
+      bg.addColorStop(1, `rgba(${botRgb}, ${botA})`);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, h * 0.78, w, h * 0.22);
+    }
+    ctx.restore();
+  },
+
+  _drawMapleLeaf(ctx, sz, rgb, alpha, tiltCos) {
+    ctx.save();
+    ctx.scale(Math.max(0.28, Math.abs(tiltCos)), 1);
+    ctx.fillStyle = `rgba(${rgb}, ${alpha.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.moveTo(0, -sz * 1.15);
+    ctx.lineTo(sz * 0.36, -sz * 0.45);
+    ctx.lineTo(sz * 1.08, -sz * 0.62);
+    ctx.lineTo(sz * 0.58, -sz * 0.05);
+    ctx.lineTo(sz * 0.92, sz * 0.48);
+    ctx.lineTo(sz * 0.18, sz * 0.35);
+    ctx.lineTo(0, sz * 0.95);
+    ctx.lineTo(-sz * 0.18, sz * 0.35);
+    ctx.lineTo(-sz * 0.92, sz * 0.48);
+    ctx.lineTo(-sz * 0.58, -sz * 0.05);
+    ctx.lineTo(-sz * 1.08, -sz * 0.62);
+    ctx.lineTo(-sz * 0.36, -sz * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255, 245, 220, ${(alpha * 0.42).toFixed(3)})`;
+    ctx.lineWidth = 0.75;
+    ctx.beginPath();
+    ctx.moveTo(0, -sz * 0.8);
+    ctx.lineTo(0, sz * 1.1);
+    ctx.stroke();
+    ctx.restore();
   },
 
   _updateFireworks(ctx, w, h, hol, dt, waterLineY = null) {
     const isNarrow = w < 720;
     this._fwTimer -= dt;
-    if (this._fwTimer <= 0 && this._fireworks.length < (isNarrow ? 2 : 3)) {
-      this._fwTimer = isNarrow ? 2.8 + Math.random() * 2.2 : 1.7 + Math.random() * 1.8;
-      const fx = w * (0.14 + Math.random() * 0.72);
-      const fy = h * (0.09 + Math.random() * 0.17);
+    if (this._fwTimer <= 0 && this._fireworks.length < (isNarrow ? 2 : 4)) {
+      this._fwTimer = isNarrow ? 2.4 + Math.random() * 1.9 : 1.35 + Math.random() * 1.5;
+      const fx = w * (0.12 + Math.random() * 0.76);
+      const fy = h * (0.08 + Math.random() * 0.18);
       const isSg = hol.id === "sg_national_day";
+      const isCny = hol.family === "lantern";
+      const isDiwali = hol.family === "diwali";
       const palette = isSg
-        ? ["239, 68, 68", "255, 255, 255"]
-        : ["250, 204, 21", "56, 189, 248", "244, 114, 182", "167, 243, 208"];
+        ? ["239, 68, 68", "255, 255, 255", "252, 165, 165"]
+        : isCny
+          ? ["239, 68, 68", "250, 204, 21", "251, 146, 60"]
+          : isDiwali
+            ? ["251, 191, 36", "236, 72, 153", "253, 224, 71"]
+            : ["250, 204, 21", "56, 189, 248", "244, 114, 182", "167, 243, 208"];
       const rgb = palette[Math.floor(Math.random() * palette.length)];
+      const rgbInner = palette[(Math.floor(Math.random() * palette.length) + 1) % palette.length];
       const sparks = [];
-      const count = isNarrow ? 14 : 22;
+      const count = isNarrow ? 16 : 26;
       for (let i = 0; i < count; i++) {
-        const ang = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.14;
-        const spd = 34 + Math.random() * 44;
-        sparks.push({ ang, spd, size: 1.4 + Math.random() * 1.4 });
+        const ang = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.12;
+        const spd = 34 + Math.random() * 48;
+        sparks.push({ ang, spd, size: 1.4 + Math.random() * 1.5, ring: i % 2 === 0 ? 1.0 : 0.58 });
       }
-      this._fireworks.push({ x: fx, y: fy, age: 0, maxAge: 1.55, rgb, sparks });
+      this._fireworks.push({ x: fx, y: fy, startY: waterLineY ? waterLineY - 4 : fy + 80, age: 0, maxAge: 1.7, rgb, rgbInner, sparks });
     }
 
     const alive = [];
@@ -211,14 +469,28 @@ const HolidayThemes = {
       fw.age += dt;
       if (fw.age >= fw.maxAge) continue;
       alive.push(fw);
-      const t = fw.age / fw.maxAge;
-      const env = t < 0.18 ? (t / 0.18) : Math.pow(1 - (t - 0.18) / 0.82, 1.35);
-      const radiusScale = 1 - Math.pow(1 - t, 2.2);
+      const rawT = fw.age / fw.maxAge;
+      // Quick ascent trail over first 14%, then chrysanthemum bloom
+      if (rawT < 0.14) {
+        const u = rawT / 0.14;
+        const cy = fw.startY + (fw.y - fw.startY) * (1 - Math.pow(1 - u, 2));
+        const py = fw.startY + (fw.y - fw.startY) * (1 - Math.pow(1 - Math.max(0, u - 0.35), 2));
+        ctx.strokeStyle = `rgba(${fw.rgb}, ${(0.78 * u).toFixed(3)})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(fw.x, py);
+        ctx.lineTo(fw.x, cy);
+        ctx.stroke();
+        continue;
+      }
 
-      // Soft bloom flash
-      const coreR = 16 * (1 - t * 0.6);
+      const t = (rawT - 0.14) / 0.86;
+      const env = t < 0.16 ? (t / 0.16) : Math.pow(1 - (t - 0.16) / 0.84, 1.35);
+      const radiusScale = 1 - Math.pow(1 - t, 2.25);
+
+      const coreR = 20 * (1 - t * 0.55);
       const cg = ctx.createRadialGradient(fw.x, fw.y, 0, fw.x, fw.y, coreR);
-      cg.addColorStop(0, `rgba(255, 255, 255, ${(0.45 * env).toFixed(3)})`);
+      cg.addColorStop(0, `rgba(255, 255, 255, ${(0.50 * env).toFixed(3)})`);
       cg.addColorStop(1, `rgba(${fw.rgb}, 0)`);
       ctx.fillStyle = cg;
       ctx.beginPath();
@@ -227,26 +499,28 @@ const HolidayThemes = {
 
       for (let s = 0; s < fw.sparks.length; s++) {
         const sp = fw.sparks[s];
-        const sx = fw.x + Math.cos(sp.ang) * sp.spd * radiusScale;
-        const sy = fw.y + Math.sin(sp.ang) * sp.spd * radiusScale + 18 * t * t;
-        const px = fw.x + Math.cos(sp.ang) * sp.spd * Math.max(0, radiusScale - 0.12);
-        const py = fw.y + Math.sin(sp.ang) * sp.spd * Math.max(0, radiusScale - 0.12) + 18 * Math.max(0, t - 0.08) * Math.max(0, t - 0.08);
-        ctx.strokeStyle = `rgba(${fw.rgb}, ${(0.78 * env).toFixed(3)})`;
+        const col = sp.ring < 0.8 ? fw.rgbInner : fw.rgb;
+        const rMul = sp.spd * sp.ring;
+        const sx = fw.x + Math.cos(sp.ang) * rMul * radiusScale;
+        const sy = fw.y + Math.sin(sp.ang) * rMul * radiusScale + 20 * t * t;
+        const px = fw.x + Math.cos(sp.ang) * rMul * Math.max(0, radiusScale - 0.14);
+        const py = fw.y + Math.sin(sp.ang) * rMul * Math.max(0, radiusScale - 0.14) + 20 * Math.max(0, t - 0.08) * Math.max(0, t - 0.08);
+        ctx.strokeStyle = `rgba(${col}, ${(0.82 * env).toFixed(3)})`;
         ctx.lineWidth = sp.size * 0.85;
         ctx.beginPath();
         ctx.moveTo(px, py);
         ctx.lineTo(sx, sy);
         ctx.stroke();
-        ctx.fillStyle = `rgba(255, 255, 255, ${(0.85 * env).toFixed(3)})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${(0.88 * env).toFixed(3)})`;
         ctx.beginPath();
-        ctx.arc(sx, sy, sp.size * 0.65, 0, Math.PI * 2);
+        ctx.arc(sx, sy, sp.size * 0.62, 0, Math.PI * 2);
         ctx.fill();
       }
 
       if (waterLineY && waterLineY > fw.y) {
-        ctx.fillStyle = `rgba(${fw.rgb}, ${(0.12 * env).toFixed(3)})`;
+        ctx.fillStyle = `rgba(${fw.rgb}, ${(0.14 * env).toFixed(3)})`;
         ctx.beginPath();
-        ctx.ellipse(fw.x, waterLineY + 14, 24 * radiusScale + 8, 4.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(fw.x, waterLineY + 14, 28 * radiusScale + 8, 5, 0, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -259,51 +533,118 @@ const HolidayThemes = {
       const p = this._particles[i];
       ctx.save();
       ctx.translate(p.x, p.y);
-      ctx.globalAlpha = p.alpha * (isDarkMode ? 0.88 : 0.72);
+      const a = p.alpha * (isDarkMode ? 0.90 : 0.78);
+      ctx.globalAlpha = a;
+
       if (fam === "christmas") {
-        ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
-        ctx.beginPath();
-        ctx.arc(0, 0, p.size * 0.68, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (fam === "lantern" || fam === "mid_autumn" || fam === "diwali") {
+        if (p.variant === 0 && p.size > 3.2) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+          ctx.lineWidth = 0.85;
+          ctx.rotate(p.rot);
+          for (let b = 0; b < 3; b++) {
+            const ang = (b * Math.PI) / 3;
+            const dx = Math.cos(ang) * p.size;
+            const dy = Math.sin(ang) * p.size;
+            ctx.beginPath();
+            ctx.moveTo(-dx, -dy);
+            ctx.lineTo(dx, dy);
+            ctx.stroke();
+          }
+        } else {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.90)";
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 0.65, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (fam === "lantern" || fam === "mid_autumn") {
         const wL = p.size * 1.45;
-        const hL = p.size * 1.95;
-        const lg = ctx.createRadialGradient(0, 0, 0.5, 0, 0, hL * 1.3);
+        const hL = p.size * 2.05;
+        const lg = ctx.createRadialGradient(0, 0, 0.5, 0, 0, hL * 1.4);
         lg.addColorStop(0, `rgba(${hol.secondary}, 0.92)`);
         lg.addColorStop(0.55, `rgba(${hol.accent}, 0.55)`);
         lg.addColorStop(1, `rgba(${hol.accent}, 0)`);
         ctx.fillStyle = lg;
         ctx.beginPath();
-        ctx.arc(0, 0, hL * 1.3, 0, Math.PI * 2);
+        ctx.arc(0, 0, hL * 1.4, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = `rgba(${hol.accent}, 0.92)`;
         ctx.beginPath();
-        ctx.roundRect(-wL * 0.5, -hL * 0.5, wL, hL, wL * 0.35);
+        ctx.roundRect(-wL * 0.5, -hL * 0.5, wL, hL, wL * 0.36);
         ctx.fill();
-        ctx.fillStyle = `rgba(${hol.secondary}, 0.85)`;
-        ctx.fillRect(-wL * 0.35, hL * 0.42, wL * 0.7, 1.3);
+        ctx.fillStyle = `rgba(${hol.secondary}, 0.90)`;
+        ctx.fillRect(-wL * 0.36, -hL * 0.52, wL * 0.72, 1.4);
+        ctx.fillRect(-wL * 0.36, hL * 0.44, wL * 0.72, 1.4);
+        ctx.strokeStyle = `rgba(${hol.secondary}, 0.75)`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(0, hL * 0.5);
+        ctx.lineTo(0, hL * 0.78);
+        ctx.stroke();
+      } else if (fam === "diwali") {
+        const sparkR = p.size * 0.95;
+        const col = p.variant % 2 === 0 ? hol.accent : hol.secondary;
+        const dg = ctx.createRadialGradient(0, 0, 0, 0, 0, sparkR * 2.1);
+        dg.addColorStop(0, "rgba(255, 250, 220, 0.96)");
+        dg.addColorStop(0.42, `rgba(${col}, 0.65)`);
+        dg.addColorStop(1, `rgba(${col}, 0)`);
+        ctx.fillStyle = dg;
+        ctx.beginPath();
+        ctx.arc(0, 0, sparkR * 2.1, 0, Math.PI * 2);
+        ctx.fill();
       } else if (fam === "valentines") {
-        const s = p.size * 0.85;
-        ctx.fillStyle = p.variant === 0 ? "rgba(251, 113, 133, 0.72)" : "rgba(244, 114, 182, 0.66)";
+        const s = p.size * 0.9;
+        ctx.rotate(p.rot * 0.5);
+        ctx.fillStyle = p.variant % 2 === 0 ? "rgba(251, 113, 133, 0.78)" : "rgba(244, 114, 182, 0.72)";
         ctx.beginPath();
         ctx.moveTo(0, s * 0.5);
         ctx.bezierCurveTo(-s * 1.1, -s * 0.35, -s * 0.55, -s * 1.2, 0, -s * 0.35);
         ctx.bezierCurveTo(s * 0.55, -s * 1.2, s * 1.1, -s * 0.35, 0, s * 0.5);
         ctx.fill();
       } else if (fam === "st_patricks") {
-        const r = p.size * 0.55;
-        ctx.fillStyle = "rgba(52, 211, 153, 0.75)";
-        [[0, -r], [-r * 0.9, r * 0.4], [r * 0.9, r * 0.4]].forEach(([cx, cy]) => {
+        const r = p.size * 0.56;
+        ctx.rotate(p.rot * 0.4);
+        ctx.fillStyle = p.variant === 3 ? "rgba(250, 204, 21, 0.80)" : "rgba(52, 211, 153, 0.78)";
+        if (p.variant === 3) {
           ctx.beginPath();
-          ctx.arc(cx, cy, r * 0.85, 0, Math.PI * 2);
+          ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2);
           ctx.fill();
-        });
-      } else if (fam === "thanksgiving" || fam === "easter" || fam === "earth_day" || fam === "midsummer") {
+        } else {
+          [[0, -r], [-r * 0.9, r * 0.4], [r * 0.9, r * 0.4]].forEach(([cx, cy]) => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 0.85, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+      } else if (fam === "thanksgiving") {
+        ctx.rotate(p.rot);
+        const leafPalette = ["220, 62, 24", "234, 88, 12", "217, 119, 6", "245, 158, 11"];
+        const col = leafPalette[p.variant % leafPalette.length];
+        if (p.variant === 3) {
+          // Warm autumn gold mote
+          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 1.5);
+          g.addColorStop(0, "rgba(253, 224, 71, 0.88)");
+          g.addColorStop(1, "rgba(245, 158, 11, 0)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          this._drawMapleLeaf(ctx, p.size, col, 0.85, Math.cos(p.phase * 0.8));
+        }
+      } else if (fam === "easter") {
+        ctx.rotate(p.rot * 0.6);
+        const col = p.variant === 0 ? "249, 168, 212" : (p.variant === 1 ? "253, 230, 138" : "167, 243, 208");
+        ctx.fillStyle = `rgba(${col}, 0.78)`;
+        for (let k = 0; k < 5; k++) {
+          ctx.rotate((Math.PI * 2) / 5);
+          ctx.beginPath();
+          ctx.ellipse(0, p.size * 0.62, p.size * 0.34, p.size * 0.62, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
         ctx.rotate(p.phase);
-        const col = fam === "thanksgiving"
-          ? (p.variant === 0 ? "234, 88, 12" : "245, 158, 11")
-          : (fam === "easter" ? (p.variant === 0 ? "249, 168, 212" : "167, 243, 208") : hol.accent);
-        ctx.fillStyle = `rgba(${col}, 0.74)`;
+        const col = p.variant % 2 === 0 ? hol.accent : hol.secondary;
+        ctx.fillStyle = `rgba(${col}, 0.76)`;
         ctx.beginPath();
         ctx.ellipse(0, 0, p.size * 1.1, p.size * 0.52, 0, 0, Math.PI * 2);
         ctx.fill();
@@ -312,15 +653,17 @@ const HolidayThemes = {
     }
   },
 
-  _drawLightGarland(ctx, x0, y0, x1, y1, sag, count, step, colors) {
+  _drawLightGarland(ctx, x0, y0, x1, y1, sag, count, step, colors, opts = {}) {
     ctx.save();
-    ctx.strokeStyle = "rgba(30, 41, 59, 0.45)";
-    ctx.lineWidth = 0.9;
+    ctx.strokeStyle = opts.wireColor || "rgba(30, 41, 59, 0.45)";
+    ctx.lineWidth = opts.wireWidth || 1.0;
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.quadraticCurveTo((x0 + x1) * 0.5, (y0 + y1) * 0.5 + sag, x1, y1);
     ctx.stroke();
 
+    const rGlow = opts.glowR || 7.2;
+    const isLantern = !!opts.lanterns;
     for (let i = 1; i < count; i++) {
       const f = i / count;
       const inv = 1 - f;
@@ -328,36 +671,101 @@ const HolidayThemes = {
       const by = inv * inv * y0 + 2 * inv * f * ((y0 + y1) * 0.5 + sag) + f * f * y1;
       const col = colors[i % colors.length];
       const twinkle = 0.55 + 0.45 * Math.sin(step * 4.2 + i * 1.1);
-      const rg = ctx.createRadialGradient(bx, by, 0, bx, by, 6.5);
+      const rg = ctx.createRadialGradient(bx, by, 0, bx, by, rGlow);
       rg.addColorStop(0, `rgba(${col}, ${(0.88 * twinkle).toFixed(3)})`);
       rg.addColorStop(1, `rgba(${col}, 0)`);
       ctx.fillStyle = rg;
       ctx.beginPath();
-      ctx.arc(bx, by, 6.5, 0, Math.PI * 2);
+      ctx.arc(bx, by, rGlow, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = `rgba(255, 255, 255, ${(0.85 * twinkle).toFixed(3)})`;
+      if (isLantern) {
+        const sway = Math.sin(step * 2.1 + i * 0.9) * 1.5;
+        ctx.fillStyle = `rgba(${col}, 0.92)`;
+        ctx.beginPath();
+        ctx.ellipse(bx + sway, by + 3.2, 3.0, 4.0, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(253, 224, 71, 0.95)";
+        ctx.fillRect(bx + sway - 1.8, by + 6.8, 3.6, 1.3);
+      } else {
+        ctx.fillStyle = `rgba(255, 255, 255, ${(0.86 * twinkle).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  },
+
+  _drawDiyaRow(ctx, spots, step, scale = 1.0) {
+    ctx.save();
+    for (let i = 0; i < spots.length; i++) {
+      const pt = spots[i];
+      const flicker = 0.78 + 0.22 * Math.sin(step * 7.5 + i * 2.3);
+      const fg = ctx.createRadialGradient(pt.x, pt.y - 3 * scale, 0, pt.x, pt.y - 3 * scale, 11 * scale);
+      fg.addColorStop(0, `rgba(254, 240, 138, ${(0.92 * flicker).toFixed(3)})`);
+      fg.addColorStop(0.45, `rgba(249, 115, 22, ${(0.46 * flicker).toFixed(3)})`);
+      fg.addColorStop(1, "rgba(249, 115, 22, 0)");
+      ctx.fillStyle = fg;
       ctx.beginPath();
-      ctx.arc(bx, by, 1.4, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y - 3 * scale, 11 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      // Terracotta cup
+      ctx.fillStyle = "#B45309";
+      ctx.beginPath();
+      ctx.ellipse(pt.x, pt.y, 4.2 * scale, 2.0 * scale, 0, 0, Math.PI);
+      ctx.fill();
+      // Flame
+      ctx.fillStyle = "rgba(254, 249, 195, 0.96)";
+      ctx.beginPath();
+      ctx.ellipse(pt.x + Math.sin(step * 8 + i) * 0.5, pt.y - 2.6 * scale, 1.3 * scale, 2.5 * scale, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
   },
 
-  _drawMoonAndBats(ctx, w, h, hol, dt, step, moonX, moonY, moonR) {
+  _drawJackOLanterns(ctx, spots, step, scale = 1.0) {
+    ctx.save();
+    for (let i = 0; i < spots.length; i++) {
+      const pt = spots[i];
+      const pulse = 0.74 + 0.26 * Math.sin(step * 4.4 + i * 1.7);
+      const g = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, 13 * scale);
+      g.addColorStop(0, `rgba(251, 146, 60, ${(0.88 * pulse).toFixed(3)})`);
+      g.addColorStop(1, "rgba(249, 115, 22, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 13 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#EA580C";
+      ctx.beginPath();
+      ctx.ellipse(pt.x, pt.y, 4.8 * scale, 3.8 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Carved eyes + grin
+      ctx.fillStyle = `rgba(254, 240, 138, ${(0.95 * pulse).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(pt.x - 1.6 * scale, pt.y - 0.8 * scale, 0.8 * scale, 0, Math.PI * 2);
+      ctx.arc(pt.x + 1.6 * scale, pt.y - 0.8 * scale, 0.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(pt.x - 1.7 * scale, pt.y + 0.9 * scale, 3.4 * scale, 0.9 * scale);
+    }
+    ctx.restore();
+  },
+
+  _drawMoonAndBats(ctx, w, h, hol, dt, step, moonX, moonY, moonR, opts = {}) {
     const isHalo = hol.family === "halloween";
-    const mGrad = ctx.createRadialGradient(moonX, moonY, moonR * 0.15, moonX, moonY, moonR * 2.1);
-    mGrad.addColorStop(0, isHalo ? "rgba(255, 237, 213, 0.92)" : "rgba(254, 249, 195, 0.94)");
-    mGrad.addColorStop(0.46, isHalo ? "rgba(251, 146, 60, 0.85)" : "rgba(253, 224, 71, 0.82)");
-    mGrad.addColorStop(0.55, isHalo ? "rgba(249, 115, 22, 0.34)" : "rgba(253, 224, 71, 0.28)");
+    const alphaScale = opts.alpha !== undefined ? opts.alpha : 1.0;
+    const mGrad = ctx.createRadialGradient(moonX, moonY, moonR * 0.15, moonX, moonY, moonR * 2.25);
+    mGrad.addColorStop(0, isHalo ? `rgba(255, 237, 213, ${(0.88 * alphaScale).toFixed(3)})` : `rgba(254, 249, 195, ${(0.90 * alphaScale).toFixed(3)})`);
+    mGrad.addColorStop(0.46, isHalo ? `rgba(251, 146, 60, ${(0.74 * alphaScale).toFixed(3)})` : `rgba(253, 224, 71, ${(0.70 * alphaScale).toFixed(3)})`);
+    mGrad.addColorStop(0.58, isHalo ? `rgba(249, 115, 22, ${(0.28 * alphaScale).toFixed(3)})` : `rgba(253, 224, 71, ${(0.22 * alphaScale).toFixed(3)})`);
     mGrad.addColorStop(1, "rgba(251, 146, 60, 0)");
     ctx.fillStyle = mGrad;
     ctx.beginPath();
-    ctx.arc(moonX, moonY, moonR * 2.1, 0, Math.PI * 2);
+    ctx.arc(moonX, moonY, moonR * 2.25, 0, Math.PI * 2);
     ctx.fill();
 
     if (isHalo) {
       if (this._bats.length === 0) {
-        const count = w < 720 ? 3 : 6;
+        const count = w < 720 ? 4 : 7;
         for (let i = 0; i < count; i++) {
           this._bats.push({
             x: moonX + (Math.random() - 0.5) * 260,
@@ -367,8 +775,8 @@ const HolidayThemes = {
           });
         }
       }
-      ctx.strokeStyle = "rgba(15, 23, 42, 0.72)";
-      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.78)";
+      ctx.lineWidth = 1.65;
       this._bats.forEach((b, idx) => {
         b.phase += dt * 9;
         b.x += b.vx * dt;
@@ -389,7 +797,7 @@ const HolidayThemes = {
     if (!this._sleigh) {
       this._sleighTimer -= dt;
       if (this._sleighTimer <= 0) {
-        this._sleigh = { x: -120, y: h * 0.14, speed: w < 720 ? 64 : 88 };
+        this._sleigh = { x: -130, y: h * 0.14, speed: w < 720 ? 64 : 88 };
       }
       return;
     }
@@ -398,36 +806,112 @@ const HolidayThemes = {
     const sy = sl.y + Math.sin(step * 1.8) * 6;
     ctx.save();
     ctx.translate(sl.x, sy);
-    ctx.globalAlpha = 0.55;
-    // Tiny sleigh body & 2 prancing reindeer + faint Rudolph red nose
-    ctx.fillStyle = "rgba(30, 41, 59, 0.85)";
+    ctx.globalAlpha = 0.62;
+    // Stardust trail behind sleigh runners
+    for (let s = 1; s <= 5; s++) {
+      ctx.fillStyle = `rgba(253, 224, 71, ${(0.55 - s * 0.09).toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(-28 - s * 10, 3 + Math.sin(step * 5 + s) * 2.5, 1.8 - s * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(30, 41, 59, 0.88)";
     ctx.beginPath();
     ctx.roundRect(-24, -4, 16, 7, 2);
     ctx.fill();
-    ctx.strokeStyle = "rgba(250, 204, 21, 0.65)";
+    ctx.strokeStyle = "rgba(250, 204, 21, 0.72)";
     ctx.lineWidth = 1.1;
     ctx.beginPath();
     ctx.moveTo(-26, 4);
     ctx.quadraticCurveTo(-15, 6, -6, 2);
     ctx.stroke();
-    [6, 22].forEach((rx, rIdx) => {
-      const bob = Math.sin(step * 6 + rIdx) * 1.6;
-      ctx.fillStyle = "rgba(30, 41, 59, 0.85)";
+    [6, 18, 30].forEach((rx, rIdx) => {
+      const bob = Math.sin(step * 6 + rIdx * 0.8) * 1.6;
+      ctx.fillStyle = "rgba(30, 41, 59, 0.88)";
       ctx.beginPath();
       ctx.ellipse(rx, -1 + bob, 4.2, 2.2, 0, 0, Math.PI * 2);
       ctx.fill();
-      if (rIdx === 1) {
-        ctx.fillStyle = "rgba(248, 113, 113, 0.95)";
+      if (rIdx === 2) {
+        ctx.fillStyle = "rgba(248, 113, 113, 0.96)";
         ctx.beginPath();
-        ctx.arc(rx + 4.8, -2 + bob, 1.3, 0, Math.PI * 2);
+        ctx.arc(rx + 4.8, -2 + bob, 1.4, 0, Math.PI * 2);
         ctx.fill();
       }
     });
     ctx.restore();
-    if (sl.x > w + 140) {
+    if (sl.x > w + 150) {
       this._sleigh = null;
       this._sleighTimer = 26 + Math.random() * 18;
     }
+  },
+
+  _drawUnderwaterSurfaceFireworks(ctx, w, h, hol, pal, dt, step) {
+    const isNarrow = w < 720;
+    this._surfaceBurstTimer -= dt;
+    if (this._surfaceBurstTimer <= 0 && this._surfaceBursts.length < 4) {
+      this._surfaceBurstTimer = isNarrow ? 1.45 : 0.92 + Math.random() * 0.45;
+      const isSg = hol.id === "sg_national_day";
+      const colors = isSg
+        ? ["239, 68, 68", "255, 255, 255", "252, 165, 165"]
+        : ["250, 204, 21", "56, 189, 248", "244, 114, 182", "52, 211, 153"];
+      this._surfaceBursts.push({
+        x: w * (0.16 + Math.random() * 0.68),
+        rgb: colors[Math.floor(Math.random() * colors.length)],
+        rgb2: colors[(Math.floor(Math.random() * colors.length) + 1) % colors.length],
+        age: 0,
+        maxAge: 2.35,
+        slant: (Math.random() - 0.5) * 0.24
+      });
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const alive = [];
+    for (let i = 0; i < this._surfaceBursts.length; i++) {
+      const b = this._surfaceBursts[i];
+      b.age += dt;
+      if (b.age >= b.maxAge) continue;
+      alive.push(b);
+      const t = b.age / b.maxAge;
+      const env = t < 0.18 ? (t / 0.18) : Math.pow(1 - (t - 0.18) / 0.82, 1.15);
+      const spread = 78 + t * 145;
+
+      // Vivid chromatic bloom refracting along ocean surface ceiling
+      const sg = ctx.createRadialGradient(b.x, 8, 2, b.x, 14, spread);
+      sg.addColorStop(0, `rgba(255, 255, 255, ${(0.55 * env).toFixed(3)})`);
+      sg.addColorStop(0.28, `rgba(${b.rgb}, ${(0.52 * env).toFixed(3)})`);
+      sg.addColorStop(0.65, `rgba(${b.rgb2}, ${(0.22 * env).toFixed(3)})`);
+      sg.addColorStop(1, `rgba(${b.rgb}, 0)`);
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.ellipse(b.x, 12, spread, 42, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Refracted chromatic light shafts + cascading shimmer sparks
+      const depth = h * 0.48;
+      const lg = ctx.createLinearGradient(b.x, 0, b.x + depth * b.slant, depth);
+      lg.addColorStop(0, `rgba(${b.rgb}, ${(0.28 * env).toFixed(3)})`);
+      lg.addColorStop(0.55, `rgba(${b.rgb2}, ${(0.12 * env).toFixed(3)})`);
+      lg.addColorStop(1, `rgba(${b.rgb}, 0)`);
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.moveTo(b.x - 28, 0);
+      ctx.lineTo(b.x + 28, 0);
+      ctx.lineTo(b.x + depth * b.slant + 78, depth);
+      ctx.lineTo(b.x + depth * b.slant - 78, depth);
+      ctx.closePath();
+      ctx.fill();
+
+      for (let s = 0; s < 5; s++) {
+        const spX = b.x + Math.sin(s * 2.1 + i * 1.7) * (32 + t * 48);
+        const spY = 14 + t * 56 + (s % 3) * 14;
+        ctx.fillStyle = `rgba(255, 255, 255, ${(0.72 * env).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(spX, spY, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    this._surfaceBursts = alive;
+    ctx.restore();
   },
 
   drawNatureOverlay(ctx, w, h, mode, dt, step, holidayOverride = null) {
@@ -436,19 +920,55 @@ const HolidayThemes = {
     const isDark = mode === "dark" || mode === "evening";
     const fam = hol.family;
     ctx.save();
+    this._drawSeasonalAtmosphere(ctx, w, h, hol, isDark);
 
-    if (fam === "christmas") {
+    if (fam === "thanksgiving") {
+      const harvestCols = ["234, 88, 12", "245, 158, 11", "220, 38, 38", "253, 224, 71"];
+      this._drawLightGarland(ctx, w * 0.02, 10, w * 0.34, 14, 18, 9, step, harvestCols);
+      this._drawLightGarland(ctx, w * 0.66, 14, w * 0.98, 10, 18, 9, step + 1.2, harvestCols);
+      this._drawDiyaRow(ctx, [0.12, 0.24, 0.76, 0.88].map(f => ({ x: w * f, y: h - 10 })), step, 0.92);
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+    } else if (fam === "christmas") {
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
       this._drawLightGarland(ctx, w * 0.04, 10, w * 0.96, 10, 14, w < 720 ? 10 : 18, step, ["239, 68, 68", "52, 211, 153", "250, 204, 21"]);
       this._drawSantaSleighSilhouette(ctx, w, h, dt, step);
+    } else if (fam === "lantern") {
+      this._drawLightGarland(ctx, w * 0.04, 8, w * 0.96, 8, 14, w < 720 ? 8 : 14, step, ["239, 68, 68", "250, 204, 21"], { lanterns: true });
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._updateFireworks(ctx, w, h, hol, dt, null);
+    } else if (fam === "diwali") {
+      const diyaSpots = [0.14, 0.28, 0.50, 0.72, 0.86].map(f => ({ x: w * f, y: h - 10 }));
+      this._drawDiyaRow(ctx, diyaSpots, step, w < 720 ? 0.9 : 1.15);
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._updateFireworks(ctx, w, h, hol, dt, null);
     } else if (fam === "new_year" || fam === "national_day") {
       this._updateFireworks(ctx, w, h, hol, dt, null);
     } else if (fam === "halloween" || fam === "mid_autumn") {
       this._drawMoonAndBats(ctx, w, h, hol, dt, step, w * 0.82, h * 0.16, w < 720 ? 22 : 34);
+      if (fam === "halloween") {
+        this._drawJackOLanterns(ctx, [{ x: w * 0.10, y: h - 14 }, { x: w * 0.88, y: h - 14 }], step, 1.25);
+      }
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
     } else {
+      if (fam === "st_patricks") {
+        ctx.save();
+        ctx.globalAlpha = isDark ? 0.14 : 0.10;
+        const arcR = Math.min(w * 0.36, 340);
+        const arcCols = ["#EF4444", "#F59E0B", "#10B981", "#38BDF8", "#8B5CF6"];
+        arcCols.forEach((c, idx) => {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(w * 0.78, h * 0.36, arcR - idx * 4.5, Math.PI * 1.08, Math.PI * 1.92);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
     }
@@ -460,31 +980,140 @@ const HolidayThemes = {
     if (!hol || !L) return;
     const isDark = pal ? pal.isNightLights : (mode === "dark" || mode === "evening");
     const fam = hol.family;
+    const celMoon = pal && pal.celestial && pal.celestial.moon && pal.celestial.moon.visible ? pal.celestial.moon : null;
     ctx.save();
+    this._drawSeasonalAtmosphere(ctx, w, h, hol, isDark);
 
-    if (fam === "christmas") {
+    if (fam === "thanksgiving") {
+      const harvestCols = ["234, 88, 12", "251, 191, 36", "220, 38, 38", "245, 158, 11"];
+      this._drawLightGarland(ctx, L.towerLeftX, L.padY - L.towerH * 0.70, L.towerRightX, L.padY - L.towerH * 0.70, 9, 7, step, harvestCols);
+      this._drawLightGarland(ctx, L.hangarX - L.hangarW * 0.42, L.hangarY - 5, L.hangarX + L.hangarW * 0.42, L.hangarY - 5, -10, 9, step, harvestCols);
+      // Warm amber architectural spire & plaza glow
+      const sg = ctx.createRadialGradient(L.termX, L.termY - 60 * L.termScale, 4, L.termX, L.termY - 40 * L.termScale, 82 * L.termScale);
+      sg.addColorStop(0, "rgba(251, 191, 36, 0.24)");
+      sg.addColorStop(0.55, "rgba(234, 88, 12, 0.10)");
+      sg.addColorStop(1, "rgba(234, 88, 12, 0)");
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(L.termX, L.termY - 50 * L.termScale, 82 * L.termScale, 0, Math.PI * 2);
+      ctx.fill();
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+    } else if (fam === "christmas") {
       const warmCols = ["239, 68, 68", "52, 211, 153", "250, 204, 21", "96, 165, 250"];
       this._drawLightGarland(ctx, L.towerLeftX, L.padY - L.towerH * 0.72, L.towerRightX, L.padY - L.towerH * 0.72, 10, 7, step, warmCols);
       this._drawLightGarland(ctx, L.hangarX - L.hangarW * 0.42, L.hangarY - 6, L.hangarX + L.hangarW * 0.42, L.hangarY - 6, -12, 9, step, warmCols);
+      if (L.satWest && L.satEast) {
+        this._drawLightGarland(ctx, L.satWest.x + 24 * L.termScale, L.satWest.y - 6, L.termX - 24 * L.termScale, L.termY - 10, 7, 7, step, warmCols);
+      }
       // Spire topper golden star
       const sy = L.termY - 114 * L.termScale;
-      const sg = ctx.createRadialGradient(L.termX, sy, 0, L.termX, sy, 14);
-      sg.addColorStop(0, "rgba(254, 240, 138, 0.95)");
+      const sg = ctx.createRadialGradient(L.termX, sy, 0, L.termX, sy, 15);
+      sg.addColorStop(0, "rgba(254, 240, 138, 0.96)");
       sg.addColorStop(1, "rgba(250, 204, 21, 0)");
       ctx.fillStyle = sg;
       ctx.beginPath();
-      ctx.arc(L.termX, sy, 14, 0, Math.PI * 2);
+      ctx.arc(L.termX, sy, 15, 0, Math.PI * 2);
       ctx.fill();
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
       this._drawSantaSleighSilhouette(ctx, w, h, dt, step);
+    } else if (fam === "lantern") {
+      const cnyCols = ["239, 68, 68", "250, 204, 21", "251, 146, 60"];
+      this._drawLightGarland(ctx, L.hangarX - L.hangarW * 0.44, L.hangarY - 6, L.hangarX + L.hangarW * 0.44, L.hangarY - 6, -10, 9, step, cnyCols, { lanterns: true });
+      if (L.satWest) {
+        this._drawLightGarland(ctx, L.satWest.x + 18 * L.termScale, L.satWest.y - 4, L.termX - 18 * L.termScale, L.termY - 8, 6, 7, step, cnyCols, { lanterns: true });
+      }
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._updateFireworks(ctx, w, h, hol, dt, L.islandTopY);
+    } else if (fam === "diwali") {
+      const diwaliCols = ["251, 191, 36", "236, 72, 153", "253, 224, 71"];
+      this._drawLightGarland(ctx, L.towerLeftX, L.padY - L.towerH * 0.72, L.towerRightX, L.padY - L.towerH * 0.72, 10, 7, step, diwaliCols);
+      const seawallSpots = [0.22, 0.34, 0.46, 0.58, 0.70].map(f => {
+        const px = w * f;
+        return { x: px, y: L.shoreYAtX ? L.shoreYAtX(px) - 3 : L.islandBotY - 12 };
+      });
+      this._drawDiyaRow(ctx, seawallSpots, step, 0.9);
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._updateFireworks(ctx, w, h, hol, dt, L.islandTopY);
     } else if (fam === "new_year" || fam === "national_day") {
+      // Celebratory sweeping bay searchlights from terminal & pad
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const beamCol = hol.id === "sg_national_day" ? "254, 202, 202" : "186, 230, 253";
+      [L.termX, L.padX].forEach((bx, idx) => {
+        const sweep = Math.sin(step * 1.15 + idx * 1.8) * 0.28 + (idx === 0 ? -0.15 : 0.18);
+        const byTop = Math.max(0, L.horizonY - h * 0.28);
+        const topX = bx + Math.tan(sweep) * (L.termY - byTop);
+        const bg = ctx.createLinearGradient(bx, L.termY - 20, topX, byTop);
+        bg.addColorStop(0, `rgba(${beamCol}, 0.22)`);
+        bg.addColorStop(1, `rgba(${beamCol}, 0)`);
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, L.termY - 24);
+        ctx.lineTo(bx + 4, L.termY - 24);
+        ctx.lineTo(topX + 34, byTop);
+        ctx.lineTo(topX - 34, byTop);
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.restore();
       this._updateFireworks(ctx, w, h, hol, dt, L.islandTopY);
     } else if (fam === "halloween" || fam === "mid_autumn") {
-      this._drawMoonAndBats(ctx, w, h, hol, dt, step, w * 0.84, L.horizonY * 0.56, w < 720 ? 20 : 32);
+      const mx = celMoon ? celMoon.x : w * 0.84;
+      const my = celMoon ? celMoon.y : L.horizonY * 0.56;
+      const ma = celMoon ? Math.max(0.55, celMoon.alpha) : 0.45;
+      this._drawMoonAndBats(ctx, w, h, hol, dt, step, mx, my, w < 720 ? 20 : 32, { alpha: ma });
+      if (fam === "halloween") {
+        this._drawJackOLanterns(ctx, [
+          { x: L.plazaX ? L.plazaX - 18 : L.termX - 24, y: L.plazaY ? L.plazaY + 4 : L.termY + 28 },
+          { x: L.plazaX ? L.plazaX + 20 : L.termX + 28, y: L.plazaY ? L.plazaY + 6 : L.termY + 30 }
+        ], step, 0.95);
+      }
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
     } else {
+      if (fam === "st_patricks") {
+        ctx.save();
+        ctx.globalAlpha = isDark ? 0.14 : 0.11;
+        const arcR = Math.min(w * 0.34, 320);
+        ["#EF4444", "#F59E0B", "#10B981", "#38BDF8", "#8B5CF6"].forEach((c, idx) => {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.arc(w * 0.72, L.horizonY * 0.92, arcR - idx * 4, Math.PI * 1.10, Math.PI * 1.90);
+          ctx.stroke();
+        });
+        ctx.restore();
+      } else if (fam === "earth_day") {
+        ctx.save();
+        const ag = ctx.createLinearGradient(0, L.horizonY * 0.18, w, L.horizonY * 0.56);
+        ag.addColorStop(0, "rgba(16, 185, 129, 0)");
+        ag.addColorStop(0.35, "rgba(45, 212, 191, 0.15)");
+        ag.addColorStop(0.68, "rgba(56, 189, 248, 0.13)");
+        ag.addColorStop(1, "rgba(16, 185, 129, 0)");
+        ctx.fillStyle = ag;
+        ctx.beginPath();
+        ctx.moveTo(0, L.horizonY * 0.32);
+        ctx.quadraticCurveTo(w * 0.35, L.horizonY * 0.14 + Math.sin(step * 0.8) * 14, w, L.horizonY * 0.38);
+        ctx.lineTo(w, L.horizonY * 0.58);
+        ctx.quadraticCurveTo(w * 0.5, L.horizonY * 0.44, 0, L.horizonY * 0.52);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (fam === "easter") {
+        this._drawLightGarland(ctx, L.hangarX - L.hangarW * 0.40, L.hangarY - 5, L.hangarX + L.hangarW * 0.40, L.hangarY - 5, -9, 8, step, ["249, 168, 212", "167, 243, 208", "253, 230, 138"]);
+      } else if (fam === "valentines" || fam === "midsummer") {
+        const sg = ctx.createRadialGradient(L.termX, L.termY - 55 * L.termScale, 4, L.termX, L.termY - 40 * L.termScale, 75 * L.termScale);
+        sg.addColorStop(0, `rgba(${hol.accent}, 0.22)`);
+        sg.addColorStop(1, `rgba(${hol.accent}, 0)`);
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.arc(L.termX, L.termY - 46 * L.termScale, 75 * L.termScale, 0, Math.PI * 2);
+        ctx.fill();
+      }
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
     }
@@ -498,45 +1127,106 @@ const HolidayThemes = {
     const fam = hol.family;
     const s = L.s || 1;
     ctx.save();
+    this._drawSeasonalAtmosphere(ctx, w, h, hol, isDark);
 
-    if (fam === "christmas") {
+    if (fam === "thanksgiving") {
+      const harvestCols = ["234, 88, 12", "245, 158, 11", "253, 224, 71", "220, 38, 38"];
+      this._drawLightGarland(ctx, L.westWingX + 20 * s, L.westWingY + 6 * s, L.hubX - 96 * s, L.hubY + 12 * s, 8 * s, 8, step, harvestCols);
+      this._drawLightGarland(ctx, L.hubX + 96 * s, L.hubY + 12 * s, L.eastWingX - 20 * s, L.eastWingY + 6 * s, 8 * s, 8, step, harvestCols);
+      // Warm harvest hearth glow inside central habitat dome
+      const dg = ctx.createRadialGradient(L.domeX, L.domeY - 4 * s, 2 * s, L.domeX, L.domeY - 4 * s, 32 * s);
+      dg.addColorStop(0, "rgba(251, 191, 36, 0.34)");
+      dg.addColorStop(0.55, "rgba(234, 88, 12, 0.14)");
+      dg.addColorStop(1, "rgba(234, 88, 12, 0)");
+      ctx.fillStyle = dg;
+      ctx.beginPath();
+      ctx.arc(L.domeX, L.domeY - 4 * s, 32 * s, 0, Math.PI * 2);
+      ctx.fill();
+      this._ensureParticles({ ...hol, family: "diwali" }, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, { ...hol, family: "diwali" }, isDark);
+    } else if (fam === "christmas") {
       const cols = ["239, 68, 68", "52, 211, 153", "250, 204, 21"];
       this._drawLightGarland(ctx, L.westWingX + 20 * s, L.westWingY + 6 * s, L.hubX - 96 * s, L.hubY + 12 * s, 8 * s, 8, step, cols);
       this._drawLightGarland(ctx, L.hubX + 96 * s, L.hubY + 12 * s, L.eastWingX - 20 * s, L.eastWingY + 6 * s, 8 * s, 8, step, cols);
-      // Glowing miniature festive pine inside hydroponic dome
-      ctx.fillStyle = "rgba(34, 197, 94, 0.85)";
+      // Glowing miniature festive pine with ornaments inside hydroponic dome
+      ctx.fillStyle = "rgba(34, 197, 94, 0.88)";
       ctx.beginPath();
-      ctx.moveTo(L.domeX, L.domeY - 14 * s);
-      ctx.lineTo(L.domeX - 9 * s, L.domeY + 4 * s);
-      ctx.lineTo(L.domeX + 9 * s, L.domeY + 4 * s);
+      ctx.moveTo(L.domeX, L.domeY - 15 * s);
+      ctx.lineTo(L.domeX - 10 * s, L.domeY + 4 * s);
+      ctx.lineTo(L.domeX + 10 * s, L.domeY + 4 * s);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = "rgba(250, 204, 21, 0.95)";
+      ctx.fillStyle = "rgba(250, 204, 21, 0.96)";
       ctx.beginPath();
-      ctx.arc(L.domeX, L.domeY - 15 * s, 2.2 * s, 0, Math.PI * 2);
+      ctx.arc(L.domeX, L.domeY - 16 * s, 2.5 * s, 0, Math.PI * 2);
       ctx.fill();
-    } else if (fam === "new_year" || fam === "national_day") {
-      this._updateFireworks(ctx, w, h, hol, dt, null);
-    } else if (fam === "halloween") {
-      // Glowing jack-o'-lantern orbs outside main hub & sunken shipwreck!
-      const spots = [{ x: L.hubX - 42 * s, y: L.hubY + 10 * s }, ...(L.wreck && !L.isNarrow ? [{ x: L.wreck.x - 16 * L.wreck.scale, y: L.wreck.y - 22 * L.wreck.scale }] : [])];
-      spots.forEach((pt, idx) => {
-        const pulse = 0.72 + 0.28 * Math.sin(step * 4 + idx);
-        const g = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, 12 * s);
-        g.addColorStop(0, `rgba(251, 146, 60, ${(0.88 * pulse).toFixed(3)})`);
-        g.addColorStop(1, "rgba(249, 115, 22, 0)");
-        ctx.fillStyle = g;
+      [[-3, -4], [3, -1], [-4, 1], [2, -8]].forEach(([ox, oy], idx) => {
+        ctx.fillStyle = idx % 2 === 0 ? "rgba(248, 113, 113, 0.95)" : "rgba(125, 211, 252, 0.95)";
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 12 * s, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#EA580C";
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 4.0 * s, 0, Math.PI * 2);
+        ctx.arc(L.domeX + ox * s, L.domeY + oy * s, 1.3 * s, 0, Math.PI * 2);
         ctx.fill();
       });
-    } else {
       this._ensureParticles(hol, w, h, dt);
       this._drawSnowflakesAndParticles(ctx, hol, isDark);
+    } else if (fam === "lantern" || fam === "diwali") {
+      const cols = fam === "lantern" ? ["239, 68, 68", "250, 204, 21"] : ["251, 191, 36", "236, 72, 153", "253, 224, 71"];
+      this._drawLightGarland(ctx, L.westWingX + 20 * s, L.westWingY + 6 * s, L.hubX - 96 * s, L.hubY + 12 * s, 8 * s, 7, step, cols, { lanterns: true });
+      this._drawLightGarland(ctx, L.hubX + 96 * s, L.hubY + 12 * s, L.eastWingX - 20 * s, L.eastWingY + 6 * s, 8 * s, 7, step, cols, { lanterns: true });
+      if (fam === "diwali") {
+        this._drawDiyaRow(ctx, [
+          { x: L.hubX - 50 * s, y: L.hubY + 14 * s },
+          { x: L.hubX + 50 * s, y: L.hubY + 14 * s }
+        ], step, s * 0.95);
+      }
+      this._ensureParticles({ ...hol, family: "diwali" }, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, { ...hol, family: "diwali" }, isDark);
+    } else if (fam === "new_year" || fam === "national_day") {
+      // Underwater-authentic refracted surface fireworks, glass corridor celebration bulbs & dome skyward beams
+      const nyCols = hol.id === "sg_national_day" ? ["239, 68, 68", "255, 255, 255"] : ["250, 204, 21", "56, 189, 248", "244, 114, 182"];
+      this._drawLightGarland(ctx, L.westWingX + 20 * s, L.westWingY + 6 * s, L.hubX - 96 * s, L.hubY + 12 * s, 8 * s, 7, step, nyCols);
+      this._drawLightGarland(ctx, L.hubX + 96 * s, L.hubY + 12 * s, L.eastWingX - 20 * s, L.eastWingY + 6 * s, 8 * s, 7, step, nyCols);
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      [L.westWingX, L.eastWingX].forEach((bx, idx) => {
+        const sweep = Math.sin(step * 1.3 + idx * 1.9) * 0.25 + (idx === 0 ? -0.14 : 0.14);
+        const topY = 0;
+        const topX = bx + Math.tan(sweep) * (L.westWingY - topY);
+        const col = nyCols[idx % nyCols.length];
+        const bg = ctx.createLinearGradient(bx, L.westWingY - 10 * s, topX, topY);
+        bg.addColorStop(0, `rgba(${col}, 0.24)`);
+        bg.addColorStop(1, `rgba(${col}, 0)`);
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.moveTo(bx - 5 * s, L.westWingY - 12 * s);
+        ctx.lineTo(bx + 5 * s, L.westWingY - 12 * s);
+        ctx.lineTo(topX + 42 * s, topY);
+        ctx.lineTo(topX - 42 * s, topY);
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.restore();
+      this._drawUnderwaterSurfaceFireworks(ctx, w, h, hol, pal, dt, step);
+      this._ensureParticles({ ...hol, family: "diwali" }, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, { ...hol, family: "diwali" }, isDark);
+    } else if (fam === "halloween") {
+      const spots = [{ x: L.hubX - 42 * s, y: L.hubY + 10 * s }, ...(L.wreck && !L.isNarrow ? [{ x: L.wreck.x - 16 * L.wreck.scale, y: L.wreck.y - 22 * L.wreck.scale }] : [])];
+      this._drawJackOLanterns(ctx, spots, step, s * 0.95);
+    } else {
+      // Aquatic-authentic bioluminescent marine sparks & dome accent glow (Mid-Autumn buoys, Valentine's, Easter, St. Patrick's, Earth Day, Solstice)
+      const cols = [hol.accent, hol.secondary, hol.tertiary || hol.accent];
+      if (fam === "mid_autumn" || fam === "easter" || fam === "valentines") {
+        this._drawLightGarland(ctx, L.westWingX + 20 * s, L.westWingY + 6 * s, L.hubX - 96 * s, L.hubY + 12 * s, 8 * s, 7, step, cols, { lanterns: fam === "mid_autumn" });
+        this._drawLightGarland(ctx, L.hubX + 96 * s, L.hubY + 12 * s, L.eastWingX - 20 * s, L.eastWingY + 6 * s, 8 * s, 7, step, cols, { lanterns: fam === "mid_autumn" });
+      }
+      const dg = ctx.createRadialGradient(L.domeX, L.domeY - 4 * s, 2 * s, L.domeX, L.domeY - 4 * s, 30 * s);
+      dg.addColorStop(0, `rgba(${hol.accent}, 0.28)`);
+      dg.addColorStop(1, `rgba(${hol.accent}, 0)`);
+      ctx.fillStyle = dg;
+      ctx.beginPath();
+      ctx.arc(L.domeX, L.domeY - 4 * s, 30 * s, 0, Math.PI * 2);
+      ctx.fill();
+      this._ensureParticles({ ...hol, family: "diwali" }, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, { ...hol, family: "diwali" }, isDark);
     }
     ctx.restore();
   }

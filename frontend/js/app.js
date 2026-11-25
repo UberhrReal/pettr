@@ -840,6 +840,8 @@ const App = {
     const { theme } = this.getDiurnalTheme(h);
     localStorage.setItem("pettr_theme_mode", "slider");
     localStorage.setItem("pettr_theme_slider_hour", String(h));
+    if (typeof WorldGateway !== "undefined") WorldGateway.cacheKey = "";
+    if (typeof WorldDeepBlue !== "undefined") WorldDeepBlue.cacheKey = "";
     this.applyEffectiveTheme(theme);
 
     // Deselect other preset buttons

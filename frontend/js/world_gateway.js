@@ -426,6 +426,66 @@ const WorldGateway = {
     };
   },
 
+  getCelestialState(w, h, L, mode, diurnalHour = null) {
+    const defaults = { morning: 7.5, light: 13.0, evening: 18.5, dark: 23.0 };
+    let hour = (typeof diurnalHour === "number" && Number.isFinite(diurnalHour))
+      ? diurnalHour
+      : ((typeof WaveCanvas !== "undefined" && WaveCanvas.getDiurnalHour)
+          ? WaveCanvas.getDiurnalHour(mode)
+          : (defaults[mode] !== undefined ? defaults[mode] : 13.0));
+    hour = ((hour % 24) + 24) % 24;
+
+    // Solar arc: East (Right) at Dawn (~05:45) -> Overhead Center at Noon (13:00) -> West (Left) at Dusk (~20:15)
+    const uSunRaw = (hour - 5.75) / 14.5;
+    const sunVisible = uSunRaw >= -0.02 && uSunRaw <= 1.02;
+    const uSun = Math.max(0, Math.min(1, uSunRaw));
+    const sunXFrac = 0.91 - uSun * 0.82;
+    const sunAlt = Math.sin(uSun * Math.PI);
+    const sunFadeIn = Math.min(1, Math.max(0, (uSunRaw + 0.02) / 0.06));
+    const sunFadeOut = Math.min(1, Math.max(0, (1.02 - uSunRaw) / 0.06));
+    const sunAlpha = sunVisible ? Math.min(sunFadeIn, sunFadeOut) : 0;
+    const sun = {
+      kind: "sun",
+      xFrac: sunXFrac,
+      x: w * sunXFrac,
+      y: L.horizonY - 4 - sunAlt * (L.horizonY * 0.72),
+      alt: sunAlt,
+      visible: sunVisible && sunAlpha > 0.01,
+      alpha: sunAlpha
+    };
+
+    // Lunar arc: Rises East (Right) during Golden Hour (~17:30) -> Zenith near Midnight -> Sets West (Left) at Dawn (~06:15)
+    const moonElapsed = ((hour - 17.5) % 24 + 24) % 24;
+    const uMoonRaw = moonElapsed / 12.75;
+    const moonVisibleRaw = uMoonRaw >= 0 && uMoonRaw <= 1.0;
+    const uMoon = Math.max(0, Math.min(1, uMoonRaw));
+    const moonXFrac = 0.89 - uMoon * 0.78;
+    const moonAlt = Math.sin(uMoon * Math.PI);
+    const moonFadeIn = Math.min(1, Math.max(0, uMoonRaw / 0.08));
+    const moonFadeOut = Math.min(1, Math.max(0, (1.0 - uMoonRaw) / 0.12));
+    const twilightMult = mode === "dark" ? 1.0 : (mode === "evening" || mode === "morning" ? 0.58 : 0);
+    const moonAlpha = moonVisibleRaw ? Math.min(moonFadeIn, moonFadeOut) * twilightMult : 0;
+    const moon = {
+      kind: "moon",
+      xFrac: moonXFrac,
+      x: w * moonXFrac,
+      y: L.horizonY - 4 - moonAlt * (L.horizonY * 0.70),
+      alt: moonAlt,
+      visible: moonVisibleRaw && moonAlpha > 0.04,
+      alpha: moonAlpha
+    };
+
+    const primary = (mode === "dark" || !sun.visible)
+      ? (moon.visible ? moon : { kind: "moon", xFrac: 0.50, x: w * 0.50, y: L.horizonY * 0.34, alt: 0.85, visible: true, alpha: 0.78 })
+      : sun;
+
+    // Shadow direction casts away from primary light (Dawn East sun -> negative/West shadows; Dusk West sun -> positive/East shadows)
+    const rawDir = (0.5 - primary.xFrac) * 2.6 * (0.72 + (1 - primary.alt) * 0.78);
+    const shadowDir = Math.max(-1.55, Math.min(1.55, rawDir));
+
+    return { hour, sun, moon, primary, shadowDir };
+  },
+
   getLayout(w, h) {
     const isNarrow = w < 720;
     const horizonY = h * (isNarrow ? 0.30 : 0.27);
@@ -619,8 +679,11 @@ const WorldGateway = {
     };
   },
 
-  ensureStaticCache(w, h, mode) {
-    const key = `${Math.round(w)}x${Math.round(h)}:${mode}`;
+  ensureStaticCache(w, h, mode, diurnalHour = null) {
+    const L = this.getLayout(w, h);
+    const cel = this.getCelestialState(w, h, L, mode, diurnalHour);
+    const hSlot = Math.round(cel.hour * 4);
+    const key = `${Math.round(w)}x${Math.round(h)}:${mode}:h${hSlot}`;
     if (this.cacheCanvas && this.fgCacheCanvas && this.cacheKey === key) return;
 
     if (!this.cacheCanvas) {
@@ -638,7 +701,9 @@ const WorldGateway = {
     const ctx = this.cacheCanvas.getContext("2d");
     const fgCtx = this.fgCacheCanvas.getContext("2d");
     const pal = this.getPalette(mode);
-    const L = this.getLayout(w, h);
+    pal.sunDir = cel.shadowDir;
+    pal.celestial = cel;
+    pal.diurnalHour = cel.hour;
 
     // 1. Wide Atmospheric Sky Gradient
     const skyGrad = ctx.createLinearGradient(0, 0, 0, L.horizonY + 8);
@@ -648,18 +713,28 @@ const WorldGateway = {
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, w, L.horizonY + 8);
 
-    // 2. Low Sun / Moon Disk, Horizon Glow & Spectacular Spaceport Night Cosmos
-    const sunX = w * 0.11;
-    const sunY = L.horizonY - 8;
-    const sunHalo = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, Math.min(w * 0.48, 460));
-    sunHalo.addColorStop(0, pal.sunCore);
-    sunHalo.addColorStop(0.18, `rgba(${pal.sunGlow}, ${mode === "dark" ? 0.20 : 0.45})`);
-    sunHalo.addColorStop(0.55, `rgba(${pal.sunGlow}, ${mode === "dark" ? 0.06 : 0.14})`);
-    sunHalo.addColorStop(1, `rgba(${pal.sunGlow}, 0)`);
-    ctx.fillStyle = sunHalo;
-    ctx.fillRect(0, 0, w, L.horizonY + 120);
+    // 2. Dynamic East -> West Diurnal Sun / Moon Halo, Disk & Spaceport Night Cosmos
+    if (cel.sun.visible) {
+      const sHaloR = Math.min(w * 0.52, 500);
+      const lowBoost = 0.65 + (1 - cel.sun.alt) * 0.45;
+      const sunHalo = ctx.createRadialGradient(cel.sun.x, cel.sun.y, 4, cel.sun.x, cel.sun.y, sHaloR);
+      sunHalo.addColorStop(0, pal.sunCore);
+      sunHalo.addColorStop(0.18, `rgba(${pal.sunGlow}, ${(0.42 * cel.sun.alpha * lowBoost).toFixed(3)})`);
+      sunHalo.addColorStop(0.55, `rgba(${pal.sunGlow}, ${(0.14 * cel.sun.alpha * lowBoost).toFixed(3)})`);
+      sunHalo.addColorStop(1, `rgba(${pal.sunGlow}, 0)`);
+      ctx.fillStyle = sunHalo;
+      ctx.fillRect(0, 0, w, L.horizonY + 110);
+    }
 
     if (mode === "dark") {
+      // Soft cool atmospheric glow behind lunar zenith position
+      const pHalo = ctx.createRadialGradient(cel.primary.x, cel.primary.y, 6, cel.primary.x, cel.primary.y, Math.min(w * 0.42, 420));
+      pHalo.addColorStop(0, "rgba(186, 230, 253, 0.16)");
+      pHalo.addColorStop(0.45, `rgba(${pal.sunGlow}, 0.08)`);
+      pHalo.addColorStop(1, `rgba(${pal.sunGlow}, 0)`);
+      ctx.fillStyle = pHalo;
+      ctx.fillRect(0, 0, w, L.horizonY + 80);
+
       // Sweeping Milky Way Galactic Band, Emission Nebulae, Crescent Moon & Atmospheric Airglow
       ctx.save();
       ctx.beginPath();
@@ -745,27 +820,61 @@ const WorldGateway = {
       ag.addColorStop(1, "rgba(56, 189, 248, 0.14)");
       ctx.fillStyle = ag;
       ctx.fillRect(0, L.horizonY - 24, w, 26);
+      ctx.restore();
+    }
 
-      // Luminous Crescent Moon with subtle Earthshine & Silver Halo
-      const moonX = w * 0.165;
-      const moonY = L.horizonY * 0.40;
+    // Crisp Solar Disk following East -> Center -> West diurnal solar arc
+    if (cel.sun.visible && mode !== "dark") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, w, L.horizonY + 2);
+      ctx.clip();
+      const sunR = mode === "light" ? 9.5 : 12.5;
+      const diskCore = ctx.createRadialGradient(cel.sun.x, cel.sun.y, 1, cel.sun.x, cel.sun.y, sunR * 2.2);
+      diskCore.addColorStop(0, "rgba(255, 255, 250, 0.98)");
+      diskCore.addColorStop(0.45, pal.sunCore);
+      diskCore.addColorStop(1, `rgba(${pal.sunGlow}, 0)`);
+      ctx.globalAlpha = cel.sun.alpha;
+      ctx.fillStyle = diskCore;
+      ctx.beginPath();
+      ctx.arc(cel.sun.x, cel.sun.y, sunR * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = pal.sunCore;
+      ctx.beginPath();
+      ctx.arc(cel.sun.x, cel.sun.y, sunR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Luminous Crescent Moon rising in East as Dusk falls and crossing to West by Dawn
+    if (cel.moon.visible) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, w, L.horizonY + 2);
+      ctx.clip();
+      const moonX = cel.moon.x;
+      const moonY = cel.moon.y;
       const moonR = L.isNarrow ? 10 : 14;
+      const mAlpha = cel.moon.alpha;
+
       const mHalo = ctx.createRadialGradient(moonX, moonY, moonR * 0.7, moonX, moonY, moonR * 5.2);
-      mHalo.addColorStop(0, "rgba(224, 242, 254, 0.34)");
-      mHalo.addColorStop(0.35, "rgba(125, 211, 252, 0.12)");
+      mHalo.addColorStop(0, `rgba(224, 242, 254, ${(0.34 * mAlpha).toFixed(3)})`);
+      mHalo.addColorStop(0.35, `rgba(125, 211, 252, ${(0.12 * mAlpha).toFixed(3)})`);
       mHalo.addColorStop(1, "rgba(125, 211, 252, 0)");
       ctx.fillStyle = mHalo;
       ctx.beginPath();
       ctx.arc(moonX, moonY, moonR * 5.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Subtle translucent dark-side earthshine disk blending cleanly into the Milky Way cosmos
-      ctx.fillStyle = "rgba(12, 24, 52, 0.24)";
-      ctx.beginPath();
-      ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
-      ctx.fill();
+      // Subtle earthshine disk in night mode
+      if (mode === "dark") {
+        ctx.fillStyle = `rgba(12, 24, 52, ${(0.24 * mAlpha).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(moonX, moonY, moonR, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
-      // Clean isolated crescent cutout stamped without disturbing background stars
+      // Clean isolated crescent cutout stamped without disturbing background sky/stars
       const mc = document.createElement("canvas");
       const mSize = Math.ceil(moonR * 3);
       mc.width = mSize;
@@ -784,13 +893,9 @@ const WorldGateway = {
       mctx.beginPath();
       mctx.arc(mHalf - moonR * 0.44, mHalf - moonR * 0.14, moonR * 0.88, 0, Math.PI * 2);
       mctx.fill();
+      ctx.globalAlpha = Math.min(1, mAlpha * (mode === "dark" ? 1.0 : 0.72));
       ctx.drawImage(mc, moonX - mHalf, moonY - mHalf);
       ctx.restore();
-    } else {
-      ctx.fillStyle = pal.sunCore;
-      ctx.beginPath();
-      ctx.arc(sunX, sunY, mode === "light" ? 9 : 12, 0, Math.PI * 2);
-      ctx.fill();
     }
 
     // Distant horizon cloud bank silhouettes
@@ -816,18 +921,36 @@ const WorldGateway = {
     ctx.fillRect(0, L.horizonY, w, h - L.horizonY);
 
     ctx.save();
-    const sheenX = mode === "dark" ? w * 0.165 : sunX;
+    const sheenX = cel.primary.x;
+    const sheenAlpha = (mode === "dark" ? 0.24 : (mode === "light" ? 0.34 : 0.50)) * Math.max(0.35, cel.primary.alpha);
+    const sheenRgb = cel.primary.kind === "moon" ? "186, 230, 253" : pal.sunGlow;
     const refG = ctx.createLinearGradient(sheenX, L.horizonY, sheenX, L.islandTopY + 30);
-    refG.addColorStop(0, `rgba(${pal.sunGlow}, ${mode === "dark" ? 0.22 : 0.50})`);
-    refG.addColorStop(1, `rgba(${pal.sunGlow}, 0)`);
+    refG.addColorStop(0, `rgba(${sheenRgb}, ${sheenAlpha.toFixed(3)})`);
+    refG.addColorStop(1, `rgba(${sheenRgb}, 0)`);
     ctx.fillStyle = refG;
     ctx.beginPath();
-    ctx.moveTo(sheenX - 16, L.horizonY);
-    ctx.lineTo(sheenX + 16, L.horizonY);
-    ctx.lineTo(sheenX + 72, L.islandTopY + 30);
-    ctx.lineTo(sheenX - 72, L.islandTopY + 30);
+    ctx.moveTo(sheenX - 18, L.horizonY);
+    ctx.lineTo(sheenX + 18, L.horizonY);
+    ctx.lineTo(sheenX + 78, L.islandTopY + 30);
+    ctx.lineTo(sheenX - 78, L.islandTopY + 30);
     ctx.closePath();
     ctx.fill();
+
+    // Secondary twilight lunar bay shimmer when Moon rises opposite the setting Sun
+    if (cel.primary.kind === "sun" && cel.moon.visible && Math.abs(cel.moon.x - sheenX) > 60) {
+      const mSheenA = 0.16 * cel.moon.alpha;
+      const mRefG = ctx.createLinearGradient(cel.moon.x, L.horizonY, cel.moon.x, L.islandTopY + 18);
+      mRefG.addColorStop(0, `rgba(186, 230, 253, ${mSheenA.toFixed(3)})`);
+      mRefG.addColorStop(1, "rgba(186, 230, 253, 0)");
+      ctx.fillStyle = mRefG;
+      ctx.beginPath();
+      ctx.moveTo(cel.moon.x - 10, L.horizonY);
+      ctx.lineTo(cel.moon.x + 10, L.horizonY);
+      ctx.lineTo(cel.moon.x + 42, L.islandTopY + 18);
+      ctx.lineTo(cel.moon.x - 42, L.islandTopY + 18);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
 
     const islands = [
@@ -1696,15 +1819,26 @@ const WorldGateway = {
 
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.moveTo(x + frontW, y + 2);
-    ctx.lineTo(x + frontW + bh * 0.40 * sd + depthX * 0.65, y + 6);
-    ctx.lineTo(x + bw + bh * 0.40 * sd, y + 3);
-    ctx.lineTo(x - 2, y + 4);
+    if (sd >= 0) {
+      ctx.moveTo(x + frontW, y + 2);
+      ctx.lineTo(x + frontW + Math.max(3, bh * 0.40 * sd) + depthX * 0.65, y + 6);
+      ctx.lineTo(x + bw + Math.max(3, bh * 0.40 * sd), y + 3);
+      ctx.lineTo(x - 2, y + 4);
+    } else {
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + frontW, y + 2);
+      ctx.lineTo(x + frontW, y + 6);
+      ctx.lineTo(x + bh * 0.40 * sd - 2, y + 5);
+      ctx.lineTo(x + depthX * 0.45 + bh * 0.40 * sd, y + 1);
+    }
     ctx.closePath();
     ctx.fill();
 
     // Primary High-Bay Core Front Wall
-    const fg = ctx.createLinearGradient(x, y - bh, x + frontW, y);
+    const eastLit = sd < -0.25;
+    const fg = eastLit
+      ? ctx.createLinearGradient(x + frontW, y - bh, x, y)
+      : ctx.createLinearGradient(x, y - bh, x + frontW, y);
     fg.addColorStop(0, pal.archLight);
     fg.addColorStop(1, pal.archMid);
     ctx.fillStyle = fg;
@@ -1716,8 +1850,8 @@ const WorldGateway = {
     ctx.closePath();
     ctx.fill();
 
-    // Shaded Side Cladding Flank (anchored directly down to grounded plinth y)
-    ctx.fillStyle = pal.archDark;
+    // Side Cladding Flank (illuminated by eastern dawn light when sd < -0.25, else shaded)
+    ctx.fillStyle = eastLit ? pal.archMid : pal.archDark;
     ctx.beginPath();
     ctx.moveTo(x + frontW, y + 2 - bh);
     ctx.lineTo(x + bw, y - 1 - bh);
@@ -1972,18 +2106,28 @@ const WorldGateway = {
     const sd = pal.sunDir || 1.1;
 
     ctx.save();
-    // 1. Directional cast solar shadow aligned along ground plane
+    // 1. Directional cast solar shadow aligned along ground plane (clean East/West branching)
+    const eastLit = sd < -0.25;
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.moveTo(x + frontW, y + sy);
-    ctx.lineTo(x + frontW + bh * 0.44 * sd + depthX * 0.55, y + sy + 4.0);
-    ctx.lineTo(x + bw + bh * 0.44 * sd, y + sy + depthY * 0.55 + 3.5);
-    ctx.lineTo(x + frontW, y + sy + depthY * 0.45);
+    if (sd >= 0) {
+      ctx.moveTo(x + frontW, y + sy);
+      ctx.lineTo(x + frontW + Math.max(2, bh * 0.44 * sd) + depthX * 0.55, y + sy + 4.0);
+      ctx.lineTo(x + bw + Math.max(2, bh * 0.44 * sd), y + sy + depthY * 0.55 + 3.5);
+      ctx.lineTo(x + frontW, y + sy + depthY * 0.45);
+    } else {
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + depthX * 0.78, y - depthY * 0.45);
+      ctx.lineTo(x + depthX * 0.78 + bh * 0.44 * sd, y + 3.5 - depthY * 0.25);
+      ctx.lineTo(x + bh * 0.44 * sd, y + 4.0);
+    }
     ctx.closePath();
     ctx.fill();
 
     // 2. Perspective-aligned front facade (keeps vertical lines strictly plumb!)
-    const frontG = ctx.createLinearGradient(x, y - bh, x, y + sy);
+    const frontG = eastLit
+      ? ctx.createLinearGradient(x + frontW, y - bh, x, y + sy)
+      : ctx.createLinearGradient(x, y - bh, x, y + sy);
     frontG.addColorStop(0, pal.archLight);
     frontG.addColorStop(1, pal.archMid);
     ctx.fillStyle = frontG;
@@ -1995,8 +2139,8 @@ const WorldGateway = {
     ctx.closePath();
     ctx.fill();
 
-    // 3. Shaded isometric right flank wall
-    ctx.fillStyle = pal.archDark;
+    // 3. Isometric right flank wall (catches Eastern Dawn sun when sd < -0.25)
+    ctx.fillStyle = eastLit ? pal.archMid : pal.archDark;
     ctx.beginPath();
     ctx.moveTo(x + frontW, y + sy - bh);
     ctx.lineTo(x + bw, y + sy - bh - depthY * 0.45 + 1.5);
@@ -2955,13 +3099,21 @@ const WorldGateway = {
     // Ground operations terminal annex beneath control tower
     this._draw25DBuilding(ctx, ax - 18 * hScale, ay + 6, 36 * hScale, 13 * hScale, pal, { style: "ops", floors: 2, perspSlope: 0.04 });
 
-    // Long directional solar cast shadow
+    // Long directional solar cast shadow (casts West at Dawn when sunDir < 0, East at Dusk when sunDir > 0)
+    const ctSd = pal.sunDir || 0;
     ctx.fillStyle = pal.shadowColor;
     ctx.beginPath();
-    ctx.moveTo(ax + 7 * hScale, ay);
-    ctx.lineTo(ax + 44 * pal.sunDir * hScale, ay + 7);
-    ctx.lineTo(ax + 46 * pal.sunDir * hScale, ay + 13);
-    ctx.lineTo(ax - 5 * hScale, ay + 2);
+    if (ctSd >= 0) {
+      ctx.moveTo(ax + 7 * hScale, ay);
+      ctx.lineTo(ax + Math.max(8, 44 * ctSd) * hScale, ay + 7);
+      ctx.lineTo(ax + Math.max(10, 46 * ctSd) * hScale, ay + 13);
+      ctx.lineTo(ax - 5 * hScale, ay + 2);
+    } else {
+      ctx.moveTo(ax - 8 * hScale, ay);
+      ctx.lineTo(ax + 5 * hScale, ay + 2);
+      ctx.lineTo(ax + Math.min(-8, 44 * ctSd) * hScale, ay + 13);
+      ctx.lineTo(ax + Math.min(-10, 46 * ctSd) * hScale, ay + 7);
+    }
     ctx.closePath();
     ctx.fill();
 
@@ -4253,7 +4405,7 @@ const WorldGateway = {
     }
   },
 
-  draw(ctx, w, h, mode, dt, step) {
+  draw(ctx, w, h, mode, dt, step, diurnalHour = null) {
     // Invalidate dynamic entity sizing cleanly across responsive desktop <-> mobile resizes
     if (this._lastW && Math.abs(this._lastW - w) > 20) {
       this.groundVehicles = [];
@@ -4269,17 +4421,21 @@ const WorldGateway = {
     this._lastMode = mode;
 
     const now = performance.now();
-    this.ensureStaticCache(w, h, mode);
+    this.ensureStaticCache(w, h, mode, diurnalHour);
     this.ensureEntities(w, h, now);
 
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
+    const cel = this.getCelestialState(w, h, L, mode, diurnalHour);
+    pal.sunDir = cel.shadowDir;
+    pal.celestial = cel;
+    pal.diurnalHour = cel.hour;
 
     // 1. Blit offscreen cached 2.5D coastal terrain, runway, crawlerway & pad infrastructure
     ctx.drawImage(this.cacheCanvas, 0, 0, w, h);
 
     // 2. Subtle Animated Sky & Clipped Water Shimmer
-    this._drawAnimatedSkyAndWater(ctx, w, h, L, pal, mode, dt, step);
+    this._drawAnimatedSkyAndWater(ctx, w, h, L, pal, mode, dt, step, diurnalHour);
 
     // 3. Ships Gliding Across Upper Archipelago Bay & Lower Sea Channel + Live 5-Angle Container Seaport Ops
     this._updateAndDrawShips(ctx, w, h, L, pal, dt, step);
@@ -4363,7 +4519,7 @@ const WorldGateway = {
     this._updateAndDrawDawnFog(ctx, w, h, L, mode, dt, now);
   },
 
-  _drawAnimatedSkyAndWater(ctx, w, h, L, pal, mode, dt, step) {
+  _drawAnimatedSkyAndWater(ctx, w, h, L, pal, mode, dt, step, diurnalHour = null) {
     const scaleDt = dt * 60;
 
     if (mode === "dark" || mode === "evening") {
@@ -4490,7 +4646,8 @@ const WorldGateway = {
     }
     ctx.restore();
 
-    const sunX = w * 0.11;
+    const cel = pal.celestial || this.getCelestialState(w, h, L, mode, diurnalHour);
+    const sheenX = cel.primary.x;
     // Upper Bay Shimmer
     ctx.save();
     ctx.beginPath();
@@ -4504,9 +4661,12 @@ const WorldGateway = {
       g.phase += dt * 1.4;
       const gx = g.xFrac * w;
       const gy = L.horizonY + 4 + g.yFrac * Math.max(10, (L.islandTopY - L.horizonY - 18));
-      const inSunCol = Math.max(0, 1 - Math.abs(gx - sunX) / (w * 0.18));
+      const inSunCol = Math.max(0, 1 - Math.abs(gx - sheenX) / (w * 0.19));
+      const inMoonCol = (cel.primary.kind === "sun" && cel.moon.visible)
+        ? Math.max(0, 1 - Math.abs(gx - cel.moon.x) / (w * 0.14)) * 0.35 * cel.moon.alpha
+        : 0;
       const pulse = 0.45 + 0.55 * Math.sin(g.phase);
-      const a = (0.05 + inSunCol * 0.22) * pulse * (mode === "dark" ? 0.62 : 1.0);
+      const a = (0.05 + Math.max(inSunCol, inMoonCol) * 0.24) * pulse * (mode === "dark" ? 0.65 : 1.0);
       ctx.strokeStyle = `rgba(${pal.waterShimmerRgb}, ${a.toFixed(3)})`;
       ctx.lineWidth = 0.9 + g.yFrac * 0.8;
       ctx.beginPath();
@@ -7054,8 +7214,8 @@ const WorldGateway = {
     const shadeCol = spec.isMilitary ? pal.militaryShade : pal.bodyShade;
     const shadowFade = Math.max(0.12, 1 - altitude / 95);
 
-    // 1. Foreshortened Ground Cast Shadow (symmetrical ellipse projected with aircraft yaw + altitude offset)
-    const sunOffX = 2.0 + altitude * 0.18 * pal.sunDir;
+    // 1. Foreshortened Ground Cast Shadow (symmetrical ellipse projected along dynamic solar/lunar direction)
+    const sunOffX = pal.sunDir * (2.2 + altitude * 0.18);
     const sunOffY = 3.2 + altitude * 0.56;
     const noseS = proj(spec.noseX * 0.85, 0, -spec.fH * 0.5);
     const tailS = proj(spec.tailX * 0.9, 0, -spec.fH * 0.5);
@@ -7321,7 +7481,7 @@ const WorldGateway = {
 
         // Symmetrical 4-corner foreshortened ground cast shadow for wide BWB silhouette
         const shadowFade = Math.max(0.10, 1 - altitude / 110);
-        const sunOffX = 3.2 + altitude * 0.2 * pal.sunDir;
+        const sunOffX = pal.sunDir * (3.0 + altitude * 0.2);
         const sunOffY = 5.0 + altitude * 0.54;
         const noseS = proj(38, 0, -4);
         const tailS = proj(-31, 0, -4);
@@ -7772,7 +7932,7 @@ const WorldGateway = {
 
       // Symmetrical 4-corner foreshortened ground cast shadow
       const shadowFade = Math.max(0.10, 1 - altitude / 110);
-      const sunOffX = 3.0 + altitude * 0.2 * pal.sunDir;
+      const sunOffX = pal.sunDir * (2.8 + altitude * 0.2);
       const sunOffY = 4.8 + altitude * 0.54;
       const noseS = proj(36, 0, -4);
       const tailS = proj(-30, 0, -4);

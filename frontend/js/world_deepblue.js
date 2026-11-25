@@ -492,9 +492,9 @@ const WorldDeepBlue = {
         waterBottom: "#01050D",
         waterHazeRgb: "3, 11, 24",
         waterBounce: "rgba(72, 168, 210, 0.30)",
-        surfaceRipple: "rgba(34, 211, 238, 0.14)",
-        rayColor: "34, 211, 238",
-        rayAlpha: 0.06,
+        surfaceRipple: "rgba(186, 230, 253, 0.30)",
+        rayColor: "172, 224, 255",
+        rayAlpha: 0.16,
         reefFar: "#06172A",
         reefMid: "#04101F",
         reefNear: "#020812",
@@ -591,6 +591,62 @@ const WorldDeepBlue = {
       snowRgb: "255, 255, 255",
       biolumAlpha: 0.12
     };
+  },
+
+  getCelestialLight(w, h, mode, diurnalHour = null) {
+    const defaults = { morning: 7.5, light: 13.0, evening: 18.5, dark: 23.0 };
+    let hour = (typeof diurnalHour === "number" && Number.isFinite(diurnalHour))
+      ? diurnalHour
+      : ((typeof WaveCanvas !== "undefined" && WaveCanvas.getDiurnalHour)
+          ? WaveCanvas.getDiurnalHour(mode)
+          : (defaults[mode] !== undefined ? defaults[mode] : 13.0));
+    hour = ((hour % 24) + 24) % 24;
+
+    // Solar refraction entry geometry (East=Right at Dawn -> Zenith at Noon -> West=Left at Dusk)
+    const uSunRaw = (hour - 5.75) / 14.5;
+    const sunVisibleRaw = uSunRaw >= -0.02 && uSunRaw <= 1.02;
+    const uSun = Math.max(0, Math.min(1, uSunRaw));
+    const sunXFrac = 0.91 - uSun * 0.82;
+    const sunAlt = Math.sin(uSun * Math.PI);
+    const sunFadeIn = Math.min(1, Math.max(0, (uSunRaw + 0.02) / 0.06));
+    const sunFadeOut = Math.min(1, Math.max(0, (1.02 - uSunRaw) / 0.06));
+    const sunAlpha = (sunVisibleRaw && mode !== "dark") ? Math.min(sunFadeIn, sunFadeOut) : 0;
+    const sun = {
+      kind: "sun",
+      xFrac: sunXFrac,
+      x: w * sunXFrac,
+      alt: sunAlt,
+      slant: (0.5 - sunXFrac) * 1.18,
+      visible: sunVisibleRaw && sunAlpha > 0.01,
+      alpha: sunAlpha
+    };
+
+    // Lunar surface entry geometry (Rises East at Golden Hour ~17:30 -> Zenith at Midnight -> Sets West at Dawn ~06:15)
+    const moonElapsed = ((hour - 17.5) % 24 + 24) % 24;
+    const uMoonRaw = moonElapsed / 12.75;
+    const moonVisibleRaw = uMoonRaw >= 0 && uMoonRaw <= 1.0;
+    const uMoon = Math.max(0, Math.min(1, uMoonRaw));
+    const moonXFrac = 0.89 - uMoon * 0.78;
+    const moonAlt = Math.sin(uMoon * Math.PI);
+    const moonFadeIn = Math.min(1, Math.max(0, uMoonRaw / 0.08));
+    const moonFadeOut = Math.min(1, Math.max(0, (1.0 - uMoonRaw) / 0.12));
+    const nightWeight = mode === "dark" ? 1.0 : (mode === "evening" || mode === "morning" ? 0.45 : 0);
+    const moonAlpha = moonVisibleRaw ? Math.min(moonFadeIn, moonFadeOut) * nightWeight : 0;
+    const moon = {
+      kind: "moon",
+      xFrac: moonXFrac,
+      x: w * moonXFrac,
+      alt: moonAlt,
+      slant: (0.5 - moonXFrac) * 1.05,
+      visible: moonVisibleRaw && moonAlpha > 0.04,
+      alpha: moonAlpha
+    };
+
+    const primary = (mode === "dark" || !sun.visible)
+      ? (moon.visible ? moon : { kind: "moon", xFrac: 0.50, x: w * 0.50, alt: 0.85, slant: 0, visible: true, alpha: 0.85 })
+      : sun;
+
+    return { hour, sun, moon, primary };
   },
 
   getLayout(w, h) {
@@ -705,8 +761,10 @@ const WorldDeepBlue = {
     };
   },
 
-  ensureStaticCache(w, h, mode) {
-    const key = `${Math.round(w)}x${Math.round(h)}:${mode}`;
+  ensureStaticCache(w, h, mode, diurnalHour = null) {
+    const cel = this.getCelestialLight(w, h, mode, diurnalHour);
+    const hSlot = Math.round(cel.hour * 4);
+    const key = `${Math.round(w)}x${Math.round(h)}:${mode}:h${hSlot}`;
     if (this.cacheCanvas && this.stationCacheCanvas && this.cacheKey === key) return;
 
     const cw = Math.max(1, Math.round(w));
@@ -727,6 +785,8 @@ const WorldDeepBlue = {
     const sCtx = this.stationCacheCanvas.getContext("2d");
     sCtx.clearRect(0, 0, cw, ch);
     const pal = this.getPalette(mode);
+    pal.celestial = cel;
+    pal.diurnalHour = cel.hour;
     const L = this.getLayout(w, h);
 
     // 1. Vertical depth-graded ocean water column
@@ -737,13 +797,23 @@ const WorldDeepBlue = {
     ctx.fillStyle = waterGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Ocean surface ceiling band
+    // 2. Ocean surface ceiling band + Directional Snell's Window Above-Water Sun/Moon Bloom
     ctx.save();
     const surfG = ctx.createLinearGradient(0, 0, 0, 60);
     surfG.addColorStop(0, pal.surfaceRipple);
     surfG.addColorStop(1, "rgba(255,255,255,0)");
     ctx.fillStyle = surfG;
     ctx.fillRect(0, 0, w, 60);
+
+    const bloomR = Math.max(w * 0.44, h * 0.68);
+    const bloomRgb = mode === "dark" ? "165, 224, 255" : pal.rayColor;
+    const bloomA = (mode === "dark" ? 0.22 : (mode === "light" ? 0.34 : 0.38)) * Math.max(0.35, cel.primary.alpha);
+    const snellG = ctx.createRadialGradient(cel.primary.x, -10, 6, cel.primary.x, 12, bloomR);
+    snellG.addColorStop(0, `rgba(${bloomRgb}, ${bloomA.toFixed(3)})`);
+    snellG.addColorStop(0.45, `rgba(${bloomRgb}, ${(bloomA * 0.35).toFixed(3)})`);
+    snellG.addColorStop(1, `rgba(${bloomRgb}, 0)`);
+    ctx.fillStyle = snellG;
+    ctx.fillRect(0, 0, w, h * 0.72);
     ctx.restore();
 
     // 3. Multi-Layered Far Hazy Canyon Ridges & Ultra-Distant Seamounts
@@ -3161,7 +3231,7 @@ const WorldDeepBlue = {
     }
   },
 
-  draw(ctx, w, h, mode, dt, step) {
+  draw(ctx, w, h, mode, dt, step, diurnalHour = null) {
     // Reset viewport-dependent entities cleanly on desktop <-> mobile resize so Director enforces new budget immediately
     if (this._lastW && Math.abs(this._lastW - w) > 20) {
       this.kelp = [];
@@ -3187,19 +3257,22 @@ const WorldDeepBlue = {
     }
     this._lastW = w;
     this._lastH = h;
-    this.ensureStaticCache(w, h, mode);
+    this.ensureStaticCache(w, h, mode, diurnalHour);
     this.ensureEntities(w, h);
 
     const pal = this.getPalette(mode);
     const L = this.getLayout(w, h);
+    const cel = this.getCelestialLight(w, h, mode, diurnalHour);
+    pal.celestial = cel;
+    pal.diurnalHour = cel.hour;
 
     // 1. Blit offscreen cached water ocean column, sandy valley floor & background cleaning reefs
     ctx.drawImage(this.cacheCanvas, 0, 0, w, h);
 
-    // 2. Animated Ocean Surface Shimmer & Slanted Sunbeams
-    this._drawSurfaceShimmer(ctx, w, pal, step);
-    if (pal.rayAlpha > 0.05) {
-      this._drawGodRays(ctx, w, h, pal, step, mode);
+    // 2. Animated Ocean Surface Shimmer & Diurnal Slanted Sun/Moon Beams
+    this._drawSurfaceShimmer(ctx, w, pal, step, cel);
+    if (pal.rayAlpha > 0.04) {
+      this._drawGodRays(ctx, w, h, pal, step, mode, cel);
     }
 
     // 3. Abyssal Solid Leviathans, Far-Depth Megafauna, Fish Schools, Transit Subs & Rear Cleaning Station Mantas/Wrasse BEHIND Station
@@ -3213,7 +3286,7 @@ const WorldDeepBlue = {
 
     // 3b. Blit Research Complex, Shipwreck, Surrounding Foreground Cleaning Reefs & Cliffs IN FRONT of Rear Mantas/Depth Life!
     ctx.drawImage(this.stationCacheCanvas, 0, 0, w, h);
-    this._drawSeabedCaustics(ctx, w, h, L, pal, step, mode);
+    this._drawSeabedCaustics(ctx, w, h, L, pal, step, mode, cel);
 
     // 4. Live Rotating Hydropower Turbines, Spinning Sonar Array, Beacons, Strobes & Supply Elevator
     this._updateAndDrawTurbines(ctx, L, pal, step);
@@ -3254,12 +3327,14 @@ const WorldDeepBlue = {
     this._updateAndDrawAmbientParticles(ctx, w, h, pal, dt);
   },
 
-  // Dynamic 2.5D Projected Cellular Voronoi-Lattice Water Caustics across seabed sand & flat station roofs
-  _drawSeabedCaustics(ctx, w, h, L, pal, step, mode) {
-    if (mode === "dark") return;
+  // Dynamic 2.5D Projected Cellular Voronoi-Lattice Water Caustics tracked by above-water celestial light focus
+  _drawSeabedCaustics(ctx, w, h, L, pal, step, mode, cel = null) {
+    const cState = cel || pal.celestial || this.getCelestialLight(w, h, mode);
+    const isNight = mode === "dark";
     const isGolden = mode === "evening";
-    const baseAlpha = isGolden ? 0.20 : (mode === "morning" ? 0.22 : 0.17);
-    const rgb = isGolden ? "255, 224, 158" : "205, 250, 255";
+    const baseAlpha = isNight ? 0.075 : (isGolden ? 0.20 : (mode === "morning" ? 0.22 : 0.17));
+    const rgb = isNight ? "148, 224, 255" : (isGolden ? "255, 224, 158" : "205, 250, 255");
+    const focusX = cState.primary.x + (L.seabedY * 0.62) * cState.primary.slant;
     ctx.save();
     ctx.globalCompositeOperation = "screen";
     ctx.lineCap = "round";
@@ -3282,7 +3357,8 @@ const WorldDeepBlue = {
         const jx = Math.sin(step * 1.05 + c * 2.1 + r * 2.7) * 18 * persp + Math.cos(step * 0.72 - c * 1.3 + r * 3.1) * 10 * persp;
         const jy = Math.cos(step * 1.18 - r * 2.2 + c * 1.7) * 5.0 * persp + Math.sin(step * 0.85 + c * 2.9) * 2.8 * persp;
         const edgeFade = Math.sin(cf * Math.PI);
-        const sunFocus = edgeFade * (0.38 + 0.62 * (0.5 + 0.5 * Math.sin(cf * 6.5 - step * 0.45 + rf * 2.1)));
+        const dirFocus = Math.max(0.28, 1.18 - (Math.abs(baseX - focusX) / (w * 0.42)) * 0.68);
+        const sunFocus = edgeFade * dirFocus * (0.38 + 0.62 * (0.5 + 0.5 * Math.sin(cf * 6.5 - step * 0.45 + rf * 2.1)));
         rowPts.push({ x: baseX + jx, y: yRow + jy, focus: sunFocus });
       }
       grid.push(rowPts);
@@ -3371,17 +3447,46 @@ const WorldDeepBlue = {
     }
   },
 
-  _drawSurfaceShimmer(ctx, w, pal, step) {
+  _drawSurfaceShimmer(ctx, w, pal, step, cel = null) {
+    const cState = cel || pal.celestial || this.getCelestialLight(w, 900, "light");
+    const primX = cState.primary.x;
     ctx.save();
+
+    // Above-water Snell's window bright entry crown centered under the active Sun or Moon
+    const snellW = w < 720 ? 140 : 240;
+    const snellG = ctx.createRadialGradient(primX, 0, 4, primX, 6, snellW);
+    const entryRgb = cState.primary.kind === "moon" ? "186, 230, 253" : pal.rayColor;
+    const entryAlpha = (cState.primary.kind === "moon" ? 0.36 : 0.48) * Math.max(0.35, cState.primary.alpha);
+    snellG.addColorStop(0, `rgba(255, 255, 255, ${(entryAlpha * 0.92).toFixed(3)})`);
+    snellG.addColorStop(0.45, `rgba(${entryRgb}, ${(entryAlpha * 0.52).toFixed(3)})`);
+    snellG.addColorStop(1, `rgba(${entryRgb}, 0)`);
+    ctx.fillStyle = snellG;
+    ctx.beginPath();
+    ctx.ellipse(primX, 4, snellW, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Subtle secondary eastern moonlight crown during late dusk twilight
+    if (cState.primary.kind === "sun" && cState.moon && cState.moon.visible && Math.abs(cState.moon.x - primX) > 70) {
+      const mSnellW = w < 720 ? 90 : 150;
+      const mSnellG = ctx.createRadialGradient(cState.moon.x, 0, 2, cState.moon.x, 4, mSnellW);
+      mSnellG.addColorStop(0, `rgba(186, 230, 253, ${(0.24 * cState.moon.alpha).toFixed(3)})`);
+      mSnellG.addColorStop(1, "rgba(186, 230, 253, 0)");
+      ctx.fillStyle = mSnellG;
+      ctx.beginPath();
+      ctx.ellipse(cState.moon.x, 4, mSnellW, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.lineCap = "round";
-    for (let i = 0; i < 14; i++) {
-      const sx = ((i * 0.082 + Math.sin(step * 0.35 + i) * 0.015) % 1) * w;
+    for (let i = 0; i < 16; i++) {
+      const sx = ((i * 0.072 + Math.sin(step * 0.35 + i) * 0.015) % 1) * w;
       const sy = 5 + (i % 3) * 7 + Math.sin(step * 1.1 + i * 1.7) * 2.5;
       const len = 28 + (i % 4) * 16;
-      const a = (0.14 + 0.14 * Math.sin(step * 1.3 + i)) * (pal.isDark && !pal.isGoldenCoastal ? 0.55 : 0.92);
+      const nearLight = Math.max(0.18, 1 - Math.abs(sx - primX) / (w * 0.42));
+      const a = (0.10 + nearLight * 0.28 + 0.08 * Math.sin(step * 1.3 + i)) * (pal.isDark && !pal.isGoldenCoastal ? 0.65 : 0.96);
       ctx.strokeStyle = pal.surfaceRipple;
-      ctx.globalAlpha = Math.max(0.04, a);
-      ctx.lineWidth = 1.6;
+      ctx.globalAlpha = Math.max(0.05, Math.min(0.95, a));
+      ctx.lineWidth = 1.4 + nearLight * 0.9;
       ctx.beginPath();
       ctx.moveTo(sx - len * 0.5, sy);
       ctx.lineTo(sx + len * 0.5, sy);
@@ -3390,30 +3495,67 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  _drawGodRays(ctx, w, h, pal, step, mode) {
-    ctx.save();
-    ctx.globalCompositeOperation = "screen";
-    const slant = mode === "evening" ? 0.46 : (mode === "morning" ? 0.36 : 0.28);
-    const rayCount = w < 720 ? 5 : 7;
+  _drawLightShaftBundle(ctx, w, h, originX, slant, rayColor, rayAlpha, rayCount, rayLenFactor, step, seedOffset = 0) {
+    if (rayAlpha <= 0.008) return;
+    const spread = Math.min(w * 0.58, 720);
     for (let i = 0; i < rayCount; i++) {
-      const baseX = (w * (0.04 + i * (0.58 / rayCount))) + Math.sin(step * 0.5 + i * 1.3) * 28;
-      const topW = 24 + (i % 3) * 18;
-      const botW = topW * 3.3;
-      const rayH = h * (mode === "evening" ? 0.84 : (0.68 + (i % 2) * 0.18));
-      const pulse = 0.65 + 0.35 * Math.sin(step * 0.85 + i * 2.0);
+      const frac = rayCount > 1 ? (i / (rayCount - 1) - 0.5) : 0;
+      const sway = Math.sin(step * 0.52 + i * 1.3 + seedOffset) * 24;
+      const baseX = Math.max(18, Math.min(w - 18, originX + frac * spread + sway));
+      const beamSlant = slant + frac * 0.14;
+      const topW = 22 + ((i + seedOffset) % 3) * 16;
+      const botW = topW * 3.4;
+      const rayH = h * (rayLenFactor + (i % 2) * 0.14);
+      const centerWeight = 1 - Math.abs(frac) * 0.52;
+      const pulse = 0.68 + 0.32 * Math.sin(step * 0.85 + i * 2.0 + seedOffset);
+      const a0 = rayAlpha * centerWeight * pulse;
 
-      const g = ctx.createLinearGradient(baseX, 0, baseX + rayH * slant, rayH);
-      g.addColorStop(0, `rgba(${pal.rayColor}, ${(pal.rayAlpha * pulse).toFixed(3)})`);
-      g.addColorStop(0.62, `rgba(${pal.rayColor}, ${(pal.rayAlpha * 0.34 * pulse).toFixed(3)})`);
-      g.addColorStop(1, `rgba(${pal.rayColor}, 0)`);
+      const g = ctx.createLinearGradient(baseX, 0, baseX + rayH * beamSlant, rayH);
+      g.addColorStop(0, `rgba(${rayColor}, ${a0.toFixed(3)})`);
+      g.addColorStop(0.62, `rgba(${rayColor}, ${(a0 * 0.34).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${rayColor}, 0)`);
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(baseX - topW * 0.5, 0);
       ctx.lineTo(baseX + topW * 0.5, 0);
-      ctx.lineTo(baseX + rayH * slant + botW * 0.5, rayH);
-      ctx.lineTo(baseX + rayH * slant - botW * 0.5, rayH);
+      ctx.lineTo(baseX + rayH * beamSlant + botW * 0.5, rayH);
+      ctx.lineTo(baseX + rayH * beamSlant - botW * 0.5, rayH);
       ctx.closePath();
       ctx.fill();
+    }
+  },
+
+  _drawGodRays(ctx, w, h, pal, step, mode, cel = null) {
+    const cState = cel || pal.celestial || this.getCelestialLight(w, h, mode);
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const rayCount = w < 720 ? 5 : 7;
+
+    if (mode === "dark") {
+      const m = cState.moon.visible ? cState.moon : cState.primary;
+      this._drawLightShaftBundle(
+        ctx, w, h,
+        m.x, m.slant,
+        pal.rayColor, pal.rayAlpha * Math.max(0.42, m.alpha),
+        Math.max(4, rayCount - 1), 0.72, step, 3
+      );
+    } else {
+      const s = cState.sun.visible ? cState.sun : cState.primary;
+      this._drawLightShaftBundle(
+        ctx, w, h,
+        s.x, s.slant,
+        pal.rayColor, pal.rayAlpha * Math.max(0.38, s.alpha),
+        rayCount, mode === "evening" ? 0.80 : 0.68, step, 0
+      );
+      // Emerging Eastern moonlight rays gently pierce opposite side during twilight
+      if (cState.moon && cState.moon.visible && cState.moon.alpha > 0.12) {
+        this._drawLightShaftBundle(
+          ctx, w, h,
+          cState.moon.x, cState.moon.slant,
+          "172, 224, 255", 0.11 * cState.moon.alpha,
+          3, 0.58, step, 7
+        );
+      }
     }
     ctx.restore();
   },

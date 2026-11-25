@@ -43,6 +43,36 @@ const WaveCanvas = {
   wildlifeCrossings: [],
   _lastNatureAnimal: "",
 
+  _modeForHour(hour) {
+    const h = ((Number(hour) % 24) + 24) % 24;
+    if (h >= 6 && h < 12) return "morning";
+    if (h >= 12 && h < 17) return "light";
+    if (h >= 17 && h < 21) return "evening";
+    return "dark";
+  },
+
+  getDiurnalHour(mode = null) {
+    const activeMode = mode || this.getThemeMode();
+    const defaults = { morning: 7.5, light: 13.0, evening: 18.5, dark: 23.0 };
+    try {
+      const storedMode = localStorage.getItem("pettr_theme_mode") || "auto";
+      if (storedMode === "slider") {
+        const raw = localStorage.getItem("pettr_theme_slider_hour");
+        const h = parseFloat(raw);
+        if (Number.isFinite(h) && this._modeForHour(h) === activeMode) {
+          return ((h % 24) + 24) % 24;
+        }
+      } else if (storedMode === "auto") {
+        const now = new Date();
+        const h = now.getHours() + now.getMinutes() / 60;
+        if (this._modeForHour(h) === activeMode) {
+          return h;
+        }
+      }
+    } catch (_) {}
+    return defaults[activeMode] !== undefined ? defaults[activeMode] : 13.0;
+  },
+
   getThemeMode() {
     const docTheme = document.documentElement.getAttribute("data-theme");
     const bodyTheme = document.body ? document.body.getAttribute("data-theme") : null;
@@ -55,17 +85,10 @@ const WaveCanvas = {
       return stored;
     }
     if (stored === "slider") {
-      const savedHour = parseInt(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours(), 10);
-      if (savedHour >= 6 && savedHour < 12) return "morning";
-      if (savedHour >= 12 && savedHour < 18) return "light";
-      if (savedHour >= 18 && savedHour < 22) return "evening";
-      return "dark";
+      const savedHour = parseFloat(localStorage.getItem("pettr_theme_slider_hour") || new Date().getHours());
+      return this._modeForHour(Number.isFinite(savedHour) ? savedHour : new Date().getHours());
     }
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 12) return "morning";
-    if (hour >= 12 && hour < 18) return "light";
-    if (hour >= 18 && hour < 22) return "evening";
-    return "dark";
+    return this._modeForHour(new Date().getHours());
   },
 
   isDarkTheme() {
@@ -182,16 +205,17 @@ const WaveCanvas = {
     }
 
     const mode = this.getThemeMode();
+    const diurnalHour = this.getDiurnalHour(mode);
     const world = this.getWorldMode();
 
     // Delegate cleanly to alternate World renderers when selected
     if (world === "gateway" && typeof WorldGateway !== "undefined") {
-      WorldGateway.draw(ctx, w, h, mode, dt, this.step);
+      WorldGateway.draw(ctx, w, h, mode, dt, this.step, diurnalHour);
       this.updateAndDrawActivityRipples(ctx, w, h, mode);
       return;
     }
     if (world === "deep-blue" && typeof WorldDeepBlue !== "undefined") {
-      WorldDeepBlue.draw(ctx, w, h, mode, dt, this.step);
+      WorldDeepBlue.draw(ctx, w, h, mode, dt, this.step, diurnalHour);
       this.updateAndDrawActivityRipples(ctx, w, h, mode);
       return;
     }

@@ -673,11 +673,11 @@ body {
 .greeting-header-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px 12px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .greeting-text {
@@ -694,9 +694,9 @@ body {
   text-overflow: clip;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  width: 100%;
+  width: auto;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -752,38 +752,371 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* --- Holiday Festive Decorations & Badges --- */
+/* --- Holiday Festive Decorations & Stylised Crest Plaques --- */
+html[data-holiday] .quick-input-section {
+  border-bottom-color: rgba(var(--holiday-accent, 234, 88, 12), 0.28);
+}
+
+html[data-holiday] .mission-beacon-dot {
+  background: rgb(var(--holiday-accent, 234, 88, 12));
+  box-shadow: 0 0 8px rgba(var(--holiday-accent, 234, 88, 12), 0.72);
+}
+
 .holiday-decoration-badge {
+  --h-bg-1: rgba(255, 248, 235, 0.88);
+  --h-bg-2: rgba(254, 235, 200, 0.78);
+  --h-border: rgba(var(--holiday-accent, 234, 88, 12), 0.45);
+  --h-inner: rgba(var(--holiday-secondary, 245, 158, 11), 0.30);
+  --h-ink: #7C2D12;
+  --h-kicker: #B45309;
+  --h-emblem-bg: rgba(var(--holiday-accent, 234, 88, 12), 0.16);
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: rgba(255, 180, 0, 0.14);
-  color: #ff9800;
-  border: 1px solid rgba(255, 180, 0, 0.32);
+  gap: 8px;
+  padding: 5px 12px 5px 10px;
+  border-radius: 14px 4px 14px 4px;
+  background: linear-gradient(135deg, var(--h-bg-1), var(--h-bg-2));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--h-ink);
+  border: 1px solid var(--h-border);
+  box-shadow:
+    0 3px 12px rgba(var(--holiday-accent, 234, 88, 12), 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   white-space: nowrap;
   flex-shrink: 0;
   user-select: none;
-  animation: holidayGlow 3s ease-in-out infinite alternate;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+  animation: holidayCrestBreath 3.6s ease-in-out infinite alternate;
 }
 
-@keyframes holidayGlow {
+.holiday-decoration-badge::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 11px 2px 11px 2px;
+  border: 1px solid var(--h-inner);
+  pointer-events: none;
+}
+
+.holiday-decoration-badge::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 45%;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.42) 50%, transparent 80%);
+  transform: skewX(-18deg);
+  pointer-events: none;
+  animation: holidaySheen 6.5s ease-in-out infinite;
+}
+
+.holiday-decoration-badge:hover {
+  transform: translateY(-1.5px) scale(1.015);
+  box-shadow:
+    0 6px 18px rgba(var(--holiday-accent, 234, 88, 12), 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.holiday-decoration-badge:active {
+  transform: scale(0.985);
+}
+
+.holiday-badge-ornament {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--h-kicker);
+  opacity: 0.78;
+  flex-shrink: 0;
+}
+
+.holiday-badge-ornament--right {
+  transform: scaleX(-1);
+}
+
+.holiday-badge-emblem {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), var(--h-emblem-bg));
+  border: 1px solid rgba(var(--holiday-accent, 234, 88, 12), 0.34);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.holiday-badge-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.holiday-badge-kicker {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--h-kicker);
+  line-height: 1;
+}
+
+.holiday-badge-title {
+  font-family: "Instrument Serif", "Newsreader", Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  color: var(--h-ink);
+  line-height: 1.05;
+}
+
+/* Per-Holiday Family Typography & Light-Mode Craft Palettes */
+.holiday-decoration-badge[data-holiday-family="thanksgiving"] {
+  --h-bg-1: rgba(255, 247, 237, 0.90);
+  --h-bg-2: rgba(254, 226, 200, 0.82);
+  --h-border: rgba(217, 119, 6, 0.50);
+  --h-inner: rgba(234, 88, 12, 0.25);
+  --h-ink: #7C2D12;
+  --h-kicker: #C2410C;
+}
+
+.holiday-decoration-badge[data-holiday-family="christmas"] {
+  --h-bg-1: rgba(254, 249, 248, 0.92);
+  --h-bg-2: rgba(236, 253, 245, 0.84);
+  --h-border: rgba(220, 38, 38, 0.42);
+  --h-inner: rgba(22, 163, 74, 0.30);
+  --h-ink: #7F1D1D;
+  --h-kicker: #15803D;
+}
+
+.holiday-decoration-badge[data-holiday-family="lantern"] {
+  --h-bg-1: rgba(254, 242, 242, 0.92);
+  --h-bg-2: rgba(254, 243, 199, 0.86);
+  --h-border: rgba(220, 38, 38, 0.52);
+  --h-inner: rgba(217, 119, 6, 0.38);
+  --h-ink: #991B1B;
+  --h-kicker: #B45309;
+  border-radius: 6px 14px 6px 14px;
+}
+
+.holiday-decoration-badge[data-holiday-family="halloween"] {
+  --h-bg-1: rgba(250, 245, 255, 0.90);
+  --h-bg-2: rgba(255, 237, 213, 0.86);
+  --h-border: rgba(147, 51, 234, 0.48);
+  --h-inner: rgba(249, 115, 22, 0.35);
+  --h-ink: #581C87;
+  --h-kicker: #EA580C;
+  border-radius: 10px 2px 10px 2px;
+}
+
+.holiday-decoration-badge[data-holiday-family="halloween"] .holiday-badge-title {
+  font-family: "Newsreader", Georgia, serif;
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.holiday-decoration-badge[data-holiday-family="diwali"] {
+  --h-bg-1: rgba(255, 251, 235, 0.92);
+  --h-bg-2: rgba(253, 242, 248, 0.86);
+  --h-border: rgba(217, 119, 6, 0.52);
+  --h-inner: rgba(219, 39, 119, 0.28);
+  --h-ink: #9A3412;
+  --h-kicker: #BE185D;
+}
+
+.holiday-decoration-badge[data-holiday-family="mid_autumn"] {
+  --h-bg-1: rgba(254, 252, 232, 0.92);
+  --h-bg-2: rgba(255, 247, 237, 0.84);
+  --h-border: rgba(217, 119, 6, 0.46);
+  --h-inner: rgba(245, 158, 11, 0.32);
+  --h-ink: #78350F;
+  --h-kicker: #B45309;
+}
+
+.holiday-decoration-badge[data-holiday-family="valentines"] {
+  --h-bg-1: rgba(255, 241, 242, 0.92);
+  --h-bg-2: rgba(253, 242, 248, 0.84);
+  --h-border: rgba(244, 63, 94, 0.44);
+  --h-inner: rgba(236, 72, 153, 0.28);
+  --h-ink: #9F1239;
+  --h-kicker: #DB2777;
+}
+
+.holiday-decoration-badge[data-holiday-family="easter"] {
+  --h-bg-1: rgba(253, 242, 248, 0.90);
+  --h-bg-2: rgba(236, 253, 245, 0.86);
+  --h-border: rgba(236, 72, 153, 0.38);
+  --h-inner: rgba(16, 185, 129, 0.28);
+  --h-ink: #831843;
+  --h-kicker: #059669;
+}
+
+.holiday-decoration-badge[data-holiday-family="new_year"],
+.holiday-decoration-badge[data-holiday-family="national_day"],
+.holiday-decoration-badge[data-holiday-family="midsummer"],
+.holiday-decoration-badge[data-holiday-family="earth_day"],
+.holiday-decoration-badge[data-holiday-family="st_patricks"] {
+  --h-bg-1: rgba(240, 249, 255, 0.90);
+  --h-bg-2: rgba(254, 249, 195, 0.80);
+  --h-border: rgba(var(--holiday-accent, 14, 165, 233), 0.45);
+  --h-inner: rgba(var(--holiday-secondary, 234, 179, 8), 0.32);
+  --h-ink: #0F172A;
+  --h-kicker: #0369A1;
+}
+
+.holiday-decoration-badge[data-holiday-family="st_patricks"],
+.holiday-decoration-badge[data-holiday-family="earth_day"] {
+  --h-bg-1: rgba(236, 253, 245, 0.90);
+  --h-bg-2: rgba(240, 253, 250, 0.84);
+  --h-ink: #064E3B;
+  --h-kicker: #047857;
+}
+
+.holiday-decoration-badge[data-holiday-family="national_day"] {
+  --h-bg-1: rgba(254, 242, 242, 0.92);
+  --h-bg-2: rgba(255, 255, 255, 0.90);
+  --h-ink: #991B1B;
+  --h-kicker: #DC2626;
+}
+
+.holiday-decoration-badge[data-holiday-family="new_year"] .holiday-badge-title,
+.holiday-decoration-badge[data-holiday-family="national_day"] .holiday-badge-title,
+.holiday-decoration-badge[data-holiday-family="midsummer"] .holiday-badge-title,
+.holiday-decoration-badge[data-holiday-family="earth_day"] .holiday-badge-title,
+.holiday-decoration-badge[data-holiday-family="st_patricks"] .holiday-badge-title {
+  font-family: "Syne", "Space Grotesk", sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+/* Dark & Golden-Hour High-Contrast Crest Surfaces */
+[data-theme="dark"] .holiday-decoration-badge,
+[data-theme="evening"] .holiday-decoration-badge {
+  --h-bg-1: rgba(22, 18, 28, 0.84);
+  --h-bg-2: rgba(42, 26, 18, 0.78);
+  --h-ink: #FEF3C7;
+  --h-kicker: #FDBA74;
+  --h-emblem-bg: rgba(var(--holiday-accent, 245, 158, 11), 0.24);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.36),
+    0 0 14px rgba(var(--holiday-accent, 245, 158, 11), 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="thanksgiving"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="thanksgiving"] {
+  --h-bg-1: rgba(38, 20, 12, 0.86);
+  --h-bg-2: rgba(62, 29, 14, 0.78);
+  --h-ink: #FFEDD5;
+  --h-kicker: #FBBF24;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="christmas"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="christmas"] {
+  --h-bg-1: rgba(16, 30, 24, 0.88);
+  --h-bg-2: rgba(54, 16, 22, 0.82);
+  --h-ink: #FEF2F2;
+  --h-kicker: #86EFAC;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="lantern"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="lantern"] {
+  --h-bg-1: rgba(52, 12, 16, 0.88);
+  --h-bg-2: rgba(74, 24, 12, 0.82);
+  --h-ink: #FEF08A;
+  --h-kicker: #FCA5A5;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="halloween"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="halloween"] {
+  --h-bg-1: rgba(30, 16, 48, 0.90);
+  --h-bg-2: rgba(48, 22, 18, 0.84);
+  --h-ink: #F3E8FF;
+  --h-kicker: #FB923C;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="diwali"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="diwali"] {
+  --h-bg-1: rgba(44, 18, 34, 0.88);
+  --h-bg-2: rgba(58, 32, 14, 0.82);
+  --h-ink: #FEF3C7;
+  --h-kicker: #F472B6;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="new_year"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="new_year"] {
+  --h-bg-1: rgba(12, 24, 46, 0.88);
+  --h-bg-2: rgba(30, 24, 56, 0.82);
+  --h-ink: #F0F9FF;
+  --h-kicker: #FDE047;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="st_patricks"],
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="earth_day"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="st_patricks"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="earth_day"] {
+  --h-bg-1: rgba(8, 36, 30, 0.88);
+  --h-bg-2: rgba(12, 30, 44, 0.82);
+  --h-ink: #ECFDF5;
+  --h-kicker: #6EE7B7;
+}
+
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="valentines"],
+[data-theme="dark"] .holiday-decoration-badge[data-holiday-family="easter"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="valentines"],
+[data-theme="evening"] .holiday-decoration-badge[data-holiday-family="easter"] {
+  --h-bg-1: rgba(46, 16, 34, 0.86);
+  --h-bg-2: rgba(36, 22, 42, 0.82);
+  --h-ink: #FFE4E6;
+  --h-kicker: #F9A8D4;
+}
+
+@keyframes holidayCrestBreath {
   0% {
-    box-shadow: 0 0 4px rgba(255, 180, 0, 0.2);
+    box-shadow:
+      0 3px 10px rgba(var(--holiday-accent, 234, 88, 12), 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
   100% {
-    box-shadow: 0 0 12px rgba(255, 180, 0, 0.5);
+    box-shadow:
+      0 4px 16px rgba(var(--holiday-accent, 234, 88, 12), 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+}
+
+@keyframes holidaySheen {
+  0%, 72% {
+    left: -65%;
+    opacity: 0;
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    left: 140%;
+    opacity: 0;
   }
 }
 
 .holiday-ornaments-container {
   position: absolute;
-  top: -10px;
-  right: 18px;
+  top: -22px;
+  right: 14px;
   display: flex;
   gap: 12px;
   pointer-events: none;
@@ -5788,7 +6121,28 @@ body {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+  }
+
+  .greeting-header-row {
+    flex-wrap: wrap !important;
+    row-gap: 8px !important;
+  }
+
+  .holiday-decoration-badge {
+    max-width: 100%;
+    padding: 4px 10px 4px 8px;
+    gap: 6px;
+  }
+
+  .holiday-badge-title {
+    font-size: 14.5px;
+  }
+
+  .holiday-ornaments-container {
+    top: -6px;
+    right: 4px;
+    gap: 8px;
   }
 
   .greeting-text {

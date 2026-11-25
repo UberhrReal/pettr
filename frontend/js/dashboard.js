@@ -455,10 +455,13 @@ const Dashboard = {
       }
     }
 
-    this.renderHolidayDecorations(holidayInfo);
     if (typeof HolidayThemes !== "undefined" && HolidayThemes.setServerHoliday) {
       HolidayThemes.setServerHoliday(holidayInfo);
     }
+    const activeHoliday = (typeof HolidayThemes !== "undefined" && HolidayThemes.getActiveHoliday)
+      ? (HolidayThemes.getActiveHoliday() || holidayInfo)
+      : holidayInfo;
+    this.renderHolidayDecorations(activeHoliday);
 
     // Filter out phrases that contradict current diurnal time-of-day
     const morningKws = [
@@ -679,19 +682,50 @@ const Dashboard = {
     const ornamentsEl = document.getElementById("greetingOrnamentsContainer");
 
     if (!holiday || !holiday.name) {
-      if (badgeEl) badgeEl.style.display = "none";
+      if (typeof HolidayThemes !== "undefined" && HolidayThemes.applyHolidayUITheme) {
+        HolidayThemes.applyHolidayUITheme(null);
+      }
+      if (badgeEl) {
+        badgeEl.style.display = "none";
+        badgeEl.removeAttribute("data-holiday-family");
+        badgeEl.removeAttribute("data-holiday-id");
+        badgeEl.onclick = null;
+      }
       if (ornamentsEl) ornamentsEl.innerHTML = "";
       return;
     }
 
+    const base = (typeof HolidayThemes !== "undefined" && HolidayThemes._lookupById && holiday.id)
+      ? (HolidayThemes._lookupById(holiday.id) || {})
+      : {};
+    const merged = { ...base, ...holiday };
+    if (typeof HolidayThemes !== "undefined" && HolidayThemes.applyHolidayUITheme) {
+      HolidayThemes.applyHolidayUITheme(merged);
+    }
+
     if (badgeEl) {
-      badgeEl.innerHTML = `<span>${this.escapeHtml(holiday.icon || "🎉")}</span> <span>${this.escapeHtml(holiday.name)}</span>`;
+      badgeEl.dataset.holidayFamily = merged.family || "generic";
+      badgeEl.dataset.holidayId = merged.id || "generic";
+      if (typeof HolidayThemes !== "undefined" && HolidayThemes.getBadgeMarkup) {
+        badgeEl.innerHTML = HolidayThemes.getBadgeMarkup(merged);
+      } else {
+        badgeEl.innerHTML = `<span class="holiday-badge-emblem">${this.escapeHtml(merged.icon || "🎉")}</span><span class="holiday-badge-copy"><span class="holiday-badge-kicker">Celebration</span><span class="holiday-badge-title">${this.escapeHtml(merged.name)}</span></span>`;
+      }
       badgeEl.style.display = "inline-flex";
-      badgeEl.title = `${holiday.name} Celebrations Active`;
+      badgeEl.title = merged.tagline || `${merged.name} Celebrations Active`;
+      badgeEl.setAttribute("role", "status");
+      badgeEl.onclick = () => {
+        if (typeof WaveCanvas !== "undefined" && WaveCanvas.triggerActivityRipple) {
+          WaveCanvas.triggerActivityRipple("complete");
+        }
+        if (typeof App !== "undefined" && App.showToast) {
+          App.showToast(`${merged.icon || "✨"} ${merged.name}: ${merged.tagline || "Wishing you a wonderful holiday!"}`);
+        }
+      };
     }
 
     if (ornamentsEl) {
-      const icons = holiday.decorations || [holiday.icon || "✨", "🎉", "🌟", "🎈"];
+      const icons = merged.decorations || [merged.icon || "✨", "🎉", "🌟", "🎈"];
       ornamentsEl.innerHTML = icons.map(icon => `<span class="holiday-ornament">${this.escapeHtml(icon)}</span>`).join("");
     }
   },
