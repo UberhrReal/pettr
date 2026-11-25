@@ -1279,6 +1279,169 @@ const WaveCanvas = {
     this.ripples = alive;
   },
 
+  _smooth5(t) {
+    const c = t < 0 ? 0 : (t > 1 ? 1 : t);
+    return c * c * c * (c * (c * 6 - 15) + 10);
+  },
+
+  _getNatureWildlifePalette(mode) {
+    if (mode === "morning") {
+      return {
+        lightVec: { x: 0.65, y: -0.75 },
+        rimHi: "rgba(255, 224, 178, 0.72)",
+        rim: "rgba(42, 24, 34, 0.34)",
+        shadowTint: "rgba(92, 48, 66, 0.24)",
+        nightEyeGlow: false,
+        rabbitHi: "#D6C9C4",
+        rabbitBody: "#AF9CA0",
+        rabbitDark: "#7D6A73",
+        deerHi: "#E59852",
+        deerBody: "#C27238",
+        deerDark: "#874322",
+        pangolinHi: "#C78B46",
+        pangolinBody: "#915B2E",
+        pangolinDark: "#5A331C",
+        pangolinScale: "#E3AB5C",
+        pandaDarkHi: "#2B2836",
+        pandaDarkLo: "#12101B",
+        darkFur: "#1A1724",
+        crocHi: "#3F8E4C",
+        crocBody: "#276639",
+        crocDark: "#143D23",
+        okapiHi: "#A6492D",
+        okapiBody: "#752A1D",
+        okapiDark: "#451513",
+        creamHi: "#FFF4E8",
+        creamMid: "#F3DEC9",
+        creamLow: "#CFAF9E",
+        pink: "#FB8DA0",
+        bamboo: "#34A853",
+        bambooDark: "#1E6F36",
+        flower: "#FDBA74",
+        flowerCenter: "#B45309",
+        antler: "#E8C39E",
+        antlerTip: "#FFF2DF",
+        eye: "#160F19"
+      };
+    }
+    if (mode === "evening") {
+      return {
+        lightVec: { x: -0.75, y: -0.65 },
+        rimHi: "rgba(253, 186, 116, 0.86)",
+        rim: "rgba(22, 12, 34, 0.44)",
+        shadowTint: "rgba(49, 20, 62, 0.36)",
+        nightEyeGlow: false,
+        rabbitHi: "#C4B1BD",
+        rabbitBody: "#8F7C92",
+        rabbitDark: "#5B4B66",
+        deerHi: "#D97F3E",
+        deerBody: "#A34F2B",
+        deerDark: "#632724",
+        pangolinHi: "#C0793B",
+        pangolinBody: "#7F4423",
+        pangolinDark: "#462019",
+        pangolinScale: "#DA8E48",
+        pandaDarkHi: "#241E35",
+        pandaDarkLo: "#0E0A19",
+        darkFur: "#151022",
+        crocHi: "#2D784B",
+        crocBody: "#1B5237",
+        crocDark: "#0D2D24",
+        okapiHi: "#8F392A",
+        okapiBody: "#5D1E1E",
+        okapiDark: "#320D16",
+        creamHi: "#FDE7CE",
+        creamMid: "#DEC0B6",
+        creamLow: "#A68696",
+        pink: "#F472B6",
+        bamboo: "#229A52",
+        bambooDark: "#125C32",
+        flower: "#FB923C",
+        flowerCenter: "#7C2D12",
+        antler: "#D6AE88",
+        antlerTip: "#FCE3C2",
+        eye: "#0C0714"
+      };
+    }
+    if (mode === "dark") {
+      return {
+        lightVec: { x: -0.45, y: -0.88 },
+        rimHi: "rgba(186, 230, 253, 0.64)",
+        rim: "rgba(148, 197, 248, 0.36)",
+        shadowTint: "rgba(4, 10, 28, 0.48)",
+        nightEyeGlow: true,
+        rabbitHi: "#94ABC4",
+        rabbitBody: "#647C99",
+        rabbitDark: "#3D4F69",
+        deerHi: "#9F6E56",
+        deerBody: "#6E453B",
+        deerDark: "#3E2326",
+        pangolinHi: "#8E6B52",
+        pangolinBody: "#593E30",
+        pangolinDark: "#2E1F1B",
+        pangolinScale: "#AD825E",
+        pandaDarkHi: "#182338",
+        pandaDarkLo: "#070C18",
+        darkFur: "#0D1526",
+        crocHi: "#246652",
+        crocBody: "#16463D",
+        crocDark: "#0A2424",
+        okapiHi: "#6A3B40",
+        okapiBody: "#452129",
+        okapiDark: "#220F18",
+        creamHi: "#C7DAF0",
+        creamMid: "#94AFCF",
+        creamLow: "#5E7799",
+        pink: "#C084FC",
+        bamboo: "#1E825E",
+        bambooDark: "#0F4D3A",
+        flower: "#BAE6FD",
+        flowerCenter: "#38BDF8",
+        antler: "#B4C6D8",
+        antlerTip: "#E0F2FE",
+        eye: "#030712"
+      };
+    }
+    // Afternoon / Light — crisp daylight sunlit fur & warm natural shadows
+    return {
+      lightVec: { x: 0.42, y: -0.90 },
+      rimHi: "rgba(255, 255, 255, 0.78)",
+      rim: "rgba(15, 23, 42, 0.32)",
+      shadowTint: "rgba(30, 41, 59, 0.22)",
+      nightEyeGlow: false,
+      rabbitHi: "#C4CBD6",
+      rabbitBody: "#95A2B4",
+      rabbitDark: "#637286",
+      deerHi: "#DE893E",
+      deerBody: "#B65B23",
+      deerDark: "#7C3714",
+      pangolinHi: "#BD8042",
+      pangolinBody: "#854B22",
+      pangolinDark: "#4E2712",
+      pangolinScale: "#D99B4E",
+      pandaDarkHi: "#273145",
+      pandaDarkLo: "#0C1220",
+      darkFur: "#111827",
+      crocHi: "#358A49",
+      crocBody: "#1E6636",
+      crocDark: "#0D3A1F",
+      okapiHi: "#943E29",
+      okapiBody: "#61211B",
+      okapiDark: "#360E10",
+      creamHi: "#FCF9F2",
+      creamMid: "#EDE7DB",
+      creamLow: "#C9BFB2",
+      pink: "#F472B6",
+      bamboo: "#22C55E",
+      bambooDark: "#15803D",
+      flower: "#FBBF24",
+      flowerCenter: "#B45309",
+      antler: "#A16236",
+      antlerTip: "#F6E3C6",
+      eye: "#020617"
+    };
+  },
+
   spawnNatureAnimal(w, h, opts = {}) {
     if (!w || !h) return;
     if (this.wildlifeCrossings.length >= 2) {
@@ -1309,8 +1472,13 @@ const WaveCanvas = {
       y: baseY,
       baseY,
       pauseX,
-      pauseDuration: 2.8,
+      pauseDuration: 3.3,
       pauseTimer: 0,
+      pauseBlend: 0,
+      moveSpeedNorm: 1,
+      decelDist: Math.round(145 * scale),
+      exitAccelTimer: 0,
+      breathePhase: Math.random() * Math.PI * 2,
       phase: "enter",
       gaitPhase: 0,
       scale,
@@ -1322,18 +1490,55 @@ const WaveCanvas = {
     const s = cr.species;
     const isPause = cr.phase === "pause_action";
     const pauseFrac = isPause ? (cr.pauseTimer / Math.max(0.1, cr.pauseDuration)) : 0;
-    const stride = isPause ? 0 : Math.sin(cr.gaitPhase * 4.4);
-    const strideOpp = isPause ? 0 : Math.cos(cr.gaitPhase * 4.4);
+    const pauseBlend = cr.pauseBlend != null ? cr.pauseBlend : (isPause ? 1 : 0);
+    const moveBlend = 1 - pauseBlend * 0.88;
+    const breathe = Math.sin(cr.breathePhase || 0) * 1.4;
     const isNight = mode === "dark";
-    const rim = isNight ? "rgba(186, 230, 253, 0.48)" : "rgba(15, 23, 42, 0.30)";
+    const rim = pal.rim;
+    const lv = pal.lightVec || { x: 0.4, y: -0.9 };
+
+    const makeVolGrad = (x0, y0, x1, y1, cHi, cMid, cLow) => {
+      const dx = lv.x * 16;
+      const dy = lv.y * 16;
+      const g = ctx.createLinearGradient(x0 + dx, y0 + dy, x1 - dx * 0.5, y1 - dy * 0.5);
+      g.addColorStop(0, cHi);
+      g.addColorStop(0.54, cMid);
+      g.addColorStop(1, cLow);
+      return g;
+    };
 
     const strokeRim = (lw = 1.4) => {
       ctx.strokeStyle = rim;
       ctx.lineWidth = lw;
       ctx.stroke();
     };
+
+    const strokeSunRim = (x0, y0, cx, cy, x1, y1, lw = 2.0) => {
+      ctx.save();
+      ctx.globalAlpha = 0.42;
+      ctx.strokeStyle = pal.rimHi;
+      ctx.lineWidth = Math.min(1.35, lw * 0.72);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.quadraticCurveTo(cx, cy, x1, y1);
+      ctx.stroke();
+      ctx.restore();
+    };
+
     const drawEye = (ex, ey, r = 4.6, pupilCol = pal.eye) => {
-      ctx.fillStyle = "#FFFFFF";
+      if (pal.nightEyeGlow) {
+        ctx.save();
+        const eg = ctx.createRadialGradient(ex, ey, r * 0.3, ex, ey, r * 2.4);
+        eg.addColorStop(0, "rgba(253, 224, 71, 0.38)");
+        eg.addColorStop(1, "rgba(253, 224, 71, 0)");
+        ctx.fillStyle = eg;
+        ctx.beginPath();
+        ctx.arc(ex, ey, r * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = pal.creamHi;
       ctx.beginPath();
       ctx.arc(ex, ey, r * 1.18, 0, Math.PI * 2);
       ctx.fill();
@@ -1342,25 +1547,28 @@ const WaveCanvas = {
       ctx.stroke();
       ctx.fillStyle = pupilCol;
       ctx.beginPath();
-      ctx.arc(ex + r * 0.14, ey, r * 0.88, 0, Math.PI * 2);
+      ctx.arc(ex + r * 0.14, ey, r * 0.86, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = "#FFFFFF";
       ctx.beginPath();
       ctx.arc(ex + r * 0.36, ey - r * 0.32, r * 0.32, 0, Math.PI * 2);
       ctx.fill();
     };
-    const draw2JointLeg = (hipX, hipY, kneeX, kneeY, footX, footY, upperW, lowerW, upperCol, lowerCol, hoofCol = null) => {
+
+    const draw2JointLeg = (hipX, hipY, kneeX, kneeY, footX, footY, upperW, lowerW, upperCol, lowerCol, hoofCol = null, isLightLower = false) => {
+      ctx.save();
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      // Subtle outer rim behind light stockings/fur so light lower limbs never vanish against light backgrounds!
-      if (lowerCol === pal.cream) {
+      // Dark outline behind light fur / stockings so white limbs separate crisply in all diurnal modes
+      if (isLightLower || lowerCol === pal.creamMid || lowerCol === pal.creamHi) {
         ctx.strokeStyle = rim;
-        ctx.lineWidth = lowerW + 2.2;
+        ctx.lineWidth = lowerW + 2.4;
         ctx.beginPath();
         ctx.moveTo(kneeX, kneeY);
         ctx.lineTo(footX, footY);
         ctx.stroke();
       }
+      // Upper thigh / shoulder muscular segment with volumetric gradient or color string
       ctx.strokeStyle = upperCol;
       ctx.lineWidth = upperW;
       ctx.beginPath();
@@ -1368,6 +1576,17 @@ const WaveCanvas = {
       ctx.lineTo(kneeX, kneeY);
       ctx.stroke();
 
+      // Subtle directional highlight along front edge of upper limb
+      ctx.strokeStyle = pal.rimHi;
+      ctx.globalAlpha = 0.24;
+      ctx.lineWidth = Math.max(1.2, upperW * 0.16);
+      ctx.beginPath();
+      ctx.moveTo(hipX + lv.x * 2, hipY + lv.y * 2);
+      ctx.lineTo(kneeX + lv.x * 2, kneeY + lv.y * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Lower cannon / shin
       ctx.strokeStyle = lowerCol;
       ctx.lineWidth = lowerW;
       ctx.beginPath();
@@ -1378,118 +1597,141 @@ const WaveCanvas = {
       if (hoofCol) {
         ctx.fillStyle = hoofCol;
         ctx.beginPath();
-        ctx.roundRect(footX - lowerW * 0.58, footY - 4, lowerW * 1.38, 9, 2.5);
+        ctx.roundRect(footX - lowerW * 0.58, footY - 4, lowerW * 1.42, 9, 2.5);
         ctx.fill();
+        ctx.strokeStyle = rim;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
       }
+      ctx.restore();
     };
 
     ctx.save();
-    // Pure flat 2D horizontal side-profile coordinate system anchored at baseline ground y = +85
+    // Pure flat 2D horizontal side-profile coordinate system anchored at baseline y = +85
     ctx.translate(cr.x, cr.y);
     if (cr.dir < 0) ctx.scale(-1, 1);
     ctx.scale(cr.scale, cr.scale);
 
     if (s === "rabbit") {
-      const hopPhase = cr.gaitPhase * 3.8;
-      const hopArc = isPause
-        ? (pauseFrac > 0.65 && pauseFrac < 0.88 ? Math.sin(((pauseFrac - 0.65) / 0.23) * Math.PI) * 52 : 0)
-        : Math.abs(Math.sin(hopPhase)) * 48;
-      const bodyPitch = isPause
-        ? -0.44 * Math.sin(Math.min(1, pauseFrac * 2.8) * Math.PI * 0.5)
-        : Math.cos(hopPhase) * 0.18;
-      const legReach = isPause ? 0 : Math.sin(hopPhase);
+      // Saltatorial Asymmetric Hop Cycle: crouch-gather -> nose-up parabolic bound -> forepaw landing
+      const hp = cr.gaitPhase * 3.2;
+      const cyc = ((hp % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
+      const airSin = cyc > 0.24 && cyc < 0.92 ? Math.sin(((cyc - 0.24) / 0.68) * Math.PI) : 0;
+      const walkHop = Math.pow(Math.max(0, airSin), 0.78) * 54;
+      const walkPitch = cyc > 0.24 && cyc < 0.92 ? Math.cos(((cyc - 0.24) / 0.68) * Math.PI) * -0.26 : 0.14;
+      const legStretch = cyc > 0.24 && cyc < 0.92 ? Math.sin(((cyc - 0.24) / 0.68) * Math.PI) : -0.45;
+
+      const sit = pauseBlend;
+      const springHop = (isPause && pauseFrac > 0.72 && pauseFrac < 0.90)
+        ? Math.sin(((pauseFrac - 0.72) / 0.18) * Math.PI) * 44
+        : 0;
+      const hopArc = walkHop * (1 - sit) + springHop;
+      const bodyPitch = walkPitch * (1 - sit) + (-0.42) * sit;
+      const legReach = legStretch * (1 - sit);
 
       ctx.save();
-      ctx.translate(0, 12 - hopArc);
+      ctx.translate(0, 12 - hopArc + breathe * 0.35 * sit);
       ctx.rotate(bodyPitch);
 
-      // Fluffy scalloped cottontail with crisp subtle rim so cream puff reads vividly on light backgrounds
-      ctx.fillStyle = pal.cream;
-      [[-82, 26, 20], [-90, 18, 16], [-78, 14, 15]].forEach(([tx, ty, tr]) => {
+      // Fluffy scalloped cottontail with volumetric radial cream gradient
+      const tailG = makeVolGrad(-90, 14, -74, 30, pal.creamHi, pal.creamMid, pal.creamLow);
+      ctx.fillStyle = tailG;
+      [[-82, 26, 19], [-90, 18, 15.5], [-77, 14, 14.5]].forEach(([tx, ty, tr]) => {
         ctx.beginPath();
         ctx.arc(tx, ty, tr, 0, Math.PI * 2);
         ctx.fill();
         strokeRim(1.1);
       });
 
-      // Far hind & fore legs
-      draw2JointLeg(-48, 38, -28 - legReach * 14, 58, -60 - legReach * 22, 71, 20, 11, pal.rabbitDark, pal.rabbitDark);
+      // Far hind & fore legs (deep shaded)
+      draw2JointLeg(-48, 38, -26 - legReach * 16, 58, -56 - legReach * 24, 71, 20, 11, pal.rabbitDark, pal.rabbitDark);
       draw2JointLeg(28, 36, 36 + legReach * 18, 56, 50 + legReach * 24, 71, 13, 9, pal.rabbitDark, pal.rabbitDark);
 
-      // Layered muscular torso with soft fur gradient
-      const rabG = ctx.createLinearGradient(0, -18, 0, 62);
-      rabG.addColorStop(0, pal.rabbitBody);
-      rabG.addColorStop(1, pal.rabbitDark);
+      // Sculpted volumetric hare-cottontail torso
+      const rabG = makeVolGrad(-36, -18, 32, 62, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
       ctx.fillStyle = rabG;
       ctx.beginPath();
-      ctx.ellipse(-14, 24, 62, 42, -0.14, 0, Math.PI * 2);
+      ctx.moveTo(-72, 26);
+      ctx.bezierCurveTo(-76, -10, -24, -22, 16, -12);
+      ctx.bezierCurveTo(46, -4, 52, 24, 38, 46);
+      ctx.bezierCurveTo(10, 66, -48, 62, -72, 26);
+      ctx.closePath();
       ctx.fill();
       strokeRim(1.5);
+      strokeSunRim(-58, -2, -16, -20, 32, -8, 1.8);
 
-      // Soft cream chest & underside belly
-      ctx.fillStyle = pal.cream;
+      // Soft diurnal cream chest & underside belly
+      const rabBellyG = makeVolGrad(0, 26, 0, 56, pal.creamHi, pal.creamMid, pal.creamLow);
+      ctx.fillStyle = rabBellyG;
       ctx.beginPath();
-      ctx.ellipse(6, 40, 44, 21, -0.08, 0, Math.PI);
+      ctx.ellipse(8, 39, 42, 19, -0.08, 0, Math.PI);
       ctx.fill();
 
-      // Articulated near muscular haunch & hind foot
-      ctx.fillStyle = pal.rabbitBody;
+      // Articulated shaded near muscular haunch & long spring-loaded hind foot
+      const haunchG = makeVolGrad(-56, 22, -26, 62, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
+      ctx.fillStyle = haunchG;
       ctx.beginPath();
       ctx.ellipse(-42, 40, 26, 20, -0.25, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = pal.creamMid;
       ctx.beginPath();
-      ctx.ellipse(-28 - legReach * 16, 67, 26, 8.5, legReach * 0.16, 0, Math.PI * 2);
+      ctx.ellipse(-28 - legReach * 18, 67, 26, 8.2, legReach * 0.22, 0, Math.PI * 2);
       ctx.fill();
       strokeRim(1.2);
 
-      // Sculpted head + fluffy cheek tuft
-      ctx.fillStyle = pal.rabbitBody;
+      // Sculpted head + fluffy cream cheek & nose
+      const rabHeadG = makeVolGrad(24, -36, 70, 12, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
+      ctx.fillStyle = rabHeadG;
       ctx.beginPath();
-      ctx.ellipse(46, -12, 32, 26, 0.14, 0, Math.PI * 2);
+      ctx.ellipse(46, -12, 32, 25.5, 0.14, 0, Math.PI * 2);
       ctx.fill();
       strokeRim(1.5);
-      ctx.fillStyle = pal.cream;
+      ctx.fillStyle = pal.creamHi;
       ctx.beginPath();
       ctx.ellipse(54, 1, 20, 13, 0.1, 0, Math.PI * 2);
       ctx.fill();
 
-      // Long detailed veined ears (twitching happily during groom pause)
-      const earWig = isPause ? Math.sin(pauseFrac * 22) * 0.24 : 0.06;
+      // Long detailed shaded veined ears (streaming smoothly back mid-bound & perking/twitching on sit)
+      const leapEarSweep = Math.max(0, legReach) * 0.28;
+      const earWig = sit * Math.sin(pauseFrac * 22) * 0.22;
       [
-        { bx: 30, by: -32, ang: -0.34 + earWig, col: pal.rabbitDark },
-        { bx: 38, by: -30, ang: -0.14 - earWig * 0.6, col: pal.rabbitBody }
+        { bx: 28, by: -31, ang: -0.36 - leapEarSweep + earWig, col: pal.rabbitDark },
+        { bx: 38, by: -29, ang: -0.14 - leapEarSweep * 0.7 - earWig * 0.6, col: rabHeadG }
       ].forEach((e, idx) => {
         ctx.save();
         ctx.translate(e.bx, e.by);
         ctx.rotate(e.ang);
         ctx.fillStyle = e.col;
         ctx.beginPath();
-        ctx.ellipse(0, -34, 10.5, 36, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, -34, 10.2, 36, 0, 0, Math.PI * 2);
         ctx.fill();
         strokeRim(1.2);
         if (idx === 1) {
           ctx.fillStyle = pal.pink;
+          ctx.globalAlpha = isNight ? 0.55 : 0.85;
           ctx.beginPath();
-          ctx.ellipse(1, -33, 5.2, 26, 0, 0, Math.PI * 2);
+          ctx.ellipse(1, -33, 5.0, 25.5, 0, 0, Math.PI * 2);
           ctx.fill();
+          ctx.globalAlpha = 1;
         }
         ctx.restore();
       });
 
-      // Foreleg (lifts to groom muzzle during pause!)
-      if (isPause && pauseFrac <= 0.65) {
-        const rub = Math.sin(pauseFrac * 24) * 6;
-        draw2JointLeg(32, 26, 56, 12, 70, -4 + rub, 13, 9.5, pal.rabbitBody, pal.cream);
-      } else {
-        draw2JointLeg(32, 34, 42 + legReach * 16, 55, 58 + legReach * 22, 71, 13.5, 9.5, pal.rabbitBody, pal.cream);
-      }
+      // Foreleg smoothly morphs from ground reach -> grooming whiskers during seated pauseBlend!
+      const groomMix = sit * (pauseFrac < 0.72 ? 1 : Math.max(0, 1 - (pauseFrac - 0.72) / 0.14));
+      const groomRub = Math.sin(pauseFrac * 24) * 5.5;
+      const fKneeX = (42 + legReach * 16) * (1 - groomMix) + 56 * groomMix;
+      const fKneeY = 55 * (1 - groomMix) + 12 * groomMix;
+      const fFootX = (58 + legReach * 22) * (1 - groomMix) + 70 * groomMix;
+      const fFootY = 71 * (1 - groomMix) + (-4 + groomRub) * groomMix;
+      draw2JointLeg(32, 34 - 7 * groomMix, fKneeX, fKneeY, fFootX, fFootY, 13.5, 9.2, pal.rabbitBody, pal.creamMid, null, true);
 
       drawEye(55, -18, 5.2);
       ctx.fillStyle = pal.pink;
       ctx.beginPath();
-      ctx.ellipse(76, -8 + (isPause ? Math.sin(pauseFrac * 28) * 1.5 : 0), 5.5, 4.0, 0, 0, Math.PI * 2);
+      ctx.ellipse(76, -8 + sit * Math.sin(pauseFrac * 28) * 1.4, 5.5, 3.8, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = pal.eye;
+      ctx.strokeStyle = isNight ? "rgba(186, 230, 253, 0.55)" : rim;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       [[-4, 4], [0, 7], [4, 10]].forEach(([wy, wy2]) => {
@@ -1499,22 +1741,34 @@ const WaveCanvas = {
       ctx.stroke();
       ctx.restore();
     } else if (s === "deer") {
-      const boundY = isPause ? 0 : Math.abs(Math.sin(cr.gaitPhase * 3.8)) * 18;
-      const grazeBend = isPause ? Math.sin(Math.min(1, pauseFrac * 1.35) * Math.PI) * 0.78 : 0;
+      // High-Stepping Cervid 4-Beat Trot with distinct forward knee lift + smooth grazing bend
+      const trotP = cr.gaitPhase * 3.1;
+      const strideA = Math.sin(trotP) * moveBlend;
+      const strideB = -strideA;
+      const liftA = Math.max(0, Math.cos(trotP)) * 16 * moveBlend;
+      const liftB = Math.max(0, -Math.cos(trotP)) * 16 * moveBlend;
+      const boundY = Math.abs(Math.sin(trotP)) * 14 * moveBlend;
+      const grazeWave = 0.25 + 0.75 * Math.sin(Math.min(1, pauseFrac * 1.15) * Math.PI);
+      const grazeBend = pauseBlend * grazeWave * 0.80;
 
-      // Blooming 2D wildflower stem at ground baseline when paused
-      if (isPause) {
+      // Smoothly appearing diurnal-tinted wildflower cluster on ground baseline
+      if (pauseBlend > 0.02) {
         ctx.save();
+        ctx.globalAlpha = Math.min(1, pauseBlend * 1.35);
         ctx.translate(114, 85);
         ctx.strokeStyle = pal.bamboo;
-        ctx.lineWidth = 4.2;
+        ctx.lineWidth = 4.0;
+        ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.quadraticCurveTo(-4, -26, 2, -52);
         ctx.stroke();
-        ctx.fillStyle = pal.bamboo;
+        ctx.fillStyle = pal.bambooDark;
         ctx.beginPath();
         ctx.ellipse(-10, -24, 11, 4.5, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.bamboo;
+        ctx.beginPath();
         ctx.ellipse(12, -32, 10, 4.2, 0.45, 0, Math.PI * 2);
         ctx.fill();
         for (let pt = 0; pt < 6; pt++) {
@@ -1524,51 +1778,54 @@ const WaveCanvas = {
           ctx.ellipse(2 + Math.cos(a) * 9, -54 + Math.sin(a) * 9, 6.5, 4.2, a, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.fillStyle = "#B45309";
+        ctx.fillStyle = pal.flowerCenter;
         ctx.beginPath();
-        ctx.arc(2, -54, 4.5, 0, Math.PI * 2);
+        ctx.arc(2, -54, 4.4, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
 
       ctx.save();
-      ctx.translate(0, -boundY);
+      ctx.translate(0, -boundY + breathe * 0.25);
 
-      // Far articulated 2-joint legs
-      draw2JointLeg(-48, 8, -58 - strideOpp * 16, 46, -64 - strideOpp * 26, 84, 14, 7.5, pal.deerDark, pal.deerDark, pal.eye);
-      draw2JointLeg(36, 8, 42 + stride * 18, 46, 50 + stride * 26, 84, 12.5, 7.5, pal.deerDark, pal.deerDark, pal.eye);
+      // Far articulated legs with real knee lift! (Diagonal pair A)
+      draw2JointLeg(-48, 8, -54 + strideB * 16, 44 - liftB * 0.8, -62 + strideB * 24, 84 - liftB, 14, 7.5, pal.deerDark, pal.deerDark, pal.eye);
+      draw2JointLeg(36, 8, 42 + strideA * 18, 44 - liftA * 0.9, 50 + strideA * 25, 84 - liftA, 12.5, 7.5, pal.deerDark, pal.deerDark, pal.eye);
 
-      // Upturned fluffy scut tail
+      // Upturned fluffy white-underside stag tail
       ctx.fillStyle = pal.deerBody;
       ctx.beginPath();
       ctx.ellipse(-70, -14, 15, 7.5, -0.55, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = pal.cream;
+      ctx.fillStyle = pal.creamHi;
       ctx.beginPath();
       ctx.ellipse(-67, -10, 11, 5.5, -0.55, 0, Math.PI * 2);
       ctx.fill();
 
-      // Seamless graceful neck first so shoulder torso overlaps cleanly with zero seam line!
+      // Seamless sculpted shaded neck drawn BEFORE shoulder torso
       ctx.save();
       ctx.translate(44, -14);
-      ctx.rotate(grazeBend);
+      ctx.rotate(grazeBend + Math.sin(trotP) * 0.05 * moveBlend);
 
-      ctx.fillStyle = pal.deerBody;
+      const dNeckG = makeVolGrad(2, -54, 24, 16, pal.deerHi, pal.deerBody, pal.deerDark);
+      ctx.fillStyle = dNeckG;
       ctx.beginPath();
-      ctx.moveTo(-16, 16);
+      ctx.moveTo(-18, 14);
       ctx.quadraticCurveTo(-2, -26, 8, -56);
       ctx.lineTo(28, -50);
-      ctx.quadraticCurveTo(22, -12, 16, 22);
+      ctx.quadraticCurveTo(22, -12, 12, 14);
       ctx.closePath();
       ctx.fill();
+      strokeRim(1.1);
 
-      // Creamy throat chest ruff
-      ctx.fillStyle = pal.cream;
+      // Velvety shaded throat ruff
+      const ruffG = makeVolGrad(10, -34, 22, 0, pal.creamHi, pal.creamMid, pal.creamLow);
+      ctx.fillStyle = ruffG;
       ctx.beginPath();
-      ctx.ellipse(15, -18, 7.5, 22, 0.25, 0, Math.PI * 2);
+      ctx.ellipse(15, -18, 7.8, 22, 0.25, 0, Math.PI * 2);
       ctx.fill();
 
-      // Alert ears
+      // Alert sculpted ears
       [[-2, -0.55, pal.deerDark], [4, -0.25, pal.deerBody]].forEach(([ex, eang, ecol]) => {
         ctx.save();
         ctx.translate(6 + ex, -54);
@@ -1577,28 +1834,35 @@ const WaveCanvas = {
         ctx.beginPath();
         ctx.ellipse(0, -14, 6.2, 16, 0, 0, Math.PI * 2);
         ctx.fill();
+        strokeRim(1.0);
         ctx.fillStyle = pal.pink;
+        ctx.globalAlpha = isNight ? 0.55 : 0.85;
         ctx.beginPath();
         ctx.ellipse(0, -13, 3.0, 10, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.globalAlpha = 1;
         ctx.restore();
       });
 
-      // Head & tapered muzzle
-      ctx.fillStyle = pal.deerBody;
+      // Sculpted deer head + shaded tapered muzzle + nose
+      const dHeadG = makeVolGrad(8, -64, 42, -40, pal.deerHi, pal.deerBody, pal.deerDark);
+      ctx.fillStyle = dHeadG;
       ctx.beginPath();
-      ctx.ellipse(24, -52, 23, 12.5, 0.18, 0, Math.PI * 2);
+      ctx.ellipse(24, -52, 23, 12.2, 0.18, 0, Math.PI * 2);
       ctx.fill();
       strokeRim(1.2);
-      ctx.fillStyle = pal.cream;
+      ctx.fillStyle = pal.creamHi;
       ctx.beginPath();
-      ctx.ellipse(38, -46, 9, 5.5, 0.15, 0, Math.PI * 2);
+      ctx.ellipse(38, -46, 9, 5.2, 0.15, 0, Math.PI * 2);
       ctx.fill();
 
-      // Majestic 5-point branching antlers
-      ctx.strokeStyle = pal.antler;
+      // Majestic 5-point branching shaded antlers with ivory tines
+      const antG = ctx.createLinearGradient(0, -60, 0, -112);
+      antG.addColorStop(0, pal.antler);
+      antG.addColorStop(1, pal.antlerTip);
+      ctx.strokeStyle = antG;
       ctx.lineCap = "round";
-      ctx.lineWidth = 4.6;
+      ctx.lineWidth = 4.8;
       ctx.beginPath();
       ctx.moveTo(12, -62);
       ctx.quadraticCurveTo(4, -84, -8, -104);
@@ -1617,29 +1881,29 @@ const WaveCanvas = {
       ctx.fill();
       ctx.restore();
 
-      // Sleek muscular stag torso layered over neck root (no ugly vertical seam!)
-      const deerG = ctx.createLinearGradient(0, -24, 0, 26);
-      deerG.addColorStop(0, pal.deerBody);
-      deerG.addColorStop(1, pal.deerDark);
+      // Muscular volumetric stag torso layered seamlessly over neck root
+      const deerG = makeVolGrad(-20, -28, 12, 28, pal.deerHi, pal.deerBody, pal.deerDark);
       ctx.fillStyle = deerG;
       ctx.beginPath();
       ctx.moveTo(-64, 4);
-      ctx.quadraticCurveTo(-56, -24, -18, -22);
-      ctx.quadraticCurveTo(22, -20, 46, -24);
+      ctx.quadraticCurveTo(-56, -24, -18, -21);
+      ctx.quadraticCurveTo(22, -19, 46, -24);
       ctx.quadraticCurveTo(64, -8, 52, 16);
       ctx.quadraticCurveTo(10, 26, -42, 22);
       ctx.quadraticCurveTo(-64, 18, -64, 4);
       ctx.closePath();
       ctx.fill();
       strokeRim(1.3);
+      strokeSunRim(-52, -16, -6, -24, 42, -21, 1.8);
 
-      ctx.fillStyle = pal.cream;
+      // Soft shaded cream underside & dappled sunlit flank spots
+      ctx.fillStyle = pal.creamMid;
       ctx.beginPath();
-      ctx.ellipse(2, 18, 40, 10, 0, 0, Math.PI);
+      ctx.ellipse(2, 18, 40, 9.5, 0, 0, Math.PI);
       ctx.fill();
 
-      ctx.fillStyle = pal.cream;
-      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = pal.creamHi;
+      ctx.globalAlpha = 0.78;
       [[-32, -8, 3.6], [-20, -12, 3.0], [-14, -3, 3.4], [-38, 1, 2.8], [-2, -10, 3.2], [12, -5, 2.8]].forEach(([sx, sy, sr]) => {
         ctx.beginPath();
         ctx.arc(sx, sy, sr, 0, Math.PI * 2);
@@ -1647,36 +1911,144 @@ const WaveCanvas = {
       });
       ctx.globalAlpha = 1;
 
-      // Near articulated 2-joint legs
-      draw2JointLeg(-42, 10, -52 + stride * 18, 46, -58 + stride * 28, 84, 15.5, 8.0, pal.deerBody, pal.deerBody, pal.eye);
-      draw2JointLeg(40, 10, 46 - strideOpp * 18, 46, 54 - strideOpp * 28, 84, 13.5, 8.0, pal.deerBody, pal.deerBody, pal.eye);
+      // Near articulated 2-joint legs (Diagonal pair matching opposite lift!)
+      const legRGrad = makeVolGrad(-46, 13, -54, 80, pal.deerHi, pal.deerBody, pal.deerDark);
+      const legFGrad = makeVolGrad(40, 13, 48, 80, pal.deerHi, pal.deerBody, pal.deerDark);
+      draw2JointLeg(-42, 13, -48 + strideA * 18, 45 - liftA * 0.85, -56 + strideA * 26, 84 - liftA, 15.0, 8.0, legRGrad, pal.deerBody, pal.eye);
+      draw2JointLeg(40, 13, 46 + strideB * 18, 45 - liftB * 0.90, 54 + strideB * 26, 84 - liftB, 13.2, 8.0, legFGrad, pal.deerBody, pal.eye);
       ctx.restore();
     } else if (s === "pangolin") {
-      const curlBlend = isPause ? Math.sin(Math.min(1, pauseFrac * 1.15) * Math.PI) : 0;
-      if (curlBlend > 0.30) {
-        // Authentic Curled-Up Spiral Armored Pangolin Sphere with Outer Wrapped Armored Tail & Tucked Snout!
-        const r = 64 * (0.88 + 0.12 * curlBlend);
-        const rock = Math.sin(pauseFrac * Math.PI * 3.2);
+      // Semi-bipedal tripod shuffle + continuous curling morph into defensive armored sphere!
+      const walkP = cr.gaitPhase * 2.8;
+      const walkStride = Math.sin(walkP) * moveBlend;
+      const tailSway = Math.sin(walkP * 1.1) * 8 * moveBlend;
+      const curl = pauseBlend;
+      const curlEase = this._smooth5(curl);
+      const rock = curlEase > 0.35 ? Math.sin(pauseFrac * Math.PI * 3.0) * (curlEase - 0.35) * 1.54 : 0;
+
+      // Ground-anchored pivot lifting ball radius cleanly onto y=85 baseline as pangolin coils up
+      ctx.save();
+      ctx.translate(rock * 24, curlEase * -24);
+      ctx.rotate(rock * 0.36);
+
+      // Belly glow under scales + sturdy Hind Legs tapering behind scales (hind legs tuck seamlessly inside coiled sphere!)
+      const legVis = Math.max(0, 1 - curlEase * 1.25);
+      if (legVis > 0.02) {
         ctx.save();
-        ctx.translate(rock * 36, 85 - r);
-        ctx.rotate(rock * 0.45);
-
-        // Dark shadowed under-hollow + wrapped tail tip hugging lower circumference
-        ctx.fillStyle = pal.pangolinBody;
+        ctx.globalAlpha = legVis;
+        draw2JointLeg(-28, 36 + curlEase * 12, -32 - walkStride * 11, 59, -34 - walkStride * 16, 82, 17, 12.5, pal.pangolinDark, pal.pangolinBody);
+        draw2JointLeg(10, 34 + curlEase * 10, 12 + walkStride * 11, 59, 14 + walkStride * 16, 82, 17, 12.5, pal.pangolinBody, pal.pangolinBody);
+        [-34 - walkStride * 16, 14 + walkStride * 16].forEach(fx => {
+          ctx.strokeStyle = pal.creamMid;
+          ctx.lineWidth = 3.2;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(fx, 81); ctx.lineTo(fx + 10, 84);
+          ctx.moveTo(fx - 3, 82); ctx.lineTo(fx + 7, 85);
+          ctx.stroke();
+        });
+        // Curled digging forelimb with long curved cream fossorial claws held clear off ground during bipedal shuffle!
+        const armY = 26 + Math.sin(walkP * 2) * 3.5;
+        draw2JointLeg(48, 12, 62, armY + 12, 54, armY + 22, 13, 9.5, pal.pangolinBody, pal.pangolinBody);
+        ctx.strokeStyle = pal.creamHi;
+        ctx.lineWidth = 3.4;
         ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.8);
+        ctx.moveTo(54, armY + 22); ctx.quadraticCurveTo(64, armY + 26, 61, armY + 34);
+        ctx.moveTo(51, armY + 23); ctx.quadraticCurveTo(59, armY + 27, 56, armY + 35);
+        ctx.stroke();
+        ctx.restore();
+      }
 
-        // Overlapping spiral keratin plates radiating outward along Fibonacci spiral
+      // Parametric Morphing Armored Spine & Tail Coiling Continuously (curlEase: 0 = walking arc -> 1 = spiral armored sphere)
+      const tailX = (-142 * (1 - curlEase)) + (-26 * curlEase);
+      const tailY = ((42 + tailSway) * (1 - curlEase)) + (44 * curlEase);
+      const midRumpX = (-68 * (1 - curlEase)) + (-56 * curlEase);
+      const midRumpY = ((14 + tailSway * 0.4) * (1 - curlEase)) + (-24 * curlEase);
+      const apexX = (4 * (1 - curlEase)) + (2 * curlEase);
+      const apexY = (-24 * (1 - curlEase)) + (-56 * curlEase);
+      const snoutX = (114 * (1 - curlEase)) + (-12 * curlEase);
+      const snoutY = (36 * (1 - curlEase)) + (16 * curlEase);
+      const ballR = 59 * curlEase;
+
+      if (curlEase > 0.08) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, curlEase * 1.15);
+        const sphereG = makeVolGrad(-22, -40, 26, 48, pal.pangolinHi, pal.pangolinBody, pal.pangolinDark);
+        ctx.fillStyle = sphereG;
+        ctx.beginPath();
+        ctx.arc(0, 6, 58 * Math.min(1, 0.72 + curlEase * 0.28), 0, Math.PI * 2);
+        ctx.fill();
+        strokeRim(1.6);
+        ctx.restore();
+      }
+
+      if (curlEase < 0.96) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - Math.max(0, curlEase - 0.55) / 0.41);
+        const pangoG = makeVolGrad(-16, -24, 18, 56, pal.pangolinHi, pal.pangolinBody, pal.pangolinDark);
+        ctx.fillStyle = pangoG;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.quadraticCurveTo(midRumpX, midRumpY, apexX, apexY);
+        ctx.quadraticCurveTo(54 * (1 - curlEase), -10 * (1 - curlEase) + curlEase * -34, snoutX, snoutY);
+        ctx.quadraticCurveTo(54 * (1 - curlEase) + curlEase * 24, 52, -26, 48);
+        ctx.quadraticCurveTo(-84 * (1 - curlEase), 54 + tailSway * 0.4, tailX, tailY);
+        ctx.closePath();
+        ctx.fill();
+        strokeRim(1.5);
+        strokeSunRim(tailX + 20, tailY - 8, apexX, apexY - 3, snoutX - 18, snoutY - 8, 1.8);
+        ctx.restore();
+      }
+
+      // Continuous Beveled Overlapping Diamond Keratin Scales across body (blends cleanly into spiral coil!)
+      if (curlEase < 0.65) {
+        ctx.save();
+        ctx.globalAlpha = 1 - curlEase / 0.65;
+        for (let row = 0; row < 3; row++) {
+          const yOff = row * 14;
+          for (let sx = -108 + row * 18; sx <= 50; sx += 18) {
+            const archY = Math.pow(sx / 68, 2) * 18 - 10 + yOff;
+            if (archY > 42) continue;
+            const scG = ctx.createLinearGradient(sx, archY - 8, sx, archY + 9);
+            const cTop = (Math.round(sx / 18) + row) % 2 === 0 ? pal.pangolinScale : pal.pangolinHi;
+            const cBot = (Math.round(sx / 18) + row) % 2 === 0 ? pal.pangolinBody : pal.pangolinDark;
+            scG.addColorStop(0, cTop);
+            scG.addColorStop(1, cBot);
+            ctx.fillStyle = scG;
+            ctx.beginPath();
+            ctx.moveTo(sx + 13, archY);
+            ctx.lineTo(sx, archY - 8);
+            ctx.lineTo(sx - 13, archY);
+            ctx.lineTo(sx, archY + 9);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = rim;
+            ctx.lineWidth = 1.0;
+            ctx.stroke();
+            ctx.strokeStyle = pal.rimHi;
+            ctx.lineWidth = 0.9;
+            ctx.beginPath();
+            ctx.moveTo(sx - 9, archY - 1);
+            ctx.lineTo(sx, archY - 7);
+            ctx.lineTo(sx + 9, archY - 1);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      if (curlEase > 0.25) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (curlEase - 0.25) / 0.45);
+        const r = 60;
         const numScales = 28;
         for (let k = numScales - 1; k >= 0; k--) {
           const t = k / numScales;
           const ang = t * Math.PI * 5.2;
-          const dist = t * (r * 0.72);
+          const dist = t * (r * 0.70);
           const sx = Math.cos(ang) * dist;
-          const sy = Math.sin(ang) * dist;
-          const sR = 11 + t * 9;
+          const sy = 6 + Math.sin(ang) * dist;
+          const sR = 11 + t * 8.5;
           ctx.save();
           ctx.translate(sx, sy);
           ctx.rotate(ang + 1.3);
@@ -1688,134 +2060,62 @@ const WaveCanvas = {
           ctx.closePath();
           ctx.fill();
           ctx.strokeStyle = rim;
-          ctx.lineWidth = 1.2;
+          ctx.lineWidth = 1.1;
           ctx.stroke();
           ctx.restore();
         }
-
-        // Wrapped heavy armored tail curving across bottom rim
-        ctx.fillStyle = pal.pangolinScale;
+        // Tucked little conical snout & peaceful blinking eye inside spiral wrap
+        ctx.fillStyle = pal.creamMid;
         ctx.beginPath();
-        ctx.arc(0, 0, r, 0.15, 2.35);
-        ctx.arc(0, 0, r * 0.74, 2.35, 0.15, true);
-        ctx.closePath();
-        ctx.fill();
-        strokeRim(1.5);
-
-        // Tucked little conical snout & sleeping eye at inner spiral curl
-        ctx.fillStyle = pal.cream;
-        ctx.beginPath();
-        ctx.ellipse(-8, 12, 14, 8, -0.4, 0, Math.PI * 2);
+        ctx.ellipse(-8, 16, 14, 8, -0.4, 0, Math.PI * 2);
         ctx.fill();
         strokeRim(1.1);
         ctx.strokeStyle = pal.eye;
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.arc(-4, 10, 4, 0.2, Math.PI - 0.2);
+        ctx.arc(-4, 14, 4, 0.2, Math.PI - 0.2);
         ctx.stroke();
         ctx.restore();
-      } else {
-        const swayTail = Math.sin(cr.gaitPhase * 3.8) * 6;
-        // Pale soft underbelly trim + stout clawed legs
-        draw2JointLeg(-28, 36, -32 - stride * 12, 60, -34 - stride * 18, 82, 18, 13, pal.pangolinBody, pal.pangolinBody);
-        draw2JointLeg(32, 36, 38 + stride * 12, 60, 44 + stride * 18, 82, 16, 12, pal.pangolinBody, pal.pangolinBody);
-        [-34 - stride * 18, 44 + stride * 18].forEach(fx => {
-          ctx.strokeStyle = pal.cream;
-          ctx.lineWidth = 3.6;
-          ctx.beginPath();
-          ctx.moveTo(fx, 80); ctx.lineTo(fx + 12, 84);
-          ctx.moveTo(fx - 4, 82); ctx.lineTo(fx + 8, 86);
-          ctx.stroke();
-        });
+      }
 
-        // Muscular long armored tail + arched anteater torso
-        ctx.fillStyle = pal.pangolinBody;
-        ctx.beginPath();
-        ctx.moveTo(-142, 62 + swayTail);
-        ctx.quadraticCurveTo(-84, 16 + swayTail * 0.5, -24, -18);
-        ctx.quadraticCurveTo(22, -32, 62, 4);
-        ctx.quadraticCurveTo(96, 18, 114, 38);
-        ctx.quadraticCurveTo(96, 48, 66, 44);
-        ctx.quadraticCurveTo(8, 52, -48, 52);
-        ctx.quadraticCurveTo(-96, 62, -142, 62 + swayTail);
-        ctx.closePath();
-        ctx.fill();
-        strokeRim(1.6);
-
-        // Layered overlapping armored diamond keratin plates along tail & arched spine!
-        for (let row = 0; row < 3; row++) {
-          const yOff = row * 14;
-          for (let sx = -108 + row * 18; sx <= 50; sx += 18) {
-            const archY = Math.pow(sx / 68, 2) * 18 - 10 + yOff;
-            if (archY > 42) continue;
-            ctx.fillStyle = (Math.round(sx / 18) + row) % 2 === 0 ? pal.pangolinScale : pal.pangolinBody;
-            ctx.beginPath();
-            ctx.moveTo(sx + 13, archY);
-            ctx.lineTo(sx, archY - 8);
-            ctx.lineTo(sx - 13, archY);
-            ctx.lineTo(sx, archY + 9);
-            ctx.closePath();
-            ctx.fill();
-            ctx.strokeStyle = rim;
-            ctx.lineWidth = 1.0;
-            ctx.stroke();
-          }
-        }
-
-        // Playful insect-catching pink tongue flick when near pause end
-        if (isPause) {
+      if (curlEase < 0.55) {
+        ctx.save();
+        ctx.globalAlpha = 1 - curlEase / 0.55;
+        drawEye(84, 24, 3.6);
+        // Playful tongue flick when uncurling near exit!
+        if (isPause && pauseFrac > 0.76) {
           ctx.strokeStyle = pal.pink;
           ctx.lineWidth = 3.2;
+          ctx.lineCap = "round";
           ctx.beginPath();
-          ctx.moveTo(112, 39);
-          ctx.quadraticCurveTo(126, 42, 134, 34);
+          ctx.moveTo(112, 37);
+          ctx.quadraticCurveTo(126, 40, 136, 32);
           ctx.stroke();
         }
-        drawEye(84, 24, 3.6);
+        ctx.restore();
       }
+      ctx.restore();
     } else if (s === "panda") {
-      if (isPause) {
-        // Cozy sitting Giant Panda happily munching fresh green bamboo stalk!
-        const chew = Math.sin(pauseFrac * 20);
-        const armLift = Math.sin(pauseFrac * 10) * 5;
+      // Heavy Pigeon-Toed Bear Amble + Seamless Continuous Morph into Seated Bamboo Munch!
+      const ambleP = cr.gaitPhase * 2.5;
+      const sit = this._smooth5(pauseBlend);
+      const strideA = Math.sin(ambleP) * (1 - sit);
+      const strideO = Math.cos(ambleP) * (1 - sit);
+      const ambleBob = Math.abs(Math.sin(ambleP)) * 7 * (1 - sit);
+      const chew = sit * Math.sin(pauseFrac * 22);
+      const armLift = sit * Math.sin(pauseFrac * 10) * 5;
 
-        // Round black ears (behind crown)
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.arc(-26, -68 + chew * 3, 18, 0, Math.PI * 2);
-        ctx.arc(30, -66 + chew * 3, 18, 0, Math.PI * 2);
-        ctx.fill();
+      const creamFurG = makeVolGrad(-26, -34, 36, 62, pal.creamHi, pal.creamMid, pal.creamLow);
+      const darkFurG = makeVolGrad(-24, -40, 32, 64, pal.pandaDarkHi, pal.darkFur, pal.pandaDarkLo);
 
-        // Plush cream sitting belly & body
-        ctx.fillStyle = pal.cream;
-        ctx.beginPath();
-        ctx.ellipse(-2, 26, 56, 52, 0, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.8);
+      ctx.save();
+      ctx.translate(0, -ambleBob + breathe * 0.25 * sit);
 
-        // Charcoal black shoulder saddle
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.ellipse(-2, -10, 48, 20, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Extended sturdy sitting hind legs + rosy paw pads
-        [-42, 40].forEach((lx, li) => {
-          ctx.fillStyle = pal.darkFur;
-          ctx.beginPath();
-          ctx.ellipse(lx, 66, 26, 18, li === 0 ? -0.25 : 0.25, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = pal.pink;
-          ctx.globalAlpha = 0.72;
-          ctx.beginPath();
-          ctx.ellipse(lx + (li === 0 ? -8 : 8), 66, 10, 7, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        });
-
-        // Tall leafy green bamboo culm held upright
+      // Smoothly appearing upright leafy bamboo stalk when transitioning to sit
+      if (sit > 0.08) {
         ctx.save();
-        ctx.translate(46, 6);
+        ctx.globalAlpha = Math.min(1, sit * 1.25);
+        ctx.translate(46, 6 + (1 - sit) * 18);
         ctx.strokeStyle = pal.bamboo;
         ctx.lineCap = "round";
         ctx.lineWidth = 10;
@@ -1823,7 +2123,7 @@ const WaveCanvas = {
         ctx.moveTo(-4, 72);
         ctx.lineTo(14, -78);
         ctx.stroke();
-        ctx.strokeStyle = "#15803D";
+        ctx.strokeStyle = pal.bambooDark;
         ctx.lineWidth = 2.4;
         [-46, -16, 14, 44].forEach(ny => {
           ctx.beginPath();
@@ -1836,163 +2136,232 @@ const WaveCanvas = {
           ctx.beginPath();
           ctx.ellipse(lx, ly, 16, 6, la, 0, Math.PI * 2);
           ctx.fill();
+          ctx.strokeStyle = rim;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
         });
         ctx.restore();
+      }
 
-        // Forearms wrapping neatly around bamboo stalk
-        ctx.fillStyle = pal.darkFur;
+      // Far hind & fore limbs blending continuously into settled sitting pose
+      ctx.fillStyle = pal.darkFur;
+      ctx.beginPath();
+      const farHindX = (-54 - strideA * 12) * (1 - sit) + (-52) * sit;
+      const farForeX = (18 + strideO * 12) * (1 - sit) + (-34) * sit;
+      ctx.roundRect(farHindX, 24 + sit * 18, 24, 58 - sit * 18, 12);
+      ctx.roundRect(farForeX, 24 * (1 - sit) + 4 * sit, 24, 58 - sit * 34, 12);
+      ctx.fill();
+
+      // Continuous Volumetric Cream Belly & Torso Morphing Upright onto Haunches!
+      const bodyX = -8 * (1 - sit) + (-2) * sit;
+      const bodyY = 14 * (1 - sit) + 28 * sit;
+      const bodyRx = 62 * (1 - sit) + 56 * sit;
+      const bodyRy = 42 * (1 - sit) + 52 * sit;
+      ctx.fillStyle = creamFurG;
+      ctx.beginPath();
+      ctx.ellipse(bodyX, bodyY, bodyRx, bodyRy, 0.04 * (1 - sit), 0, Math.PI * 2);
+      ctx.fill();
+      strokeRim(1.7);
+      strokeSunRim(bodyX - bodyRx * 0.65, bodyY - bodyRy * 0.55, bodyX, bodyY - bodyRy, bodyX + bodyRx * 0.55, bodyY - bodyRy * 0.62, 1.8);
+
+      // Characteristic black shoulder saddle blending smoothly from upright walking band -> seated collar!
+      ctx.fillStyle = darkFurG;
+      ctx.beginPath();
+      ctx.ellipse(-68 * (1 - sit) + 0 * sit, 4 * (1 - sit) + (-10) * sit, 10 * (1 - sit) + 48 * sit, 9 * (1 - sit) + 19 * sit, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (sit < 0.85) {
+        ctx.save();
+        ctx.globalAlpha = 1 - sit / 0.85;
+        ctx.beginPath();
+        ctx.roundRect(10, -28, 30, 68, 12);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Near Chunky Hind Legs sliding smoothly forward onto grounded dark paws with centered rosy pads!
+      const walkHindAlpha = Math.max(0, 1 - sit * 1.35);
+      if (walkHindAlpha > 0.02) {
+        ctx.save();
+        ctx.globalAlpha = walkHindAlpha;
+        ctx.fillStyle = darkFurG;
+        ctx.beginPath();
+        ctx.roundRect(-48 + strideA * 16, 26, 26, 58, 13);
+        ctx.roundRect(22 - strideO * 16, 24, 25, 60, 12);
+        ctx.fill();
+        ctx.restore();
+      }
+      if (sit > 0.08) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, sit * 1.25);
+        [[-46, 66, -0.22], [46, 66, 0.22]].forEach(([px, py, pang]) => {
+          ctx.fillStyle = darkFurG;
+          ctx.beginPath();
+          ctx.ellipse(px, py, 25, 17, pang, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = pal.pink;
+          ctx.globalAlpha = Math.min(1, sit * 1.25) * 0.78;
+          ctx.beginPath();
+          ctx.ellipse(px + (px < 0 ? -6 : 6), py, 10, 6.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = Math.min(1, sit * 1.25);
+        });
+        ctx.restore();
+      }
+      if (sit > 0.12) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (sit - 0.12) / 0.55);
+        ctx.fillStyle = darkFurG;
         ctx.beginPath();
         ctx.ellipse(26, 14 + armLift, 28, 13, 0.38, 0, Math.PI * 2);
         ctx.ellipse(-28, 16, 22, 13, -0.35, 0, Math.PI * 2);
         ctx.fill();
-
-        // Iconic round panda head + tilted eye patches + glossy eyes
-        ctx.save();
-        ctx.translate(2, -36 + chew * 3);
-        ctx.fillStyle = pal.cream;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 42, 36, 0, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.8);
-
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.ellipse(-13, -4, 11.5, 9, 0.3, 0, Math.PI * 2);
-        ctx.ellipse(17, -4, 11.5, 9, -0.3, 0, Math.PI * 2);
-        ctx.fill();
-        drawEye(-11, -5, 4.0);
-        drawEye(17, -5, 4.0);
-
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.ellipse(4, 9, 7.5, 5.2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = pal.darkFur;
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.arc(4, 15, 7, 0.2, Math.PI - 0.2);
-        ctx.stroke();
-        ctx.restore();
-      } else {
-        const waddle = Math.abs(Math.sin(cr.gaitPhase * 3.8)) * 8;
-        ctx.save();
-        ctx.translate(0, -waddle);
-
-        // Far chunky legs
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.roundRect(-54 - stride * 12, 24, 24, 58, 12);
-        ctx.roundRect(18 + strideOpp * 12, 24, 24, 58, 12);
-        ctx.fill();
-
-        // Plush cream walking panda torso
-        ctx.fillStyle = pal.cream;
-        ctx.beginPath();
-        ctx.ellipse(-8, 14, 62, 42, 0.04, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.8);
-
-        // Characteristic black chest-shoulder band & black tail puff
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.ellipse(-68, 4, 10, 9, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.roundRect(10, -28, 30, 68, 12);
-        ctx.fill();
-
-        // Near chunky hind & fore legs
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.roundRect(-48 + stride * 16, 26, 26, 58, 13);
-        ctx.roundRect(22 - strideOpp * 16, 24, 25, 60, 12);
-        ctx.fill();
-
-        // Sculpted round panda head facing forward
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.arc(48, -32, 14, 0, Math.PI * 2);
-        ctx.arc(76, -28, 13.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = pal.cream;
-        ctx.beginPath();
-        ctx.ellipse(62, -2, 34, 30, 0.1, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.8);
-
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.ellipse(73, -6, 10, 7.5, -0.25, 0, Math.PI * 2);
-        ctx.fill();
-        drawEye(74, -7, 3.8);
-        ctx.fillStyle = pal.darkFur;
-        ctx.beginPath();
-        ctx.ellipse(93, 4, 6, 4.5, 0, 0, Math.PI * 2);
-        ctx.fill();
         ctx.restore();
       }
-    } else if (s === "crocodile") {
-      const sway = isPause ? 0 : Math.sin(cr.gaitPhase * 4.2) * 12;
-      const yawn = isPause ? Math.max(0, Math.sin(pauseFrac * Math.PI * 1.6)) * 0.56 : 0.04;
 
-      // Far sprawling legs
+      // Continuous Head Position, Orientation & Shaded Cheek/Ear/Patch Interpolation
+      const headX = 62 * (1 - sit) + 2 * sit;
+      const headY = -2 * (1 - sit) + (-36 + chew * 3) * sit;
+      const headRx = 34 * (1 - sit) + 42 * sit;
+      const headRy = 30 * (1 - sit) + 36 * sit;
+
+      // Dark Panda Ears
+      ctx.fillStyle = darkFurG;
+      ctx.beginPath();
+      ctx.arc(headX - 18 * (1 - sit) - 28 * sit, headY - 30, 14 + sit * 3.5, 0, Math.PI * 2);
+      ctx.arc(headX + 14 * (1 - sit) + 28 * sit, headY - 28, 13.5 + sit * 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Volumetric Cream Head
+      const pHeadG = makeVolGrad(headX - 18, headY - 26, headX + 20, headY + 28, pal.creamHi, pal.creamMid, pal.creamLow);
+      ctx.fillStyle = pHeadG;
+      ctx.beginPath();
+      ctx.ellipse(headX, headY, headRx, headRy, 0.1 * (1 - sit), 0, Math.PI * 2);
+      ctx.fill();
+      strokeRim(1.8);
+
+      // Teardrop dark eye patches + eyes seamlessly blending single profile -> front-3/4 munching view!
+      ctx.fillStyle = darkFurG;
+      if (sit > 0.25) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (sit - 0.25) / 0.45);
+        ctx.beginPath();
+        ctx.ellipse(headX - 13, headY - 4, 11.5, 9, 0.3, 0, Math.PI * 2);
+        ctx.ellipse(headX + 17, headY - 4, 11.5, 9, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+        drawEye(headX - 11, headY - 5, 4.0);
+        drawEye(headX + 17, headY - 5, 4.0);
+        ctx.restore();
+      }
+      if (sit < 0.70) {
+        ctx.save();
+        ctx.globalAlpha = 1 - sit / 0.70;
+        ctx.beginPath();
+        ctx.ellipse(headX + 11, headY - 4, 10, 7.5, -0.25, 0, Math.PI * 2);
+        ctx.fill();
+        drawEye(headX + 12, headY - 5, 3.8);
+        ctx.restore();
+      }
+
+      // Nose & friendly smile
+      ctx.fillStyle = pal.darkFur;
+      ctx.beginPath();
+      ctx.ellipse(headX + 31 * (1 - sit) + 2 * sit, headY + 6 * (1 - sit) + 11 * sit, 6.2 + sit * 1.3, 4.6 + sit * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (sit > 0.2) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (sit - 0.2) / 0.5);
+        ctx.strokeStyle = pal.darkFur;
+        ctx.lineWidth = 2.3;
+        ctx.beginPath();
+        ctx.arc(headX + 2, headY + 17, 7, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    } else if (s === "crocodile") {
+      // Traveling S-wave lateral spine undulation + sprawling reptilian high-walk + smooth basking yawn!
+      const sw = cr.gaitPhase * 2.7;
+      const bask = this._smooth5(pauseBlend);
+      const sway = Math.sin(sw) * 14 * (1 - bask);
+      const tailWave = Math.sin(sw - 1.3) * 18 * (1 - bask);
+      const settleY = bask * 7;
+      const cStride = Math.sin(sw) * (1 - bask);
+      const cOpp = -cStride;
+      const cLiftN = Math.max(0, Math.cos(sw)) * 7 * (1 - bask);
+      const cLiftF = Math.max(0, -Math.cos(sw)) * 7 * (1 - bask);
+      const yawn = 0.04 + Math.max(0, Math.sin(pauseFrac * Math.PI * 1.45)) * 0.56 * bask;
+
+      ctx.save();
+      ctx.translate(0, settleY);
+
+      // Far sprawling bent legs
       ctx.strokeStyle = pal.crocDark;
       ctx.lineCap = "round";
       ctx.lineWidth = 14;
       ctx.beginPath();
-      ctx.moveTo(-42, 46); ctx.lineTo(-48 - strideOpp * 14, 66); ctx.lineTo(-42 - strideOpp * 16, 80);
-      ctx.moveTo(28, 46); ctx.lineTo(34 + stride * 14, 66); ctx.lineTo(42 + stride * 16, 80);
+      ctx.moveTo(-42, 46); ctx.lineTo(-48 + cOpp * 14, 65 - cLiftF * 0.7); ctx.lineTo(-42 + cOpp * 16, 80 - settleY - cLiftF);
+      ctx.moveTo(28, 46); ctx.lineTo(34 + cStride * 14, 65 - cLiftN * 0.7); ctx.lineTo(42 + cStride * 16, 80 - settleY - cLiftN);
       ctx.stroke();
 
-      // Long tapering tail + heavy scaly torso + ochre belly plates
-      ctx.fillStyle = pal.crocBody;
+      // Long traveling S-wave tapering tail + heavy volumetric scaly torso
+      const crocG = makeVolGrad(-40, 14, 18, 66, pal.crocHi, pal.crocBody, pal.crocDark);
+      ctx.fillStyle = crocG;
       ctx.beginPath();
-      ctx.moveTo(-152, 54 + sway);
-      ctx.quadraticCurveTo(-98, 28 + sway * 0.5, -52, 22);
+      ctx.moveTo(-154, 52 + tailWave);
+      ctx.quadraticCurveTo(-98, 28 + sway * 0.6, -52, 22 + sway * 0.25);
       ctx.quadraticCurveTo(0, 14, 50, 26);
       ctx.lineTo(54, 60);
-      ctx.quadraticCurveTo(-18, 68, -82, 62 + sway * 0.35);
-      ctx.quadraticCurveTo(-120, 62 + sway * 0.65, -152, 54 + sway);
+      ctx.quadraticCurveTo(-18, 68, -82, 62 + sway * 0.45);
+      ctx.quadraticCurveTo(-120, 62 + tailWave * 0.65, -154, 52 + tailWave);
       ctx.closePath();
       ctx.fill();
       strokeRim(1.5);
+      strokeSunRim(-128, 44 + tailWave * 0.6, -24, 16, 44, 24, 1.7);
 
-      // Barred pale ochre ventral scales
-      ctx.fillStyle = pal.flower;
-      ctx.globalAlpha = 0.40;
+      // Barred pale ochre ventral belly plates
+      ctx.fillStyle = pal.creamLow;
+      ctx.globalAlpha = isNight ? 0.28 : 0.46;
       ctx.beginPath();
       ctx.ellipse(-6, 56, 52, 9, 0, 0, Math.PI);
       ctx.fill();
       ctx.globalAlpha = 1;
 
-      // Dorsal spiky osteoderm scutes running tail -> neck
-      ctx.fillStyle = pal.crocDark;
+      // Staggered beveled dorsal osteoderm scutes tracking spine wave
       for (let scX = -132; scX <= 38; scX += 14) {
-        const yTop = scX < -52 ? (38 - (scX + 132) * 0.22 + sway * ((-scX - 52) / 100)) : 20;
+        const tailFrac = scX < -52 ? (-scX - 52) / 100 : 0;
+        const localSway = tailFrac * (sway * 0.55 + tailWave * 0.45);
+        const yTop = (scX < -52 ? (38 - (scX + 132) * 0.22) : 20) + localSway;
         const hSc = scX < -60 ? 15 : 11;
+        ctx.fillStyle = pal.crocDark;
         ctx.beginPath();
         ctx.moveTo(scX - 6, yTop + 4);
         ctx.lineTo(scX, yTop - hSc);
         ctx.lineTo(scX + 6, yTop + 4);
         ctx.closePath();
         ctx.fill();
+        ctx.strokeStyle = pal.rimHi;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(scX - 4, yTop + 1);
+        ctx.lineTo(scX, yTop - hSc);
+        ctx.stroke();
       }
 
-      // Near muscular bent legs + webbed clawed feet
-      ctx.strokeStyle = pal.crocBody;
+      // Near muscular bent legs with claw toes & subtle thigh gradient
+      const cLegG = makeVolGrad(-36, 48, 44, 80, pal.crocHi, pal.crocBody, pal.crocDark);
+      ctx.strokeStyle = cLegG;
       ctx.lineWidth = 15.5;
       ctx.beginPath();
-      ctx.moveTo(-36, 50); ctx.lineTo(-42 + stride * 16, 68); ctx.lineTo(-32 + stride * 18, 82);
-      ctx.moveTo(34, 50); ctx.lineTo(42 - strideOpp * 16, 68); ctx.lineTo(52 - strideOpp * 18, 82);
+      ctx.moveTo(-36, 50); ctx.lineTo(-42 + cStride * 16, 67 - cLiftN * 0.7); ctx.lineTo(-32 + cStride * 18, 82 - settleY - cLiftN);
+      ctx.moveTo(34, 50); ctx.lineTo(42 + cOpp * 16, 67 - cLiftF * 0.7); ctx.lineTo(52 + cOpp * 18, 82 - settleY - cLiftF);
       ctx.stroke();
 
-      // Massive articulated crocodile head & jaws (yawning wide during mid-screen pause!)
+      // Massive articulated crocodile head & jaws (smooth basking yawn!)
       ctx.save();
       ctx.translate(48, 45);
-      if (yawn > 0.14) {
+      if (yawn > 0.10) {
         ctx.fillStyle = pal.pink;
-        ctx.globalAlpha = 0.72;
+        ctx.globalAlpha = Math.min(0.76, yawn * 1.4);
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(66, -Math.sin(yawn) * 44);
@@ -2003,7 +2372,7 @@ const WaveCanvas = {
       }
 
       // Lower jaw
-      ctx.fillStyle = pal.crocBody;
+      ctx.fillStyle = crocG;
       ctx.beginPath();
       ctx.moveTo(-4, -2);
       ctx.lineTo(76, 4);
@@ -2016,7 +2385,7 @@ const WaveCanvas = {
       // Upper toothed snout hinged smoothly open
       ctx.save();
       ctx.rotate(-yawn);
-      ctx.fillStyle = pal.crocBody;
+      ctx.fillStyle = crocG;
       ctx.beginPath();
       ctx.moveTo(-6, 0);
       ctx.quadraticCurveTo(10, -24, 28, -14);
@@ -2028,7 +2397,7 @@ const WaveCanvas = {
       strokeRim(1.4);
 
       // Interlocking gleaming conical teeth along snout edge
-      ctx.fillStyle = "#F8FAFC";
+      ctx.fillStyle = pal.creamHi;
       for (let tx = 24; tx <= 74; tx += 10) {
         ctx.beginPath();
         ctx.moveTo(tx - 3.2, 3);
@@ -2038,19 +2407,35 @@ const WaveCanvas = {
         ctx.fill();
         strokeRim(0.9);
       }
-      // Golden reptile eye set in bony orbit ridge
+
+      // Golden vertical-slit reptile eye in bony orbit ridge
       drawEye(18, -12, 4.6, "#FACC15");
+      ctx.fillStyle = pal.eye;
+      ctx.beginPath();
+      ctx.ellipse(18.5, -12, 1.1, 3.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
       ctx.restore();
       ctx.restore();
     } else if (s === "okapi") {
-      const boundY = isPause ? 0 : Math.abs(Math.sin(cr.gaitPhase * 3.8)) * 12;
-      const reachAng = isPause ? Math.sin(pauseFrac * Math.PI) * 0.24 : 0;
+      // Authentic Giraffid Ipsilateral Pacing Gait (same-side fore+hind swing together!) + Smooth Prehensile Leaf Nibble
+      const paceP = cr.gaitPhase * 2.9;
+      const reach = this._smooth5(pauseBlend);
+      const walkMask = 1 - reach;
+      const paceNear = Math.sin(paceP) * walkMask;
+      const paceFar = -paceNear;
+      const liftNear = Math.max(0, Math.cos(paceP)) * 9 * walkMask;
+      const liftFar = Math.max(0, -Math.cos(paceP)) * 9 * walkMask;
+      const boundY = Math.abs(Math.sin(paceP)) * 9 * walkMask;
+      const reachAng = reach * Math.sin(Math.min(1, pauseFrac * 1.1) * Math.PI) * 0.25;
 
-      // Leafy overhanging rainforest twig & tender leaf for pause nibble!
-      if (isPause) {
+      // Smoothly appearing overhanging rainforest twig & tender leaf
+      if (reach > 0.04) {
         ctx.save();
+        ctx.globalAlpha = Math.min(1, reach * 1.35);
         ctx.strokeStyle = pal.antler;
         ctx.lineWidth = 4.2;
+        ctx.lineCap = "round";
         ctx.beginPath();
         ctx.moveTo(156, -78);
         ctx.quadraticCurveTo(126, -66, 98, -56);
@@ -2060,31 +2445,36 @@ const WaveCanvas = {
           ctx.beginPath();
           ctx.ellipse(lx, ly, 16, 6.5, la, 0, Math.PI * 2);
           ctx.fill();
+          ctx.strokeStyle = rim;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
         });
         ctx.restore();
       }
 
       ctx.save();
-      ctx.translate(0, -boundY);
+      ctx.translate(0, -boundY + breathe * 0.25);
 
-      // Far legs (outlined warm cream stockings with dark fetlock bands!)
-      draw2JointLeg(-48, 8, -56 - strideOpp * 16, 46, -64 - strideOpp * 24, 84, 15, 8.5, pal.okapiBody, pal.cream, pal.eye);
-      draw2JointLeg(36, 8, 42 + stride * 16, 46, 50 + stride * 24, 84, 14, 8.5, pal.okapiBody, pal.cream, pal.eye);
+      // Far ipsilateral pair (both swing together in paceFar with shaded cream stockings!)
+      draw2JointLeg(-48, 8, -54 + paceFar * 16, 46 - liftFar * 0.6, -62 + paceFar * 24, 84 - liftFar, 15, 8.5, pal.okapiDark, pal.creamLow, pal.eye, true);
+      draw2JointLeg(36, 8, 42 + paceFar * 16, 46 - liftFar * 0.6, 50 + paceFar * 24, 84 - liftFar, 14, 8.5, pal.okapiDark, pal.creamLow, pal.eye, true);
 
       // Slender dark tail with terminal brush
-      ctx.strokeStyle = pal.okapiBody;
+      ctx.strokeStyle = pal.okapiDark;
       ctx.lineWidth = 4.2;
+      ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(-66, -10);
       ctx.quadraticCurveTo(-82, 8, -76, 30);
       ctx.stroke();
 
-      // Giraffe-like sloped mahogany neck drawn BEFORE torso so torso overlaps seamlessly with zero vertical line!
+      // Giraffe-like sloped shaded mahogany neck drawn BEFORE torso with tucked chest root!
       ctx.save();
       ctx.translate(42, -14);
-      ctx.rotate(-reachAng);
+      ctx.rotate(-reachAng + Math.sin(paceP) * 0.04 * walkMask);
 
-      ctx.fillStyle = pal.okapiBody;
+      const okNeckG = makeVolGrad(-4, -56, 28, 12, pal.okapiHi, pal.okapiBody, pal.okapiDark);
+      ctx.fillStyle = okNeckG;
       ctx.beginPath();
       ctx.moveTo(-18, 16);
       ctx.lineTo(12, -58);
@@ -2092,16 +2482,18 @@ const WaveCanvas = {
       ctx.lineTo(11, 14);
       ctx.closePath();
       ctx.fill();
+      strokeRim(1.1);
 
-      // Large alert mahogany ears
+      // Large alert shaded mahogany ears
       ctx.save();
       ctx.translate(10, -56);
       ctx.rotate(-0.42);
-      ctx.fillStyle = pal.okapiBody;
+      ctx.fillStyle = okNeckG;
       ctx.beginPath();
       ctx.ellipse(0, -14, 7.5, 16, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = pal.cream;
+      strokeRim(1.0);
+      ctx.fillStyle = pal.creamMid;
       ctx.beginPath();
       ctx.ellipse(0, -13, 3.6, 10, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -2110,26 +2502,28 @@ const WaveCanvas = {
       // Furred crown ossicones
       ctx.strokeStyle = pal.okapiBody;
       ctx.lineWidth = 4.2;
+      ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(18, -58);
       ctx.lineTo(14, -74);
       ctx.stroke();
 
-      // Refined pale cream cheek & elongated tapered muzzle
-      ctx.fillStyle = pal.okapiBody;
+      // Refined pale diurnal cheek & elongated tapered muzzle
+      ctx.fillStyle = okNeckG;
       ctx.beginPath();
       ctx.ellipse(26, -50, 24, 12.5, 0.20, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = pal.cream;
+      const cheekG = makeVolGrad(18, -54, 46, -38, pal.creamHi, pal.creamMid, pal.creamLow);
+      ctx.fillStyle = cheekG;
       ctx.beginPath();
       ctx.ellipse(32, -46, 19, 8.8, 0.18, 0, Math.PI * 2);
       ctx.fill();
       strokeRim(1.1);
 
-      // Prehensile long blue-indigo tongue wrapping playfully to snag leaf during pause!
-      if (isPause && pauseFrac > 0.18 && pauseFrac < 0.84) {
-        const tLen = Math.sin(((pauseFrac - 0.18) / 0.66) * Math.PI) * 32;
-        ctx.strokeStyle = "#1D4ED8";
+      // Prehensile long cobalt-indigo tongue wrapping onto tender leaf
+      if (isPause && pauseFrac > 0.16 && pauseFrac < 0.86 && reach > 0.25) {
+        const tLen = Math.sin(((pauseFrac - 0.16) / 0.70) * Math.PI) * 32 * reach;
+        ctx.strokeStyle = isNight ? "#38BDF8" : "#1D4ED8";
         ctx.lineCap = "round";
         ctx.lineWidth = 4.8;
         ctx.beginPath();
@@ -2145,8 +2539,9 @@ const WaveCanvas = {
       ctx.fill();
       ctx.restore();
 
-      // Velvety dark mahogany-burgundy torso seamlessly overlapping neck base!
-      ctx.fillStyle = pal.okapiBody;
+      // Velvety dark mahogany-burgundy torso with volumetric shading & dorsal rim gleam!
+      const okTorsoG = makeVolGrad(-20, -28, 12, 24, pal.okapiHi, pal.okapiBody, pal.okapiDark);
+      ctx.fillStyle = okTorsoG;
       ctx.beginPath();
       ctx.moveTo(-64, -4);
       ctx.quadraticCurveTo(-48, -28, -10, -24);
@@ -2157,10 +2552,11 @@ const WaveCanvas = {
       ctx.closePath();
       ctx.fill();
       strokeRim(1.4);
+      strokeSunRim(-52, -20, 6, -24, 44, -24, 1.8);
 
-      // Crisp signature white & dark zebra stripes across rump and upper thighs
+      // Bold diurnal-tinted cream zebra stripes curving cleanly across rump
       ctx.save();
-      ctx.strokeStyle = pal.cream;
+      ctx.strokeStyle = pal.creamHi;
       ctx.lineCap = "round";
       ctx.lineWidth = 5.0;
       [-14, -3, 8, 19].forEach((sy, idx) => {
@@ -2171,26 +2567,37 @@ const WaveCanvas = {
       });
       ctx.restore();
 
-      // Near legs with outlined white zebra stockings, thigh stripes & perpendicular ankle bands
-      draw2JointLeg(-42, 10, -50 + stride * 16, 46, -58 + stride * 26, 84, 16.5, 9.0, pal.okapiBody, pal.cream, pal.eye);
-      draw2JointLeg(40, 10, 46 - strideOpp * 16, 46, 54 - strideOpp * 26, 84, 15.0, 9.0, pal.okapiBody, pal.cream, pal.eye);
+      // Near ipsilateral pair (both swing together in paceNear!) + thigh stripes + perpendicular ankle bands
+      const okKneeRx = -50 + paceNear * 16;
+      const okKneeRy = 46 - liftNear * 0.6;
+      const okFootRx = -58 + paceNear * 24;
+      const okFootRy = 84 - liftNear;
+      const okKneeFx = 46 + paceNear * 16;
+      const okKneeFy = 46 - liftNear * 0.6;
+      const okFootFx = 54 + paceNear * 24;
+      const okFootFy = 84 - liftNear;
+
+      draw2JointLeg(-42, 13, okKneeRx, okKneeRy, okFootRx, okFootRy, 16.0, 9.0, pal.okapiBody, pal.creamMid, pal.eye, true);
+      draw2JointLeg(40, 13, okKneeFx, okKneeFy, okFootFx, okFootFy, 14.5, 9.0, pal.okapiBody, pal.creamMid, pal.eye, true);
+
       ctx.save();
-      ctx.strokeStyle = pal.cream;
+      ctx.strokeStyle = pal.creamHi;
       ctx.lineCap = "round";
       ctx.lineWidth = 3.8;
       [0.44, 0.72].forEach(t => {
-        const tx = -42 + (-8 + stride * 16) * t;
-        const ty = 10 + 36 * t;
+        const tx = -42 + (okKneeRx + 42) * t;
+        const ty = 13 + (okKneeRy - 13) * t;
         ctx.beginPath();
         ctx.moveTo(tx - 6.5, ty);
         ctx.lineTo(tx + 6.5, ty);
         ctx.stroke();
       });
       ctx.restore();
+
       ctx.fillStyle = pal.darkFur;
       [
-        [-50 + stride * 16, 46, -58 + stride * 26, 84],
-        [46 - strideOpp * 16, 46, 54 - strideOpp * 26, 84],
+        [okKneeRx, okKneeRy, okFootRx, okFootRy],
+        [okKneeFx, okKneeFy, okFootFx, okFootFy],
       ].forEach(([x1, y1, x2, y2]) => {
         const cx = x1 + (x2 - x1) * 0.45;
         const cy = y1 + (y2 - y1) * 0.45;
@@ -2207,24 +2614,14 @@ const WaveCanvas = {
 
   _updateAndDrawWildlife(ctx, w, h, mode, dt) {
     if (!this.wildlifeCrossings || this.wildlifeCrossings.length === 0) return;
-    const isDark = mode === "dark" || mode === "evening";
-    const pal = {
-      rabbitBody: isDark ? "#CBD5E1" : "#94A3B8",
-      rabbitDark: isDark ? "#94A3B8" : "#64748B",
-      deerBody: isDark ? "#D97706" : "#B45309",
-      deerDark: isDark ? "#B45309" : "#92400E",
-      pangolinBody: isDark ? "#92400E" : "#78350F",
-      pangolinScale: isDark ? "#F59E0B" : "#B45309",
-      darkFur: "#0F172A",
-      crocBody: isDark ? "#15803D" : "#166534",
-      crocDark: isDark ? "#14532D" : "#052E16",
-      okapiBody: isDark ? "#7C2D12" : "#581C1C",
-      cream: isDark ? "#F8FAFC" : "#EDE7DB",
-      pink: "#F472B6",
-      bamboo: "#22C55E",
-      flower: "#FBBF24",
-      antler: isDark ? "#FDE68A" : "#78350F",
-      eye: "#020617"
+    const pal = this._getNatureWildlifePalette(mode);
+    const gaitRates = {
+      rabbit: 3.3,
+      deer: 3.1,
+      pangolin: 2.8,
+      panda: 2.6,
+      crocodile: 2.8,
+      okapi: 2.9
     };
 
     const alive = [];
@@ -2232,10 +2629,19 @@ const WaveCanvas = {
       const cr = this.wildlifeCrossings[i];
       const baseSpeed = w < 720 ? 132 : 245;
       const spd = cr.speed || (cr.species === "rabbit" ? baseSpeed * 1.15 : (cr.species === "deer" ? baseSpeed * 1.22 : (cr.species === "crocodile" ? baseSpeed * 0.85 : baseSpeed)));
+      const gaitRate = gaitRates[cr.species] || 3.0;
+      const decelDist = cr.decelDist || Math.round(145 * (cr.scale || 1));
+      cr.breathePhase = (cr.breathePhase || 0) + dt * 2.1;
 
       if (cr.phase === "enter") {
-        cr.x += cr.dir * spd * dt;
-        cr.gaitPhase += dt * 3.0;
+        const distToPause = Math.max(0, cr.dir > 0 ? (cr.pauseX - cr.x) : (cr.x - cr.pauseX));
+        const f = Math.min(1, distToPause / Math.max(20, decelDist));
+        cr.moveSpeedNorm = f < 1 ? (0.14 + 0.86 * this._smooth5(f)) : 1.0;
+        if (f < 0.25) {
+          cr.pauseBlend = this._smooth5((0.25 - f) / 0.25) * 0.16;
+        }
+        cr.x += cr.dir * spd * cr.moveSpeedNorm * dt;
+        cr.gaitPhase += gaitRate * cr.moveSpeedNorm * dt;
         if ((cr.dir > 0 && cr.x >= cr.pauseX) || (cr.dir < 0 && cr.x <= cr.pauseX)) {
           cr.x = cr.pauseX;
           cr.phase = "pause_action";
@@ -2243,12 +2649,25 @@ const WaveCanvas = {
         }
       } else if (cr.phase === "pause_action") {
         cr.pauseTimer += dt;
+        cr.moveSpeedNorm = 0;
+        const rampT = 0.60;
+        if (cr.pauseTimer < rampT) {
+          cr.pauseBlend = Math.max(cr.pauseBlend || 0, 0.16 + 0.84 * this._smooth5(cr.pauseTimer / rampT));
+        } else if (cr.pauseTimer > cr.pauseDuration - rampT) {
+          cr.pauseBlend = this._smooth5((cr.pauseDuration - cr.pauseTimer) / rampT);
+        } else {
+          cr.pauseBlend = 1.0;
+        }
         if (cr.pauseTimer >= cr.pauseDuration) {
           cr.phase = "exit";
+          cr.exitAccelTimer = 0;
         }
       } else {
-        cr.x += cr.dir * spd * dt;
-        cr.gaitPhase += dt * 3.1;
+        cr.exitAccelTimer = (cr.exitAccelTimer || 0) + dt;
+        cr.moveSpeedNorm = 0.14 + 0.86 * this._smooth5(Math.min(1, cr.exitAccelTimer / 0.68));
+        cr.pauseBlend = Math.max(0, (cr.pauseBlend || 0) * (1 - Math.min(1, dt * 8)));
+        cr.x += cr.dir * spd * cr.moveSpeedNorm * dt;
+        cr.gaitPhase += gaitRate * cr.moveSpeedNorm * dt;
       }
 
       const exitMargin = 270 * (cr.scale || 1);

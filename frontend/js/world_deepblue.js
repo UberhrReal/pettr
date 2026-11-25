@@ -71,10 +71,10 @@ const WorldDeepBlue = {
   _getSubDockOffset(style) {
     if (style === "los_angeles_ssn") return 82;
     if (style === "passenger_liner") return 54;
-    if (style === "heavy_freighter") return 58;
-    if (style === "experimental_research") return 48;
+    if (style === "heavy_freighter") return 66;
+    if (style === "experimental_research") return 44;
     if (style === "military_stealth") return 56;
-    return 46;
+    return 52;
   },
 
   getScreenBudget(isNarrow) {
@@ -2163,58 +2163,129 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Horizontal Armored Titanium Submarine Airlock Docking Sleeve (flared collar, guide fins, hydraulic clamps & airlock seal)
+  // Horizontal Armored Titanium Submarine Airlock Docking Sleeve: Back Interior Aperture & Far Guide Fins
   _drawSubDockingPort(ctx, x, y, dir, pal, s) {
     ctx.save();
     ctx.translate(x, y);
     if (dir < 0) ctx.scale(-1, 1); // dir = +1 opens East (+x), dir = -1 opens West (-x)
 
-    // Upper & Lower splayed mechanical guide fins welcoming approaching hull
-    ctx.fillStyle = pal.hullMid;
+    // Far-side splayed mechanical guide fins welcoming approaching hull
+    ctx.fillStyle = pal.hullDark;
     ctx.beginPath();
-    ctx.moveTo(-4 * s, -15 * s);
-    ctx.lineTo(18 * s, -22 * s);
-    ctx.lineTo(20 * s, -17 * s);
-    ctx.lineTo(2 * s, -11 * s);
+    ctx.moveTo(0, -16 * s);
+    ctx.lineTo(24 * s, -24 * s);
+    ctx.lineTo(26 * s, -19 * s);
+    ctx.lineTo(6 * s, -12 * s);
     ctx.closePath();
     ctx.fill();
 
     ctx.beginPath();
-    ctx.moveTo(-4 * s, 15 * s);
-    ctx.lineTo(18 * s, 22 * s);
-    ctx.lineTo(20 * s, 17 * s);
-    ctx.lineTo(2 * s, 11 * s);
+    ctx.moveTo(0, 16 * s);
+    ctx.lineTo(24 * s, 24 * s);
+    ctx.lineTo(26 * s, 19 * s);
+    ctx.lineTo(6 * s, 12 * s);
     ctx.closePath();
     ctx.fill();
 
-    // Cylindrical pressurized titanium docking ring collar & shock damper piston housing
-    const cg = ctx.createLinearGradient(0, -17 * s, 0, 17 * s);
+    // Outer titanium sleeve housing (back layer) & deep pressurized interior chamber bore
+    const cg = ctx.createLinearGradient(0, -19 * s, 0, 19 * s);
     cg.addColorStop(0, pal.hullLight);
     cg.addColorStop(0.5, pal.hullMid);
     cg.addColorStop(1, pal.hullDark);
     ctx.fillStyle = cg;
     ctx.beginPath();
-    ctx.roundRect(-8 * s, -16 * s, 18 * s, 32 * s, 3 * s);
+    ctx.roundRect(-10 * s, -18 * s, 25 * s, 36 * s, 3 * s);
     ctx.fill();
     ctx.strokeStyle = pal.hullDeep;
     ctx.lineWidth = Math.max(0.9, 1.2 * s);
     ctx.stroke();
 
-    // Recessed circular airlock aperture & illuminated ring seal facing submarine nose
+    // Dark recessed circular chamber throat opening at local x = +15*s where submarine nose inserts INSIDE!
     ctx.fillStyle = pal.hullDeep;
     ctx.beginPath();
-    ctx.ellipse(9 * s, 0, 4.8 * s, 12.8 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(15 * s, 0, 5.4 * s, 16.2 * s, 0, 0, Math.PI * 2);
     ctx.fill();
+    // Far-right edge of glowing docking ring (drawn behind entering submarine hull)
     ctx.strokeStyle = pal.subAccent;
     ctx.lineWidth = Math.max(1.2, 1.7 * s);
     ctx.beginPath();
-    ctx.ellipse(9 * s, 0, 4.2 * s, 11.4 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(15 * s, 0, 4.8 * s, 14.8 * s, 0, -Math.PI * 0.5, Math.PI * 0.5);
     ctx.stroke();
 
-    // Top/Bottom hydraulic latch clamps & alignment beacons
-    [-12.5 * s, 12.5 * s].forEach(cy => {
+    [-15 * s, 15 * s].forEach(cy => {
       ctx.fillStyle = pal.trimGold;
-      ctx.fillRect(6 * s, cy - 1.5 * s, 6.5 * s, 3.0 * s);
+      ctx.fillRect(10 * s, cy - 1.6 * s, 6.5 * s, 3.2 * s);
+    });
+    ctx.restore();
+  },
+
+  // Foreground Collar Half & Locking Clamps rendered OVER Submarine Bow so Nose Seats Visibly INSIDE Ring!
+  _drawSubDockingPortFrontLip(ctx, x, y, dir, pal, s, isDocked, step) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (dir < 0) ctx.scale(-1, 1);
+
+    // Opaque Titanium Collar Barrel wrapping cleanly around & occluding inserted submarine bow (local x = -9..+15*s)
+    const fg = ctx.createLinearGradient(0, -19 * s, 0, 19 * s);
+    fg.addColorStop(0, pal.hullLight);
+    fg.addColorStop(0.45, pal.hullMid);
+    fg.addColorStop(1, pal.hullDark);
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.moveTo(-9 * s, -18 * s);
+    ctx.lineTo(15 * s, -18 * s);
+    ctx.ellipse(15 * s, 0, 5.4 * s, 18 * s, 0, -Math.PI * 0.5, Math.PI * 0.5, true);
+    ctx.lineTo(-9 * s, 18 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = pal.hullDeep;
+    ctx.lineWidth = Math.max(0.9, 1.2 * s);
+    ctx.stroke();
+
+    // Soft volumetric top specular rim & rib bands on sleeve barrel
+    ctx.strokeStyle = pal.waterBounce;
+    ctx.lineWidth = Math.max(0.9, 1.1 * s);
+    ctx.beginPath();
+    ctx.moveTo(-7 * s, -17.2 * s);
+    ctx.lineTo(14 * s, -17.2 * s);
+    ctx.stroke();
+    [-2 * s, 6 * s].forEach(rx => {
+      ctx.fillStyle = pal.hullDark;
+      ctx.fillRect(rx, -18 * s, 2.2 * s, 36 * s);
+    });
+
+    // Near-side concave titanium lip + glowing airtight pressurized seal hugging the submarine hull!
+    ctx.strokeStyle = pal.hullLight;
+    ctx.lineWidth = Math.max(1.8, 2.5 * s);
+    ctx.beginPath();
+    ctx.ellipse(15 * s, 0, 5.4 * s, 16.2 * s, 0, Math.PI * 0.5, Math.PI * 1.5);
+    ctx.stroke();
+
+    const sealAlpha = isDocked ? (0.62 + 0.34 * Math.sin(step * 2.8)) : 0.42;
+    ctx.strokeStyle = isDocked
+      ? `rgba(103, 232, 249, ${sealAlpha.toFixed(3)})`
+      : `rgba(56, 189, 248, ${sealAlpha.toFixed(3)})`;
+    ctx.lineWidth = Math.max(1.4, 2.0 * s);
+    ctx.beginPath();
+    ctx.ellipse(15 * s, 0, 4.7 * s, 14.8 * s, 0, Math.PI * 0.5, Math.PI * 1.5);
+    ctx.stroke();
+
+    // Hydraulic latching dog-clamps biting cleanly onto the docked hull when locked!
+    const clampIn = isDocked ? 3.2 * s : 0.4 * s;
+    [-1, 1].forEach(side => {
+      const fy = side * (16.5 * s - clampIn * 0.65);
+      ctx.fillStyle = pal.hullMid;
+      ctx.beginPath();
+      ctx.moveTo(8 * s, side * 17.5 * s);
+      ctx.lineTo(22 * s, fy);
+      ctx.lineTo(23 * s, fy - side * 3.2 * s);
+      ctx.lineTo(11 * s, side * 13 * s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = isDocked ? "#34D399" : pal.trimGold;
+      ctx.beginPath();
+      ctx.arc(19.5 * s, fy - side * 1.4 * s, 1.8 * s, 0, Math.PI * 2);
+      ctx.fill();
     });
     ctx.restore();
   },
@@ -2882,60 +2953,43 @@ const WorldDeepBlue = {
       }
     }
 
-    // 14. Habitat-Surrounding Manta Ray Cleaning Stations (Back + Front Mantas & Cleaner Wrasse across entire seabed)
+    // 14. Habitat-Surrounding Manta Ray Cleaning Stations (Unified Grand Orbits Around ENTIRE Station Plateau!)
     if (this.cleaningMantas.length === 0 && L.cleaningStation) {
       const cs = L.cleaningStation;
       const bReefs = cs.backReefs || [cs];
       const fReefs = cs.frontReefs || [cs];
 
-      const backCount = isNarrow ? 1 : 2;
-      for (let i = 0; i < backCount; i++) {
-        const anchor = isNarrow ? bReefs[0] : (i === 0 ? bReefs[1] : bReefs[2]);
-        const cx = isNarrow ? w * 0.50 : anchor.x;
-        const cy = L.hubY + (isNarrow ? 12 : (i === 0 ? -8 : 14)) * s;
-        this.cleaningMantas.push({
-          layer: "back",
-          orbitAngle: i * 2.4 + 0.4,
-          orbitSpeed: (i === 0 ? 0.28 : 0.24) * (i % 2 === 0 ? 1 : -1),
-          centerX: cx,
-          centerY: cy,
-          orbitRx: (isNarrow ? 92 : 168) * cs.scale,
-          orbitRy: (isNarrow ? 14 : 20) * cs.scale,
-          span: (isNarrow ? 30 : 40) * cs.scale,
-          wingPhase: i * 1.9,
-          hoverTimer: 0,
-          hoverCooldown: 5.5 + i * 3.5,
-          state: "circling",
-          x: cx,
-          y: cy,
-          facingLeft: i % 2 === 1,
-          bank: 0,
-          isFront: false
-        });
-      }
+      const totalMantas = isNarrow ? 2 : 3;
+      const orbitCenterY = L.seabedY - 6 * cs.scale;
+      const baseRx = isNarrow ? (w * 0.40) : Math.min(w * 0.41, 470 * s);
+      const baseRy = (isNarrow ? 34 : 52) * cs.scale;
 
-      const frontCount = isNarrow ? 1 : 2;
-      for (let i = 0; i < frontCount; i++) {
-        const cx = isNarrow ? w * 0.48 : w * (i === 0 ? 0.36 : 0.59);
-        const cy = (fReefs[i % fReefs.length] ? fReefs[i % fReefs.length].y : cs.y) - 46 * cs.scale;
+      for (let i = 0; i < totalMantas; i++) {
+        // Stagger start angles smoothly so one manta starts behind habitat ("back") and others sweep foreground ("front")
+        const startAng = i === 0 ? -Math.PI * 0.52 : (i === 1 ? Math.PI * 0.32 : Math.PI * 0.78);
+        const rx = baseRx * (0.94 + i * 0.04);
+        const ry = baseRy * (0.92 + i * 0.06);
+        const sinA = Math.sin(startAng);
+        const cosA = Math.cos(startAng);
+        const orbitSpeed = (isNarrow ? 0.17 : 0.16) * (0.94 + i * 0.06);
         this.cleaningMantas.push({
-          layer: "front",
-          orbitAngle: i * 2.85 + 0.55,
-          orbitSpeed: (i === 0 ? 0.34 : 0.27) * (i % 2 === 0 ? 1 : -1),
-          centerX: cx,
-          centerY: cy,
-          orbitRx: (isNarrow ? 88 : (152 + i * 28)) * cs.scale,
-          orbitRy: (isNarrow ? 16 : (20 + i * 6)) * cs.scale,
-          span: (isNarrow ? 35 : (47 - i * 5)) * cs.scale,
-          wingPhase: i * 2.1 + 1.0,
-          hoverTimer: i === 0 ? 2.4 : 0,
-          hoverCooldown: 6.0 + i * 4.0,
-          state: i === 0 ? "hover_clean" : "circling",
-          x: cx,
-          y: cy,
-          facingLeft: i % 2 === 1,
+          layer: sinA < 0 ? "back" : "front",
+          orbitAngle: startAng,
+          orbitSpeed,
+          centerX: L.hubX,
+          centerY: orbitCenterY + (i - 1) * 4 * cs.scale,
+          orbitRx: rx,
+          orbitRy: ry,
+          span: (isNarrow ? (33 - i * 3) : (46 - i * 4)) * cs.scale,
+          wingPhase: i * 1.9 + 0.5,
+          hoverTimer: i === 1 ? 2.0 : 0,
+          hoverCooldown: 5.0 + i * 3.0,
+          state: i === 1 ? "hover_clean" : "circling",
+          x: L.hubX + cosA * rx,
+          y: orbitCenterY + sinA * ry,
+          facingLeft: -Math.sin(startAng) * orbitSpeed < 0,
           bank: 0,
-          isFront: true
+          isFront: sinA >= 0
         });
       }
     }
@@ -2945,13 +2999,8 @@ const WorldDeepBlue = {
       const bReefs = cs.backReefs || [];
       const fReefs = cs.frontReefs || [cs];
       const zones = ["gill", "belly", "left_wing", "right_wing", "cephalic"];
-      const backMIndices = [];
-      const frontMIndices = [];
-      this.cleaningMantas.forEach((m, idx) => {
-        if (m.layer === "back") backMIndices.push(idx);
-        else frontMIndices.push(idx);
-      });
 
+      // Escort & Back-Reef Cleaner Wrasse following circling mantas around rear seabed plateau
       const backWrCount = isNarrow ? 2 : 4;
       for (let i = 0; i < backWrCount; i++) {
         const rf = bReefs[i % Math.max(1, bReefs.length)] || cs;
@@ -2960,15 +3009,15 @@ const WorldDeepBlue = {
         this.cleanerWrasse.push({
           id: i,
           layer: "back",
+          isEscort: false,
           homeX,
           homeY,
           x: homeX,
           y: homeY - 8 * rf.scale,
-          targetPool: backMIndices,
-          targetMantaIdx: backMIndices[i % Math.max(1, backMIndices.length)] || 0,
+          targetMantaIdx: 0,
           zone: zones[i % zones.length],
-          state: i % 2 === 0 ? "cleaning" : "reef_dance",
-          timer: 1.4 + i * 0.7,
+          state: "reef_dance",
+          timer: 0.9 + i * 0.5,
           wigglePhase: i * 1.4,
           size: (3.4 + (i % 2) * 0.5) * rf.scale,
           facingLeft: i % 2 === 1,
@@ -2976,23 +3025,26 @@ const WorldDeepBlue = {
         });
       }
 
+      // Foreground Reef Wrasse + 2 Pod Escort Wrasse circling the entire habitat continuously with mantas!
       const frontWrCount = isNarrow ? 4 : 8;
       for (let i = 0; i < frontWrCount; i++) {
+        const isEscort = !isNarrow && i >= 6;
         const rf = fReefs[i % fReefs.length];
         const homeX = rf.x + (((i % 3) - 1) * 11 * rf.scale);
         const homeY = rf.y - (15 + (i % 3) * 5) * rf.scale;
+        const leadM = this.cleaningMantas[1] || this.cleaningMantas[0];
         this.cleanerWrasse.push({
           id: backWrCount + i,
           layer: "front",
+          isEscort,
           homeX,
           homeY,
-          x: homeX,
-          y: homeY - 12 * rf.scale,
-          targetPool: frontMIndices,
-          targetMantaIdx: frontMIndices[i % Math.max(1, frontMIndices.length)] || 0,
+          x: isEscort && leadM ? leadM.x : homeX,
+          y: isEscort && leadM ? leadM.y : (homeY - 12 * rf.scale),
+          targetMantaIdx: isEscort ? (i % Math.max(1, this.cleaningMantas.length)) : (1 % Math.max(1, this.cleaningMantas.length)),
           zone: zones[i % zones.length],
-          state: i < 5 ? "cleaning" : "reef_dance",
-          timer: 1.5 + i * 0.65,
+          state: isEscort ? "cleaning" : (i < 5 ? "cleaning" : "reef_dance"),
+          timer: isEscort ? 99 : (1.5 + i * 0.65),
           wigglePhase: i * 1.3 + 0.5,
           size: (3.6 + (i % 3) * 0.55) * cs.scale,
           facingLeft: i % 2 === 1,
@@ -4155,13 +4207,25 @@ const WorldDeepBlue = {
 
       if (f.kind === "manta") {
         const wingFlap = Math.sin(f.phase) * f.span * 0.24;
+        const farFlap = Math.sin(f.phase - 0.65) * f.span * 0.20;
         const sp = f.span;
+        // Side-on distant silhouette manta matching foreground oblique manta camera plane
         ctx.beginPath();
-        ctx.moveTo(sp * 0.55, 0);
-        ctx.quadraticCurveTo(0, -sp * 0.55 + wingFlap, -sp * 0.25, -sp * 0.14);
-        ctx.lineTo(-sp * 1.18, 0);
-        ctx.lineTo(-sp * 0.25, sp * 0.14);
-        ctx.quadraticCurveTo(0, sp * 0.55 - wingFlap, sp * 0.55, 0);
+        // Far wing arching behind torso
+        ctx.moveTo(sp * 0.20, -sp * 0.04);
+        ctx.quadraticCurveTo(sp * 0.02, -sp * (0.28 + farFlap * 0.014), -sp * 0.20, -sp * 0.04);
+        // Sculpted torso + whip tail + cephalic lobes
+        ctx.lineTo(-sp * 1.16, Math.sin(f.phase - 1.0) * sp * 0.06);
+        ctx.lineTo(-sp * 0.36, sp * 0.05);
+        ctx.quadraticCurveTo(sp * 0.14, sp * 0.16, sp * 0.48, sp * 0.05);
+        ctx.lineTo(sp * 0.56, -sp * 0.03);
+        ctx.quadraticCurveTo(sp * 0.34, -sp * 0.08, sp * 0.20, -sp * 0.04);
+        ctx.closePath();
+        ctx.fill();
+        // Sweeping near wing
+        ctx.beginPath();
+        ctx.moveTo(sp * 0.24, sp * 0.02);
+        ctx.quadraticCurveTo(sp * 0.02, sp * 0.22 + wingFlap, -sp * 0.22, sp * 0.05);
         ctx.closePath();
         ctx.fill();
       } else {
@@ -4921,6 +4985,16 @@ const WorldDeepBlue = {
         sub.t = 0;
         sub.speed = 0;
         sub.phaseDuration = this._rand(30.0, 55.0);
+        for (let b = 0; b < 6; b++) {
+          this.bubbles.push({
+            x: L.leftDockX - 15 * s + (Math.random() - 0.5) * 6 * s,
+            y: L.leftDockY + (Math.random() - 0.5) * 14 * s,
+            r: 1.0 + Math.random() * 1.4,
+            vy: -(0.45 + Math.random() * 0.35),
+            wobble: Math.random() * 6,
+            alpha: 0.42
+          });
+        }
       }
     } else if (sub.phase === "docked") {
       sub.x = dockedPt.x;
@@ -5033,15 +5107,17 @@ const WorldDeepBlue = {
       });
     }
 
-    this._renderBuoyantSub(ctx, sub, s, scaleMult, pal, step, thrusterGlow, sub.phase !== "docked");
-    if (sub.phase === "docked") {
+    const inDockCollar = sub.phase === "docking" || sub.phase === "docked" || sub.phase === "undocking";
+    if (inDockCollar) {
       ctx.save();
-      ctx.strokeStyle = `rgba(103, 232, 249, ${(0.32 + 0.24 * Math.sin(step * 2.6)).toFixed(3)})`;
-      ctx.lineWidth = 1.4 * s;
       ctx.beginPath();
-      ctx.ellipse(L.leftDockX, L.leftDockY, 4.5 * s, 12.2 * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.rect(0, 0, L.leftDockX + 6 * s, h);
+      ctx.clip();
+      this._renderBuoyantSub(ctx, sub, s, scaleMult, pal, step, thrusterGlow, sub.phase !== "docked");
       ctx.restore();
+      this._drawSubDockingPortFrontLip(ctx, L.leftDockX, L.leftDockY, -1, pal, s, sub.phase === "docked", step);
+    } else {
+      this._renderBuoyantSub(ctx, sub, s, scaleMult, pal, step, thrusterGlow, true);
     }
   },
 
@@ -5188,6 +5264,16 @@ const WorldDeepBlue = {
         cs.t = 0;
         cs.speed = 0;
         cs.phaseDuration = this._rand(30.0, 55.0);
+        for (let b = 0; b < 6; b++) {
+          this.bubbles.push({
+            x: L.rightDockX + 15 * s + (Math.random() - 0.5) * 6 * s,
+            y: L.rightDockY + (Math.random() - 0.5) * 14 * s,
+            r: 1.0 + Math.random() * 1.4,
+            vy: -(0.45 + Math.random() * 0.35),
+            wobble: Math.random() * 6,
+            alpha: 0.42
+          });
+        }
       }
     }
 
@@ -5210,15 +5296,17 @@ const WorldDeepBlue = {
       });
     }
 
-    this._renderBuoyantSub(ctx, cs, s, scaleMult, pal, step, thrusterGlow, cs.phase !== "docked");
-    if (cs.phase === "docked") {
+    const csInDockCollar = cs.phase === "docking" || cs.phase === "docked" || cs.phase === "undocking";
+    if (csInDockCollar) {
       ctx.save();
-      ctx.strokeStyle = `rgba(103, 232, 249, ${(0.32 + 0.24 * Math.sin(step * 2.6 + 1.2)).toFixed(3)})`;
-      ctx.lineWidth = 1.4 * s;
       ctx.beginPath();
-      ctx.ellipse(L.rightDockX, L.rightDockY, 4.5 * s, 12.2 * s, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.rect(L.rightDockX - 6 * s, 0, Math.max(10, w - (L.rightDockX - 6 * s)), h);
+      ctx.clip();
+      this._renderBuoyantSub(ctx, cs, s, scaleMult, pal, step, thrusterGlow, cs.phase !== "docked");
       ctx.restore();
+      this._drawSubDockingPortFrontLip(ctx, L.rightDockX, L.rightDockY, 1, pal, s, cs.phase === "docked", step);
+    } else {
+      this._renderBuoyantSub(ctx, cs, s, scaleMult, pal, step, thrusterGlow, true);
     }
   },
 
@@ -5775,7 +5863,7 @@ const WorldDeepBlue = {
     }
   },
 
-  // Task-Complete-Only Colossal Serpentine Sea Leviathan with 4 Special Stunt Animations (100% Solid Opaque Depth Styling)
+  // Task-Complete-Only Colossal Serpentine Sea Leviathan with True 3D Cylindrical Roll & Zero-Clip Stunts (100% Solid Opaque Depth Styling)
   _drawLeviathanBody(ctx, cfg, pal, step) {
     const bodyLen = cfg.bodyLen;
     const segs = 26;
@@ -5783,85 +5871,252 @@ const WorldDeepBlue = {
     const jawOpen = cfg.jawOpen || 0;
     const baseRoll = cfg.rollAngle || 0;
     const rollWave = Boolean(cfg.rollWave);
-    const ventralCol = cfg.isPartner ? pal.subHullMid : pal.seabedLight;
-    const dorsalCol = cfg.isPartner ? pal.reefFar : pal.reefMid;
-    const finCol = cfg.isPartner ? pal.reefMid : pal.reefNear;
+    const dScale = cfg.depthScale || 1.0;
+    const pitch = cfg.pitch || 0;
+    const depthFog = cfg.depthFog || 0;
+
+    const blendHex = (c1, c2, amt) => {
+      if (!amt || amt <= 0.01 || typeof c1 !== "string" || typeof c2 !== "string" || !c1.startsWith("#") || !c2.startsWith("#")) return c1;
+      const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+      const a = p(c1), b = p(c2);
+      if (a.some(isNaN) || b.some(isNaN)) return c1;
+      const mix = (x, y) => Math.round(x + (y - x) * amt).toString(16).padStart(2, "0");
+      return `#${mix(a[0], b[0])}${mix(a[1], b[1])}${mix(a[2], b[2])}`;
+    };
+
+    const ventralCol = blendHex(cfg.isPartner ? pal.subHullMid : pal.seabedLight, pal.waterMid, depthFog);
+    const dorsalCol = blendHex(cfg.isPartner ? pal.reefFar : pal.reefMid, pal.waterMid, depthFog);
+    const finCol = blendHex(cfg.isPartner ? pal.reefMid : pal.reefNear, pal.waterMid, depthFog);
+    const rimCol = depthFog > 0.12 ? pal.waterMid : pal.waterBounce;
+
+    const wrap2Pi = a => ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const nearBandEdge = a => {
+      const w = wrap2Pi(a);
+      if (Math.sin(w) >= 0) return -Math.cos(w);
+      return Math.cos(w) >= 0 ? -1 : 1;
+    };
 
     ctx.save();
     ctx.globalAlpha = 1;
-    if (cfg.dir < 0) {
-      ctx.translate(cfg.x, cfg.y);
-      ctx.scale(-1, 1);
-      ctx.translate(-cfg.x, -cfg.y);
-    }
+    ctx.translate(cfg.x, cfg.y);
+    if (cfg.dir < 0) ctx.scale(-1, 1);
+    if (dScale !== 1.0) ctx.scale(dScale, dScale);
+    if (pitch) ctx.rotate(pitch);
+    ctx.translate(-cfg.x, -cfg.y);
 
     const topPts = [];
     const midPts = [];
     const botPts = [];
+    const dorsalTopPts = [];
+    const dorsalBotPts = [];
+    const spinePts = [];
     const segCos = [];
+    const segSin = [];
+    const segRolls = [];
+    const segRads = [];
+
     for (let i = 0; i <= segs; i++) {
       const f = i / segs;
-      const segRoll = rollWave ? (baseRoll - f * 1.45) : baseRoll;
+      const segRoll = rollWave ? (baseRoll - f * 1.15) : baseRoll;
       const cr = Math.cos(segRoll);
+      const sr = Math.sin(segRoll);
       segCos.push(cr);
+      segSin.push(sr);
+      segRolls.push(segRoll);
       const px = cfg.x - f * bodyLen;
       const py = cfg.y + Math.sin(cfg.swimPhase - f * 5.4) * (16 + f * 30);
       let radius;
       if (f < 0.12) radius = maxRad * (0.52 + (f / 0.12) * 0.48);
       else radius = maxRad * Math.pow(1 - (f - 0.12) / 0.88, 0.78) * (1 + 0.15 * Math.sin(f * Math.PI * 3.5));
-      topPts.push({ x: px, y: py - radius * 0.92 * cr });
-      midPts.push({ x: px, y: py + radius * 0.15 * cr });
-      botPts.push({ x: px, y: py + radius * cr });
+
+      // True 3D opaque cylinder preserves full body cross-sectional thickness at EVERY roll angle (no 90° pinch!)
+      const volR = radius * (1 + 0.08 * Math.abs(sr));
+      segRads.push(volR);
+      topPts.push({ x: px, y: py - volR });
+      midPts.push({ x: px, y: py });
+      botPts.push({ x: px, y: py + volR });
+
+      // Projected cylindrical seam angles for dark dorsal carapace band [-1.68 .. +1.68] rad
+      const yE0 = nearBandEdge(segRoll - 1.68);
+      const yE1 = nearBandEdge(segRoll + 1.68);
+      dorsalTopPts.push({ x: px, y: py + volR * Math.min(yE0, yE1) });
+      dorsalBotPts.push({ x: px, y: py + volR * Math.max(yE0, yE1) });
+      spinePts.push({ x: px, y: py - volR * 0.94 * cr });
     }
 
-    // Crisp Serrated Armored Dorsal Ridge Plates + Tall Forked Lunate Tail Fluke
-    ctx.fillStyle = dorsalCol;
+    // Helper mapping rigid-rotated pectoral / pelvic fins cleanly through 3D barrel roll (rotY, rotZ)
+    const rot3DYZ = (oldY, oldZ, roll) => ({
+      y: oldY * Math.cos(roll) + oldZ * Math.sin(roll),
+      z: -oldY * Math.sin(roll) + oldZ * Math.cos(roll)
+    });
+
+    const drawPectoralFinSide = (sideSign, wantFront) => {
+      const rRoll = segRolls[5];
+      const basePos = rot3DYZ(segRads[3] * 0.20, sideSign * segRads[3] * 0.65, rRoll);
+      const midPos = rot3DYZ(segRads[5] * 1.15, sideSign * segRads[5] * 1.85, rRoll);
+      const tipPos = rot3DYZ(segRads[6] * 0.92, sideSign * segRads[6] * 1.45, rRoll);
+      const isNear = midPos.z >= 0;
+      if (isNear !== wantFront) return;
+
+      const rootX = midPts[3].x;
+      const rootY = midPts[3].y + basePos.y;
+      const tipX = midPts[9].x - 36;
+      const tipY = midPts[6].y + tipPos.y;
+      const ctrlX = midPts[6].x - 24;
+      const ctrlY = midPts[5].y + midPos.y;
+
+      ctx.fillStyle = isNear ? finCol : blendHex(finCol, dorsalCol, 0.45);
+      ctx.beginPath();
+      ctx.moveTo(rootX, rootY);
+      ctx.quadraticCurveTo(ctrlX, ctrlY, tipX, tipY);
+      ctx.lineTo(midPts[7].x, midPts[5].y + basePos.y * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = rimCol;
+      ctx.lineWidth = 1.05;
+      ctx.stroke();
+    };
+
+    const drawPelvicFinSide = (sideSign, wantFront) => {
+      const rRoll = segRolls[14];
+      const midPos = rot3DYZ(segRads[14] * 1.05, sideSign * segRads[14] * 1.15, rRoll);
+      const isNear = midPos.z >= 0;
+      if (isNear !== wantFront) return;
+
+      ctx.fillStyle = isNear ? finCol : blendHex(finCol, dorsalCol, 0.45);
+      ctx.beginPath();
+      ctx.moveTo(midPts[13].x, midPts[13].y);
+      ctx.quadraticCurveTo(midPts[15].x - 10, midPts[14].y + midPos.y * 1.15, midPts[17].x - 14, midPts[15].y + midPos.y * 0.55);
+      ctx.lineTo(midPts[15].x, midPts[14].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = rimCol;
+      ctx.lineWidth = 0.95;
+      ctx.stroke();
+    };
+
+    // LAYER 1: Far-side appendages BEHIND cylindrical body (far pectoral & pelvic fins + far-rotated dorsal spines)
+    drawPectoralFinSide(-1, false);
+    drawPectoralFinSide(1, false);
+    drawPelvicFinSide(-1, false);
+    drawPelvicFinSide(1, false);
+
+    ctx.fillStyle = blendHex(dorsalCol, pal.waterMid, 0.25);
     for (let i = 2; i < segs - 2; i++) {
-      const p = topPts[i];
-      const next = topPts[i + 1];
+      if (segSin[i] >= -0.22) continue;
+      const spY = spinePts[i].y;
       const finH = ((1 - i / segs) * (maxRad * 0.85) + 4) * segCos[i];
       ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x - 14, p.y - finH);
-      ctx.lineTo(next.x, next.y);
+      ctx.moveTo(spinePts[i].x, spY);
+      ctx.lineTo(spinePts[i].x - 14, spY - finH);
+      ctx.lineTo(spinePts[i + 1].x, spinePts[i + 1].y);
       ctx.closePath();
       ctx.fill();
     }
+
+    // Tall Forked Lunate Tail Fluke rotating gently with aft roll phase
     const tailTip = midPts[segs];
-    ctx.beginPath();
-    ctx.moveTo(tailTip.x + 12, tailTip.y);
-    ctx.quadraticCurveTo(tailTip.x - 18, tailTip.y - 44, tailTip.x - 42, tailTip.y - 52);
-    ctx.quadraticCurveTo(tailTip.x - 14, tailTip.y - 12, tailTip.x - 8, tailTip.y);
-    ctx.quadraticCurveTo(tailTip.x - 14, tailTip.y + 12, tailTip.x - 40, tailTip.y + 48);
-    ctx.quadraticCurveTo(tailTip.x - 16, tailTip.y + 38, tailTip.x + 12, tailTip.y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Solid Opaque Ventral Pelagic Body Silhouette
-    ctx.fillStyle = ventralCol;
-    ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 24, midPts[0].y - 6 * (segCos[0] >= 0 ? 1 : -1));
-    topPts.forEach(p => ctx.lineTo(p.x, p.y));
-    for (let i = botPts.length - 1; i >= 0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
-    ctx.closePath();
-    ctx.fill();
-
-    // Solid Opaque Armored Dorsal Carapace + crisp separation contour rim
+    const flukeTwist = 0.25 + 0.75 * Math.abs(segCos[segs]);
     ctx.fillStyle = dorsalCol;
     ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5 * (segCos[0] >= 0 ? 1 : -1));
-    topPts.forEach(p => ctx.lineTo(p.x, p.y));
-    for (let i = midPts.length - 1; i >= 0; i--) ctx.lineTo(midPts[i].x, midPts[i].y);
+    ctx.moveTo(tailTip.x + 12, tailTip.y);
+    ctx.quadraticCurveTo(tailTip.x - 18, tailTip.y - 44 * flukeTwist, tailTip.x - 42, tailTip.y - 52 * flukeTwist);
+    ctx.quadraticCurveTo(tailTip.x - 14, tailTip.y - 12 * flukeTwist, tailTip.x - 8, tailTip.y);
+    ctx.quadraticCurveTo(tailTip.x - 14, tailTip.y + 12 * flukeTwist, tailTip.x - 40, tailTip.y + 48 * flukeTwist);
+    ctx.quadraticCurveTo(tailTip.x - 16, tailTip.y + 38 * flukeTwist, tailTip.x + 12, tailTip.y);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = pal.waterBounce;
+
+    // LAYER 2: Full-Volume Opaque Cylindrical Torso Silhouette (100% opaque with rotating dorsal armor & ventral ribs!)
+    const traceBodyPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(topPts[0].x + 26, midPts[0].y - 3 * segCos[0]);
+      topPts.forEach(p => ctx.lineTo(p.x, p.y));
+      for (let i = botPts.length - 1; i >= 0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
+      ctx.closePath();
+    };
+
+    ctx.fillStyle = ventralCol;
+    traceBodyPath();
+    ctx.fill();
+
+    ctx.save();
+    traceBodyPath();
+    ctx.clip();
+
+    // Segmented ventral belly ribs visible whenever pale ventral underbelly rotates toward viewer
+    ctx.strokeStyle = dorsalCol;
+    ctx.globalAlpha = 0.22;
+    ctx.lineWidth = 1.4;
+    for (let i = 1; i < segs - 3; i += 2) {
+      const bellyCenterY = midPts[i].y + segRads[i] * segCos[i];
+      ctx.beginPath();
+      ctx.moveTo(midPts[i].x + 5, midPts[i].y - segRads[i] * 0.45);
+      ctx.quadraticCurveTo(midPts[i].x - 3, bellyCenterY * 0.5 + midPts[i].y * 0.5, midPts[i].x - 8, midPts[i].y + segRads[i] * 0.85);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Rotating Dark Dorsal Carapace Coverage rotating cleanly across cylinder as rollAngle turns 0..2pi
+    ctx.fillStyle = dorsalCol;
+    ctx.beginPath();
+    ctx.moveTo(dorsalTopPts[0].x + 30, dorsalTopPts[0].y);
+    for (let i = 0; i <= segs; i++) ctx.lineTo(dorsalTopPts[i].x, dorsalTopPts[i].y);
+    for (let i = segs; i >= 0; i--) ctx.lineTo(dorsalBotPts[i].x, dorsalBotPts[i].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cylindrical 3D surface shading overlay (subtle sunlit dorsal/top & deep abyssal bottom contour)
+    const cylG = ctx.createLinearGradient(0, cfg.y - maxRad * 1.1, 0, cfg.y + maxRad * 1.1);
+    cylG.addColorStop(0, "rgba(186, 230, 253, 0.14)");
+    cylG.addColorStop(0.5, "rgba(0, 0, 0, 0)");
+    cylG.addColorStop(1, "rgba(2, 10, 24, 0.34)");
+    ctx.fillStyle = cylG;
+    ctx.fillRect(cfg.x - bodyLen - 20, cfg.y - maxRad * 2.5, bodyLen + 65, maxRad * 5);
+    ctx.restore();
+
+    // Crisp pelagic silhouette rim highlight along upper contour
+    ctx.strokeStyle = rimCol;
     ctx.lineWidth = 1.25;
     ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5 * (segCos[0] >= 0 ? 1 : -1));
+    ctx.moveTo(topPts[0].x + 26, midPts[0].y - 3 * segCos[0]);
     topPts.forEach(p => ctx.lineTo(p.x, p.y));
     ctx.stroke();
 
-    // Glowing maw/throat cavity + upper/lower teeth & hinged lower mandible when roaring or lunging
+    // LAYER 3: Near-side appendages IN FRONT of cylindrical torso (smoothly rotating spines, jaws, eye cluster, flank nodes & near fins)
+    ctx.fillStyle = dorsalCol;
+    for (let i = 2; i < segs - 2; i++) {
+      if (segSin[i] < -0.22) continue;
+      const p = spinePts[i];
+      const next = spinePts[i + 1];
+      const outwardY = -((1 - i / segs) * (maxRad * 0.85) + 4) * segCos[i];
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - 14, p.y + outwardY);
+      ctx.lineTo(next.x, next.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = rimCol;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+    }
+
+    // Bioluminescent lateral-line nodes wrapping smoothly across the near cylinder hemisphere!
+    for (let i = 2; i < segs - 1; i++) {
+      const latAlpha = wrap2Pi(segRolls[i] + Math.PI * 0.5);
+      const latZ = Math.sin(latAlpha);
+      if (latZ < -0.15) continue;
+      const latY = midPts[i].y - segRads[i] * 0.65 * Math.cos(latAlpha);
+      const wavePulse = 0.35 + 0.65 * Math.max(0, Math.sin(step * 4.2 - i * 0.48));
+      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.88 * Math.min(1, latZ + 0.35)).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(midPts[i].x, latY, (1 - i / segs) * 2.4 + 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Glowing maw/throat cavity + upper/lower teeth & hinged mandible rotating with head roll
+    const headCos = segCos[0];
+    const headSin = segSin[0];
     const jawDrop = jawOpen * 26;
     if (jawOpen > 0.04) {
       const glowG = ctx.createRadialGradient(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 1, topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22);
@@ -5876,7 +6131,7 @@ const WorldDeepBlue = {
     ctx.fillStyle = dorsalCol;
     ctx.beginPath();
     ctx.moveTo(topPts[0].x + 20, midPts[0].y + 4 + jawDrop);
-    ctx.lineTo(botPts[1].x + 4, botPts[1].y + 5 + jawDrop * 0.72);
+    ctx.lineTo(botPts[1].x + 4, botPts[1].y + 4 + jawDrop * 0.72);
     ctx.lineTo(botPts[2].x, botPts[2].y);
     ctx.lineTo(midPts[1].x, midPts[1].y);
     ctx.closePath();
@@ -5899,45 +6154,26 @@ const WorldDeepBlue = {
       }
     }
 
-    // Giant Sweeping Solid Pectoral Wing Fin + Secondary Pelvic Fin (crisp rim separating fins cleanly from solid flank)
-    const finFlip = segCos[5];
-    ctx.fillStyle = finCol;
-    ctx.beginPath();
-    ctx.moveTo(midPts[3].x, midPts[3].y);
-    ctx.quadraticCurveTo(midPts[6].x - 24, botPts[5].y + 62 * finFlip, midPts[9].x - 36, botPts[6].y + 28 * finFlip);
-    ctx.lineTo(midPts[7].x, midPts[5].y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = pal.waterBounce;
-    ctx.lineWidth = 1.1;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(midPts[13].x, midPts[13].y);
-    ctx.quadraticCurveTo(midPts[15].x - 10, botPts[14].y + 32 * segCos[14], midPts[17].x - 14, botPts[15].y + 14 * segCos[15]);
-    ctx.lineTo(midPts[15].x, midPts[14].y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Multi-ocular glowing eye cluster + rippling head-to-tail bioluminescent flank nodes
-    [
-      { dx: 8, dy: -6, r: 2.8 },
-      { dx: 1, dy: -8, r: 2.1 },
-      { dx: -5, dy: -6, r: 1.6 }
-    ].forEach((ey, ei) => {
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.92 - ei * 0.14).toFixed(2)})`;
-      ctx.beginPath();
-      ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy * (segCos[0] >= 0 ? 1 : -1), ey.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    for (let i = 2; i < segs - 1; i++) {
-      const wavePulse = 0.35 + 0.65 * Math.max(0, Math.sin(step * 4.2 - i * 0.48));
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.85).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(midPts[i].x, midPts[i].y - 3 * (1 - i / segs) * segCos[i], (1 - i / segs) * 2.4 + 0.9, 0, Math.PI * 2);
-      ctx.fill();
+    // Multi-ocular glowing eye cluster on near head face
+    if (headSin >= -0.65) {
+      const eyeSign = headCos >= 0 ? 1 : -1;
+      [
+        { dx: 8, dy: -6, r: 2.8 },
+        { dx: 1, dy: -8, r: 2.1 },
+        { dx: -5, dy: -6, r: 1.6 }
+      ].forEach((ey, ei) => {
+        ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.92 - ei * 0.14).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy * eyeSign, ey.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
     }
+
+    // Near Giant Pectoral & Pelvic Wings in Front of Torso
+    drawPectoralFinSide(-1, true);
+    drawPectoralFinSide(1, true);
+    drawPelvicFinSide(-1, true);
+    drawPelvicFinSide(1, true);
     ctx.restore();
   },
 
@@ -5949,11 +6185,16 @@ const WorldDeepBlue = {
     lev.t += dt;
     const progress = this._clamp(lev.t / Math.max(1, lev.phaseDuration || 10), 0, 1.5);
     const bodyLen = lev.length;
+    const smooth5 = (t) => {
+      const c = this._clamp(t, 0, 1);
+      return c * c * c * (c * (c * 6 - 15) + 10);
+    };
 
     let speedMult = 1.0;
     let rollAngle = 0;
     let rollWave = false;
     let jawOpen = 0;
+    let rollYOff = 0;
 
     if (lev.stunt === "roar") {
       const centerProx = 1 - Math.min(1, Math.abs(lev.x - w * 0.5) / Math.max(120, w * 0.24));
@@ -5975,9 +6216,20 @@ const WorldDeepBlue = {
       }
     } else if (lev.stunt === "body_roll") {
       rollWave = true;
-      const rollProg = this._clamp((progress - 0.16) / 0.62, 0, 1);
+      const rollProg = smooth5((progress - 0.14) / 0.64);
       rollAngle = rollProg * Math.PI * 2;
-      speedMult = 1.06;
+      rollYOff = Math.sin(rollAngle) * 28;
+      speedMult = 1.08;
+      if (rollProg > 0.05 && rollProg < 0.95 && Math.random() < 0.45) {
+        this.bubbles.push({
+          x: lev.x - lev.dir * bodyLen * 0.18 + (Math.random() - 0.5) * 20,
+          y: lev.y + Math.sin(rollAngle) * 32,
+          r: 1.4 + Math.random() * 2.0,
+          vy: -(0.6 + Math.random() * 0.8),
+          wobble: Math.random() * 6,
+          alpha: 0.48
+        });
+      }
     } else if (lev.stunt === "hunt_shark") {
       const prey = lev.preyShark;
       if (prey && !prey.eaten) {
@@ -6032,24 +6284,56 @@ const WorldDeepBlue = {
 
     lev.swimPhase += dt * (lev.stunt === "body_roll" ? 1.85 : 1.55);
     lev.x += lev.dir * lev.speed * speedMult * dt;
+    lev.y = lev.baseY + rollYOff;
     lev.jawOpen = jawOpen;
     lev.rollAngle = rollAngle;
 
     if (lev.stunt === "two_playing" && lev.partner) {
-      const braid = lev.t * 1.35;
-      const yMain = lev.baseY + Math.sin(braid) * 28;
-      const yPartner = lev.baseY - Math.sin(braid) * 28;
+      // Wide Zero-Clip 3D Double-Helix Circling Orbit: Z-depth swaps ONLY at max vertical aperture (2*ampY)!
+      const helix = lev.t * 1.15;
+      const ampY = w < 720 ? 46 : 74;
+      const yMain = lev.baseY + Math.sin(helix) * ampY;
+      const yPartner = lev.baseY - Math.sin(helix) * ampY;
+      const zMain = Math.cos(helix);
+      const zPartner = -zMain;
+      const xMain = lev.x + Math.sin(helix) * 22 * lev.dir;
+      const xPartner = lev.x - lev.partner.lagX * 0.52 - Math.sin(helix) * 22 * lev.dir;
       lev.partner.swimPhase += dt * 1.65;
       lev.y = yMain;
-      const mainFront = Math.cos(braid) >= 0;
-      const mainCfg = { x: lev.x, y: yMain, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen: 0, rollAngle: Math.sin(braid) * 0.28, rollWave: false };
-      const partCfg = { x: lev.x - lev.partner.lagX, y: yPartner, dir: lev.dir, bodyLen: lev.partner.length, swimPhase: lev.partner.swimPhase, jawOpen: 0, rollAngle: -Math.sin(braid) * 0.28, rollWave: false, isPartner: true };
-      if (mainFront) {
+
+      const mainCfg = {
+        x: xMain, y: yMain, dir: lev.dir, bodyLen,
+        swimPhase: lev.swimPhase, jawOpen: 0,
+        rollAngle: Math.sin(helix) * 0.50, rollWave: false,
+        pitch: Math.cos(helix) * 0.20,
+        depthScale: 1 + zMain * 0.13,
+        depthFog: Math.max(0, -zMain) * 0.34
+      };
+      const partCfg = {
+        x: xPartner, y: yPartner, dir: lev.dir, bodyLen: lev.partner.length,
+        swimPhase: lev.partner.swimPhase, jawOpen: 0,
+        rollAngle: -Math.sin(helix) * 0.50, rollWave: false,
+        pitch: -Math.cos(helix) * 0.20,
+        depthScale: 1 + zPartner * 0.13,
+        depthFog: Math.max(0, -zPartner) * 0.34,
+        isPartner: true
+      };
+      if (zMain >= zPartner) {
         this._drawLeviathanBody(ctx, partCfg, pal, step);
         this._drawLeviathanBody(ctx, mainCfg, pal, step);
       } else {
         this._drawLeviathanBody(ctx, mainCfg, pal, step);
         this._drawLeviathanBody(ctx, partCfg, pal, step);
+      }
+      if (Math.random() < 0.28) {
+        this.bubbles.push({
+          x: xMain - lev.dir * 38,
+          y: yMain + (Math.random() - 0.5) * 14,
+          r: 1.2 + Math.random() * 1.6,
+          vy: -(0.5 + Math.random() * 0.6),
+          wobble: Math.random() * 6,
+          alpha: 0.42
+        });
       }
     } else {
       this._drawLeviathanBody(ctx, { x: lev.x, y: lev.y, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen, rollAngle, rollWave }, pal, step);
@@ -6342,12 +6626,14 @@ const WorldDeepBlue = {
     }
   },
 
-  // Graceful Giant Reef Manta Ray with Cephalic Horn Lobes, Shoulder Markings, Pale Gill Belly & Whip Tail
+  // Graceful Side-On / 3/4 Oblique Oceanic Manta Ray matching Canvas Horizon Camera Plane!
   _drawCleaningManta(ctx, m, pal, step, depthScale, alpha) {
     const sp = m.span * depthScale;
-    const flap = Math.sin(m.wingPhase) * sp * 0.25;
-    const wingTipShift = Math.cos(m.wingPhase) * sp * 0.12;
-    const tailWag = Math.sin(m.wingPhase * 0.8 + 1.1) * sp * 0.12;
+    const flapSin = Math.sin(m.wingPhase);
+    const farSin = Math.sin(m.wingPhase - 0.72);
+    const wingDownY = sp * (0.20 + flapSin * 0.24);
+    const farWingUpY = -sp * (0.14 - farSin * 0.16);
+    const tailWag = Math.sin(m.wingPhase * 0.8 + 1.1) * sp * 0.11;
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -6355,72 +6641,99 @@ const WorldDeepBlue = {
     if (m.facingLeft) ctx.scale(-1, 1);
     ctx.rotate(m.bank || 0);
 
-    // Underside pale silvery-white ventral belly silhouette peeking subtly during wing lift
-    ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.72)" : "rgba(241, 248, 255, 0.88)";
+    // 1. Far Pectoral Wing sweeping obliquely above/behind dorsal ridge (foreshortened depth tint)
+    ctx.fillStyle = pal.isDark ? "#08182C" : "#0D2B42";
     ctx.beginPath();
-    ctx.moveTo(sp * 0.46, sp * 0.03);
-    ctx.quadraticCurveTo(sp * 0.22, sp * 0.22 + flap * 0.28, -sp * 0.14, sp * 0.16);
-    ctx.lineTo(-sp * 0.44, sp * 0.04);
-    ctx.quadraticCurveTo(0, sp * 0.04, sp * 0.46, sp * 0.03);
+    ctx.moveTo(sp * 0.26, -sp * 0.04);
+    ctx.quadraticCurveTo(sp * 0.06, -sp * 0.24 + farWingUpY, -sp * 0.18, -sp * (0.12 - farSin * 0.08));
+    ctx.quadraticCurveTo(0, -sp * 0.06, -sp * 0.30, -sp * 0.02);
     ctx.closePath();
     ctx.fill();
 
-    // Subtle 5 gill-slit ticks under shoulder when wing raises
-    ctx.strokeStyle = pal.isDark ? "rgba(15, 36, 58, 0.48)" : "rgba(21, 61, 90, 0.42)";
-    ctx.lineWidth = Math.max(0.7, sp * 0.022);
-    for (let g = 0; g < 5; g++) {
-      const gx = sp * (0.14 - g * 0.055);
-      const gy = sp * 0.08 + flap * 0.06;
-      ctx.beginPath();
-      ctx.moveTo(gx, gy - sp * 0.02);
-      ctx.lineTo(gx - sp * 0.015, gy + sp * 0.025);
-      ctx.stroke();
-    }
-
-    // Long slender flexible whip tail
+    // 2. Long slender flexible whip tail streaming cleanly aft
     ctx.strokeStyle = pal.isDark ? "#123252" : "#163F5E";
-    ctx.lineWidth = Math.max(1.2, sp * 0.045);
+    ctx.lineWidth = Math.max(1.2, sp * 0.042);
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(-sp * 0.36, 0);
     ctx.quadraticCurveTo(-sp * 0.78, tailWag * 0.65, -sp * 1.18, tailWag);
     ctx.stroke();
 
-    // Sculpted Dorsal Pelvic & sweeping Wing Mantle Silhouette
-    const capeG = ctx.createLinearGradient(0, -sp * 0.75, 0, sp * 0.65);
-    capeG.addColorStop(0, pal.isDark ? "#1A4369" : "#22587D");
-    capeG.addColorStop(0.5, pal.isDark ? "#0F2945" : "#153D5A");
+    // 3. Arched Sculpted Side-On Dark Dorsal Mantle Body & Pale Ventral Gill Belly
+    const capeG = ctx.createLinearGradient(0, -sp * 0.20, 0, sp * 0.22);
+    capeG.addColorStop(0, pal.isDark ? "#1C4973" : "#245F87");
+    capeG.addColorStop(0.55, pal.isDark ? "#102B48" : "#16405E");
     capeG.addColorStop(1, pal.isDark ? "#08192E" : "#0D2B42");
     ctx.fillStyle = capeG;
     ctx.beginPath();
-    // Upper cephalic horn lobe & wide leading wing
-    ctx.moveTo(sp * 0.48, -sp * 0.05);
-    ctx.quadraticCurveTo(sp * 0.60, -sp * 0.13, sp * 0.56, -sp * 0.03);
-    ctx.quadraticCurveTo(sp * 0.34, -sp * 0.24, sp * 0.08 - wingTipShift, -sp * 0.88 + flap);
-    ctx.quadraticCurveTo(-sp * 0.04, -sp * 0.46 + flap * 0.45, -sp * 0.30, -sp * 0.12);
-    ctx.lineTo(-sp * 0.44, 0);
-    // Lower wing & cephalic lobe
-    ctx.lineTo(-sp * 0.30, sp * 0.12);
-    ctx.quadraticCurveTo(-sp * 0.04, sp * 0.46 - flap * 0.45, sp * 0.08 + wingTipShift * 0.5, sp * 0.86 - flap);
-    ctx.quadraticCurveTo(sp * 0.34, sp * 0.22, sp * 0.56, sp * 0.05);
-    ctx.quadraticCurveTo(sp * 0.60, sp * 0.14, sp * 0.48, sp * 0.06);
+    // Sculpted cephalic horn & brow ridge arcing gracefully across arched back to tail root
+    ctx.moveTo(sp * 0.56, -sp * 0.01);
+    ctx.quadraticCurveTo(sp * 0.44, -sp * 0.14, sp * 0.16, -sp * 0.13);
+    ctx.quadraticCurveTo(-sp * 0.14, -sp * 0.11, -sp * 0.42, 0);
+    ctx.quadraticCurveTo(-sp * 0.14, sp * 0.11, sp * 0.24, sp * 0.12);
+    ctx.quadraticCurveTo(sp * 0.48, sp * 0.10, sp * 0.56, -sp * 0.01);
     ctx.closePath();
     ctx.fill();
 
-    // Iconic pale reef-manta dorsal shoulder chevron markings
-    ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.34)" : "rgba(232, 247, 255, 0.52)";
+    // Prominent forward-curling cephalic feeding horns (lower jaw profile & subtle snout cleft)
+    ctx.fillStyle = pal.isDark ? "#0D243E" : "#12354E";
     ctx.beginPath();
-    ctx.moveTo(sp * 0.30, -sp * 0.06);
-    ctx.quadraticCurveTo(sp * 0.16, -sp * 0.24, sp * 0.04, -sp * 0.26);
-    ctx.quadraticCurveTo(sp * 0.14, -sp * 0.12, sp * 0.22, -sp * 0.04);
+    ctx.moveTo(sp * 0.46, sp * 0.03);
+    ctx.quadraticCurveTo(sp * 0.64, sp * 0.09, sp * 0.58, sp * 0.14);
+    ctx.quadraticCurveTo(sp * 0.48, sp * 0.12, sp * 0.38, sp * 0.07);
     ctx.closePath();
     ctx.fill();
+
+    // Creamy-white convex ventral throat & belly curve with 5 curved gill slits!
+    ctx.fillStyle = pal.isDark ? "rgba(196, 234, 255, 0.80)" : "rgba(241, 248, 255, 0.92)";
     ctx.beginPath();
-    ctx.moveTo(sp * 0.30, sp * 0.06);
-    ctx.quadraticCurveTo(sp * 0.16, sp * 0.24, sp * 0.04, sp * 0.26);
-    ctx.quadraticCurveTo(sp * 0.14, sp * 0.12, sp * 0.22, sp * 0.04);
+    ctx.moveTo(sp * 0.48, sp * 0.03);
+    ctx.quadraticCurveTo(sp * 0.22, sp * 0.20, -sp * 0.16, sp * 0.13);
+    ctx.lineTo(-sp * 0.38, sp * 0.02);
+    ctx.quadraticCurveTo(0, sp * 0.04, sp * 0.48, sp * 0.03);
     ctx.closePath();
     ctx.fill();
+
+    ctx.strokeStyle = pal.isDark ? "rgba(15, 36, 58, 0.52)" : "rgba(21, 61, 90, 0.46)";
+    ctx.lineWidth = Math.max(0.8, sp * 0.022);
+    for (let g = 0; g < 5; g++) {
+      const gx = sp * (0.20 - g * 0.055);
+      const gy = sp * 0.085;
+      ctx.beginPath();
+      ctx.moveTo(gx, gy - sp * 0.022);
+      ctx.quadraticCurveTo(gx - sp * 0.015, gy, gx - sp * 0.008, gy + sp * 0.028);
+      ctx.stroke();
+    }
+
+    // Subtle lateral dorsal shoulder pale chevron patch + watchful eye
+    ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.34)" : "rgba(232, 247, 255, 0.54)";
+    ctx.beginPath();
+    ctx.moveTo(sp * 0.32, -sp * 0.05);
+    ctx.quadraticCurveTo(sp * 0.16, -sp * 0.11, 0, -sp * 0.08);
+    ctx.quadraticCurveTo(sp * 0.14, -sp * 0.04, sp * 0.26, -sp * 0.02);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#08111E";
+    ctx.beginPath();
+    ctx.arc(sp * 0.42, -sp * 0.02, Math.max(1.1, sp * 0.032), 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Foreground Sweeping Near Pectoral Wing (dark dorsal mantle on downstroke, gleaming pale underside on upstroke!)
+    const wingUpstroke = flapSin < -0.15;
+    const tipY = wingUpstroke ? (-sp * (0.04 + Math.abs(flapSin) * 0.26)) : (sp * 0.14 + wingDownY * 0.72);
+    ctx.fillStyle = wingUpstroke
+      ? (pal.isDark ? "rgba(186, 230, 253, 0.78)" : "rgba(232, 245, 255, 0.90)")
+      : capeG;
+    ctx.beginPath();
+    ctx.moveTo(sp * 0.28, sp * 0.01);
+    ctx.quadraticCurveTo(sp * 0.14, tipY * 0.92, -sp * 0.08, tipY);
+    ctx.quadraticCurveTo(-sp * 0.12, sp * 0.05, -sp * 0.24, sp * 0.01);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = pal.isDark ? "rgba(125, 211, 252, 0.24)" : "rgba(255, 255, 255, 0.34)";
+    ctx.lineWidth = 0.85;
+    ctx.stroke();
 
     ctx.restore();
   },
@@ -6481,50 +6794,55 @@ const WorldDeepBlue = {
     const sc = cs.scale;
     const shouldStep = layer === "back" || layer === "all";
 
-    // 1. Update circling & hovering mantas once per frame across both rear & front seabed orbits
+    // 1. Update cohesive plateau-circling mantas seamlessly transitioning back <-> front around ENTIRE station!
     if (shouldStep) {
+      const bReefs = cs.backReefs || [];
+      const fReefs = cs.frontReefs || [];
       for (let i = 0; i < mantas.length; i++) {
         const m = mantas[i];
-        m.wingPhase += dt * (m.state === "hover_clean" ? 2.1 : 3.2);
-        const prevSin = Math.sin(m.orbitAngle);
+        m.wingPhase += dt * (m.state === "hover_clean" ? 2.0 : 3.0);
 
         if (m.state === "hover_clean") {
           m.hoverTimer -= dt;
-          m.orbitAngle += m.orbitSpeed * 0.14 * dt;
+          m.orbitAngle += m.orbitSpeed * 0.12 * dt;
           if (m.hoverTimer <= 0) {
             m.state = "circling";
-            m.hoverCooldown = this._rand(7.0, 13.0);
+            m.hoverCooldown = this._rand(5.5, 10.5);
           }
         } else {
           m.orbitAngle += m.orbitSpeed * dt;
           m.hoverCooldown -= dt;
-          if (m.hoverCooldown <= 0 && prevSin > 0.45 && Math.abs(Math.cos(m.orbitAngle)) < 0.25) {
+          const curLayer = Math.sin(m.orbitAngle) < 0 ? "back" : "front";
+          const reefsHere = curLayer === "back" ? bReefs : fReefs;
+          const overReef = reefsHere.some(rf => Math.abs(rf.x - m.x) < 26 * sc);
+          if (m.hoverCooldown <= 0 && overReef) {
             m.state = "hover_clean";
-            m.hoverTimer = this._rand(4.2, 6.8);
+            m.hoverTimer = this._rand(2.8, 4.6);
           }
         }
 
         const cosA = Math.cos(m.orbitAngle);
         const sinA = Math.sin(m.orbitAngle);
         const vx = -Math.sin(m.orbitAngle) * m.orbitSpeed;
-        const cxBase = m.centerX != null ? m.centerX : cs.x;
-        const cyBase = m.centerY != null ? m.centerY : (cs.y - 46 * sc);
+        const cxBase = m.centerX != null ? m.centerX : L.hubX;
+        const cyBase = m.centerY != null ? m.centerY : (L.seabedY - 6 * sc);
         m.x = cxBase + cosA * m.orbitRx;
-        m.y = cyBase + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 2.8 * sc;
+        m.y = cyBase + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 3.0 * sc;
         m.facingLeft = vx < 0;
-        m.bank = cosA * (m.orbitSpeed > 0 ? -0.09 : 0.09) + Math.cos(m.wingPhase) * 0.03;
-        m.isFront = m.layer === "back" ? false : (sinA >= 0);
+        m.bank = cosA * (m.orbitSpeed > 0 ? -0.07 : 0.07) + Math.cos(m.wingPhase) * 0.025;
+        m.layer = sinA < 0 ? "back" : "front";
+        m.isFront = sinA >= 0;
       }
     }
 
-    const drawLayerMantas = (wantLayer, wantIsFront) => {
+    const drawLayerMantas = (wantLayer) => {
       for (let i = 0; i < mantas.length; i++) {
         const m = mantas[i];
         const mLayer = m.layer || "front";
         if (mLayer !== wantLayer) continue;
-        if (wantIsFront !== null && m.isFront !== wantIsFront) continue;
-        const dScale = wantLayer === "back" ? 0.80 : (m.isFront ? 1.04 : 0.88);
-        const mAlpha = wantLayer === "back" ? (pal.isDark ? 0.82 : 0.78) : (m.isFront ? 0.96 : (pal.isDark ? 0.82 : 0.78));
+        const sinDepth = Math.max(-1, Math.min(1, Math.sin(m.orbitAngle)));
+        const dScale = wantLayer === "back" ? (0.76 + (sinDepth + 1) * 0.08) : (0.90 + sinDepth * 0.16);
+        const mAlpha = wantLayer === "back" ? (pal.isDark ? 0.78 : 0.76) : 0.96;
         this._drawCleaningManta(ctx, m, pal, step, dScale, mAlpha);
       }
     };
@@ -6581,7 +6899,52 @@ const WorldDeepBlue = {
         const wr = wrasses[i];
         wr.wigglePhase += dt * (wr.state === "cleaning" ? 4.4 : 3.2);
         wr.timer -= dt;
-        const tgtManta = mantas[wr.targetMantaIdx % Math.max(1, mantas.length)];
+
+        // Escort wrasse always accompany their manta continuously around BOTH back & front of the station plateau!
+        if (wr.isEscort && mantas.length > 0) {
+          const escM = mantas[wr.targetMantaIdx % mantas.length];
+          wr.layer = escM.layer || "front";
+          const off = getZoneOffset(wr, escM);
+          const aimX = escM.x + off.x + Math.sin(step * 6.5 + wr.id * 1.9) * 3.5 * sc;
+          const aimY = escM.y + off.y + Math.cos(step * 5.2 + wr.id) * 3.0 * sc;
+          const dx = aimX - wr.x;
+          const dy = aimY - wr.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const stepDist = Math.min(dist, 92 * sc * dt);
+          wr.x += (dx / dist) * stepDist;
+          wr.y += (dy / dist) * stepDist;
+          wr.facingLeft = Math.abs(dx) > 1.2 ? (dx < 0) : escM.facingLeft;
+          wr.pitch = this._clamp(dy / Math.max(12, Math.abs(dx)), -0.35, 0.35);
+          wr.sparkleCd -= dt;
+          if (wr.sparkleCd <= 0 && this.cleanSparkles.length < 22) {
+            wr.sparkleCd = this._rand(0.65, 1.3);
+            this.cleanSparkles.push({
+              layer: wr.layer,
+              x: wr.x,
+              y: wr.y,
+              r: (1.2 + Math.random() * 1.1) * sc,
+              vy: -(4.0 + Math.random() * 4.0) * sc,
+              life: 0,
+              maxLife: 1.0
+            });
+          }
+          continue;
+        }
+
+        // Reef-stationed wrasse lock dynamically onto the closest manta passing through their reef layer!
+        let bestIdx = wr.targetMantaIdx;
+        let bestDist = Infinity;
+        for (let mi = 0; mi < mantas.length; mi++) {
+          const cand = mantas[mi];
+          if ((cand.layer || "front") !== (wr.layer || "front")) continue;
+          const d = Math.hypot(cand.x - wr.homeX, cand.y - wr.homeY);
+          if (d < bestDist) {
+            bestDist = d;
+            bestIdx = mi;
+          }
+        }
+        const tgtManta = bestDist < 260 * sc ? mantas[bestIdx] : null;
+        wr.targetMantaIdx = bestIdx;
 
         let aimX = wr.homeX + Math.sin(step * 1.6 + wr.id) * 14 * sc;
         let aimY = wr.homeY - 10 * sc + Math.cos(step * 1.9 + wr.id) * 6 * sc;
@@ -6596,17 +6959,17 @@ const WorldDeepBlue = {
           const off = getZoneOffset(wr, tgtManta);
           aimX = tgtManta.x + off.x;
           aimY = tgtManta.y + off.y;
-          spd = 68 * sc;
+          spd = 74 * sc;
           if (Math.hypot(aimX - wr.x, aimY - wr.y) < 12 * sc || wr.timer <= 0) {
             wr.state = "cleaning";
-            wr.timer = this._rand(3.0, 5.2);
+            wr.timer = this._rand(2.6, 4.4);
           }
         } else if (wr.state === "cleaning" && tgtManta) {
           const off = getZoneOffset(wr, tgtManta);
           const peck = Math.sin(step * 8.0 + wr.id * 1.9) * 3.5 * sc;
           aimX = tgtManta.x + off.x + peck;
           aimY = tgtManta.y + off.y + Math.cos(step * 6.5 + wr.id) * 3.0 * sc;
-          spd = 60 * sc;
+          spd = 68 * sc;
           wr.sparkleCd -= dt;
           if (wr.sparkleCd <= 0 && this.cleanSparkles.length < 22) {
             wr.sparkleCd = this._rand(0.55, 1.15);
@@ -6627,17 +6990,10 @@ const WorldDeepBlue = {
         } else {
           aimX = wr.homeX;
           aimY = wr.homeY;
-          spd = 54 * sc;
+          spd = 56 * sc;
           if (Math.hypot(aimX - wr.x, aimY - wr.y) < 10 * sc || wr.timer <= 0) {
             wr.state = "reef_dance";
-            wr.timer = this._rand(1.6, 3.6);
-            const pool = wr.targetPool && wr.targetPool.length > 0 ? wr.targetPool : null;
-            if (pool) {
-              const pos = pool.indexOf(wr.targetMantaIdx);
-              wr.targetMantaIdx = pool[(pos + 1) % pool.length];
-            } else {
-              wr.targetMantaIdx = (wr.targetMantaIdx + 1) % Math.max(1, mantas.length);
-            }
+            wr.timer = this._rand(1.2, 2.8);
           }
         }
 
@@ -6667,7 +7023,7 @@ const WorldDeepBlue = {
 
     // 3. Render requested layer ("back", "front", or "all")
     if (layer === "back" || layer === "all") {
-      drawLayerMantas("back", null);
+      drawLayerMantas("back");
       drawLayerReefWhips(cs.backReefs, true);
       for (let i = 0; i < wrasses.length; i++) {
         if ((wrasses[i].layer || "front") === "back") {
@@ -6676,9 +7032,8 @@ const WorldDeepBlue = {
       }
     }
     if (layer === "front" || layer === "all") {
-      drawLayerMantas("front", false);
       drawLayerReefWhips(cs.frontReefs || [cs], false);
-      drawLayerMantas("front", true);
+      drawLayerMantas("front");
       for (let i = 0; i < wrasses.length; i++) {
         if ((wrasses[i].layer || "front") === "front") {
           this._drawCleanerWrasse(ctx, wrasses[i], pal, step);
