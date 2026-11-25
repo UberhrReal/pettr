@@ -672,8 +672,9 @@ body {
 
 .greeting-header-row {
   display: flex;
-  align-items: center;
-  gap: 10px 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -694,9 +695,9 @@ body {
   text-overflow: clip;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
-  width: auto;
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -773,6 +774,8 @@ html[data-holiday] .mission-beacon-dot {
   position: relative;
   display: inline-flex;
   align-items: center;
+  order: -1;
+  align-self: flex-start;
   gap: 8px;
   padding: 5px 12px 5px 10px;
   border-radius: 14px 4px 14px 4px;
@@ -6125,8 +6128,9 @@ body {
   }
 
   .greeting-header-row {
-    flex-wrap: wrap !important;
-    row-gap: 8px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
   }
 
   .holiday-decoration-badge {

@@ -2625,19 +2625,6 @@ const WorldDeepBlue = {
     }
 
     if (this.farLife.length === 0) {
-      for (let i = 0; i < (isNarrow ? 2 : 3); i++) {
-        this.farLife.push({
-          kind: "manta",
-          active: false,
-          waitTimer: this._rand(8 + i * 7, 16 + i * 9),
-          depth: 0.36 + i * 0.14,
-          x: i % 2 === 0 ? w + 75 : -75,
-          y: h * (0.18 + i * 0.08),
-          vx: (i % 2 === 0 ? -1 : 1) * (0.40 + Math.random() * 0.22),
-          span: 24 + i * 9,
-          phase: Math.random() * Math.PI * 2
-        });
-      }
       const schoolCount = isNarrow ? 4 : 8;
       for (let i = 0; i < schoolCount; i++) {
         const rightGroup = i >= schoolCount * 0.55;
@@ -3023,41 +3010,36 @@ const WorldDeepBlue = {
       }
     }
 
-    // 14. Habitat-Surrounding Manta Ray Cleaning Stations (Unified Grand Orbits Around ENTIRE Station Plateau!)
+    // 14. Habitat-Surrounding Manta Ray Cleaning Station Carousel (Continuous Evenly-Spaced Orbits!)
     if (this.cleaningMantas.length === 0 && L.cleaningStation) {
       const cs = L.cleaningStation;
-      const bReefs = cs.backReefs || [cs];
-      const fReefs = cs.frontReefs || [cs];
-
-      const totalMantas = isNarrow ? 2 : 3;
-      const orbitCenterY = L.seabedY - 6 * cs.scale;
-      const baseRx = isNarrow ? (w * 0.40) : Math.min(w * 0.41, 470 * s);
-      const baseRy = (isNarrow ? 34 : 52) * cs.scale;
+      const totalMantas = isNarrow ? 2 : 4;
+      const orbitCenterY = L.seabedY - 26 * cs.scale;
+      const baseRx = isNarrow ? (w * 0.40) : Math.min(w * 0.42, 495 * s);
+      const baseRy = (isNarrow ? 30 : 42) * cs.scale;
+      const orbitSpeed = isNarrow ? 0.14 : 0.135;
 
       for (let i = 0; i < totalMantas; i++) {
-        // Stagger start angles smoothly so one manta starts behind habitat ("back") and others sweep foreground ("front")
-        const startAng = i === 0 ? -Math.PI * 0.52 : (i === 1 ? Math.PI * 0.32 : Math.PI * 0.78);
-        const rx = baseRx * (0.94 + i * 0.04);
-        const ry = baseRy * (0.92 + i * 0.06);
+        // Locked evenly-spaced ring phasing so mantas continuously sweep front & back in a clean parade
+        const startAng = (i / totalMantas) * Math.PI * 2 + 0.35;
         const sinA = Math.sin(startAng);
         const cosA = Math.cos(startAng);
-        const orbitSpeed = (isNarrow ? 0.17 : 0.16) * (0.94 + i * 0.06);
+        const vx = -sinA * orbitSpeed;
         this.cleaningMantas.push({
           layer: sinA < 0 ? "back" : "front",
           orbitAngle: startAng,
           orbitSpeed,
           centerX: L.hubX,
-          centerY: orbitCenterY + (i - 1) * 4 * cs.scale,
-          orbitRx: rx,
-          orbitRy: ry,
-          span: (isNarrow ? (33 - i * 3) : (46 - i * 4)) * cs.scale,
-          wingPhase: i * 1.9 + 0.5,
-          hoverTimer: i === 1 ? 2.0 : 0,
-          hoverCooldown: 5.0 + i * 3.0,
-          state: i === 1 ? "hover_clean" : "circling",
-          x: L.hubX + cosA * rx,
-          y: orbitCenterY + sinA * ry,
-          facingLeft: -Math.sin(startAng) * orbitSpeed < 0,
+          centerY: orbitCenterY,
+          orbitRx: baseRx,
+          orbitRy: baseRy,
+          span: (isNarrow ? (33 - i * 2) : (45 - (i % 2) * 3)) * cs.scale,
+          wingPhase: i * 1.65 + 0.4,
+          state: "circling",
+          x: L.hubX + cosA * baseRx,
+          y: orbitCenterY + sinA * baseRy,
+          facingLeft: vx < 0,
+          turnProjX: Math.min(1, 0.30 + Math.abs(sinA) * 0.78),
           bank: 0,
           isFront: sinA >= 0
         });
@@ -4307,38 +4289,14 @@ const WorldDeepBlue = {
     ctx.save();
     for (let i = 0; i < this.farLife.length; i++) {
       const f = this.farLife[i];
-      if (f.kind === "manta") {
-        if (!f.active) {
-          f.waitTimer = (f.waitTimer || 0) - dt;
-          if (f.waitTimer <= 0) {
-            if (this._canActivate("megafauna", isNarrow)) {
-              f.active = true;
-              const goRight = Math.random() < 0.5;
-              f.vx = (goRight ? 1 : -1) * (0.40 + Math.random() * 0.22);
-              f.x = goRight ? -75 : (w + 75);
-              f.y = h * this._rand(0.15, 0.34);
-            } else {
-              f.waitTimer = this._rand(2.5, 5.5);
-            }
-          }
-          continue;
-        }
-      }
+      if (f.kind === "manta") continue;
 
       f.phase += 0.042 * scaleDt;
       f.x += f.vx * scaleDt;
       f.y += Math.sin(f.phase * 0.7) * 0.16 * scaleDt;
 
-      if (f.kind === "manta") {
-        if ((f.vx > 0 && f.x > w + 75) || (f.vx < 0 && f.x < -75)) {
-          f.active = false;
-          f.waitTimer = this._rand(isNarrow ? 16 : 9, isNarrow ? 30 : 22);
-          continue;
-        }
-      } else {
-        if (f.vx > 0 && f.x > w + 75) f.x = -75;
-        if (f.vx < 0 && f.x < -75) f.x = w + 75;
-      }
+      if (f.vx > 0 && f.x > w + 75) f.x = -75;
+      if (f.vx < 0 && f.x < -75) f.x = w + 75;
 
       const visAlpha = (0.14 + f.depth * 0.45) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.85);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${visAlpha.toFixed(3)})`;
@@ -4347,40 +4305,15 @@ const WorldDeepBlue = {
       ctx.translate(f.x, f.y);
       if (f.vx < 0) ctx.scale(-1, 1);
 
-      if (f.kind === "manta") {
-        const wingFlap = Math.sin(f.phase) * f.span * 0.24;
-        const farFlap = Math.sin(f.phase - 0.65) * f.span * 0.20;
-        const sp = f.span;
-        // Side-on distant silhouette manta matching foreground oblique manta camera plane
-        ctx.beginPath();
-        // Far wing arching behind torso
-        ctx.moveTo(sp * 0.20, -sp * 0.04);
-        ctx.quadraticCurveTo(sp * 0.02, -sp * (0.28 + farFlap * 0.014), -sp * 0.20, -sp * 0.04);
-        // Sculpted torso + whip tail + cephalic lobes
-        ctx.lineTo(-sp * 1.16, Math.sin(f.phase - 1.0) * sp * 0.06);
-        ctx.lineTo(-sp * 0.36, sp * 0.05);
-        ctx.quadraticCurveTo(sp * 0.14, sp * 0.16, sp * 0.48, sp * 0.05);
-        ctx.lineTo(sp * 0.56, -sp * 0.03);
-        ctx.quadraticCurveTo(sp * 0.34, -sp * 0.08, sp * 0.20, -sp * 0.04);
-        ctx.closePath();
-        ctx.fill();
-        // Sweeping near wing
-        ctx.beginPath();
-        ctx.moveTo(sp * 0.24, sp * 0.02);
-        ctx.quadraticCurveTo(sp * 0.02, sp * 0.22 + wingFlap, -sp * 0.22, sp * 0.05);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        const sz = f.size;
-        const wag = Math.sin(f.phase * 2.2) * 1.3;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, sz, sz * 0.40, 0, 0, Math.PI * 2);
-        ctx.moveTo(-sz * 0.8, 0);
-        ctx.lineTo(-sz * 1.5, -sz * 0.45 + wag);
-        ctx.lineTo(-sz * 1.5, sz * 0.45 + wag);
-        ctx.closePath();
-        ctx.fill();
-      }
+      const sz = f.size;
+      const wag = Math.sin(f.phase * 2.2) * 1.3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, sz, sz * 0.40, 0, 0, Math.PI * 2);
+      ctx.moveTo(-sz * 0.8, 0);
+      ctx.lineTo(-sz * 1.5, -sz * 0.45 + wag);
+      ctx.lineTo(-sz * 1.5, sz * 0.45 + wag);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
     ctx.restore();
@@ -6780,7 +6713,7 @@ const WorldDeepBlue = {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(m.x, m.y);
-    if (m.facingLeft) ctx.scale(-1, 1);
+    ctx.scale((m.facingLeft ? -1 : 1) * (m.turnProjX != null ? m.turnProjX : 1), 1);
     ctx.rotate(m.bank || 0);
 
     // 1. Far Pectoral Wing sweeping obliquely above/behind dorsal ridge (foreshortened depth tint)
@@ -6936,45 +6869,49 @@ const WorldDeepBlue = {
     const sc = cs.scale;
     const shouldStep = layer === "back" || layer === "all";
 
-    // 1. Update cohesive plateau-circling mantas seamlessly transitioning back <-> front around ENTIRE station!
+    // 1. Update evenly-spaced plateau-circling mantas seamlessly transitioning back <-> front around ENTIRE station!
     if (shouldStep) {
       const bReefs = cs.backReefs || [];
       const fReefs = cs.frontReefs || [];
+      const allReefs = bReefs.concat(fReefs);
+
+      // Spacing-preserving shared reef pass: compute closest reef distance across ring first
+      let minRingReefDist = Infinity;
       for (let i = 0; i < mantas.length; i++) {
         const m = mantas[i];
-        m.wingPhase += dt * (m.state === "hover_clean" ? 2.0 : 3.0);
-
-        if (m.state === "hover_clean") {
-          m.hoverTimer -= dt;
-          m.orbitAngle += m.orbitSpeed * 0.12 * dt;
-          if (m.hoverTimer <= 0) {
-            m.state = "circling";
-            m.hoverCooldown = this._rand(5.5, 10.5);
-          }
-        } else {
-          m.orbitAngle += m.orbitSpeed * dt;
-          m.hoverCooldown -= dt;
-          const curLayer = Math.sin(m.orbitAngle) < 0 ? "back" : "front";
-          const reefsHere = curLayer === "back" ? bReefs : fReefs;
-          const overReef = reefsHere.some(rf => Math.abs(rf.x - m.x) < 26 * sc);
-          if (m.hoverCooldown <= 0 && overReef) {
-            m.state = "hover_clean";
-            m.hoverTimer = this._rand(2.8, 4.6);
-          }
+        const sinA = Math.sin(m.orbitAngle);
+        const reefsHere = sinA < 0 ? bReefs : fReefs;
+        let minD = Infinity;
+        for (let r = 0; r < reefsHere.length; r++) {
+          minD = Math.min(minD, Math.abs(reefsHere[r].x - m.x));
         }
+        m._reefDist = minD;
+        if (minD < minRingReefDist) minRingReefDist = minD;
+      }
+      const sharedSlowFactor = minRingReefDist < 34 * sc ? 0.62 : 1.0;
+
+      for (let i = 0; i < mantas.length; i++) {
+        const m = mantas[i];
+        const overReef = (m._reefDist != null ? m._reefDist : Infinity) < 34 * sc;
+        m.state = overReef ? "hover_clean" : "circling";
+        m.wingPhase += dt * (overReef ? 2.1 : 3.0);
+        m.orbitAngle += m.orbitSpeed * sharedSlowFactor * dt;
 
         const cosA = Math.cos(m.orbitAngle);
         const sinA = Math.sin(m.orbitAngle);
-        const vx = -Math.sin(m.orbitAngle) * m.orbitSpeed;
+        const vx = -sinA * m.orbitSpeed;
         const cxBase = m.centerX != null ? m.centerX : L.hubX;
-        const cyBase = m.centerY != null ? m.centerY : (L.seabedY - 6 * sc);
+        const cyBase = m.centerY != null ? m.centerY : (L.seabedY - 26 * sc);
         m.x = cxBase + cosA * m.orbitRx;
         m.y = cyBase + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 3.0 * sc;
         m.facingLeft = vx < 0;
-        m.bank = cosA * (m.orbitSpeed > 0 ? -0.07 : 0.07) + Math.cos(m.wingPhase) * 0.025;
+        // Foreshorten smoothly at East & West orbit apexes so back<->front turnaround never snaps
+        m.turnProjX = Math.max(0.28, Math.min(1.0, 0.28 + Math.abs(sinA) * 0.85));
+        m.bank = cosA * (m.orbitSpeed > 0 ? -0.08 : 0.08) + Math.cos(m.wingPhase) * 0.025;
         m.layer = sinA < 0 ? "back" : "front";
         m.isFront = sinA >= 0;
       }
+      void allReefs;
     }
 
     const drawLayerMantas = (wantLayer) => {
@@ -6982,9 +6919,11 @@ const WorldDeepBlue = {
         const m = mantas[i];
         const mLayer = m.layer || "front";
         if (mLayer !== wantLayer) continue;
-        const sinDepth = Math.max(-1, Math.min(1, Math.sin(m.orbitAngle)));
-        const dScale = wantLayer === "back" ? (0.76 + (sinDepth + 1) * 0.08) : (0.90 + sinDepth * 0.16);
-        const mAlpha = wantLayer === "back" ? (pal.isDark ? 0.78 : 0.76) : 0.96;
+        // C1-continuous depth scaling & alpha across sinA = 0 (zero pop between back & front!)
+        const depthT = (Math.sin(m.orbitAngle) + 1) * 0.5;
+        const dScale = 0.74 + depthT * 0.34;
+        const baseAlpha = pal.isDark ? 0.72 : 0.74;
+        const mAlpha = baseAlpha + depthT * (0.98 - baseAlpha);
         this._drawCleaningManta(ctx, m, pal, step, dScale, mAlpha);
       }
     };
