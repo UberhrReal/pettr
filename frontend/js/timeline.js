@@ -883,6 +883,15 @@ const Timeline = {
         body: JSON.stringify({ status: isCompleted ? "completed" : "pending" })
       });
       App.showToast(isCompleted ? "Task completed!" : "Task marked active");
+      if (isCompleted) {
+        const cx = window.innerWidth * 0.5;
+        const cy = window.innerHeight * 0.35;
+        if (typeof TactileFX !== "undefined") {
+          TactileFX.onItemToggle({ completed: true, x: cx, y: cy });
+        } else if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+          WaveCanvas.pulseActivity({ kind: "complete", x: cx, y: cy });
+        }
+      }
       await this.refresh();
       await Dashboard.refresh();
     } catch (err) {

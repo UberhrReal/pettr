@@ -45,6 +45,8 @@ const WorldGateway = {
 
   SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner"],
   ALL_SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner", "fighter", "bomber"],
+  JET_STUNT_TYPES: ["bomb_burst", "delta_loop", "delta_roll", "upside_down", "echelon_roll"],
+  _lastJetStunt: "",
 
   _rand(min, max) {
     return min + Math.random() * (max - min);
@@ -391,7 +393,7 @@ const WorldGateway = {
     const termY = islandTopY + spanY * 0.324;
     const termScale = isNarrow ? Math.max(0.66, w / 520) : Math.min(1.48, Math.max(1.08, w / 940));
 
-    const satWest = { x: termX - 208 * termScale, y: termY - 10 * termScale };
+    const satWest = { x: termX - 184 * termScale, y: termY - 14 * termScale };
     const satEast = { x: termX + 196 * termScale, y: termY - 4 * termScale };
     const satNorth = { x: termX - 72 * termScale, y: termY - 27 * termScale };
 
@@ -504,21 +506,22 @@ const WorldGateway = {
     const apronEast = { x: termX + 206 * termScale, y: termY + 36 * termScale };
     const apronSE = { x: termX + 144 * termScale, y: termY + 56 * termScale };
     const apronSouth = { x: termX - 10 * termScale, y: termY + 56 * termScale };
-    const apronSW = { x: termX - 150 * termScale, y: termY + 40 * termScale };
+    const apronSW = { x: termX - 148 * termScale, y: termY + 34 * termScale };
 
+    const megaApproach = { x: satWest.x - 14 * termScale, y: satWest.y + 34 * termScale };
     const gates = [
       { id: "G_SW", x: termX - 120 * termScale, y: termY + 33 * termScale, heading: -0.30, approachPt: apronSW },
       { id: "G_SE", x: termX + 126 * termScale, y: termY + 34 * termScale, heading: 2.74, approachPt: apronSE },
       { id: "G_SC", x: termX + 14 * termScale, y: termY + 42 * termScale, heading: -1.48, approachPt: apronSouth },
-      { id: "G_SAT_W", x: satWest.x + 4 * termScale, y: satWest.y + 28 * termScale, heading: -0.95, approachPt: { x: satWest.x - 16 * termScale, y: satWest.y + 48 * termScale } }
+      { id: "G_SAT_W", x: satWest.x + 4 * termScale, y: satWest.y + 24 * termScale, heading: -0.95, approachPt: { x: satWest.x + 2 * termScale, y: satWest.y + 42 * termScale } }
     ];
 
     const megaGate = {
       id: "G_MEGA",
-      x: satWest.x - 32 * termScale,
-      y: satWest.y + 34 * termScale,
-      heading: -0.35,
-      approachPt: apronSW
+      x: satWest.x - 48 * termScale,
+      y: satWest.y + 18 * termScale,
+      heading: -0.25,
+      approachPt: megaApproach
     };
 
     return {
@@ -1631,28 +1634,29 @@ const WorldGateway = {
       ctx.fill();
     }
 
-    // Dedicated Super-Heavy Mega-Liner Gate Stand (foreshortened perspective markings!) & Heavy-Haul Taxi Road to Main Pad!
+    // Dedicated Super-Heavy Mega-Liner Gate Stand (connected cohesively to West Apron & Launch Pad!)
     if (L.megaGate) {
       ctx.globalAlpha = 0.72;
       ctx.fillStyle = pal.apronFill;
       ctx.beginPath();
-      ctx.ellipse(L.megaGate.x, L.megaGate.y + 4, 42 * L.termScale, 15 * L.termScale, 0, 0, Math.PI * 2);
+      ctx.ellipse(L.megaGate.x, L.megaGate.y + 3, 44 * L.termScale, 15 * L.termScale, 0, 0, Math.PI * 2);
       ctx.fill();
       this._drawPerspectiveGateBay(ctx, L.megaGate.x, L.megaGate.y + 2, L.megaGate.heading, 24 * L.termScale, 15 * L.termScale, pal, true);
 
-      // Dedicated Heavy Taxi Roadway curving smoothly from Mega-Liner Gate -> Western Apron -> Launch Pad!
-      ctx.globalAlpha = 0.56;
+      // Cohesive Heavy-Haul Taxi Roadway flowing seamlessly from Mega-Liner Gate -> Western Apron -> Launch Pad!
+      ctx.globalAlpha = 0.62;
+      ctx.lineCap = "round";
       ctx.strokeStyle = pal.runwayFill;
-      ctx.lineWidth = L.isNarrow ? 6 : 9;
+      ctx.lineWidth = L.isNarrow ? 6.5 : 9.5;
       ctx.beginPath();
       ctx.moveTo(L.megaGate.x, L.megaGate.y);
       ctx.bezierCurveTo(
-        L.satWest.x - 105 * L.termScale, L.satWest.y + 12 * L.termScale,
-        L.padX - 24, L.padY + 34,
+        L.megaGate.x - 42 * L.termScale, L.megaGate.y - 12 * L.termScale,
+        L.padX - 16, L.padY + 30,
         L.padX, L.padY + 4
       );
       ctx.stroke();
-      ctx.strokeStyle = "rgba(250, 204, 21, 0.52)";
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.56)";
       ctx.lineWidth = 1.0;
       ctx.setLineDash([6, 6]);
       ctx.stroke();
@@ -2012,24 +2016,29 @@ const WorldGateway = {
       ctx.stroke();
     }
 
-    // Open South Apron & Gate Lead-In Taxiway Network (strictly south/east around terminals!)
+    // Open South Apron & Continuous Cohesive Gate Lead-In Taxiway Network (zero disconnected stubs!)
     const exitPt = L.rwPt(L.rwExitT);
     const entryPt = L.rwPt(L.rwEntryT);
+    const megaApp = (L.megaGate && L.megaGate.approachPt) ? L.megaGate.approachPt : L.apronSW;
     ctx.strokeStyle = pal.runwayFill;
     ctx.lineWidth = 9.5;
+    ctx.lineCap = "round";
     ctx.globalAlpha = 0.72;
     ctx.beginPath();
     // Arrival exit taxiway -> East apron -> Hangar
     ctx.moveTo(exitPt.x, exitPt.y - 12);
     ctx.bezierCurveTo(exitPt.x + 36, exitPt.y - 26, L.apronEast.x + 28, L.apronEast.y + 18, L.apronEast.x, L.apronEast.y);
     ctx.quadraticCurveTo(L.hangarDoorX + 12, L.hangarDoorY + 18, L.hangarDoorX, L.hangarDoorY);
-    // Main South Apron taxiway -> West Satellite & Runway Entry
+    // Main South Apron taxiway -> West Satellite Approach -> Runway Entry
     ctx.moveTo(L.apronEast.x, L.apronEast.y);
     ctx.bezierCurveTo(L.apronSE.x, L.apronSE.y, L.apronSouth.x, L.apronSouth.y, L.apronSW.x, L.apronSW.y);
-    ctx.quadraticCurveTo(entryPt.x + 26, entryPt.y - 14, entryPt.x, entryPt.y - 6);
-    // West Satellite lead-off stub
-    ctx.moveTo(L.apronSW.x, L.apronSW.y);
-    ctx.lineTo(L.satWest.x + 8 * L.termScale, L.satWest.y + 44 * L.termScale);
+    ctx.quadraticCurveTo((L.apronSW.x + megaApp.x) * 0.5, L.apronSW.y - 4, megaApp.x, megaApp.y);
+    ctx.quadraticCurveTo(entryPt.x + 22, entryPt.y - 12, entryPt.x, entryPt.y - 6);
+    // Smooth Continuous Mega-Liner Gate Lead-In Connector joining the apron taxiway directly into megaGate!
+    if (L.megaGate) {
+      ctx.moveTo(megaApp.x, megaApp.y);
+      ctx.quadraticCurveTo(L.megaGate.x + 18 * L.termScale, L.megaGate.y + 10 * L.termScale, L.megaGate.x, L.megaGate.y);
+    }
     ctx.stroke();
 
     ctx.strokeStyle = "rgba(251, 191, 36, 0.44)";
@@ -2097,6 +2106,26 @@ const WorldGateway = {
 
       this._drawSatelliteTerminal(ctx, br.sat.x, br.sat.y, br.sScale, pal);
     });
+
+    // Dedicated elevated glazed jetway finger linking West Satellite directly onto the Mega-Liner stand
+    if (L.megaGate && L.satWest) {
+      ctx.save();
+      const jx0 = L.satWest.x - 42 * sc;
+      const jy0 = L.satWest.y + 3 * sc;
+      const jx1 = L.megaGate.x + 6 * sc;
+      const jy1 = L.megaGate.y - 4 * sc;
+      const jAng = Math.atan2(jy1 - jy0, jx1 - jx0);
+      const jLen = Math.hypot(jx1 - jx0, jy1 - jy0);
+      ctx.translate(jx0, jy0);
+      ctx.rotate(jAng);
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(0, -2.0 * sc, jLen, 4.0 * sc);
+      ctx.fillStyle = pal.windowGlow;
+      ctx.fillRect(2 * sc, -0.9 * sc, Math.max(2, jLen - 4 * sc), 1.8 * sc);
+      ctx.fillStyle = pal.archLight;
+      ctx.fillRect(0, -2.6 * sc, jLen, 1.4 * sc);
+      ctx.restore();
+    }
   },
 
   _drawSatelliteTerminal(ctx, cx, cy, sc, pal) {
@@ -2903,9 +2932,15 @@ const WorldGateway = {
     const dirY = Math.sin(L.rwAng);
     const pEast = L.apronEast;
     const segs = [
-      [exitPt, { x: exitPt.x + dirX * 48, y: exitPt.y + dirY * 48 }, { x: pEast.x + 42, y: pEast.y + 26 }, pEast],
-      [pEast, L.apronSE, gate.approachPt, gate]
+      [exitPt, { x: exitPt.x + dirX * 48, y: exitPt.y + dirY * 48 }, { x: pEast.x + 42, y: pEast.y + 26 }, pEast]
     ];
+    if (gate && gate.id === "G_MEGA") {
+      segs.push([pEast, L.apronSE, L.apronSouth, L.apronSW]);
+      segs.push([L.apronSW, { x: (L.apronSW.x + gate.approachPt.x) * 0.5, y: L.apronSW.y - 4 }, gate.approachPt, gate.approachPt]);
+      segs.push([gate.approachPt, { x: gate.x + 18 * L.termScale, y: gate.y + 10 * L.termScale }, gate, gate]);
+    } else {
+      segs.push([pEast, L.apronSE, gate.approachPt, gate]);
+    }
     return this._buildArcPath(segs, 36);
   },
 
@@ -3302,30 +3337,60 @@ const WorldGateway = {
       this.jetFormations.shift();
     }
     const isNarrow = w < 720;
+    const pool = this.JET_STUNT_TYPES.filter(s => s !== this._lastJetStunt);
+    const chosenStunt = (opts.stunt && this.JET_STUNT_TYPES.includes(opts.stunt))
+      ? opts.stunt
+      : (pool[Math.floor(Math.random() * pool.length)] || "delta_roll");
+    this._lastJetStunt = chosenStunt;
+
     const dir = Math.random() < 0.72 ? 1 : -1;
-    const speed = isNarrow ? 175 : 245;
+    const duration = this._rand(2.8, 3.3);
+    const spanX = w + 180;
+    const speed = spanX / duration;
     const startX = dir > 0 ? -90 : (w + 90);
-    const startY = h * this._rand(0.11, 0.21);
+    const startY = chosenStunt === "delta_loop" ? h * 0.24 : h * this._rand(0.11, 0.20);
     const vx = dir * speed;
-    const vy = -speed * this._rand(0.06, 0.12);
+    const vy = (chosenStunt === "delta_loop" || chosenStunt === "bomb_burst")
+      ? 0
+      : -speed * this._rand(0.04, 0.08);
 
     const offsets = isNarrow
-      ? [
-          { ox: 0, oy: 0, tint: "accent" },
-          { ox: -22, oy: -11, tint: "white" },
-          { ox: -20, oy: 12, tint: "white" }
-        ]
-      : [
-          { ox: 0, oy: 0, tint: "accent" },
-          { ox: -26, oy: -12, tint: "white" },
-          { ox: -24, oy: 13, tint: "white" },
-          { ox: -52, oy: -23, tint: "white" },
-          { ox: -48, oy: 25, tint: "white" }
-        ];
+      ? (chosenStunt === "echelon_roll"
+          ? [{ ox: 0, oy: 0, tint: "accent" }, { ox: -22, oy: 12, tint: "white" }, { ox: -44, oy: 24, tint: "white" }]
+          : [{ ox: 0, oy: 0, tint: "accent" }, { ox: -22, oy: -11, tint: "white" }, { ox: -20, oy: 12, tint: "white" }])
+      : (chosenStunt === "echelon_roll"
+          ? [
+              { ox: 0, oy: 0, tint: "accent" },
+              { ox: -24, oy: 12, tint: "white" },
+              { ox: -48, oy: 24, tint: "white" },
+              { ox: -72, oy: 36, tint: "white" },
+              { ox: -96, oy: 48, tint: "white" }
+            ]
+          : [
+              { ox: 0, oy: 0, tint: "accent" },
+              { ox: -26, oy: -12, tint: "white" },
+              { ox: -24, oy: 13, tint: "white" },
+              { ox: -52, oy: -23, tint: "white" },
+              { ox: -48, oy: 25, tint: "white" }
+            ]);
+
+    const burstVecs = [
+      { ax: 0.12, ay: -0.95 },
+      { ax: 0.36, ay: -0.78 },
+      { ax: 0.34, ay: 0.78 },
+      { ax: -0.22, ay: -0.88 },
+      { ax: -0.18, ay: 0.92 }
+    ];
 
     this.jetFormations.push({
       isMajor: Boolean(opts.isMajor),
+      stunt: chosenStunt,
+      elapsed: 0,
+      duration,
+      speed,
       dir,
+      startX,
+      startY,
       x: startX,
       y: startY,
       vx,
@@ -3333,38 +3398,45 @@ const WorldGateway = {
       angle: Math.atan2(vy, vx),
       scale: isNarrow ? 0.85 : 1.05,
       emitAccum: 0,
-      jets: offsets.map(o => ({
+      jets: offsets.map((o, idx) => ({
         ox: o.ox,
         oy: o.oy,
         tint: o.tint,
+        burst: burstVecs[idx] || { ax: 0, ay: -0.5 },
         trail: []
       }))
     });
   },
 
-  _drawFighterJet(ctx, pal, sc, step) {
+  _drawFighterJet(ctx, pal, sc, step, rollAngle = 0) {
     ctx.save();
     ctx.scale(sc, sc);
     // Crisp orange-white dual supersonic afterburner glow
     const abPulse = 0.82 + 0.18 * Math.sin(step * 48);
-    const fg = ctx.createLinearGradient(-9, 0, -20 * abPulse, 0);
-    fg.addColorStop(0, `rgba(${pal.plumeCore}, 0.96)`);
-    fg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.78)`);
+    const fg = ctx.createLinearGradient(-9, 0, -21 * abPulse, 0);
+    fg.addColorStop(0, `rgba(${pal.plumeCore}, 0.98)`);
+    fg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.82)`);
     fg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
     ctx.fillStyle = fg;
     ctx.beginPath();
-    ctx.moveTo(-9.5, -1.6);
-    ctx.lineTo(-20 * abPulse, 0);
-    ctx.lineTo(-9.5, 1.6);
+    ctx.moveTo(-9.5, -1.7);
+    ctx.lineTo(-21 * abPulse, 0);
+    ctx.lineTo(-9.5, 1.7);
     ctx.closePath();
     ctx.fill();
 
-    // Dark swept twin engine exhaust shroud & intake underside
+    const cosR = Math.cos(rollAngle);
+    const sinR = Math.sin(rollAngle);
+    const isInverted = cosR < 0;
+    const wingScale = (Math.abs(cosR) < 0.15 ? (cosR < 0 ? -0.15 : 0.15) : cosR);
+
+    // Swept Delta Main Wings foreshortened through 3D axial roll
+    ctx.save();
+    ctx.scale(1, wingScale);
     ctx.fillStyle = pal.militaryShade;
     ctx.fillRect(-10.2, -1.7, 3.0, 3.4);
 
-    // Swept Delta Main Wings + Fore-Body Lexes
-    ctx.fillStyle = pal.militaryBody;
+    ctx.fillStyle = isInverted ? pal.archDark : pal.militaryBody;
     ctx.beginPath();
     ctx.moveTo(11.5, 0);
     ctx.lineTo(2.5, -2.0);
@@ -3378,39 +3450,42 @@ const WorldGateway = {
     ctx.closePath();
     ctx.fill();
 
-    // Subtle sunlit upper bevel highlight on fuselage & wings
-    ctx.fillStyle = pal.bodyLight;
-    ctx.globalAlpha = 0.78;
+    // Wingtip tactical livery accents
+    ctx.fillStyle = pal.liveryAccent;
+    ctx.fillRect(-8.4, -8.0, 2.4, 1.1);
+    ctx.fillRect(-8.4, 6.9, 2.4, 1.1);
+    ctx.restore();
+
+    // Central fuselage spine + canopy (flips orientation cleanly when rolling inverted)
+    ctx.fillStyle = isInverted ? pal.militaryShade : pal.bodyLight;
+    ctx.globalAlpha = 0.88;
     ctx.beginPath();
     ctx.moveTo(11.5, 0);
-    ctx.lineTo(3.5, -1.3);
-    ctx.lineTo(-7.5, -1.3);
-    ctx.lineTo(-7.5, 0.2);
+    ctx.lineTo(3.5, isInverted ? 1.5 : -1.4);
+    ctx.lineTo(-7.8, isInverted ? 1.5 : -1.4);
+    ctx.lineTo(-7.8, isInverted ? -0.3 : 0.3);
     ctx.closePath();
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Livery tactical wingtip accents & canopy glass reflection
-    ctx.fillStyle = pal.liveryAccent;
-    ctx.fillRect(-8.4, -8.0, 2.4, 1.1);
-    ctx.fillRect(-8.4, 6.9, 2.4, 1.1);
-
     ctx.fillStyle = pal.windowGlassDark;
     ctx.beginPath();
-    ctx.ellipse(3.6, -0.3, 2.8, 0.95, 0, 0, Math.PI * 2);
+    ctx.ellipse(3.6, isInverted ? 0.5 : -0.4, 2.8, 0.95, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = pal.windowGlow;
     ctx.beginPath();
-    ctx.ellipse(4.1, -0.5, 1.4, 0.45, 0, 0, Math.PI * 2);
+    ctx.ellipse(4.1, isInverted ? 0.7 : -0.6, 1.4, 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Twin canted vertical tail stabilizers
+    // Canted vertical stabilizer projecting cleanly according to roll angle (points down when upside down!)
+    const tailDir = isInverted ? 1 : -1;
+    const tailHeight = Math.max(2.2, Math.abs(cosR) * 4.4 + Math.abs(sinR) * 1.4);
     ctx.fillStyle = pal.archDark;
     ctx.beginPath();
-    ctx.moveTo(-4.8, -1.6);
-    ctx.lineTo(-8.6, -4.4);
-    ctx.lineTo(-9.4, -4.2);
-    ctx.lineTo(-8.2, -1.4);
+    ctx.moveTo(-4.8, tailDir * 1.3);
+    ctx.lineTo(-8.6, tailDir * (1.3 + tailHeight));
+    ctx.lineTo(-9.4, tailDir * (1.1 + tailHeight));
+    ctx.lineTo(-8.2, tailDir * 1.2);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
@@ -3419,47 +3494,102 @@ const WorldGateway = {
   _updateAndDrawJetFormations(ctx, w, h, L, pal, dt, step) {
     if (!this.jetFormations || this.jetFormations.length === 0) return;
     const activeFormations = [];
-    const cosA = Math.cos(0); // used per formation angle below
-    void cosA;
 
     for (let f = 0; f < this.jetFormations.length; f++) {
       const fm = this.jetFormations[f];
-      fm.x += fm.vx * dt;
-      fm.y += fm.vy * dt;
+      fm.elapsed = (fm.elapsed || 0) + dt;
+      const p = fm.elapsed / Math.max(0.5, fm.duration || 3.0);
       fm.emitAccum += dt;
-      const shouldEmit = fm.emitAccum >= 0.024;
+      const shouldEmit = fm.emitAccum >= 0.012;
       if (shouldEmit) fm.emitAccum = 0;
+
+      // Update formation reference path per aerial stunt
+      if (fm.stunt === "delta_loop") {
+        const loopCx = w * 0.50;
+        const loopR = Math.min(82, h * 0.105);
+        const loopCy = Math.max(loopR + 18, h * 0.16);
+        const baseY = loopCy + loopR;
+        if (p < 0.28) {
+          const hp = p / 0.28;
+          fm.x = this._lerp(fm.startX, loopCx, hp);
+          fm.y = baseY;
+          fm.angle = fm.dir > 0 ? 0 : Math.PI;
+        } else if (p < 0.72) {
+          const lp = (p - 0.28) / 0.44;
+          const theta = lp * Math.PI * 2;
+          fm.x = loopCx + fm.dir * Math.sin(theta) * loopR;
+          fm.y = loopCy + Math.cos(theta) * loopR;
+          fm.angle = Math.atan2(-Math.sin(theta), fm.dir * Math.cos(theta));
+        } else {
+          const ep = Math.min(1.4, (p - 0.72) / 0.28);
+          fm.x = this._lerp(loopCx, fm.dir > 0 ? w + 90 : -90, ep);
+          fm.y = baseY;
+          fm.angle = fm.dir > 0 ? 0 : Math.PI;
+        }
+      } else {
+        fm.x += fm.vx * dt;
+        fm.y += fm.vy * dt;
+        fm.angle = Math.atan2(fm.vy, fm.vx);
+      }
 
       const ca = Math.cos(fm.angle);
       const sa = Math.sin(fm.angle);
-      const trailMargin = 110;
+      const trailMargin = 140;
       const leaderOnCourse = fm.dir > 0 ? fm.x < w + trailMargin : fm.x > -trailMargin;
-      let anyAlive = leaderOnCourse;
+      let anyAlive = leaderOnCourse || p < 1.05;
 
       for (let j = 0; j < fm.jets.length; j++) {
         const jet = fm.jets[j];
-        // Orthonormal 2D transform mapping local chevron (ox forward, oy lateral) into world space
-        const jx = fm.x + ca * jet.ox - sa * jet.oy;
-        const jy = fm.y + sa * jet.ox + ca * jet.oy;
+        let ox = jet.ox;
+        let oy = jet.oy;
+        let jetAngle = fm.angle;
+        let rollAngle = 0;
 
-        if (shouldEmit && jx > -110 && jx < w + 110 && jy > -60 && jy < h * 0.6) {
+        if (fm.stunt === "bomb_burst" && p > 0.38) {
+          const b = (p - 0.38) / 0.62;
+          const bEase = b * (0.45 + 0.55 * b);
+          const fanScale = w < 720 ? 120 : 195;
+          ox += jet.burst.ax * fanScale * bEase;
+          oy += jet.burst.ay * fanScale * bEase;
+          jetAngle = fm.angle + jet.burst.ay * 0.90 * b * fm.dir;
+          rollAngle = b * Math.PI * 1.4 * (j % 2 === 0 ? 1 : -1);
+        } else if (fm.stunt === "delta_roll") {
+          const rp = this._clamp((p - 0.16) / 0.68, 0, 1);
+          const easeR = rp * rp * (3 - 2 * rp);
+          rollAngle = easeR * Math.PI * 2;
+          oy = jet.oy * Math.cos(rollAngle);
+          ox = jet.ox - Math.abs(jet.oy) * Math.sin(rollAngle) * 0.22;
+        } else if (fm.stunt === "upside_down") {
+          rollAngle = Math.PI + 0.22 * Math.sin(p * Math.PI * 4);
+        } else if (fm.stunt === "echelon_roll") {
+          const startSlot = 0.14 + j * 0.09;
+          const rp = this._clamp((p - startSlot) / 0.26, 0, 1);
+          rollAngle = rp * Math.PI * 2;
+        }
+
+        const jCa = Math.cos(jetAngle);
+        const jSa = Math.sin(jetAngle);
+        const jx = fm.x + ca * ox - sa * oy;
+        const jy = fm.y + sa * ox + ca * oy;
+
+        if (shouldEmit && jx > -120 && jx < w + 120 && jy > -80 && jy < h * 0.62) {
           jet.trail.push({
-            x: jx - ca * 10 * fm.scale,
-            y: jy - sa * 10 * fm.scale,
+            x: jx - jCa * 10 * fm.scale,
+            y: jy - jSa * 10 * fm.scale,
             age: 0,
-            maxAge: this._rand(3.8, 4.8),
-            r0: (w < 720 ? 1.4 : 1.9) + Math.random() * 0.4
+            maxAge: this._rand(3.0, 4.0),
+            r0: (w < 720 ? 1.5 : 2.1) + Math.random() * 0.4
           });
         }
 
         // Age smoke trail segments with gentle upward thermal drift & radial diffusion
         const alivePts = [];
-        for (let p = 0; p < jet.trail.length; p++) {
-          const pt = jet.trail[p];
+        for (let tIdx = 0; tIdx < jet.trail.length; tIdx++) {
+          const pt = jet.trail[tIdx];
           pt.age += dt;
           if (pt.age >= pt.maxAge) continue;
-          pt.y -= 2.8 * dt;
-          pt.x -= fm.dir * 2.2 * dt;
+          pt.y -= 2.6 * dt;
+          pt.x -= fm.dir * 2.0 * dt;
           alivePts.push(pt);
         }
         jet.trail = alivePts;
@@ -3467,14 +3597,13 @@ const WorldGateway = {
 
         // 1. Render Billowing Smoke Ribbon & Luminous Inner Core
         if (jet.trail.length > 1) {
-          const useAccent = jet.tint === "accent" && !pal.isNightLights;
-          const smokeBaseRgb = useAccent ? pal.smokeRgb : pal.smokeRgb;
-          for (let p = 0; p < jet.trail.length; p++) {
-            const pt = jet.trail[p];
+          const smokeBaseRgb = pal.smokeRgb;
+          for (let tIdx = 0; tIdx < jet.trail.length; tIdx++) {
+            const pt = jet.trail[tIdx];
             const frac = pt.age / pt.maxAge;
             const env = Math.min(1, frac * 6) * Math.pow(1 - frac, 1.45);
-            const rOuter = pt.r0 + frac * 7.8 * fm.scale;
-            const aOuter = (pal.isNightLights ? 0.24 : 0.34) * env;
+            const rOuter = pt.r0 + frac * 7.5 * fm.scale;
+            const aOuter = (pal.isNightLights ? 0.25 : 0.36) * env;
             if (aOuter <= 0.004) continue;
             ctx.fillStyle = `rgba(${smokeBaseRgb}, ${aOuter.toFixed(3)})`;
             ctx.beginPath();
@@ -3482,7 +3611,7 @@ const WorldGateway = {
             ctx.fill();
 
             if (frac < 0.45) {
-              const aCore = (1 - frac / 0.45) * (pal.isNightLights ? 0.34 : 0.48);
+              const aCore = (1 - frac / 0.45) * (pal.isNightLights ? 0.36 : 0.50);
               ctx.fillStyle = `rgba(${jet.tint === "accent" && pal.isNightLights ? pal.plumeMid : "255, 255, 255"}, ${aCore.toFixed(3)})`;
               ctx.beginPath();
               ctx.arc(pt.x, pt.y, Math.max(0.8, pt.r0 * (1 - frac * 0.4)), 0, Math.PI * 2);
@@ -3492,12 +3621,12 @@ const WorldGateway = {
         }
 
         // 2. Render Supersonic Interceptor Jet if inside sky corridor
-        if (jx > -60 && jx < w + 60 && jy > -40 && jy < h) {
+        if (jx > -80 && jx < w + 80 && jy > -60 && jy < h) {
           ctx.save();
           ctx.translate(jx, jy);
-          ctx.rotate(fm.angle);
+          ctx.rotate(jetAngle);
           if (fm.dir < 0) ctx.scale(1, -1);
-          this._drawFighterJet(ctx, pal, fm.scale, step);
+          this._drawFighterJet(ctx, pal, fm.scale, step, rollAngle);
           ctx.restore();
         }
       }
@@ -3642,6 +3771,11 @@ const WorldGateway = {
 
     // 13. Exhaust Smoke, Deluge Steam & Cryo Vent Particle System
     this._updateAndDrawParticles(ctx, pal, dt);
+
+    // 13b. Automatic Festive Holiday Additions (snow/garlands, fireworks, lanterns, moon & bats)
+    if (typeof HolidayThemes !== "undefined" && HolidayThemes.drawGatewayOverlay) {
+      HolidayThemes.drawGatewayOverlay(ctx, w, h, L, pal, mode, dt, step);
+    }
 
     // 14. Dynamic Rolling Dawn Fog (morning mode)
     this._updateAndDrawDawnFog(ctx, w, h, L, mode, dt, now);
@@ -4848,51 +4982,118 @@ const WorldGateway = {
       ctx.restore();
     }
 
-    // 3. Heavy-Lift Tandem Twin-Rotor Recovery Helicopter Body
+    // 3. Sikorsky S-64 Skycrane Heavy-Lift Helicopter Body (Open Skeletal Tail Boom & Exposed Twin Turbines)
     ctx.save();
     ctx.translate(hh.x, hh.y);
     ctx.rotate(pitch);
     if (!facingLeft) ctx.scale(-1, 1);
     ctx.scale(sc, sc);
 
-    // Side flotation sponsons & winch hook turret
-    ctx.fillStyle = pal.archDark;
-    ctx.fillRect(-10, 2.5, 20, 3.0);
-    // Elongated banana-hull tandem fuselage (distinctive SAR white & international orange recovery livery)
+    // Tall wide-straddle spider landing gear struts + winch hoist bracket right under open crane bay
+    ctx.strokeStyle = pal.archDark;
+    ctx.lineWidth = 1.65;
+    ctx.beginPath();
+    ctx.moveTo(-9, 1);
+    ctx.lineTo(-11.5, 8.2);
+    ctx.moveTo(4.5, -1);
+    ctx.lineTo(6.8, 8.2);
+    ctx.moveTo(15.5, -2.5);
+    ctx.lineTo(17.5, 4.5);
+    ctx.stroke();
+    ctx.fillStyle = "#1E293B";
+    [-11.5, 6.8, 17.5].forEach((wx, wIdx) => {
+      ctx.beginPath();
+      ctx.arc(wx, wIdx === 2 ? 4.8 : 8.5, wIdx === 2 ? 1.1 : 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Open skeletal truss tail boom + elevated spine rail (unmistakable Skycrane void above suspended payload!)
+    ctx.strokeStyle = "#F97316";
+    ctx.lineWidth = 1.45;
+    ctx.beginPath();
+    ctx.moveTo(-4, -3.8);
+    ctx.lineTo(19.5, -3.2);
+    ctx.moveTo(-4, -1.0);
+    ctx.lineTo(19.5, -2.2);
+    ctx.stroke();
+    ctx.strokeStyle = pal.archDark;
+    ctx.lineWidth = 0.95;
+    for (let tx = -2; tx <= 17; tx += 3.8) {
+      ctx.beginPath();
+      ctx.moveTo(tx, -3.7);
+      ctx.lineTo(tx + 2.0, -1.4);
+      ctx.lineTo(tx + 3.8, -3.5);
+      ctx.stroke();
+    }
+
+    // Twin exposed overhead turboshaft engine nacelles (iconic Skycrane dorsal twin pods)
     ctx.fillStyle = pal.bodyLight;
     ctx.beginPath();
-    ctx.roundRect(-15, -3.8, 30, 7.2, 3.4);
+    ctx.roundRect(-7.5, -6.8, 10.5, 3.3, 1.4);
     ctx.fill();
     ctx.fillStyle = "#F97316";
-    ctx.fillRect(-6, -3.8, 12, 3.2);
+    ctx.fillRect(-7.0, -5.2, 9.5, 1.3);
+    ctx.fillStyle = pal.archDark;
+    ctx.fillRect(-8.3, -6.5, 1.2, 2.6); // Dark front intake
+    ctx.fillRect(2.8, -6.2, 2.2, 1.8);  // Exhaust cone
+
+    // Iconic bulbous forward flight cabin + aft-facing crane operator greenhouse bubble
+    ctx.fillStyle = "#F97316";
+    ctx.beginPath();
+    ctx.moveTo(-14.5, 1.2);
+    ctx.quadraticCurveTo(-15.5, -4.6, -9.2, -5.2);
+    ctx.lineTo(-4.0, -4.8);
+    ctx.lineTo(-4.0, 2.2);
+    ctx.lineTo(-12.2, 2.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = pal.bodyLight;
+    ctx.fillRect(-11.5, -4.8, 7.2, 2.0);
+    // Forward pilot greenhouse & rear crane-operator window facing the suspended capsule
     ctx.fillStyle = pal.windowGlassDark;
     ctx.beginPath();
-    ctx.ellipse(-11.5, -0.8, 3.2, 1.9, 0.2, 0, Math.PI * 2);
+    ctx.ellipse(-12.2, -1.6, 2.3, 1.9, 0.25, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillRect(-6.2, -1.8, 2.2, 2.6);
 
-    // Twin elevated tandem rotor pylons + spinning counter-rotating rotor discs
-    [-10.5, 11.5].forEach((rx, idx) => {
-      const mastH = idx === 0 ? -5.8 : -7.4;
-      ctx.fillStyle = pal.archMid;
-      ctx.fillRect(rx - 1.8, mastH + 1.5, 3.6, Math.abs(mastH));
-      ctx.fillStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.18)" : "rgba(71, 85, 105, 0.18)";
+    // Tall cantilever vertical tail fin & spinning anti-torque tail rotor
+    ctx.fillStyle = "#F97316";
+    ctx.beginPath();
+    ctx.moveTo(17.5, -3.0);
+    ctx.lineTo(21.2, -8.5);
+    ctx.lineTo(22.6, -8.3);
+    ctx.lineTo(20.0, -2.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = pal.isNightLights ? "rgba(248, 250, 252, 0.65)" : "rgba(51, 65, 85, 0.58)";
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.arc(21.4, -7.2, 3.2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Central rotor mast + massive single 6-blade main rotor disc & 3 crossing animated blade pairs
+    ctx.fillStyle = pal.archMid;
+    ctx.fillRect(-3.4, -10.8, 3.2, 4.4);
+    ctx.fillStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.17)" : "rgba(71, 85, 105, 0.17)";
+    ctx.beginPath();
+    ctx.ellipse(-1.8, -10.8, 20.5, 3.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = pal.isNightLights ? "rgba(248, 250, 252, 0.56)" : "rgba(51, 65, 85, 0.52)";
+    ctx.lineWidth = 1.05;
+    for (let b = 0; b < 3; b++) {
+      const ang = hh.rotorPhase + b * (Math.PI / 3);
+      const bx = Math.cos(ang) * 20.5;
+      const by = Math.sin(ang) * 2.9;
       ctx.beginPath();
-      ctx.ellipse(rx, mastH, 13.5, 2.4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      const bx = Math.cos(hh.rotorPhase + idx * 1.4) * 13.5;
-      const by = Math.sin(hh.rotorPhase + idx * 1.4) * 2.2;
-      ctx.strokeStyle = pal.isNightLights ? "rgba(248, 250, 252, 0.56)" : "rgba(51, 65, 85, 0.52)";
-      ctx.lineWidth = 1.0;
-      ctx.beginPath();
-      ctx.moveTo(rx - bx, mastH - by);
-      ctx.lineTo(rx + bx, mastH + by);
+      ctx.moveTo(-1.8 - bx, -10.8 - by);
+      ctx.lineTo(-1.8 + bx, -10.8 + by);
       ctx.stroke();
-    });
+    }
 
     if (Math.sin(step * 11) > 0.25) {
       ctx.fillStyle = "#F87171";
       ctx.beginPath();
-      ctx.arc(0, -4.6, 1.25, 0, Math.PI * 2);
+      ctx.arc(-1.8, -11.5, 1.25, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -6310,9 +6511,9 @@ const WorldGateway = {
       }
     } else if (ml.phase === "taxi_to_pad") {
       visible = true;
-      // Follow dedicated Heavy Taxiway Roadway from Mega-Liner Gate -> Western Apron -> Launch Pad!
+      // Follow cohesive Heavy Taxiway Roadway from Mega-Liner Gate -> Western Apron -> Launch Pad!
       const path = this._buildArcPath([
-        [gate, { x: L.satWest.x - 105 * L.termScale, y: L.satWest.y + 12 * L.termScale }, { x: L.padX - 24, y: L.padY + 34 }, { x: L.padX, y: L.padY + 4 }]
+        [gate, { x: gate.x - 42 * L.termScale, y: gate.y - 12 * L.termScale }, { x: L.padX - 16, y: L.padY + 30 }, { x: L.padX, y: L.padY + 4 }]
       ], 44);
       ml.speed = 6.8;
       ml.dist += ml.speed * dt;

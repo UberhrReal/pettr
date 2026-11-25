@@ -176,35 +176,51 @@ def count_words_excluding_name(text: str, user_name: str) -> int:
 
 MAJOR_HOLIDAYS = {
     # Fixed annual holidays (month, day)
-    (1, 1): {"id": "new_year", "name": "New Year's Day", "icon": "✨", "theme": "new year renewal, ambitious horizons, and a fresh clean slate"},
-    (2, 14): {"id": "valentines", "name": "Valentine's Day", "icon": "💖", "theme": "warmth, appreciation, connection, and mindful care"},
-    (3, 17): {"id": "st_patricks", "name": "St. Patrick's Day", "icon": "☘️", "theme": "good fortune, emerald luck, and vibrant spirits"},
-    (8, 9): {"id": "sg_national_day", "name": "Singapore National Day", "icon": "🇸🇬", "theme": "Majulah Singapura, national unity, resilience, and community pride"},
-    (10, 31): {"id": "halloween", "name": "Halloween", "icon": "🎃", "theme": "jack-o'-lanterns, autumn mysteries, creative focus, and festive cheer"},
-    (12, 24): {"id": "christmas_eve", "name": "Christmas Eve", "icon": "🎄", "theme": "warm hearths, holiday anticipation, festive joy, and quiet rest"},
-    (12, 25): {"id": "christmas", "name": "Christmas Day", "icon": "🎄", "theme": "Merry Christmas, holiday joy, festive cheer, and restful celebration"},
-    (12, 26): {"id": "boxing_day", "name": "Boxing Day", "icon": "🎁", "theme": "holiday unwinding, relaxation, and peaceful downtime"},
-    (12, 31): {"id": "new_years_eve", "name": "New Year's Eve", "icon": "🥂", "theme": "ringing out the year, celebrating milestones, and bold new horizons"}
+    (1, 1): {"id": "new_year", "name": "New Year's Day", "icon": "✨", "theme": "new year fireworks, fresh laughter, sparkling horizons, and joyful celebration"},
+    (2, 14): {"id": "valentines", "name": "Valentine's Day", "icon": "💖", "theme": "warmth, roses, chocolate indulgences, affection, and cherished company"},
+    (3, 17): {"id": "st_patricks", "name": "St. Patrick's Day", "icon": "☘️", "theme": "emerald clovers, folklore, music, and lively good fortune"},
+    (4, 22): {"id": "earth_day", "name": "Earth Day", "icon": "🌍", "theme": "wild forests, deep oceans, sunlit skies, and wonder for our blue planet"},
+    (6, 21): {"id": "midsummer", "name": "Summer Solstice", "icon": "☀️", "theme": "longest sunlit day, fireflies at dusk, warm breezes, and unhurried joy"},
+    (8, 9): {"id": "sg_national_day", "name": "Singapore National Day", "icon": "🇸🇬", "theme": "Majulah Singapura, bay fireworks, red-and-white spirit, and shared celebration"},
+    (10, 31): {"id": "halloween", "name": "Halloween", "icon": "🎃", "theme": "glowing jack-o'-lanterns, autumn chill, spooky stories, sweets, and playful mystery"},
+    (12, 24): {"id": "christmas_eve", "name": "Christmas Eve", "icon": "🎄", "theme": "twinkling fairy lights, warm cocoa, cinnamon scents, and festive anticipation"},
+    (12, 25): {"id": "christmas", "name": "Christmas Day", "icon": "🎄", "theme": "Merry Christmas, warm hearths, unhurried feasting, and peaceful holiday joy"},
+    (12, 26): {"id": "boxing_day", "name": "Boxing Day", "icon": "🎁", "theme": "cosy blankets, festive leftovers, quiet strolling, and unhurried rest"},
+    (12, 31): {"id": "new_years_eve", "name": "New Year's Eve", "icon": "🥂", "theme": "sparkling toasts, fireworks over the water, nostalgia, and welcoming tomorrow"}
 }
 
-# Movable holiday windows (year, start_month, start_day, end_month, end_day, info)
+# Movable holiday windows 2025-2029 (year, start_month, start_day, end_month, end_day, info)
 MOVABLE_HOLIDAYS = [
     # Lunar New Year
-    (2025, 1, 28, 1, 30, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "spring renewal, prosperous momentum, red lanterns, and good fortune"}),
-    (2026, 2, 16, 2, 18, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "spring renewal, prosperous momentum, red lanterns, and good fortune"}),
-    (2027, 2, 5, 2, 7, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "spring renewal, prosperous momentum, red lanterns, and good fortune"}),
+    (2025, 1, 28, 1, 30, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "crimson lanterns, reunion feasts, tangerine luck, and lively lion dances"}),
+    (2026, 2, 16, 2, 18, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "crimson lanterns, reunion feasts, tangerine luck, and lively lion dances"}),
+    (2027, 2, 5, 2, 7, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "crimson lanterns, reunion feasts, tangerine luck, and lively lion dances"}),
+    (2028, 1, 26, 1, 28, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "crimson lanterns, reunion feasts, tangerine luck, and lively lion dances"}),
+    (2029, 2, 13, 2, 15, {"id": "cny", "name": "Lunar New Year", "icon": "🏮", "theme": "crimson lanterns, reunion feasts, tangerine luck, and lively lion dances"}),
     # Easter Weekend
-    (2025, 4, 18, 4, 21, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "spring renewal, peaceful reflections, and blossoming energy"}),
-    (2026, 4, 3, 4, 6, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "spring renewal, peaceful reflections, and blossoming energy"}),
-    (2027, 3, 26, 3, 29, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "spring renewal, peaceful reflections, and blossoming energy"}),
+    (2025, 4, 18, 4, 21, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "pastel spring blossoms, orchard strolls, sweet treats, and gentle renewal"}),
+    (2026, 4, 3, 4, 6, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "pastel spring blossoms, orchard strolls, sweet treats, and gentle renewal"}),
+    (2027, 3, 26, 3, 29, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "pastel spring blossoms, orchard strolls, sweet treats, and gentle renewal"}),
+    (2028, 4, 14, 4, 17, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "pastel spring blossoms, orchard strolls, sweet treats, and gentle renewal"}),
+    (2029, 3, 30, 4, 2, {"id": "easter", "name": "Easter", "icon": "🌸", "theme": "pastel spring blossoms, orchard strolls, sweet treats, and gentle renewal"}),
     # Mid-Autumn Festival
-    (2025, 10, 6, 10, 6, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "golden full moon, paper lanterns, harmony, and celebration"}),
-    (2026, 9, 25, 9, 25, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "golden full moon, paper lanterns, harmony, and celebration"}),
-    (2027, 9, 15, 9, 15, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "golden full moon, paper lanterns, harmony, and celebration"}),
+    (2025, 10, 6, 10, 6, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "luminous harvest moon, glowing paper lanterns, mooncakes, and warm gatherings"}),
+    (2026, 9, 25, 9, 25, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "luminous harvest moon, glowing paper lanterns, mooncakes, and warm gatherings"}),
+    (2027, 9, 15, 9, 15, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "luminous harvest moon, glowing paper lanterns, mooncakes, and warm gatherings"}),
+    (2028, 10, 3, 10, 3, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "luminous harvest moon, glowing paper lanterns, mooncakes, and warm gatherings"}),
+    (2029, 9, 22, 9, 22, {"id": "mid_autumn", "name": "Mid-Autumn Festival", "icon": "🌕", "theme": "luminous harvest moon, glowing paper lanterns, mooncakes, and warm gatherings"}),
+    # Diwali / Festival of Lights
+    (2025, 10, 20, 10, 20, {"id": "diwali", "name": "Diwali", "icon": "🪔", "theme": "golden oil lamps, courtyard rangoli colours, cardamom sweets, and radiant light"}),
+    (2026, 11, 8, 11, 8, {"id": "diwali", "name": "Diwali", "icon": "🪔", "theme": "golden oil lamps, courtyard rangoli colours, cardamom sweets, and radiant light"}),
+    (2027, 10, 29, 10, 29, {"id": "diwali", "name": "Diwali", "icon": "🪔", "theme": "golden oil lamps, courtyard rangoli colours, cardamom sweets, and radiant light"}),
+    (2028, 10, 17, 10, 17, {"id": "diwali", "name": "Diwali", "icon": "🪔", "theme": "golden oil lamps, courtyard rangoli colours, cardamom sweets, and radiant light"}),
+    (2029, 11, 5, 11, 5, {"id": "diwali", "name": "Diwali", "icon": "🪔", "theme": "golden oil lamps, courtyard rangoli colours, cardamom sweets, and radiant light"}),
     # Thanksgiving
-    (2025, 11, 27, 11, 27, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "harvest gratitude, autumn warmth, and generous appreciation"}),
-    (2026, 11, 26, 11, 26, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "harvest gratitude, autumn warmth, and generous appreciation"}),
-    (2027, 11, 25, 11, 25, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "harvest gratitude, autumn warmth, and generous appreciation"})
+    (2025, 11, 27, 11, 27, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "crimson maple leaves, roasted feasts, spiced pie, and grateful company"}),
+    (2026, 11, 26, 11, 26, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "crimson maple leaves, roasted feasts, spiced pie, and grateful company"}),
+    (2027, 11, 25, 11, 25, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "crimson maple leaves, roasted feasts, spiced pie, and grateful company"}),
+    (2028, 11, 23, 11, 23, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "crimson maple leaves, roasted feasts, spiced pie, and grateful company"}),
+    (2029, 11, 22, 11, 22, {"id": "thanksgiving", "name": "Thanksgiving", "icon": "🍁", "theme": "crimson maple leaves, roasted feasts, spiced pie, and grateful company"})
 ]
 
 def get_holiday_info(target_date: datetime.date) -> Optional[Dict[str, Any]]:
@@ -228,63 +244,135 @@ def get_holiday_info(target_date: datetime.date) -> Optional[Dict[str, Any]]:
     return None
 
 def get_holiday_curated_phrases(holiday: Dict[str, Any], user_name: str) -> List[str]:
-    """Generates thematic festive phrases for major holidays with a natural mix of user name."""
+    """Generates celebratory, non-work holiday typewriter lines with a natural mix of user name."""
     hid = holiday.get("id", "")
     hname = holiday.get("name", "Holiday")
 
     if hid == "halloween":
         return [
-            f"Happy Halloween, {user_name}! A night of curious mysteries and creative focus.",
-            "The autumn breeze is brisk and the jack-o'-lanterns are glowing warmly.",
-            "No tricks in the queue tonight—just deliberate focus and steady momentum.",
-            f"Midnight hyperfocus while the autumn shadows dance outside, {user_name}.",
-            "Brew a warm drink and enjoy a tranquil, festive evening.",
-            "Crisp autumn air and festive spirits across the workspace tonight."
+            f"Happy Halloween, {user_name}! Let the candlelit pumpkins and playful spirits sparkle.",
+            "Crisp autumn breezes carry laughter, spiced treats, and glowing porch lanterns.",
+            "Put your feet up and savour spooky stories, sweet treats, and glowing embers.",
+            f"Something wonderfully mysterious is brewing under the harvest moon today, {user_name}.",
+            "Bats wheel overhead while friendly ghosts roam past golden autumn trees.",
+            "May your Halloween be bursting with whimsical costumes, mischief, and warmth."
         ]
     elif hid in ("christmas", "christmas_eve", "boxing_day"):
         return [
-            f"Merry Christmas, {user_name}! Warmest wishes for peace, joy, and rest.",
-            "May your day be filled with warm hearths, good food, and great cheer.",
-            "A quiet, joyful pause in the year to celebrate with those who matter most.",
-            f"Wishing you a bright, restful, and fulfilling holiday season, {user_name}.",
-            "Take time to unwind, reflect, and savour the holiday spirit today.",
-            "Festive lights, peaceful winter stillness, and holiday warmth all around."
+            f"Merry Christmas, {user_name}! May warmth, laughter, and festive wonder fill your home.",
+            "Twinkling fairy lights, spiced cocoa, and unhurried winter calm fill the air.",
+            "Leave the bustle aside and enjoy cosy blankets, music, and favourite feasts.",
+            f"Wishing you peaceful winter stillness and radiant holiday cheer today, {user_name}.",
+            "Snowflakes drifting softly outside while warm cinnamon spices fill the kitchen.",
+            "Raise a mug of something warm to good company and gentle festive magic."
         ]
     elif hid in ("new_year", "new_years_eve"):
         return [
-            f"Happy New Year, {user_name}! Here's to clear horizons and bold ambitions.",
-            "A pristine blank canvas awaits across the next three hundred and sixty-five days.",
-            "Set your trajectory with purpose and build steady momentum from day one.",
-            f"May this year bring craft, clarity, and fulfilling breakthroughs, {user_name}.",
-            "Every grand journey begins with a single deliberate step forward.",
-            "Raise a toast to lessons learned and exciting fresh beginnings."
+            f"Happy New Year, {user_name}! Here is to sparkling skies and wondrous adventures ahead.",
+            "Golden fireworks blossom across the harbour to welcome a fresh unwritten chapter.",
+            "Take a deep breath, raise a glass, and toast the memories made.",
+            f"May laughter, curiosity, and warm moments greet you around every corner, {user_name}.",
+            "Fireworks shimmer above calm water as the festive countdown sparks joyful cheers.",
+            "Let the year unfold slowly with generous company, wonder, and quiet joy."
         ]
     elif hid == "cny":
         return [
-            f"Happy Lunar New Year, {user_name}! Wishing you vibrant health and prosperity.",
-            "May the festive spring season bring auspicious beginnings and joy.",
-            f"Good fortune, clear focus, and abundant success ahead, {user_name}.",
-            "Celebrate reunion, cherish traditions, and embrace the fresh spring cycle.",
-            "Lanterns glowing bright and warm wishes for an inspiring season.",
-            "Spring festival warmth and auspicious momentum for your endeavors."
+            f"Happy Lunar New Year, {user_name}! Wishing you abundant joy, warmth, and sunlit days.",
+            "Crimson lanterns sway softly above the street as festive drumbeats fill the air.",
+            f"May sweet tangerines, reunion feasts, and warm blessings brighten your table, {user_name}.",
+            "Golden lion dancers leap along bustling avenues carrying laughter and festive luck.",
+            "Share warm tea, crisp delicacies, and unhurried stories with everyone you love.",
+            "Lantern glow reflecting over quiet waters brings blessings of harmony and peace."
         ]
     elif hid == "sg_national_day":
         return [
-            f"Happy National Day, {user_name}! Celebrating the Lion City with pride.",
-            "Reflecting on unity, resilience, and the vibrant red-and-white spirit.",
-            f"Majulah Singapura: onward together towards shared dreams and craft, {user_name}.",
-            "Fireworks illuminating the bay in celebration of community and nationhood.",
-            "Honouring community heritage, shared dreams, and forward momentum.",
-            "A vibrant salute to unity and the spirit of the Lion City."
+            f"Happy National Day, {user_name}! Celebrating vibrant skies and Lion City spirit today.",
+            "Red and white banners flutter cheerfully beneath bright fireworks across the waterfront bay.",
+            f"Majulah Singapura: toast good food, shared heritage, and sunny island camaraderie, {user_name}.",
+            "Spectacular bursts of colour illuminate the water as neighbours cheer from below.",
+            "Pause and savour iconic hawker favourites, lively parades, and warm tropical breezes.",
+            "A radiant salute to home, harbour lights, and stories shared side by side."
+        ]
+    elif hid == "valentines":
+        return [
+            f"Happy Valentine's Day, {user_name}! Savor sweet indulgences, warm notes, and gentle affection.",
+            "Drifting rose petals and soft candlelight turn an ordinary day effortlessly sweet.",
+            f"Send a thoughtful message or share favourite chocolates with someone dear, {user_name}.",
+            "Let music play slowly while golden warmth fills the room with quiet grace.",
+            "Celebrations of kindness, warm embraces, and heartfelt gestures make today glow.",
+            "Every small token of care adds unexpected beauty to a peaceful afternoon."
+        ]
+    elif hid == "st_patricks":
+        return [
+            f"Happy St. Patrick's Day, {user_name}! May four-leaf clovers and laughter follow you.",
+            "Emerald ribbons and cheerful folk tunes bring springtime warmth into the breeze.",
+            f"Wishing you bright rainbows, playful luck, and a lively pint or tea, {user_name}.",
+            "Shamrocks gleam softly along the hillside under drifting spring sunlight today.",
+            "Put your worries on pause and follow the music wherever cheer gathers.",
+            "Emerald greens, golden gleams, and high spirits make every greeting sweeter."
+        ]
+    elif hid == "easter":
+        return [
+            f"Happy Easter, {user_name}! Soft spring blossoms and quiet pastel skies await outside.",
+            "Gentle sunlit breezes wander through blooming petals and bright meadow trails today.",
+            f"Enjoy sweet confections, unhurried strolls, and restful holiday calm, {user_name}.",
+            "Every bud opening across the valley hints at bright warmer seasons ahead.",
+            "Leave alarms untouched and linger a little longer over warm bakery treats.",
+            "Playful woodland rabbits dart through dewy meadows celebrating the spring thaw."
+        ]
+    elif hid == "earth_day":
+        return [
+            f"Happy Earth Day, {user_name}! Step outdoors to breathe deep and admire wild skies.",
+            "Ancient forests, sunlit coral reefs, and rolling currents hum in quiet harmony.",
+            f"Take a unhurried walk beneath towering canopies and ocean winds today, {user_name}.",
+            "Fireflies, sea turtles, and soaring birds remind us how rich home truly is.",
+            "Pause to watch clouds drift across mountain ridges and turquoise sea canyons.",
+            "Every gentle stewardship gesture honours our wild, shimmering blue planet."
+        ]
+    elif hid == "midsummer":
+        return [
+            f"Happy Summer Solstice, {user_name}! Bask in abundant sunlight and warm twilight hours.",
+            "Wildflower meadows sway beneath golden rays stretching lovingly across the valley.",
+            f"Stay outside past sunset with cool drinks and drifting summer fireflies, {user_name}.",
+            "Warm amber horizons linger slowly over calm seas and unhurried woodland trails.",
+            "Trade indoor glow for salt breezes, birdcalls, and long sunlit conversations.",
+            "Midsummer warmth invites slow wandering, music outdoors, and carefree rest."
+        ]
+    elif hid == "mid_autumn":
+        return [
+            f"Happy Mid-Autumn Festival, {user_name}! Slice rich mooncakes beneath the luminous silver sky.",
+            "Paper lanterns rise like gentle stars while harvest moonlight bathes quiet rooftops.",
+            f"Brew fragrant oolong tea and share family folklore around lantern light, {user_name}.",
+            "Golden reflections shimmer peacefully over dark waters beneath the full autumn moon.",
+            "Cool breezes carry roasted tea scents and children's bobbing lantern trails.",
+            "Gaze up at the full silver moon and savour tranquil reunion cheer."
+        ]
+    elif hid == "diwali":
+        return [
+            f"Happy Diwali, {user_name}! May flickering oil lamps bathe every room in golden light.",
+            "Intricate doorway rangoli colours and spiced sweets welcome guests with festive joy.",
+            f"Wishing you radiant sparkles, sweet mithai, and joyful laughter with loved ones, {user_name}.",
+            "Golden diya flames shimmer like tiny stars along balconies and quiet courtyards.",
+            "Celebratory sparks bloom across clear velvet skies in dazzling festive cascades.",
+            "Peaceful radiance, rich saffron treats, and warm hospitality fill every corner."
+        ]
+    elif hid == "thanksgiving":
+        return [
+            f"Happy Thanksgiving, {user_name}! Gather close for warm autumn feasts and grateful hearts.",
+            "Crimson maple leaves tumble slowly through crisp golden air across quiet hills.",
+            f"Fill your plate generously and linger around warm spiced pie and laughter, {user_name}.",
+            "The richest tables overflow with gratitude, old stories, and comforting aromas.",
+            "Pause and savour the quiet blessing of loved ones, warmth, and fullness.",
+            "Rustling autumn foliage and fireside glow invite slow, grateful conversation today."
         ]
     else:
         return [
-            f"Happy {hname}, {user_name}! Wishing you a joyful and inspired day.",
-            f"Celebrating {hname} with warmth, good cheer, and steady momentum.",
-            "Take time to enjoy the occasion, recharge, and celebrate with good cheer.",
-            f"A festive milestone in the calendar: make today count, {user_name}.",
-            "Warm festive wishes and steady clarity across your objectives today.",
-            "Embrace the festive rhythm and celebrate what truly matters."
+            f"Happy {hname}, {user_name}! Leave errands waiting and savour a joyful holiday pause.",
+            f"Celebrating {hname} with good music, delicious food, and unhurried festive cheer.",
+            "Step away from clocks for a while and enjoy peaceful company and laughter.",
+            f"A joyful holiday breeze invites slow stories, treats, and delight today, {user_name}.",
+            "Fill the day with simple pleasures, favourite songs, and warm hospitality.",
+            "Bask in the festive rhythm and let lingering holiday cheer take centre stage."
         ]
 
 def get_curated_phrases(today: datetime.date, user_name: str, milestone: Optional[str] = None, client_hour: Optional[int] = None) -> List[str]:
@@ -395,22 +483,26 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
     holiday_clause = ""
     if holiday_info:
         holiday_clause = (
-            f"SPECIAL FESTIVE OCCASION: Today is {holiday_info['name']} ({holiday_info['icon']})! "
-            f"Weave warm holiday cheer, celebration, and themes of {holiday_info['theme']} "
-            f"tastefully into at least 2 to 3 greeting lines while keeping a natural, grounded tone.\n"
+            f"HOLIDAY MODE ACTIVE — Today is {holiday_info['name']} ({holiday_info['icon']})! "
+            f"All 5 greeting lines MUST warmly, playfully, and colourfully celebrate {holiday_info['name']} "
+            f"(traditions, food, atmosphere, rest, family, wonder, and themes of {holiday_info['theme']}). "
+            f"Since it is a holiday, DO NOT push work, coursework, study blocks, productivity, deadlines, or errands.\n"
         )
 
     name_words = len(user_name.split()) if user_name else 1
+    tone_scope_line = (
+        f"Festive Holiday Spirit: Today is {holiday_info['name']}. Celebrate the occasion, traditions, good food, company, and holiday joy — do NOT write about coursework, productivity, deadlines, or errands.\n"
+        if holiday_info else
+        "Tone and Broad Balance: Grounded, cultured, and articulate. DO NOT focus exclusively on programming, coding, software engineering, terminal, or git metaphors. Reflect a well-rounded life: university coursework and study blocks, clear thinking, clearing out errands, personal creative projects, reading, fitness, and thoughtful daily momentum.\n"
+    )
     system_prompt = (
         "You are the sharp, witty, cultured personal AI companion for PETTR "
         "(Personal Errands, Task Tracker & Repository), an executive daily dashboard for university coursework, "
         "daily errands, reading, personal projects, life admin, fitness, and high-focus productivity.\n"
         "British English: You MUST strictly use British English spelling conventions throughout "
-        "(e.g., prioritise, organise, recognise, summarise, categorise, customise, colour, behaviour). "
+        "(e.g., prioritise, organise, recognise, summarise, categorise, customise, colour, behaviour, flavour, favour). "
         "Never use American English spellings like 'prioritize' or 'customized'.\n"
-        "Tone and Broad Balance: Grounded, cultured, and articulate. DO NOT focus exclusively on programming, coding, "
-        "software engineering, terminal, or git metaphors. Reflect a well-rounded life: university coursework and study blocks, "
-        "clear thinking, clearing out errands, personal creative projects, reading, fitness, and thoughtful daily momentum.\n"
+        f"{tone_scope_line}"
         "Time-of-Day Relevance: Every greeting line MUST specifically evoke and resonate with the user's active time-of-day window "
         "(wee hours, morning, afternoon, evening, or late night). Avoid generic lines that lack any diurnal connection.\n"
         f"User Name Mix: Mention the user's name naturally in 1 to 2 lines only (using their EXACT full display name '{user_name}' verbatim — never abbreviate or drop parts). "
@@ -443,6 +535,16 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         "5. Strictly use British English spelling conventions.\n"
     )
 
+    task1_tone_rule = (
+        f"4. Holiday Celebration Focus: Today is {holiday_info['name']}. Celebrate {holiday_info['theme']} with warmth, playfulness, humour, or poetry — do NOT push productivity, work, coursework, or errands.\n"
+        if holiday_info else
+        "4. Tone and Holistic Balance: DO NOT focus on programming, software engineering, git, or coding jargon. Frame lines for a balanced, cultured life: university coursework and study blocks, clear thinking, tackling personal projects, clearing daily errands, reading, and steady daily momentum.\n"
+    )
+    task1_diurnal_rule = (
+        f"5. Holiday Atmosphere & Time Window: Evoke the {diurnal_period} mood alongside {holiday_info['name']} celebrations and never mix contradictory times of day.\n"
+        if holiday_info else
+        f"5. Time-of-Day Relevance (Mandatory): Every greeting line MUST specifically evoke and fit the current {diurnal_period} time window. Weave in natural, evocative references to this specific time of day (e.g., morning coffee/clarity/dawn energy, midday execution and sustained cadence, evening winding down/debriefing/twilight reflection, or wee hours solitary quiet/hyperfocus). DO NOT generate generic or universally time-neutral lines that could apply to any hour of the day.\n"
+    )
     user_prompt = (
         f"Today's date: {date_str}.\n"
         f"Current time window: {diurnal_period.capitalize()}.\n"
@@ -452,10 +554,10 @@ async def generate_llm_typewriter_lines(target_date: datetime.date,
         f"1. Generate exactly 5 intelligent, articulate, characterful typewriter greeting lines.\n"
         "2. Avoid generic corporate or gym motivational clichés (do NOT use empty slogans like 'Start strong!', 'Midday boost!', 'Crush your goals!', or 'Wrap it up!').\n"
         f"3. Meaningful Line Depth & Complete Sentences: Every line MUST contain 6 to 12 words EXCLUDING the user's name '{user_name}'. Note that '{user_name}' contains {name_words} words ({len(user_name)} characters) which do NOT count towards the 6-to-12 word limit. Keep the total length around 45 to 100 characters (max 110 characters). Each line MUST be a single, complete, grammatically whole sentence ending with a full stop or exclamation mark (NEVER cut off mid-thought or mid-sentence).\n"
-        "4. Tone and Holistic Balance: DO NOT focus on programming, software engineering, git, or coding jargon. Frame lines for a balanced, cultured life: university coursework and study blocks, clear thinking, tackling personal projects, clearing daily errands, reading, and steady daily momentum.\n"
-        f"5. Time-of-Day Relevance (Mandatory): Every greeting line MUST specifically evoke and fit the current {diurnal_period} time window. Weave in natural, evocative references to this specific time of day (e.g., morning coffee/clarity/dawn energy, midday execution and sustained cadence, evening winding down/debriefing/twilight reflection, or wee hours solitary quiet/hyperfocus). DO NOT generate generic or universally time-neutral lines that could apply to any hour of the day.\n"
+        f"{task1_tone_rule}"
+        f"{task1_diurnal_rule}"
         "6. Strict Diurnal Consistency: Never mix contradictory times of day (no morning wake-up or dawn references in afternoon, evening, or wee hours; no evening wrap-up or bedtime references in morning or afternoon).\n"
-        "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone. Keep the greetings independently focused on personal momentum and craft.\n"
+        "7. DO NOT force puns or thematic tie-ins to the fun fact or historical milestone.\n"
         f"8. Name Mix: Mention {user_name} naturally in 1 or 2 lines only (using the EXACT full name '{user_name}' verbatim — NEVER abbreviate or drop any part of their name). The remaining lines should be universally addressed without their name, providing a balanced, natural mix.\n"
         "9. Strictly use British English spelling conventions throughout (e.g. prioritise, organise, customise, colour, behaviour).\n\n"
         f"{fact_task}\n"

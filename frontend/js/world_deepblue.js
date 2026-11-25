@@ -37,6 +37,10 @@ const WorldDeepBlue = {
   sonarRings: [],
   _lastW: 0,
   _lastH: 0,
+  _lastLevStunt: "",
+  _queuedLeviathan: null,
+
+  LEVIATHAN_STUNTS: ["roar", "body_roll", "hunt_shark", "two_playing"],
 
   DOCKING_SUB_STYLES: [
     "passenger_liner",
@@ -69,24 +73,24 @@ const WorldDeepBlue = {
   getScreenBudget(isNarrow) {
     return isNarrow
       ? {
-          maxMegafauna: 1,
-          maxPlayful: 1,
-          maxFishSchools: 1,
-          maxJellies: 1,
-          maxAnglers: 1,
-          maxSubs: 1,
-          maxROVs: 1,
-          maxDivers: 1
-        }
-      : {
           maxMegafauna: 2,
           maxPlayful: 1,
           maxFishSchools: 2,
           maxJellies: 2,
           maxAnglers: 1,
           maxSubs: 2,
+          maxROVs: 1,
+          maxDivers: 1
+        }
+      : {
+          maxMegafauna: 3,
+          maxPlayful: 2,
+          maxFishSchools: 3,
+          maxJellies: 3,
+          maxAnglers: 2,
+          maxSubs: 3,
           maxROVs: 2,
-          maxDivers: 2
+          maxDivers: 3
         };
   },
 
@@ -97,7 +101,7 @@ const WorldDeepBlue = {
       for (let i = 0; i < this.sharks.length; i++) if (this.sharks[i].active) n++;
       for (let i = 0; i < this.farLife.length; i++) if (this.farLife[i].kind === "manta" && this.farLife[i].active) n++;
       for (let i = 0; i < this.fgReefSharks.length; i++) if (this.fgReefSharks[i].active) n++;
-      if (this.leviathan && this.leviathan.phase === "swimming") n += 2;
+      if (this.leviathan && this.leviathan.phase === "swimming") n += 1;
       return n;
     }
     if (cat === "playful") {
@@ -356,6 +360,7 @@ const WorldDeepBlue = {
     this.elevator = null;
     this.rovs = [];
     this.sonarRings = [];
+    this._queuedLeviathan = null;
   },
 
   getPalette(mode) {
@@ -2639,18 +2644,26 @@ const WorldDeepBlue = {
       ];
     }
 
-    // 12. Rarer Colossal Abyssal Sea Leviathan (deep cooldown before rare cameo crossings)
+    // 12. Task-Complete-Only Colossal Abyssal Sea Leviathan (idle until completion trigger)
     if (!this.leviathan) {
       this.leviathan = {
         phase: "dormant_wait",
+        stunt: "roar",
         t: 0,
-        phaseDuration: this._rand(180.0, 320.0),
+        phaseDuration: 0,
         dir: 1,
         x: -360,
         y: h * 0.22,
-        speed: 22.0,
+        baseY: h * 0.22,
+        speed: 96.0,
         length: isNarrow ? 500 : 860,
-        swimPhase: 0
+        swimPhase: 0,
+        jawOpen: 0,
+        rollPhase: 0,
+        roarRings: [],
+        roarEmitted: 0,
+        preyShark: null,
+        partner: null
       };
     }
 
@@ -2709,12 +2722,72 @@ const WorldDeepBlue = {
     }
   },
 
+  spawnLeviathan(w, h, opts = {}) {
+    if (!w || !h) return;
+    if (this.leviathan && this.leviathan.phase === "swimming" && !opts.stunt && !opts.force) {
+      this._queuedLeviathan = { opts };
+      return;
+    }
+    const isNarrow = w < 720;
+    const pool = this.LEVIATHAN_STUNTS.filter(s => s !== this._lastLevStunt);
+    const chosenStunt = (opts.stunt && this.LEVIATHAN_STUNTS.includes(opts.stunt))
+      ? opts.stunt
+      : (pool[Math.floor(Math.random() * pool.length)] || "roar");
+    this._lastLevStunt = chosenStunt;
+
+    const dir = Math.random() < 0.55 ? 1 : -1;
+    const length = w < 720 ? 500 : 860;
+    const speed = isNarrow ? 68 : 108;
+    const startY = h * this._rand(0.18, 0.30);
+    const startX = dir > 0 ? (-length * 0.28) : (w + length * 0.28);
+
+    this.leviathan = {
+      phase: "swimming",
+      stunt: chosenStunt,
+      t: 0,
+      phaseDuration: (w + length * 1.8) / speed,
+      dir,
+      x: startX,
+      y: startY,
+      baseY: startY,
+      speed,
+      length,
+      swimPhase: 0,
+      jawOpen: 0,
+      rollPhase: 0,
+      roarRings: [],
+      roarEmitted: 0,
+      preyShark: chosenStunt === "hunt_shark"
+        ? {
+            x: dir > 0 ? w * 0.58 : w * 0.42,
+            y: startY + 8,
+            vx: dir * (isNarrow ? 18 : 26),
+            size: isNarrow ? 30 : 42,
+            phase: 0,
+            eaten: false
+          }
+        : null,
+      partner: chosenStunt === "two_playing"
+        ? {
+            lagX: dir * (isNarrow ? 75 : 130),
+            braidPhase: Math.PI,
+            length: length * 0.86,
+            swimPhase: 1.7
+          }
+        : null
+    };
+  },
+
   pulseActivity({ kind = "complete", x = null, y = null } = {}) {
     const w = this._lastW || window.innerWidth;
     const h = this._lastH || window.innerHeight;
     const rx = (typeof x === "number" && isFinite(x)) ? x : w * 0.5;
     const ry = (typeof y === "number" && isFinite(y)) ? y : h * 0.45;
     const isMajor = kind === "queue_clear" || kind === "finalise";
+
+    if (kind === "complete" || isMajor) {
+      this.spawnLeviathan(w, h, { isMajor });
+    }
 
     this.sonarRings.push({
       x: rx,
@@ -2808,6 +2881,11 @@ const WorldDeepBlue = {
     this._updateAndDrawSonarArray(ctx, L, pal, step);
     this._drawStationBeacons(ctx, L, pal, step);
     this._updateAndDrawSupplyElevator(ctx, L, pal, dt, step);
+
+    // 4b. Automatic Festive Holiday Additions (waterproof tube light strings, mini dome tree, lanterns, jack-o'-lanterns)
+    if (typeof HolidayThemes !== "undefined" && HolidayThemes.drawDeepBlueOverlay) {
+      HolidayThemes.drawDeepBlueOverlay(ctx, w, h, L, pal, mode, dt, step);
+    }
 
     // 5. To-Scale Human Maintenance & Shipwreck Research Divers Cycling In/Out of Airlocks!
     this._updateAndDrawDivers(ctx, L, pal, dt, step);
@@ -5248,99 +5326,112 @@ const WorldDeepBlue = {
     }
   },
 
-  // Infrequent Colossal Serpentine Sea Leviathan Swimming Deep in Distant Hazy Background
-  _updateAndDrawLeviathan(ctx, w, h, pal, dt, step) {
-    const lev = this.leviathan;
-    if (!lev) return;
-    lev.t += dt;
-
-    if (lev.phase === "dormant_wait") {
-      if (lev.t >= lev.phaseDuration) {
-        if (Math.random() < 0.35) {
-          lev.phaseDuration += this._rand(90.0, 160.0);
-          return;
-        }
-        lev.phase = "swimming";
-        lev.t = 0;
-        lev.dir = Math.random() < 0.5 ? 1 : -1;
-        lev.length = w < 720 ? 500 : 860;
-        lev.x = lev.dir > 0 ? (-lev.length * 0.35) : (w + lev.length * 0.35);
-        lev.y = h * this._rand(0.16, 0.32);
-        lev.speed = this._rand(21.0, 27.0);
-        lev.phaseDuration = (w + lev.length * 2.1) / lev.speed;
-      }
-      return;
-    }
-
-    lev.swimPhase += dt * 1.45;
-    lev.x += lev.dir * lev.speed * dt;
-    const bodyLen = lev.length;
+  // Task-Complete-Only Colossal Serpentine Sea Leviathan with 4 Special Stunt Animations
+  _drawLeviathanBody(ctx, cfg, pal, step) {
+    const bodyLen = cfg.bodyLen;
     const segs = 26;
     const maxRad = bodyLen > 600 ? 34 : 23;
-    const alpha = pal.isDark ? 0.44 : 0.45;
+    const jawOpen = cfg.jawOpen || 0;
+    const baseRoll = cfg.rollAngle || 0;
+    const rollWave = Boolean(cfg.rollWave);
+    const alpha = (pal.isDark ? 0.48 : 0.48) * (cfg.alphaMult == null ? 1 : cfg.alphaMult);
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    if (lev.dir < 0) {
-      ctx.translate(lev.x, lev.y);
+    if (cfg.dir < 0) {
+      ctx.translate(cfg.x, cfg.y);
       ctx.scale(-1, 1);
-      ctx.translate(-lev.x, -lev.y);
+      ctx.translate(-cfg.x, -cfg.y);
     }
 
-    // Build articulated sinuous spine from sculpted armored cranium to forked tail fluke
     const topPts = [];
     const midPts = [];
     const botPts = [];
+    const segCos = [];
     for (let i = 0; i <= segs; i++) {
       const f = i / segs;
-      const px = lev.x - f * bodyLen;
-      const py = lev.y + Math.sin(lev.swimPhase - f * 5.4) * (16 + f * 30);
+      const segRoll = rollWave ? (baseRoll - f * 1.45) : baseRoll;
+      const cr = Math.cos(segRoll);
+      segCos.push(cr);
+      const px = cfg.x - f * bodyLen;
+      const py = cfg.y + Math.sin(cfg.swimPhase - f * 5.4) * (16 + f * 30);
       let radius;
       if (f < 0.12) radius = maxRad * (0.52 + (f / 0.12) * 0.48);
       else radius = maxRad * Math.pow(1 - (f - 0.12) / 0.88, 0.78) * (1 + 0.15 * Math.sin(f * Math.PI * 3.5));
-      topPts.push({ x: px, y: py - radius * 0.92 });
-      midPts.push({ x: px, y: py + radius * 0.15 });
-      botPts.push({ x: px, y: py + radius });
+      topPts.push({ x: px, y: py - radius * 0.92 * cr });
+      midPts.push({ x: px, y: py + radius * 0.15 * cr });
+      botPts.push({ x: px, y: py + radius * cr });
     }
 
-    // Dual-tone ventral lighter pelagic counter-shading body silhouette
-    ctx.fillStyle = pal.reefFar;
+    // Ventral pelagic body silhouette (brighter light counter-shading)
+    ctx.fillStyle = cfg.isPartner ? pal.seabedLight : pal.reefFar;
     ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 24, midPts[0].y - 6);
+    ctx.moveTo(topPts[0].x + 24, midPts[0].y - 6 * (segCos[0] >= 0 ? 1 : -1));
     topPts.forEach(p => ctx.lineTo(p.x, p.y));
     for (let i = botPts.length - 1; i >= 0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
     ctx.closePath();
     ctx.fill();
 
-    // Sculpted darker armored dorsal carapace + articulated cranialbrow + lower mandible jaw
+    // Sculpted darker armored dorsal carapace
     ctx.fillStyle = pal.reefMid;
     ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5);
+    ctx.moveTo(topPts[0].x + 28, midPts[0].y - 5 * (segCos[0] >= 0 ? 1 : -1));
     topPts.forEach(p => ctx.lineTo(p.x, p.y));
     for (let i = midPts.length - 1; i >= 0; i--) ctx.lineTo(midPts[i].x, midPts[i].y);
     ctx.closePath();
     ctx.fill();
 
-    // Articulated armored lower mandible jaw beneath cranium
+    // Glowing maw/throat cavity + upper/lower teeth & hinged lower mandible when roaring or lunging
+    const jawDrop = jawOpen * 26;
+    if (jawOpen > 0.04) {
+      const glowG = ctx.createRadialGradient(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 1, topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22);
+      glowG.addColorStop(0, `rgba(${pal.jellyRgb}, ${(0.88 * jawOpen).toFixed(3)})`);
+      glowG.addColorStop(1, `rgba(${pal.jellyRgb}, 0)`);
+      ctx.fillStyle = glowG;
+      ctx.beginPath();
+      ctx.arc(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = pal.reefMid;
     ctx.beginPath();
-    ctx.moveTo(topPts[0].x + 20, midPts[0].y + 4);
-    ctx.lineTo(botPts[1].x + 4, botPts[1].y + 5);
+    ctx.moveTo(topPts[0].x + 20, midPts[0].y + 4 + jawDrop);
+    ctx.lineTo(botPts[1].x + 4, botPts[1].y + 5 + jawDrop * 0.72);
     ctx.lineTo(botPts[2].x, botPts[2].y);
     ctx.lineTo(midPts[1].x, midPts[1].y);
     ctx.closePath();
     ctx.fill();
 
-    // Giant Sweeping Manta Pectoral Wing Fin + Secondary Pelvic Fin
+    if (jawOpen > 0.12) {
+      ctx.fillStyle = "rgba(226, 232, 240, 0.78)";
+      for (let tIdx = 0; tIdx < 4; tIdx++) {
+        const tx = topPts[0].x + 16 - tIdx * 5;
+        ctx.beginPath();
+        ctx.moveTo(tx - 1.5, midPts[0].y - 1);
+        ctx.lineTo(tx, midPts[0].y + 5.5);
+        ctx.lineTo(tx + 1.5, midPts[0].y - 1);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(tx - 1.4, midPts[0].y + 4 + jawDrop * 0.9);
+        ctx.lineTo(tx, midPts[0].y - 1.5 + jawDrop * 0.9);
+        ctx.lineTo(tx + 1.4, midPts[0].y + 4 + jawDrop * 0.9);
+        ctx.fill();
+      }
+    }
+
+    // Giant Sweeping Manta Pectoral Wing Fin + Secondary Pelvic Fin (flip cleanly across roll angle)
+    const finFlip = segCos[5];
+    ctx.fillStyle = pal.reefMid;
     ctx.beginPath();
     ctx.moveTo(midPts[3].x, midPts[3].y);
-    ctx.quadraticCurveTo(midPts[6].x - 24, botPts[5].y + 62, midPts[9].x - 36, botPts[6].y + 28);
+    ctx.quadraticCurveTo(midPts[6].x - 24, botPts[5].y + 62 * finFlip, midPts[9].x - 36, botPts[6].y + 28 * finFlip);
     ctx.lineTo(midPts[7].x, midPts[5].y);
     ctx.closePath();
     ctx.fill();
 
     ctx.beginPath();
     ctx.moveTo(midPts[13].x, midPts[13].y);
-    ctx.quadraticCurveTo(midPts[15].x - 10, botPts[14].y + 32, midPts[17].x - 14, botPts[15].y + 14);
+    ctx.quadraticCurveTo(midPts[15].x - 10, botPts[14].y + 32 * segCos[14], midPts[17].x - 14, botPts[15].y + 14 * segCos[15]);
     ctx.lineTo(midPts[15].x, midPts[14].y);
     ctx.closePath();
     ctx.fill();
@@ -5349,7 +5440,7 @@ const WorldDeepBlue = {
     for (let i = 2; i < segs - 2; i++) {
       const p = topPts[i];
       const next = topPts[i + 1];
-      const finH = (1 - i / segs) * (maxRad * 0.85) + 4;
+      const finH = ((1 - i / segs) * (maxRad * 0.85) + 4) * segCos[i];
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x - 14, p.y - finH);
@@ -5373,24 +5464,168 @@ const WorldDeepBlue = {
       { dx: 1, dy: -8, r: 2.1 },
       { dx: -5, dy: -6, r: 1.6 }
     ].forEach((ey, ei) => {
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.78 - ei * 0.14).toFixed(2)})`;
+      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.82 - ei * 0.14).toFixed(2)})`;
       ctx.beginPath();
-      ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy, ey.r, 0, Math.PI * 2);
+      ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy * (segCos[0] >= 0 ? 1 : -1), ey.r, 0, Math.PI * 2);
       ctx.fill();
     });
     for (let i = 2; i < segs - 1; i++) {
       const wavePulse = 0.35 + 0.65 * Math.max(0, Math.sin(step * 4.2 - i * 0.48));
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.68).toFixed(3)})`;
+      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.72).toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(midPts[i].x, midPts[i].y - 3 * (1 - i / segs), (1 - i / segs) * 2.4 + 0.9, 0, Math.PI * 2);
+      ctx.arc(midPts[i].x, midPts[i].y - 3 * (1 - i / segs) * segCos[i], (1 - i / segs) * 2.4 + 0.9, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
+  },
 
-    if ((lev.dir > 0 && lev.x - bodyLen > w + 140) || (lev.dir < 0 && lev.x + bodyLen < -140)) {
-      lev.phase = "dormant_wait";
-      lev.t = 0;
-      lev.phaseDuration = this._rand(260.0, 440.0);
+  _updateAndDrawLeviathan(ctx, w, h, pal, dt, step) {
+    const lev = this.leviathan;
+    if (!lev || lev.phase === "dormant_wait") {
+      return;
+    }
+    lev.t += dt;
+    const progress = this._clamp(lev.t / Math.max(1, lev.phaseDuration || 10), 0, 1.5);
+    const bodyLen = lev.length;
+
+    let speedMult = 1.0;
+    let rollAngle = 0;
+    let rollWave = false;
+    let jawOpen = 0;
+
+    if (lev.stunt === "roar") {
+      const centerProx = 1 - Math.min(1, Math.abs(lev.x - w * 0.5) / Math.max(120, w * 0.24));
+      speedMult = 1 - centerProx * 0.72;
+      jawOpen = centerProx * 0.72;
+      if (centerProx > 0.35 && lev.roarEmitted < 4 && Math.floor(centerProx * 6) > lev.roarEmitted) {
+        lev.roarEmitted++;
+        lev.roarRings.push({ x: lev.x + lev.dir * 26, y: lev.y + 4, r: 8, maxR: bodyLen * 0.30, life: 0, maxLife: 1.4 });
+        for (let b = 0; b < 6; b++) {
+          this.bubbles.push({
+            x: lev.x + lev.dir * 24 + (Math.random() - 0.5) * 16,
+            y: lev.y + (Math.random() - 0.5) * 12,
+            r: 1.5 + Math.random() * 2.2,
+            vy: -(0.7 + Math.random() * 0.8),
+            wobble: Math.random() * 6,
+            alpha: 0.52
+          });
+        }
+      }
+    } else if (lev.stunt === "body_roll") {
+      rollWave = true;
+      const rollProg = this._clamp((progress - 0.16) / 0.62, 0, 1);
+      rollAngle = rollProg * Math.PI * 2;
+      speedMult = 1.06;
+    } else if (lev.stunt === "hunt_shark") {
+      const prey = lev.preyShark;
+      if (prey && !prey.eaten) {
+        const distX = (prey.x - lev.x) * lev.dir;
+        if (distX < 280 && distX > -12) {
+          speedMult = 1.65;
+          jawOpen = this._clamp(1 - Math.abs(distX) / 240, 0.25, 0.75);
+          prey.vx = lev.dir * 62;
+        }
+        prey.phase += dt * 9;
+        prey.x += prey.vx * dt;
+        prey.y = lev.baseY + Math.sin(prey.phase * 0.6) * 8;
+        if (Math.abs(prey.x - lev.x) < 28) {
+          prey.eaten = true;
+          lev.roarRings.push({ x: prey.x, y: prey.y, r: 6, maxR: 92, life: 0, maxLife: 1.0 });
+          for (let b = 0; b < 10; b++) {
+            this.bubbles.push({
+              x: prey.x + (Math.random() - 0.5) * 24,
+              y: prey.y + (Math.random() - 0.5) * 18,
+              r: 1.6 + Math.random() * 2.4,
+              vy: -(0.9 + Math.random() * 1.1),
+              wobble: Math.random() * 6,
+              alpha: 0.60
+            });
+          }
+        } else {
+          // Draw fleeing shark ahead of the lunging Leviathan
+          ctx.save();
+          ctx.globalAlpha = pal.isDark ? 0.52 : 0.62;
+          ctx.fillStyle = `rgba(${pal.farCreatureRgb}, 0.92)`;
+          ctx.translate(prey.x, prey.y);
+          if (prey.vx < 0) ctx.scale(-1, 1);
+          const sz = prey.size;
+          const tail = Math.sin(prey.phase) * sz * 0.12;
+          ctx.beginPath();
+          ctx.moveTo(sz * 0.52, 0);
+          ctx.quadraticCurveTo(sz * 0.15, -sz * 0.11, -sz * 0.05, -sz * 0.10);
+          ctx.lineTo(-sz * 0.12, -sz * 0.28);
+          ctx.lineTo(-sz * 0.20, -sz * 0.08);
+          ctx.lineTo(-sz * 0.48, tail - sz * 0.03);
+          ctx.lineTo(-sz * 0.65, tail * 1.3 - sz * 0.20);
+          ctx.lineTo(-sz * 0.52, tail);
+          ctx.lineTo(-sz * 0.60, tail * 1.2 + sz * 0.15);
+          ctx.lineTo(-sz * 0.48, tail + sz * 0.03);
+          ctx.quadraticCurveTo(sz * 0.10, sz * 0.11, sz * 0.52, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    lev.swimPhase += dt * (lev.stunt === "body_roll" ? 1.85 : 1.55);
+    lev.x += lev.dir * lev.speed * speedMult * dt;
+    lev.jawOpen = jawOpen;
+    lev.rollAngle = rollAngle;
+
+    if (lev.stunt === "two_playing" && lev.partner) {
+      const braid = lev.t * 1.35;
+      const yMain = lev.baseY + Math.sin(braid) * 28;
+      const yPartner = lev.baseY - Math.sin(braid) * 28;
+      lev.partner.swimPhase += dt * 1.65;
+      lev.y = yMain;
+      const mainFront = Math.cos(braid) >= 0;
+      const mainCfg = { x: lev.x, y: yMain, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen: 0, rollAngle: Math.sin(braid) * 0.28, rollWave: false };
+      const partCfg = { x: lev.x - lev.partner.lagX, y: yPartner, dir: lev.dir, bodyLen: lev.partner.length, swimPhase: lev.partner.swimPhase, jawOpen: 0, rollAngle: -Math.sin(braid) * 0.28, rollWave: false, isPartner: true, alphaMult: 0.90 };
+      if (mainFront) {
+        this._drawLeviathanBody(ctx, partCfg, pal, step);
+        this._drawLeviathanBody(ctx, mainCfg, pal, step);
+      } else {
+        this._drawLeviathanBody(ctx, mainCfg, pal, step);
+        this._drawLeviathanBody(ctx, partCfg, pal, step);
+      }
+    } else {
+      this._drawLeviathanBody(ctx, { x: lev.x, y: lev.y, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen, rollAngle, rollWave }, pal, step);
+    }
+
+    // Expanding Sonic Roar / Lunge Shockwave Rings
+    if (lev.roarRings && lev.roarRings.length > 0) {
+      const aliveRings = [];
+      ctx.save();
+      for (let i = 0; i < lev.roarRings.length; i++) {
+        const rr = lev.roarRings[i];
+        rr.life += dt;
+        if (rr.life >= rr.maxLife) continue;
+        aliveRings.push(rr);
+        const tf = rr.life / rr.maxLife;
+        const rad = rr.r + (rr.maxR - rr.r) * (1 - Math.pow(1 - tf, 2));
+        const a = (1 - tf) * 0.56;
+        ctx.strokeStyle = `rgba(${pal.jellyRgb}, ${a.toFixed(3)})`;
+        ctx.lineWidth = Math.max(0.8, 3.0 * (1 - tf));
+        ctx.beginPath();
+        ctx.arc(rr.x, rr.y, rad, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      lev.roarRings = aliveRings;
+    }
+
+    const fullyGone = lev.dir > 0 ? (lev.x - bodyLen * 1.25 > w + 140) : (lev.x + bodyLen * 1.25 < -140);
+    if (fullyGone) {
+      if (this._queuedLeviathan) {
+        const nextOpts = this._queuedLeviathan.opts || {};
+        this._queuedLeviathan = null;
+        this.spawnLeviathan(w, h, { ...nextOpts, force: true });
+      } else {
+        lev.phase = "dormant_wait";
+        lev.t = 0;
+        lev.roarRings = [];
+      }
     }
   },
 

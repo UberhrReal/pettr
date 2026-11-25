@@ -424,12 +424,29 @@ const App = {
     }
   },
 
+  WORLD_BACKDROP_DEFAULTS: {
+    nature: { blur: 0, dim: 0 },
+    gateway: { blur: 30, dim: 30 },
+    "deep-blue": { blur: 30, dim: 10 }
+  },
+
+  getWorldBackdropDefaults(world = null) {
+    const target = world || this.getWorld();
+    const valid = (target === "gateway" || target === "deep-blue") ? target : "nature";
+    return { ...this.WORLD_BACKDROP_DEFAULTS[valid] };
+  },
+
   setWorld(world, notify = true) {
     const valid = (world === "gateway" || world === "deep-blue") ? world : "nature";
     try {
       localStorage.setItem("pettr_theme_world", valid);
+      localStorage.removeItem(`pettr_world_blur_v13_${valid}`);
+      localStorage.removeItem(`pettr_world_dim_v13_${valid}`);
     } catch (_) {}
     this.applyEffectiveWorld(valid);
+    const defs = this.getWorldBackdropDefaults(valid);
+    this.setBackdropBlur(defs.blur, false);
+    this.setBackdropDim(defs.dim, false);
 
     if (notify) {
       const labels = {
@@ -541,22 +558,22 @@ const App = {
     }
   },
 
-  backdropBlur: 20,
+  backdropBlur: 0,
   backdropDim: 0,
-  backdropFrost: 20,
+  backdropFrost: 0,
 
-  initBackdropFrost() {
-    let savedBlur = 20;
-    let savedDim = 0;
+  initBackdropFrost(world = null) {
+    const activeWorld = world || this.getWorld();
+    const defs = this.getWorldBackdropDefaults(activeWorld);
+    let savedBlur = defs.blur;
+    let savedDim = defs.dim;
     try {
-      const rawBlur = localStorage.getItem("pettr_backdrop_blur");
-      const rawLegacy = localStorage.getItem("pettr_backdrop_frost") || localStorage.getItem("pettr_cockpit_backdrop");
-      const pickedBlur = (rawBlur !== null && rawBlur !== "") ? rawBlur : rawLegacy;
-      if (pickedBlur !== null && pickedBlur !== "") {
-        const parsedBlur = parseInt(pickedBlur, 10);
+      const rawBlur = localStorage.getItem(`pettr_world_blur_v13_${activeWorld}`);
+      if (rawBlur !== null && rawBlur !== "") {
+        const parsedBlur = parseInt(rawBlur, 10);
         if (!isNaN(parsedBlur)) savedBlur = parsedBlur;
       }
-      const rawDim = localStorage.getItem("pettr_backdrop_dim");
+      const rawDim = localStorage.getItem(`pettr_world_dim_v13_${activeWorld}`);
       if (rawDim !== null && rawDim !== "") {
         const parsedDim = parseInt(rawDim, 10);
         if (!isNaN(parsedDim)) savedDim = parsedDim;
@@ -567,12 +584,15 @@ const App = {
   },
 
   setBackdropBlur(val, persist = true) {
-    const raw = (val === undefined || val === null || val === "") ? 20 : Number(val);
-    const pct = Math.max(0, Math.min(100, Math.round(isNaN(raw) ? 20 : raw)));
+    const defs = this.getWorldBackdropDefaults();
+    const raw = (val === undefined || val === null || val === "") ? defs.blur : Number(val);
+    const pct = Math.max(0, Math.min(100, Math.round(isNaN(raw) ? defs.blur : raw)));
     this.backdropBlur = pct;
     this.backdropFrost = pct;
     if (persist) {
+      const activeWorld = this.getWorld();
       try {
+        localStorage.setItem(`pettr_world_blur_v13_${activeWorld}`, String(pct));
         localStorage.setItem("pettr_backdrop_blur", String(pct));
         localStorage.setItem("pettr_backdrop_frost", String(pct));
       } catch (_) {}
@@ -596,11 +616,14 @@ const App = {
   },
 
   setBackdropDim(val, persist = true) {
-    const raw = (val === undefined || val === null || val === "") ? 0 : Number(val);
-    const pct = Math.max(0, Math.min(100, Math.round(isNaN(raw) ? 0 : raw)));
+    const defs = this.getWorldBackdropDefaults();
+    const raw = (val === undefined || val === null || val === "") ? defs.dim : Number(val);
+    const pct = Math.max(0, Math.min(100, Math.round(isNaN(raw) ? defs.dim : raw)));
     this.backdropDim = pct;
     if (persist) {
+      const activeWorld = this.getWorld();
       try {
+        localStorage.setItem(`pettr_world_dim_v13_${activeWorld}`, String(pct));
         localStorage.setItem("pettr_backdrop_dim", String(pct));
       } catch (_) {}
     }

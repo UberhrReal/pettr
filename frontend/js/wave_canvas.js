@@ -38,6 +38,10 @@ const WaveCanvas = {
   // v11.2 Activity-Reactive Atmospheric Ripples & Glow Boost
   ripples: [],
   auroraBoost: 0,
+  // v13.0 Playful Nature Wildlife Crossings (on task completion)
+  NATURE_ANIMALS: ["rabbit", "deer", "pangolin", "panda", "crocodile", "okapi"],
+  wildlifeCrossings: [],
+  _lastNatureAnimal: "",
 
   getThemeMode() {
     const docTheme = document.documentElement.getAttribute("data-theme");
@@ -668,6 +672,12 @@ const WaveCanvas = {
       this.updateAndDrawDayBirds(ctx, w, h);
     }
 
+    // 5b. Playful Nature Task-Complete Wildlife Crossings & Festive Holiday Additions
+    this._updateAndDrawWildlife(ctx, w, h, mode, dt);
+    if (typeof HolidayThemes !== "undefined" && HolidayThemes.drawNatureOverlay) {
+      HolidayThemes.drawNatureOverlay(ctx, w, h, mode, dt, this.step);
+    }
+
     // 6. Activity-Reactive Atmospheric Light Ripples (all themes)
     this.updateAndDrawActivityRipples(ctx, w, h, mode);
   },
@@ -1169,6 +1179,11 @@ const WaveCanvas = {
       return;
     }
 
+    // 1b. Playful Nature Wildlife Crossing
+    if (kind === "complete" || isMajor) {
+      this.spawnNatureAnimal(w, h);
+    }
+
     // 2. Theme-authentic reactive atmospheric phenomenon (Nature)
     if (mode === "dark") {
       this.auroraBoost = Math.min(1.4, this.auroraBoost + (isMajor ? 0.95 : 0.55));
@@ -1262,6 +1277,509 @@ const WaveCanvas = {
 
     ctx.restore();
     this.ripples = alive;
+  },
+
+  spawnNatureAnimal(w, h, opts = {}) {
+    if (!w || !h) return;
+    if (this.wildlifeCrossings.length >= 2) {
+      this.wildlifeCrossings.shift();
+    }
+    const isNarrow = w < 720;
+    const pool = this.NATURE_ANIMALS.filter(a => a !== this._lastNatureAnimal);
+    const species = (opts.animal && this.NATURE_ANIMALS.includes(opts.animal))
+      ? opts.animal
+      : (pool[Math.floor(Math.random() * pool.length)] || "rabbit");
+    this._lastNatureAnimal = species;
+
+    const dir = Math.random() < 0.65 ? 1 : -1;
+    const baseSpeed = isNarrow ? 92 : 148;
+    const speed = species === "rabbit" ? baseSpeed * 1.15 : (species === "deer" ? baseSpeed * 1.25 : (species === "crocodile" ? baseSpeed * 0.85 : baseSpeed));
+    const baseY = h * (0.74 + Math.random() * 0.06);
+    const pauseX = w * (0.44 + Math.random() * 0.12);
+
+    this.wildlifeCrossings.push({
+      species,
+      dir,
+      x: dir > 0 ? -75 : (w + 75),
+      y: baseY,
+      baseY,
+      pauseX,
+      pauseDuration: 2.35,
+      pauseTimer: 0,
+      phase: "enter",
+      gaitPhase: 0,
+      scale: isNarrow ? 0.84 : 1.08,
+      stepDust: []
+    });
+  },
+
+  _drawNatureAnimal(ctx, cr, pal, mode) {
+    const s = cr.species;
+    const isPause = cr.phase === "pause_action";
+    const pauseFrac = isPause ? (cr.pauseTimer / Math.max(0.1, cr.pauseDuration)) : 0;
+    const stride = cr.phase === "pause_action" ? 0 : Math.sin(cr.gaitPhase * 5.2);
+    const strideOpp = cr.phase === "pause_action" ? 0 : Math.cos(cr.gaitPhase * 5.2);
+    const isNightRim = mode === "dark";
+
+    ctx.save();
+    ctx.translate(cr.x, cr.y);
+    // Subtle ground contact shadow matching elevated contour plane
+    ctx.fillStyle = pal.shadow;
+    ctx.beginPath();
+    ctx.ellipse(0, 12 * cr.scale, 18 * cr.scale, 4.5 * cr.scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (cr.dir < 0) ctx.scale(-1, 1);
+    ctx.scale(cr.scale, cr.scale);
+    if (isNightRim) {
+      ctx.strokeStyle = "rgba(186, 230, 253, 0.35)";
+      ctx.lineWidth = 1.0;
+    }
+
+    if (s === "rabbit") {
+      const hopArc = isPause
+        ? (pauseFrac > 0.62 && pauseFrac < 0.84 ? Math.sin(((pauseFrac - 0.62) / 0.22) * Math.PI) * 18 : 0)
+        : Math.abs(Math.sin(cr.gaitPhase * 4.5)) * 16;
+      ctx.translate(0, -hopArc);
+      const sitRot = isPause ? -0.35 * Math.sin(Math.min(1, pauseFrac * 3) * Math.PI * 0.5) : Math.cos(cr.gaitPhase * 4.5) * 0.14;
+      ctx.rotate(sitRot);
+      // Cotton puff tail
+      ctx.fillStyle = pal.cream;
+      ctx.beginPath();
+      ctx.arc(-11, 2, 4.0, 0, Math.PI * 2);
+      ctx.fill();
+      // Plump body & hind leg kick
+      ctx.fillStyle = pal.rabbitBody;
+      ctx.beginPath();
+      ctx.ellipse(-1, 2, 11.5, 7.8, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+      if (isNightRim) ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(-6, 7 + Math.max(0, stride) * 2.5, 5.2, 3.2, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Rounded head & twin articulated long ears
+      ctx.beginPath();
+      ctx.arc(9.5, -2.5, 5.8, 0, Math.PI * 2);
+      ctx.fill();
+      const earWiggle = isPause ? Math.sin(pauseFrac * 18) * 0.24 : 0.08;
+      [-0.35 + earWiggle, -0.12 - earWiggle * 0.7].forEach((ang, ei) => {
+        ctx.save();
+        ctx.translate(8 - ei * 1.5, -6.8);
+        ctx.rotate(ang);
+        ctx.fillStyle = pal.rabbitBody;
+        ctx.beginPath();
+        ctx.ellipse(0, -6.5, 2.1, 7.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.pink;
+        ctx.beginPath();
+        ctx.ellipse(0, -6.2, 1.0, 4.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      // Nose & eye
+      ctx.fillStyle = pal.eye;
+      ctx.beginPath();
+      ctx.arc(11.6, -3.4, 1.0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = pal.pink;
+      ctx.beginPath();
+      ctx.arc(15.0 + (isPause ? Math.sin(pauseFrac * 24) * 0.5 : 0), -1.8, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (s === "deer") {
+      const boundY = isPause ? 0 : Math.abs(Math.sin(cr.gaitPhase * 4.2)) * 9;
+      ctx.translate(0, -boundY);
+      // Slender animated legs
+      ctx.strokeStyle = pal.deerBody;
+      ctx.lineWidth = 2.2;
+      [
+        [-9, 3, -9 - stride * 5, 13],
+        [-6, 3, -6 + strideOpp * 5, 13],
+        [7, 3, 7 + stride * 6, 13],
+        [10, 3, 10 - strideOpp * 5, 13]
+      ].forEach(([x0, y0, x1, y1]) => {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      });
+      // Upturned white tail
+      ctx.fillStyle = pal.cream;
+      ctx.beginPath();
+      ctx.ellipse(-13.5, -1, 3.0, 2.0, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Graceful fawn torso & pale belly
+      ctx.fillStyle = pal.deerBody;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 12.8, 6.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (isNightRim) ctx.stroke();
+      ctx.fillStyle = pal.cream;
+      ctx.beginPath();
+      ctx.ellipse(1, 3.2, 9.5, 2.8, 0, 0, Math.PI);
+      ctx.fill();
+      // Neck & head bowing playfully to nibble flower/shoot during pause
+      const grazeBend = isPause ? Math.sin(Math.min(1, pauseFrac * 2.2) * Math.PI) * 0.72 : 0;
+      ctx.save();
+      ctx.translate(9, -2);
+      ctx.rotate(grazeBend);
+      ctx.fillStyle = pal.deerBody;
+      ctx.beginPath();
+      ctx.moveTo(-2, 2);
+      ctx.lineTo(3.5, -11);
+      ctx.lineTo(7.5, -10);
+      ctx.lineTo(3, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(7.5, -11, 5.2, 3.0, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Branching antlers
+      ctx.strokeStyle = pal.antler;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(5, -13);
+      ctx.lineTo(2, -23);
+      ctx.lineTo(-1, -26);
+      ctx.moveTo(3, -18);
+      ctx.lineTo(7, -23);
+      ctx.stroke();
+      ctx.fillStyle = pal.eye;
+      ctx.beginPath();
+      ctx.arc(9.5, -11.6, 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      if (isPause) {
+        ctx.fillStyle = pal.flower;
+        ctx.beginPath();
+        ctx.arc(22, 10, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (s === "pangolin") {
+      const curlBlend = isPause ? Math.sin(Math.min(1, pauseFrac * 1.15) * Math.PI) : 0;
+      if (curlBlend > 0.35) {
+        // Curled scaly armored ball playfully rolling forward-and-back!
+        const r = 10.5 * (0.85 + 0.15 * curlBlend);
+        ctx.save();
+        ctx.translate(Math.sin(pauseFrac * Math.PI * 3) * 8, 3);
+        ctx.rotate(Math.sin(pauseFrac * Math.PI * 3) * 1.4);
+        ctx.fillStyle = pal.pangolinBody;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = pal.pangolinScale;
+        ctx.lineWidth = 1.15;
+        for (let a = 0; a < 6; a++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r * (0.42 + (a % 2) * 0.28), a * 1.04, a * 1.04 + 0.85);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else {
+        // Walking armored anteater silhouette with tapered scaled tail & conical snout
+        ctx.strokeStyle = pal.pangolinScale;
+        ctx.lineWidth = 2.6;
+        [[ -4, 4, -4 + stride * 3.5, 11], [6, 4, 6 - stride * 3.5, 11]].forEach(([x0, y0, x1, y1]) => {
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        });
+        ctx.fillStyle = pal.pangolinBody;
+        ctx.beginPath();
+        ctx.moveTo(-22, 6);
+        ctx.quadraticCurveTo(-8, -7, 4, -6);
+        ctx.quadraticCurveTo(13, -4, 18, 2);
+        ctx.lineTo(13, 5.5);
+        ctx.quadraticCurveTo(2, 7.5, -14, 7.5);
+        ctx.closePath();
+        ctx.fill();
+        if (isNightRim) ctx.stroke();
+        // Scalloped diamond armor scales
+        ctx.strokeStyle = pal.pangolinScale;
+        ctx.lineWidth = 0.9;
+        for (let bx = -10; bx <= 6; bx += 4.2) {
+          ctx.beginPath();
+          ctx.arc(bx, 0, 2.6, Math.PI * 1.15, Math.PI * 1.9);
+          ctx.stroke();
+        }
+        ctx.fillStyle = pal.eye;
+        ctx.beginPath();
+        ctx.arc(13.5, 0.2, 0.85, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (s === "panda") {
+      if (isPause) {
+        // Plump panda sitting happily & munching fresh green bamboo stalk!
+        const chew = Math.sin(pauseFrac * 22);
+        ctx.fillStyle = pal.cream;
+        ctx.beginPath();
+        ctx.ellipse(-1, 4, 11, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.darkFur;
+        ctx.beginPath();
+        ctx.ellipse(-8, 10, 4.5, 3.2, -0.3, 0, Math.PI * 2);
+        ctx.ellipse(8, 10, 4.5, 3.2, 0.3, 0, Math.PI * 2);
+        ctx.ellipse(6, 2, 5.5, 2.8, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        // Bamboo stalk in paws
+        ctx.strokeStyle = pal.bamboo;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(11, 10);
+        ctx.lineTo(13, -11);
+        ctx.stroke();
+        ctx.fillStyle = pal.bamboo;
+        ctx.beginPath();
+        ctx.ellipse(15.5, -9, 3.4, 1.3, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        // Round panda head + black ears & eye patches nodding smoothly
+        ctx.save();
+        ctx.translate(1, -6.5 + chew * 0.6);
+        ctx.fillStyle = pal.cream;
+        ctx.beginPath();
+        ctx.arc(0, 0, 6.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.darkFur;
+        ctx.beginPath();
+        ctx.arc(-5, -5.5, 2.5, 0, Math.PI * 2);
+        ctx.arc(4.8, -5.5, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(2.6, -1.2, 1.9, 1.4, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(3.0, -1.3, 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        const waddle = Math.sin(cr.gaitPhase * 4.5) * 1.4;
+        ctx.translate(0, Math.abs(waddle) * 0.8);
+        ctx.fillStyle = pal.darkFur;
+        [[-8, 9 - stride * 2.5], [7, 9 + stride * 2.5]].forEach(([lx, ly]) => {
+          ctx.beginPath();
+          ctx.roundRect(lx - 2.6, 2, 5.2, Math.max(4, ly - 1), 2);
+          ctx.fill();
+        });
+        ctx.fillStyle = pal.cream;
+        ctx.beginPath();
+        ctx.ellipse(-1, 2, 12.5, 7.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (isNightRim) ctx.stroke();
+        ctx.fillStyle = pal.darkFur;
+        ctx.fillRect(3, -5, 5.2, 10.5);
+        // Head
+        ctx.fillStyle = pal.cream;
+        ctx.beginPath();
+        ctx.arc(10.5, -1.5, 6.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.darkFur;
+        ctx.beginPath();
+        ctx.arc(7.5, -6.5, 2.2, 0, Math.PI * 2);
+        ctx.arc(13.0, -6.0, 2.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(12.8, -2.0, 1.7, 1.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (s === "crocodile") {
+      const sway = isPause ? 0 : Math.sin(cr.gaitPhase * 4.5) * 3.0;
+      // Sturdy short crawling legs
+      ctx.strokeStyle = pal.crocDark;
+      ctx.lineWidth = 2.6;
+      [[-8, 6, -10 - stride * 3, 12], [7, 6, 9 + stride * 3, 12]].forEach(([x0, y0, x1, y1]) => {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      });
+      // Serrated long sweeping tail + armored scaly torso
+      ctx.fillStyle = pal.crocBody;
+      ctx.beginPath();
+      ctx.moveTo(-29, 7 + sway);
+      ctx.quadraticCurveTo(-18, 1 + sway * 0.5, -10, 1.5);
+      ctx.quadraticCurveTo(0, 0.5, 9, 2.5);
+      ctx.lineTo(9, 8.2);
+      ctx.quadraticCurveTo(-8, 9.2, -29, 7 + sway);
+      ctx.closePath();
+      ctx.fill();
+      if (isNightRim) ctx.stroke();
+      // Dorsal scute osteoderms
+      ctx.fillStyle = pal.crocDark;
+      for (let rx = -18; rx <= 5; rx += 4.5) {
+        ctx.beginPath();
+        ctx.moveTo(rx - 1.5, 2);
+        ctx.lineTo(rx, -0.5);
+        ctx.lineTo(rx + 1.5, 2);
+        ctx.fill();
+      }
+      // Snout jaws opening wide into playful yawn/snap during mid-screen pause!
+      const yaw = isPause ? Math.max(0, Math.sin(pauseFrac * Math.PI * 2.2)) * 0.52 : 0.04;
+      ctx.save();
+      ctx.translate(9, 5.5);
+      // Lower mandible
+      ctx.fillStyle = pal.crocBody;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(13, 0.5);
+      ctx.lineTo(12, 3.0);
+      ctx.lineTo(0, 2.8);
+      ctx.closePath();
+      ctx.fill();
+      // Upper snout rotating open
+      ctx.rotate(-yaw);
+      ctx.beginPath();
+      ctx.moveTo(-1, 0);
+      ctx.lineTo(3, -3.5);
+      ctx.lineTo(13.5, -1.6);
+      ctx.lineTo(14, 0.4);
+      ctx.closePath();
+      ctx.fill();
+      if (yaw > 0.14) {
+        ctx.fillStyle = "#F8FAFC";
+        for (let tx = 4; tx <= 12; tx += 3) {
+          ctx.beginPath();
+          ctx.moveTo(tx - 0.8, 0.2);
+          ctx.lineTo(tx, 2.1);
+          ctx.lineTo(tx + 0.8, 0.2);
+          ctx.fill();
+        }
+      }
+      ctx.fillStyle = pal.eye;
+      ctx.beginPath();
+      ctx.arc(3.5, -2.1, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else if (s === "okapi") {
+      const boundY = isPause ? 0 : Math.abs(Math.sin(cr.gaitPhase * 4.0)) * 5;
+      ctx.translate(0, -boundY);
+      // Zebra-striped white/dark slender lower legs
+      ctx.strokeStyle = pal.cream;
+      ctx.lineWidth = 2.3;
+      [
+        [-9, 3, -9 - stride * 5, 13],
+        [-6, 3, -6 + strideOpp * 5, 13],
+        [7, 3, 7 + stride * 5, 13],
+        [10, 3, 10 - strideOpp * 5, 13]
+      ].forEach(([x0, y0, x1, y1]) => {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      });
+      // Rich dark mahogany coat + crisp horizontal zebra thigh stripes
+      ctx.fillStyle = pal.okapiBody;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 12.8, 6.2, -0.08, 0, Math.PI * 2);
+      ctx.fill();
+      if (isNightRim) ctx.stroke();
+      ctx.strokeStyle = pal.cream;
+      ctx.lineWidth = 1.3;
+      [-2.0, 0.5, 3.0].forEach(sy => {
+        ctx.beginPath();
+        ctx.moveTo(-12.5, sy);
+        ctx.lineTo(-5.5, sy + 1.0);
+        ctx.stroke();
+      });
+      // Upright graceful sloped neck + pale face + ossicones + playful blue tongue stretching to leaf during pause!
+      const reachAngle = isPause ? Math.sin(pauseFrac * Math.PI) * 0.26 : 0;
+      ctx.save();
+      ctx.translate(9, -2);
+      ctx.rotate(reachAngle);
+      ctx.fillStyle = pal.okapiBody;
+      ctx.beginPath();
+      ctx.moveTo(-2, 2);
+      ctx.lineTo(4.2, -13);
+      ctx.lineTo(8.5, -12);
+      ctx.lineTo(3.5, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = pal.cream;
+      ctx.beginPath();
+      ctx.ellipse(8.5, -13, 5.2, 2.7, 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      // Ears & short furred ossicones
+      ctx.fillStyle = pal.okapiBody;
+      ctx.beginPath();
+      ctx.moveTo(6, -15);
+      ctx.lineTo(5, -19.5);
+      ctx.lineTo(7, -19.0);
+      ctx.closePath();
+      ctx.fill();
+      if (isPause && pauseFrac > 0.22 && pauseFrac < 0.80) {
+        const tLen = Math.sin(((pauseFrac - 0.22) / 0.58) * Math.PI) * 7.5;
+        ctx.strokeStyle = "#1E3A8A";
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(13.2, -12.0);
+        ctx.quadraticCurveTo(13.2 + tLen * 0.6, -13.5, 13.2 + tLen, -10.5);
+        ctx.stroke();
+        ctx.fillStyle = pal.bamboo;
+        ctx.beginPath();
+        ctx.ellipse(15.5 + tLen * 0.5, -11.5, 2.6, 1.2, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = pal.eye;
+      ctx.beginPath();
+      ctx.arc(9.8, -13.5, 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  },
+
+  _updateAndDrawWildlife(ctx, w, h, mode, dt) {
+    if (!this.wildlifeCrossings || this.wildlifeCrossings.length === 0) return;
+    const isDark = mode === "dark" || mode === "evening";
+    const pal = {
+      shadow: isDark ? "rgba(0, 0, 0, 0.34)" : "rgba(15, 23, 42, 0.14)",
+      rabbitBody: isDark ? "#CBD5E1" : "#94A3B8",
+      deerBody: isDark ? "#D97706" : "#B45309",
+      pangolinBody: isDark ? "#92400E" : "#78350F",
+      pangolinScale: isDark ? "#F59E0B" : "#B45309",
+      darkFur: "#0F172A",
+      crocBody: isDark ? "#15803D" : "#166534",
+      crocDark: isDark ? "#14532D" : "#052E16",
+      okapiBody: isDark ? "#7C2D12" : "#581C1C",
+      cream: "#F8FAFC",
+      pink: "#F472B6",
+      bamboo: "#22C55E",
+      flower: "#FBBF24",
+      antler: isDark ? "#FDE68A" : "#78350F",
+      eye: "#020617"
+    };
+
+    const alive = [];
+    for (let i = 0; i < this.wildlifeCrossings.length; i++) {
+      const cr = this.wildlifeCrossings[i];
+      const baseSpeed = w < 720 ? 92 : 148;
+      const spd = cr.species === "rabbit" ? baseSpeed * 1.15 : (cr.species === "deer" ? baseSpeed * 1.25 : (cr.species === "crocodile" ? baseSpeed * 0.85 : baseSpeed));
+
+      if (cr.phase === "enter") {
+        cr.x += cr.dir * spd * dt;
+        cr.gaitPhase += dt * 3.0;
+        if ((cr.dir > 0 && cr.x >= cr.pauseX) || (cr.dir < 0 && cr.x <= cr.pauseX)) {
+          cr.x = cr.pauseX;
+          cr.phase = "pause_action";
+          cr.pauseTimer = 0;
+        }
+      } else if (cr.phase === "pause_action") {
+        cr.pauseTimer += dt;
+        if (cr.pauseTimer >= cr.pauseDuration) {
+          cr.phase = "exit";
+        }
+      } else {
+        cr.x += cr.dir * spd * dt;
+        cr.gaitPhase += dt * 3.1;
+      }
+
+      if ((cr.dir > 0 && cr.x > w + 95) || (cr.dir < 0 && cr.x < -95)) {
+        continue;
+      }
+      this._drawNatureAnimal(ctx, cr, pal, mode);
+      alive.push(cr);
+    }
+    this.wildlifeCrossings = alive;
   }
 };
 

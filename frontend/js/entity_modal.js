@@ -492,6 +492,7 @@ const EntityModal = {
     }
 
     const rawStatus = document.getElementById("entityModalStatus").value;
+    const wasCompleted = Boolean(this.currentEntity && this.currentEntity.status === "completed");
     let status = rawStatus;
     if (toType === "event") {
       status = (rawStatus === "completed") ? "completed" : "scheduled";
@@ -580,6 +581,15 @@ const EntityModal = {
         }
         App.showToast("Changes saved successfully!");
         this.close();
+        if (status === "completed" && !wasCompleted) {
+          const cx = window.innerWidth * 0.5;
+          const cy = window.innerHeight * 0.35;
+          if (typeof TactileFX !== "undefined") {
+            TactileFX.onItemToggle({ completed: true, x: cx, y: cy });
+          } else if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+            WaveCanvas.pulseActivity({ kind: "complete", x: cx, y: cy });
+          }
+        }
         if (typeof Dashboard !== "undefined") {
           await Dashboard.refresh();
           const unorgModal = document.getElementById("unorganizedModal");

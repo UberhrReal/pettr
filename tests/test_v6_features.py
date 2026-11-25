@@ -3838,11 +3838,11 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert "</i> Trivial</button>" in index_html
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
-    # Static cache-busters bumped to v12.6
-    assert "pettr.css?v=12.9" in index_html
-    assert "dashboard.js?v=12.9" in index_html
-    assert "entity_modal.js?v=12.9" in index_html
-    assert "app.js?v=12.9" in index_html
+    # Static cache-busters bumped to v13.0
+    assert "pettr.css?v=13.0" in index_html
+    assert "dashboard.js?v=13.0" in index_html
+    assert "entity_modal.js?v=13.0" in index_html
+    assert "app.js?v=13.0" in index_html
 
 
 def test_v10_5_refinements():
@@ -3897,8 +3897,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=12.9" in index_html
-    assert "timeline.js?v=12.9" in index_html
+    assert "history.js?v=13.0" in index_html
+    assert "timeline.js?v=13.0" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4028,10 +4028,10 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
-    # Cache busters bumped to v12.6
-    assert "pettr.css?v=12.9" in index_html
-    assert "dashboard.js?v=12.9" in index_html
-    assert "notes.js?v=12.9" in index_html
+    # Cache busters bumped to v13.0
+    assert "pettr.css?v=13.0" in index_html
+    assert "dashboard.js?v=13.0" in index_html
+    assert "notes.js?v=13.0" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4202,7 +4202,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=12.9"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=13.0"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4267,8 +4267,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=12.9"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=12.9"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=13.0"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=13.0"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4382,8 +4382,8 @@ def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6 across CSS & JS assets
-    assert '/static/css/pettr.css?v=12.9' in index_html
-    for asset in ["app.js?v=12.9", "focus_cockpit.js?v=12.9", "world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
+    assert '/static/css/pettr.css?v=13.0' in index_html
+    for asset in ["app.js?v=13.0", "focus_cockpit.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Universal Backdrop Frost moved to Theme Configuration Panel
@@ -4503,8 +4503,8 @@ def test_v12_4_scenic_worlds_overhaul_theme_harmony_and_mobile():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6 across CSS & all world/app assets
-    assert '/static/css/pettr.css?v=12.9' in index_html
-    for asset in ["app.js?v=12.9", "wave_canvas.js?v=12.9", "world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
+    assert '/static/css/pettr.css?v=13.0' in index_html
+    for asset in ["app.js?v=13.0", "wave_canvas.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. Gateway v12.4 scenic realism, infrastructure, scale, military/liner craft & offshore F9 pad
@@ -4576,8 +4576,8 @@ def test_v12_5_gateway_infrastructure_container_ships_and_deepblue_design():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6
-    assert '/static/css/pettr.css?v=12.9' in index_html
-    for asset in ["world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
+    assert '/static/css/pettr.css?v=13.0' in index_html
+    for asset in ["world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. Gateway v12.5 upgrades
@@ -4616,8 +4616,8 @@ def test_v12_6_gateway_fh_megaliner_deepblue_hex_leviathan_and_ui_streamlining()
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6 across all assets
-    assert '/static/css/pettr.css?v=12.9' in index_html
-    for asset in ["app.js?v=12.9", "focus_cockpit.js?v=12.9", "world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
+    assert '/static/css/pettr.css?v=13.0' in index_html
+    for asset in ["app.js?v=13.0", "focus_cockpit.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. UI streamlining: Theme, Dawn, Blur (20%) & Dim (0%) split, heavier drawer blur, draggable Cockpit & recentre
@@ -4633,7 +4633,7 @@ def test_v12_6_gateway_fh_megaliner_deepblue_hex_leviathan_and_ui_streamlining()
     assert 'id="cockpitRecentreBtn"' in index_html
     assert 'FocusCockpit.recentre()' in index_html
 
-    for token in ["setBackdropBlur(", "setBackdropDim(", "backdropBlur: 20", "backdropDim: 0", '"Dawn"']:
+    for token in ["setBackdropBlur(", "setBackdropDim(", "WORLD_BACKDROP_DEFAULTS", "backdropDim: 0", '"Dawn"']:
         assert token in app_js, f"Missing app.js v12.6 token: {token}"
     assert "initDraggable(" in cockpit_js and "recentre(" in cockpit_js
     assert "blur(44px)" in css and ".cockpit-drag-handle" in css and ".cockpit-recentre-btn.is-dragged" in css
@@ -4677,8 +4677,8 @@ def test_v12_7_gateway_perspectives_deluge_rail_megaliner_and_deepblue_wildlife_
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.7 across index.html
-    assert '/static/css/pettr.css?v=12.9' in index_html
-    for asset in ["app.js?v=12.9", "focus_cockpit.js?v=12.9", "world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
+    assert '/static/css/pettr.css?v=13.0' in index_html
+    for asset in ["app.js?v=13.0", "focus_cockpit.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
         assert asset in index_html, f"Missing v12.7 cache-buster for {asset}"
 
     # 2. Gateway v12.7 Tokens
@@ -4725,8 +4725,8 @@ def test_v12_8_gateway_polish_heavy_heli_and_deepblue_shipwreck_expansion():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    assert '/static/css/pettr.css?v=12.9' in index_html
-    for asset in ["app.js?v=12.9", "focus_cockpit.js?v=12.9", "world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
+    assert '/static/css/pettr.css?v=13.0' in index_html
+    for asset in ["app.js?v=13.0", "focus_cockpit.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
         assert asset in index_html, f"Missing v12.8 cache-buster for {asset}"
 
     for token in [
@@ -4761,9 +4761,9 @@ def test_v12_9_gateway_flyover_bridge_chinook_deepblue_director_wreck_subs_mobil
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    assert "/static/css/pettr.css?v=12.9" in index_html
-    for asset in ["app.js?v=12.9", "focus_cockpit.js?v=12.9", "world_gateway.js?v=12.9", "world_deepblue.js?v=12.9"]:
-        assert asset in index_html, f"Missing v12.9 cache-buster for {asset}"
+    assert "/static/css/pettr.css?v=13.0" in index_html
+    for asset in ["app.js?v=13.0", "focus_cockpit.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0"]:
+        assert asset in index_html, f"Missing v13.0 cache-buster for {asset}"
 
     # Focus Cockpit triggers world pulse on completeCurrentTask
     cockpit_complete = cockpit_js[cockpit_js.index("async completeCurrentTask("):cockpit_js.index("async fetchWeeklyMetrics(")]
@@ -4782,7 +4782,7 @@ def test_v12_9_gateway_flyover_bridge_chinook_deepblue_director_wreck_subs_mobil
     ]:
         assert token in gateway_js, f"Missing Gateway v12.9 token: {token}"
 
-    # Deep Blue v12.9 tokens & single-blink strobe + zero-stilt assertion
+    # Deep Blue v12.9 tokens & single-blink strobe + zero-stilt assertion (Leviathan upgraded to task-complete spawn in v13.0)
     assert "_drawPylonLeg" not in deepblue_js
     for token in [
         "DOCKING_SUB_STYLES",
@@ -4795,7 +4795,7 @@ def test_v12_9_gateway_flyover_bridge_chinook_deepblue_director_wreck_subs_mobil
         '"photo"',
         '"sample"',
         '"survey"',
-        "180.0",
+        "spawnLeviathan(",
     ]:
         assert token in deepblue_js, f"Missing Deep Blue v12.9 token: {token}"
 
@@ -4803,6 +4803,117 @@ def test_v12_9_gateway_flyover_bridge_chinook_deepblue_director_wreck_subs_mobil
     beacon_end = deepblue_js.index("_updateAndDrawDivers(", beacon_start)
     beacon_src = deepblue_js[beacon_start:beacon_end]
     assert "c > 0.22" not in beacon_src
+
+
+def test_v13_0_defaults_cockpit_unhide_triggers_stunts_skycrane_megagate_wildlife_holidays():
+    """Verify v13.0 per-theme backdrop defaults (Nature 0/0, Gateway 30/30, Deep Blue 30/10), Focus Cockpit stop/complete return to unhidden dashboard, universal completion triggers across all views, fast 3s 5-stunt Gateway jets, S-64 Skycrane, connected Mega-Liner gate road, task-complete-only 4-stunt Deep Blue Leviathan + relaxed budget, Nature 6-animal crossing triggers, and year-round festive holiday skins & non-work LLM prompts."""
+    import asyncio
+    from backend import daily_intel
+
+    root_dir = Path(__file__).resolve().parent.parent
+    index_html = (root_dir / "frontend" / "index.html").read_text(encoding="utf-8")
+    app_js = (root_dir / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    cockpit_js = (root_dir / "frontend" / "js" / "focus_cockpit.js").read_text(encoding="utf-8")
+    dash_js = (root_dir / "frontend" / "js" / "dashboard.js").read_text(encoding="utf-8")
+    timeline_js = (root_dir / "frontend" / "js" / "timeline.js").read_text(encoding="utf-8")
+    modal_js = (root_dir / "frontend" / "js" / "entity_modal.js").read_text(encoding="utf-8")
+    notes_js = (root_dir / "frontend" / "js" / "notes.js").read_text(encoding="utf-8")
+    holidays_js = (root_dir / "frontend" / "js" / "holidays.js").read_text(encoding="utf-8")
+    gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+    wave_js = (root_dir / "frontend" / "js" / "wave_canvas.js").read_text(encoding="utf-8")
+
+    # 1. Cache-buster v13.0 + holidays.js inclusion
+    assert "/static/css/pettr.css?v=13.0" in index_html
+    for asset in ["holidays.js?v=13.0", "app.js?v=13.0", "focus_cockpit.js?v=13.0", "world_gateway.js?v=13.0", "world_deepblue.js?v=13.0", "wave_canvas.js?v=13.0"]:
+        assert asset in index_html, f"Missing v13.0 cache-buster for {asset}"
+
+    # 2. Per-theme backdrop defaults
+    assert "WORLD_BACKDROP_DEFAULTS:" in app_js
+    assert "nature: { blur: 0, dim: 0 }" in app_js
+    assert "gateway: { blur: 30, dim: 30 }" in app_js
+    assert '"deep-blue": { blur: 30, dim: 10 }' in app_js
+    assert "getWorldBackdropDefaults(" in app_js
+
+    # 3. Focus Cockpit Stop Session & Complete & Advance exit Scenic Mode and return to Dashboard
+    stop_src = cockpit_js[cockpit_js.index("  stopSession() {"):cockpit_js.index("  resolveActiveTask() {")]
+    complete_src = cockpit_js[cockpit_js.index("  async completeCurrentTask() {"):cockpit_js.index("  async fetchWeeklyMetrics() {")]
+    assert "exitScenicMode()" in stop_src and 'switchTab("dashboard")' in stop_src
+    assert "exitScenicMode()" in complete_src and 'switchTab("dashboard")' in complete_src
+
+    # 4. Universal completion triggers outside Focus Cockpit
+    assert "WaveCanvas.pulseActivity" in dash_js or "TactileFX.onItemToggle" in dash_js
+    rem_src = dash_js[dash_js.index("async toggleReminder("):dash_js.index("createUnorgItemCard(")]
+    proj_src = dash_js[dash_js.index("async completeProject("):dash_js.index("async openManualCreateModal(")]
+    assert "TactileFX.onItemToggle" in rem_src and "WaveCanvas.pulseActivity" in rem_src
+    assert "TactileFX.onItemToggle" in proj_src and "WaveCanvas.pulseActivity" in proj_src
+    assert "TactileFX.onItemToggle" in timeline_js and "WaveCanvas.pulseActivity" in timeline_js
+    assert "TactileFX.onItemToggle" in modal_js and "WaveCanvas.pulseActivity" in modal_js
+    assert "TactileFX.onItemToggle" in notes_js and "WaveCanvas.pulseActivity" in notes_js
+
+    # 5. Gateway: 3s 5-stunt jets, S-64 Skycrane, connected Mega-Liner gate road, holiday hook
+    for token in [
+        "JET_STUNT_TYPES",
+        '"bomb_burst"',
+        '"delta_loop"',
+        '"delta_roll"',
+        '"upside_down"',
+        '"echelon_roll"',
+        "Sikorsky S-64 Skycrane",
+        "drawGatewayOverlay",
+    ]:
+        assert token in gateway_js, f"Missing Gateway v13.0 token: {token}"
+    assert "Banana-hull" not in gateway_js
+
+    # 6. Deep Blue: task-complete-only 4-stunt Leviathan & relaxed screen budget & holiday hook
+    for token in [
+        "LEVIATHAN_STUNTS",
+        '"roar"',
+        '"body_roll"',
+        '"hunt_shark"',
+        '"two_playing"',
+        "spawnLeviathan(",
+        "_drawLeviathanBody(",
+        "maxMegafauna: 3",
+        "drawDeepBlueOverlay",
+    ]:
+        assert token in deepblue_js, f"Missing Deep Blue v13.0 token: {token}"
+
+    # 7. Nature: 6 playful crossing wildlife species & holiday hook
+    for token in [
+        "NATURE_ANIMALS",
+        '"rabbit"',
+        '"deer"',
+        '"pangolin"',
+        '"panda"',
+        '"crocodile"',
+        '"okapi"',
+        "spawnNatureAnimal(",
+        "_updateAndDrawWildlife(",
+        "drawNatureOverlay",
+    ]:
+        assert token in wave_js, f"Missing Nature v13.0 token: {token}"
+
+    # 8. Shared Festive Holiday System (frontend calendar + backend non-work phrases & prompts)
+    for token in ["HolidayThemes", "drawNatureOverlay", "drawGatewayOverlay", "drawDeepBlueOverlay", "setPreviewHoliday("]:
+        assert token in holidays_js
+    for dt_hol in [
+        datetime.date(2026, 4, 22),   # Earth Day
+        datetime.date(2026, 6, 21),   # Summer Solstice
+        datetime.date(2026, 11, 8),   # Diwali 2026
+        datetime.date(2026, 12, 25),  # Christmas
+        datetime.date(2026, 10, 31),  # Halloween
+    ]:
+        info = daily_intel.get_holiday_info(dt_hol)
+        assert info is not None
+        phrases = daily_intel.get_holiday_curated_phrases(info, "Alex")
+        assert len(phrases) == 6
+        assert any("Alex" in p for p in phrases) and any("Alex" not in p for p in phrases)
+    assert daily_intel.get_holiday_info(datetime.date(2026, 10, 13)) is None
+
+    daily_src = (root_dir / "backend" / "daily_intel.py").read_text(encoding="utf-8")
+    assert "HOLIDAY MODE ACTIVE" in daily_src
+    assert "DO NOT push work" in daily_src
 
 
 

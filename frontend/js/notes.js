@@ -1285,6 +1285,14 @@ const Notes = {
     if (checkbox.checked) {
       row.classList.add("checked");
       checkbox.setAttribute("checked", "checked");
+      const rect = checkbox.getBoundingClientRect ? checkbox.getBoundingClientRect() : null;
+      const cx = rect ? rect.left + rect.width * 0.5 : window.innerWidth * 0.5;
+      const cy = rect ? rect.top + rect.height * 0.5 : window.innerHeight * 0.35;
+      if (typeof TactileFX !== "undefined") {
+        TactileFX.onItemToggle({ completed: true, x: cx, y: cy });
+      } else if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+        WaveCanvas.pulseActivity({ kind: "complete", x: cx, y: cy });
+      }
     } else {
       row.classList.remove("checked");
       checkbox.removeAttribute("checked");

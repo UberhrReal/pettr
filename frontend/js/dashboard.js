@@ -456,6 +456,9 @@ const Dashboard = {
     }
 
     this.renderHolidayDecorations(holidayInfo);
+    if (typeof HolidayThemes !== "undefined" && HolidayThemes.setServerHoliday) {
+      HolidayThemes.setServerHoliday(holidayInfo);
+    }
 
     // Filter out phrases that contradict current diurnal time-of-day
     const morningKws = [
@@ -491,10 +494,17 @@ const Dashboard = {
       return true;
     });
 
-    // If fewer than 3 phrases remain, supplement with rich diurnal phrases to guarantee variety
+    // If fewer than 3 phrases remain, preserve festive voice on holidays or supplement rich diurnal lines otherwise
     if (phrases.length < 3) {
       let defaults = [];
-      if (isWeeHours) {
+      if (holidayInfo && holidayInfo.name) {
+        defaults = [
+          `Happy ${holidayInfo.name}, ${this.userName}! Step back and savour warm festive moments today.`,
+          `Wishing you laughter, unhurried cheer, and wonderful traditions throughout ${holidayInfo.name}.`,
+          `Leave ordinary errands aside while festive lights and good company fill the day.`,
+          `May today's ${holidayInfo.name} celebrations bring delight, warmth, and easygoing rest.`
+        ];
+      } else if (isWeeHours) {
         defaults = [
           `Stillness of the wee hours across the workspace, ${this.userName}.`,
           `Zero distractions in the quiet hours while the world sleeps.`,
@@ -3590,10 +3600,14 @@ const Dashboard = {
       App.showToast("Cannot complete future tasks before their date arrives.", true);
       return;
     }
-    if (!skipTactile && typeof TactileFX !== "undefined") {
+    if (!skipTactile) {
       const origin = this.getEntityFeedbackOrigin("task", taskId);
       const accentColor = this.resolveEntityAccentColor("task", taskId);
-      TactileFX.onItemToggle({ completed: Boolean(isCompleted), x: origin.x, y: origin.y, color: accentColor });
+      if (typeof TactileFX !== "undefined") {
+        TactileFX.onItemToggle({ completed: Boolean(isCompleted), x: origin.x, y: origin.y, color: accentColor });
+      } else if (isCompleted && typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+        WaveCanvas.pulseActivity({ kind: "complete", x: origin.x, y: origin.y, color: accentColor });
+      }
     }
     this.syncLocalEntityStatus("task", taskId, isCompleted);
     this.renderDailyOrder();
@@ -3811,6 +3825,16 @@ const Dashboard = {
   },
 
   async toggleReminder(reminderId) {
+    const existing = (this.reminders || []).find(r => String(r.id) === String(reminderId));
+    const becomingDone = existing ? !existing.completed : true;
+    const origin = this.getEntityFeedbackOrigin("reminder", reminderId);
+    if (becomingDone) {
+      if (typeof TactileFX !== "undefined") {
+        TactileFX.onItemToggle({ completed: true, x: origin.x, y: origin.y });
+      } else if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+        WaveCanvas.pulseActivity({ kind: "complete", x: origin.x, y: origin.y });
+      }
+    }
     try {
       await fetch(`/api/reminders/${reminderId}/toggle`, { method: "PATCH" });
       await this.refresh();
@@ -4049,6 +4073,13 @@ const Dashboard = {
       });
       if (res.ok) {
         App.showToast(`🏆 Project "${projectName}" completed and archived!`);
+        const cx = window.innerWidth * 0.5;
+        const cy = window.innerHeight * 0.35;
+        if (typeof TactileFX !== "undefined") {
+          TactileFX.onItemToggle({ completed: true, x: cx, y: cy });
+        } else if (typeof WaveCanvas !== "undefined" && WaveCanvas.pulseActivity) {
+          WaveCanvas.pulseActivity({ kind: "complete", x: cx, y: cy });
+        }
         await this.refresh();
         if (typeof Exploded !== "undefined") Exploded.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();

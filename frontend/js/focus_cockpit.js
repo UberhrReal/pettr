@@ -271,6 +271,10 @@ const FocusCockpit = {
     this.updatePlayButton();
     this.updateSliderVisibility();
     this.updateMiniDisplays();
+    if (typeof App !== "undefined") {
+      if (App.isScenicMode && App.exitScenicMode) App.exitScenicMode();
+      if (App.currentTab && App.currentTab !== "dashboard" && App.switchTab) App.switchTab("dashboard");
+    }
     App.showToast("Focus sprint ended.");
     App.haptic("light");
   },
@@ -1137,7 +1141,7 @@ const FocusCockpit = {
 
   async completeCurrentTask() {
     if (!this.activeTask || !this.activeTask.id) {
-      this.close();
+      this.stopSession();
       return;
     }
 
@@ -1169,7 +1173,7 @@ const FocusCockpit = {
         await Dashboard.refresh();
       }
 
-      // Automatically advance to the next priority task
+      // Automatically advance to the next priority task and return user cleanly to the unhidden Dashboard
       const nextTask = this.resolveActiveTask();
       if (nextTask && nextTask.id !== this.activeTask.id) {
         this.activeTask = nextTask;
@@ -1177,7 +1181,21 @@ const FocusCockpit = {
         this.resetTimer();
       } else {
         App.showToast("All daily focus targets conquered! Well done.");
-        this.stopSession();
+      }
+
+      const modal = document.getElementById("focusCockpitModal");
+      if (modal) modal.style.display = "none";
+      document.body.classList.remove("cockpit-active");
+      this.pauseTimer();
+      this.hasStarted = false;
+      this.isMinimized = false;
+      document.title = "PETTR - Personal Errands, Task Tracker & Repository";
+      this.updatePlayButton();
+      this.updateSliderVisibility();
+      this.updateMiniDisplays();
+      if (typeof App !== "undefined") {
+        if (App.isScenicMode && App.exitScenicMode) App.exitScenicMode();
+        if (App.currentTab && App.currentTab !== "dashboard" && App.switchTab) App.switchTab("dashboard");
       }
     } catch (e) {
       console.error("Could not complete task:", e);
