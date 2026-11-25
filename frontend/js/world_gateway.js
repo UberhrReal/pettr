@@ -46,7 +46,16 @@ const WorldGateway = {
   SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner"],
   ALL_SPACEPLANE_VARIANTS: ["shuttle", "airliner", "clipper", "starliner", "fighter", "bomber"],
   JET_STUNT_TYPES: ["bomb_burst", "delta_loop", "delta_roll", "upside_down", "echelon_roll"],
+  MEGALINER_VARIANTS: ["double_deck", "blended_wing"],
   _lastJetStunt: "",
+  _lastMegaVariant: "",
+
+  _pickMegaLinerVariant() {
+    const pool = this.MEGALINER_VARIANTS.filter(v => v !== this._lastMegaVariant);
+    const chosen = pool.length > 0 ? this._pick(pool) : this.MEGALINER_VARIANTS[0];
+    this._lastMegaVariant = chosen;
+    return chosen;
+  },
 
   _rand(min, max) {
     return min + Math.random() * (max - min);
@@ -149,6 +158,7 @@ const WorldGateway = {
     this.waterGlints = [];
     this.orbiters = [];
     this.jetFormations = [];
+    this._lastMegaVariant = "";
     this.fogState = { active: false, alpha: 0, targetAlpha: 0, nextCheck: 0, offset: 0 };
   },
 
@@ -3231,9 +3241,10 @@ const WorldGateway = {
       };
     }
 
-    // Rare Colossal Multi-Deck Sci-Fi Mega-Liner (A380-like rare spawn: Runway Land -> Dedicated Mega Gate -> Erector & Booster Tanks -> Vertical Launch)
+    // Rare Colossal Multi-Deck Sci-Fi Mega-Liner (A380-like rare spawn & Blended-Wing Body variant: Runway Land -> Dedicated Mega Gate -> Erector & Booster Tanks -> Vertical Launch)
     if (!this.megaliner) {
       this.megaliner = {
+        variant: this._pickMegaLinerVariant(),
         phase: "dormant_wait",
         t: 0,
         phaseDuration: this._rand(140.0, 230.0),
@@ -3247,6 +3258,8 @@ const WorldGateway = {
         chuteDetached: false,
         detachedChuteX: 0,
         detachedChuteY: 0,
+        detachedChuteHeading: L.rwAng,
+        detachedChuteScale: 0.72,
         detachedChuteAlpha: 0
       };
     }
@@ -6052,8 +6065,460 @@ const WorldGateway = {
     return this.spaceplanes.some(other => other !== excludingCraft && busyPhases.has(other.phase));
   },
 
-  // Colossal Multi-Deck Sci-Fi Mega-Liner Rendering (2.5D 5-Perspective Symmetrical Airplane Model + Vertical Booster Launch!)
-  _drawMegaLinerModel(ctx, pal, step, afterburner = 0, altitude = 0, isVertical = false, externalBoosters = 0, heading = 0, pitchRad = 0) {
+  // Colossal Multi-Deck & Blended-Wing Sci-Fi Mega-Liner Rendering (2.5D 5-Perspective Symmetrical Airplane Model + Vertical Booster Launch!)
+  _drawMegaLinerModel(ctx, pal, step, afterburner = 0, altitude = 0, isVertical = false, externalBoosters = 0, heading = 0, pitchRad = 0, variant = "double_deck") {
+    if (variant === "blended_wing") {
+      if (!isVertical) {
+        const { perspective, yaw } = this._quantizeSpaceplanePerspective(heading);
+        const cosY = Math.cos(yaw);
+        const sinY = Math.sin(yaw);
+        const cosP = Math.cos(pitchRad);
+        const sinP = Math.sin(pitchRad);
+        const sinE = 0.42;
+        const cosE = 0.91;
+
+        const proj = (bx, by, bz) => {
+          const rx = bx * cosP - bz * sinP;
+          const rz = bx * sinP + bz * cosP;
+          const wx = rx * cosY - by * sinY;
+          const wy = rx * sinY + by * cosY;
+          return { x: wx, y: wy * sinE - rz * cosE };
+        };
+
+        const fillPoly3D = (pts, fillStyle, strokeStyle = null, lineWidth = 0.65) => {
+          ctx.fillStyle = fillStyle;
+          ctx.beginPath();
+          pts.forEach((p, idx) => {
+            const pr = proj(p[0], p[1], p[2]);
+            if (idx === 0) ctx.moveTo(pr.x, pr.y);
+            else ctx.lineTo(pr.x, pr.y);
+          });
+          ctx.closePath();
+          ctx.fill();
+          if (strokeStyle) {
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+          }
+        };
+
+        // Symmetrical 4-corner foreshortened ground cast shadow for wide BWB silhouette
+        const shadowFade = Math.max(0.10, 1 - altitude / 110);
+        const sunOffX = 3.2 + altitude * 0.2 * pal.sunDir;
+        const sunOffY = 5.0 + altitude * 0.54;
+        const noseS = proj(38, 0, -4);
+        const tailS = proj(-31, 0, -4);
+        const lwS = proj(-16, -34.5, -4);
+        const rwS = proj(-16, 34.5, -4);
+        ctx.save();
+        ctx.fillStyle = pal.shadowColor;
+        ctx.globalAlpha = 0.48 * shadowFade;
+        ctx.beginPath();
+        ctx.moveTo(noseS.x + sunOffX, noseS.y + sunOffY);
+        ctx.lineTo(lwS.x + sunOffX, lwS.y + sunOffY);
+        ctx.lineTo(tailS.x + sunOffX, tailS.y + sunOffY);
+        ctx.lineTo(rwS.x + sunOffX, rwS.y + sunOffY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        const nearSide = cosY >= 0 ? 1 : -1;
+        const farSide = -nearSide;
+
+        const drawBwbOuterWing = (side) => {
+          const isFar = side === farSide && perspective !== "front_headon" && perspective !== "rear_tailon";
+          // Swept outer wing panel smoothly continuing the blended centerbody chord
+          fillPoly3D([
+            [14.5, 14.0 * side, -0.1],
+            [2.0, 23.0 * side, -0.2],
+            [-13.0, 34.5 * side, -0.3],
+            [-25.5, 32.8 * side, -0.3],
+            [-27.0, 14.0 * side, -0.2]
+          ], isFar ? pal.bodyShade : pal.bodyLight, pal.bodyShade, 0.65);
+
+          // Dark carbon thermal leading-edge cuff
+          fillPoly3D([
+            [14.5, 14.0 * side, 0.0],
+            [2.0, 23.0 * side, -0.1],
+            [-13.0, 34.5 * side, -0.2],
+            [-15.6, 34.0 * side, -0.2],
+            [-0.2, 22.4 * side, -0.1],
+            [11.8, 13.8 * side, 0.0]
+          ], pal.archDark);
+
+          // Subtle swept wing livery stripe
+          const ls0 = proj(6.0, 16.5 * side, 0.05);
+          const ls1 = proj(-20.0, 30.8 * side, -0.15);
+          ctx.strokeStyle = pal.liveryAccent;
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.moveTo(ls0.x, ls0.y);
+          ctx.lineTo(ls1.x, ls1.y);
+          ctx.stroke();
+
+          // Canted Outboard Wingtip Vertical Tail Stabilizer (tailless BWB twin fins)
+          fillPoly3D([
+            [-13.5, 33.8 * side, -0.2],
+            [-23.5, 36.2 * side, 8.8],
+            [-27.5, 35.8 * side, 8.0],
+            [-25.5, 32.8 * side, -0.2]
+          ], pal.bodyMid, pal.bodyShade, 0.55);
+
+          const wt0 = proj(-22.5, 35.8 * side, 7.6);
+          const wt1 = proj(-26.4, 35.5 * side, 6.9);
+          ctx.strokeStyle = pal.liveryAccent;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(wt0.x, wt0.y);
+          ctx.lineTo(wt1.x, wt1.y);
+          ctx.stroke();
+
+          // Navigation wingtip strobes (Port = Red, Starboard = Green)
+          if (Math.sin(step * 10) > 0.2) {
+            const tip = proj(-24.8, 34.8 * side, -0.1);
+            ctx.fillStyle = side < 0 ? "#F87171" : "#34D399";
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        };
+
+        const drawBwbCenterbody = () => {
+          const bellySides = perspective === "front_headon" || perspective === "rear_tailon" ? [-1, 1] : [nearSide, farSide];
+          // 1. Wide sculpted lower belly lifting hull (strict bilateral symmetry)
+          bellySides.forEach(side => {
+            const col = side === farSide && perspective !== "front_headon" && perspective !== "rear_tailon" ? pal.bodyMid : pal.bodyShade;
+            fillPoly3D([
+              [38.0, 0, 0.0],
+              [24.0, side * 9.6, -0.1],
+              [14.5, side * 14.2, -0.2],
+              [-14.0, side * 14.6, -0.3],
+              [-27.0, side * 14.0, -0.2],
+              [-32.0, 0, -0.5],
+              [-22.0, 0, -3.5],
+              [14.0, 0, -4.0]
+            ], col);
+          });
+
+          // 2. Sculpted upper BWB lifting centerbody crown (outer shoulder blend + inner dorsal cabin deck)
+          [-1, 1].forEach(side => {
+            const isLit = perspective === "front_headon" || perspective === "rear_tailon" ? (side < 0) : (side === nearSide);
+            // Outer blended wing-root fairing
+            fillPoly3D([
+              [38.0, 0, 0.3],
+              [26.0, side * 5.2, 3.2],
+              [13.5, side * 7.6, 3.8],
+              [-15.0, side * 7.4, 3.1],
+              [-26.0, side * 5.6, 1.7],
+              [-32.0, 0, 1.4],
+              [-27.0, side * 14.0, -0.1],
+              [-14.0, side * 14.6, -0.2],
+              [14.5, side * 14.2, -0.1],
+              [24.0, side * 9.6, 0.0]
+            ], isLit ? pal.bodyMid : pal.bodyShade);
+
+            // Upper blended passenger cabin dome
+            fillPoly3D([
+              [38.0, 0, 0.4],
+              [20.0, 0, 6.3],
+              [-4.0, 0, 5.9],
+              [-22.0, 0, 4.3],
+              [-32.0, 0, 1.5],
+              [-26.0, side * 5.6, 1.7],
+              [-15.0, side * 7.4, 3.1],
+              [13.5, side * 7.6, 3.8],
+              [26.0, side * 5.2, 3.2]
+            ], isLit ? pal.bodyLight : pal.bodyMid);
+
+            // Swept leading-edge dark thermal shield fairing on forward blended edge
+            fillPoly3D([
+              [38.0, 0, 0.2],
+              [24.0, side * 9.6, 0.0],
+              [14.5, side * 14.2, -0.1],
+              [11.8, side * 13.8, 0.0],
+              [21.6, side * 9.0, 0.3],
+              [35.2, 0, 0.4]
+            ], pal.archDark);
+
+            // Livery trim hugging blended shoulder ridge
+            if (isLit || perspective === "front_headon") {
+              const s0 = proj(29.0, side * 4.4, 2.2);
+              const s1 = proj(16.0, side * 10.6, 1.8);
+              const s2 = proj(-20.0, side * 10.4, 1.5);
+              ctx.strokeStyle = pal.liveryAccent;
+              ctx.lineWidth = 1.3;
+              ctx.beginPath();
+              ctx.moveTo(s0.x, s0.y);
+              ctx.lineTo(s1.x, s1.y);
+              ctx.lineTo(s2.x, s2.y);
+              ctx.stroke();
+            }
+          });
+
+          // 3. Panoramic Forward-Leading-Edge Passenger Cabin Windows + Centered Flush Bridge Windshield
+          const winSides = (perspective === "front_headon" || perspective === "rear_tailon") ? [-1, 1] : [nearSide];
+          if (perspective !== "rear_tailon") {
+            ctx.fillStyle = pal.windowGlow;
+            winSides.forEach(side => {
+              for (let wi = 0; wi < 8; wi++) {
+                const f = wi / 7;
+                const wbx = 29.5 - f * 15.5;
+                const wby = side * (3.6 + f * 9.2);
+                const wpTop = proj(wbx, wby, 2.9 - f * 1.1);
+                const wpLow = proj(wbx + 0.5, side * (3.9 + f * 9.4), 1.6 - f * 0.7);
+                ctx.fillRect(wpTop.x - 0.85, wpTop.y - 0.45, 1.7, 0.9);
+                ctx.fillRect(wpLow.x - 0.75, wpLow.y - 0.4, 1.5, 0.8);
+              }
+            });
+
+            // Flush BWB Command Flight Deck Glass
+            fillPoly3D([
+              [34.5, 0, 2.5],
+              [29.5, -5.0, 4.1],
+              [26.5, 0, 5.1],
+              [29.5, 5.0, 4.1]
+            ], pal.windowGlow);
+          }
+        };
+
+        const drawBwbDorsalEngines = () => {
+          // Triple Recessed Over-Wing Dorsal Propulsion Nacelles atop the aft centerbody deck
+          const podYs = perspective === "front_headon" || perspective === "rear_tailon"
+            ? [-7.8, 7.8, 0]
+            : [farSide * 7.8, 0, nearSide * 7.8];
+          podYs.forEach(ny => {
+            // Structural intake pylon anchored into upper aft deck
+            fillPoly3D([
+              [-15.5, ny - 0.9, 3.3],
+              [-26.5, ny - 0.9, 2.1],
+              [-26.5, ny - 0.9, 5.0],
+              [-15.5, ny - 0.9, 5.6]
+            ], pal.archDark);
+            fillPoly3D([
+              [-15.5, ny + 0.9, 3.3],
+              [-26.5, ny + 0.9, 2.1],
+              [-26.5, ny + 0.9, 5.0],
+              [-15.5, ny + 0.9, 5.6]
+            ], pal.towerSteel);
+
+            // Top & side nacelle cowling barrel
+            fillPoly3D([
+              [-13.5, ny - 2.1, 6.8],
+              [-28.2, ny - 1.9, 6.2],
+              [-28.2, ny + 1.9, 6.2],
+              [-13.5, ny + 2.1, 6.8]
+            ], pal.bodyLight, pal.towerSteel, 0.5);
+            const nP0 = proj(-13.5, ny, 5.8);
+            const nP1 = proj(-28.4, ny, 5.2);
+            ctx.strokeStyle = pal.towerSteel;
+            ctx.lineWidth = 3.8;
+            ctx.beginPath();
+            ctx.moveTo(nP0.x, nP0.y);
+            ctx.lineTo(nP1.x, nP1.y);
+            ctx.stroke();
+
+            // Nozzle rim collar
+            const nCol = proj(-28.6, ny, 5.2);
+            ctx.fillStyle = pal.archDark;
+            ctx.beginPath();
+            ctx.arc(nCol.x, nCol.y, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (afterburner > 0.04) {
+              const fl = (26 + Math.sin(step * 42 + ny) * 5) * afterburner;
+              const pEx = proj(-28.6 - fl, ny, 5.2);
+              const eg = ctx.createLinearGradient(nCol.x, nCol.y, pEx.x, pEx.y);
+              eg.addColorStop(0, `rgba(${pal.plumeCore}, 0.96)`);
+              eg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.84)`);
+              eg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+              ctx.strokeStyle = eg;
+              ctx.lineWidth = 3.1;
+              ctx.beginPath();
+              ctx.moveTo(nCol.x, nCol.y);
+              ctx.lineTo(pEx.x, pEx.y);
+              ctx.stroke();
+            }
+          });
+        };
+
+        if (perspective === "front_headon") {
+          drawBwbOuterWing(-1);
+          drawBwbOuterWing(1);
+          drawBwbCenterbody();
+          drawBwbDorsalEngines();
+        } else if (perspective === "rear_tailon") {
+          drawBwbCenterbody();
+          drawBwbOuterWing(-1);
+          drawBwbOuterWing(1);
+          drawBwbDorsalEngines();
+        } else {
+          drawBwbOuterWing(farSide);
+          drawBwbCenterbody();
+          drawBwbDorsalEngines();
+          drawBwbOuterWing(nearSide);
+        }
+        return;
+      }
+
+      // === BLENDED-WING VERTICAL CRADLE & LAUNCH VIEW (Strict Mirror Symmetry + External Cryogenic Booster Tanks) ===
+      if (externalBoosters > 0.02) {
+        const dxSlide = (1 - Math.min(1, externalBoosters)) * 28;
+        [-1, 1].forEach(side => {
+          const py = side * (20.5 + dxSlide);
+          if (afterburner > 0.04) {
+            const bfl = (36 + Math.sin(step * 38 + side) * 5) * afterburner;
+            const bg = ctx.createLinearGradient(-29, py, -29 - bfl, py);
+            bg.addColorStop(0, `rgba(${pal.plumeCore}, 0.98)`);
+            bg.addColorStop(0.45, `rgba(${pal.plumeMid}, 0.88)`);
+            bg.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+            ctx.fillStyle = bg;
+            ctx.beginPath();
+            ctx.moveTo(-29, py - 3.6);
+            ctx.lineTo(-29 - bfl, py);
+            ctx.lineTo(-29, py + 3.6);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.strokeStyle = pal.towerSteel;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(-6, py);
+          ctx.lineTo(-6, side * 12);
+          ctx.moveTo(11, py);
+          ctx.lineTo(11, side * 11);
+          ctx.stroke();
+
+          ctx.fillStyle = pal.liveryAccent;
+          ctx.beginPath();
+          ctx.roundRect(-27, py - 4.0, 50, 8.0, 2.2);
+          ctx.fill();
+          ctx.fillStyle = pal.bodyLight;
+          ctx.fillRect(-16, py - 3.6, 28, 2.2);
+          ctx.beginPath();
+          ctx.moveTo(23, py - 3.8);
+          ctx.lineTo(31, py);
+          ctx.lineTo(23, py + 3.8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = pal.archDark;
+          ctx.fillRect(-30, py - 3.2, 3.5, 6.4);
+        });
+      }
+
+      // Triple dorsal aft propulsion plumes
+      if (afterburner > 0.04) {
+        const fl = (34 + Math.sin(step * 42) * 6) * afterburner;
+        [-7.8, 0, 7.8].forEach(py => {
+          const g = ctx.createLinearGradient(-30, py, -30 - fl, py);
+          g.addColorStop(0, `rgba(${pal.plumeCore}, 0.98)`);
+          g.addColorStop(0.42, `rgba(${pal.plumeMid}, 0.86)`);
+          g.addColorStop(1, `rgba(${pal.plumeMid}, 0)`);
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.moveTo(-29, py - 2.3);
+          ctx.lineTo(-30 - fl, py);
+          ctx.lineTo(-29, py + 2.3);
+          ctx.closePath();
+          ctx.fill();
+        });
+      }
+
+      // Symmetrical Manta Blended-Wing Body + Swept Outer Wings Planform
+      const bG = ctx.createLinearGradient(0, -35, 0, 35);
+      bG.addColorStop(0, pal.bodyLight);
+      bG.addColorStop(0.5, pal.bodyMid);
+      bG.addColorStop(1, pal.bodyShade);
+      ctx.fillStyle = bG;
+      ctx.beginPath();
+      ctx.moveTo(38, 0);
+      ctx.quadraticCurveTo(26, -12.5, 14, -14.2);
+      ctx.lineTo(-13, -34.5);
+      ctx.lineTo(-25.5, -32.8);
+      ctx.lineTo(-27.0, -14.2);
+      ctx.lineTo(-32.0, 0);
+      ctx.lineTo(-27.0, 14.2);
+      ctx.lineTo(-25.5, 32.8);
+      ctx.lineTo(-13, 34.5);
+      ctx.lineTo(14, 14.2);
+      ctx.quadraticCurveTo(26, 12.5, 38, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = pal.bodyShade;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+
+      // Dark carbon leading edge chevrons
+      ctx.strokeStyle = pal.archDark;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-13, -34.0);
+      ctx.lineTo(14, -14.0);
+      ctx.quadraticCurveTo(26, -12.2, 37.5, 0);
+      ctx.quadraticCurveTo(26, 12.2, 14, 14.0);
+      ctx.lineTo(-13, 34.0);
+      ctx.stroke();
+
+      // Symmetrical central lifting-body dorsal ridge & livery stripes
+      ctx.fillStyle = pal.liveryAccent;
+      ctx.beginPath();
+      ctx.moveTo(27, -4.6);
+      ctx.lineTo(15, -10.8);
+      ctx.lineTo(-22, -10.8);
+      ctx.lineTo(-22, -9.4);
+      ctx.lineTo(14.5, -9.4);
+      ctx.lineTo(26, -3.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(27, 4.6);
+      ctx.lineTo(15, 10.8);
+      ctx.lineTo(-22, 10.8);
+      ctx.lineTo(-22, 9.4);
+      ctx.lineTo(14.5, 9.4);
+      ctx.lineTo(26, 3.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Twin symmetrical outboard winglet stabilizer fins
+      ctx.fillStyle = pal.archDark;
+      ctx.fillRect(-26.5, -35.8, 12, 3.2);
+      ctx.fillRect(-26.5, 32.6, 12, 3.2);
+
+      // Triple dorsal aft engine nacelles mounted at py = [-7.8, 0, 7.8]
+      [-7.8, 0, 7.8].forEach(py => {
+        ctx.fillStyle = pal.towerSteel;
+        ctx.beginPath();
+        ctx.roundRect(-29, py - 2.3, 14.5, 4.6, 1.4);
+        ctx.fill();
+        ctx.fillStyle = pal.archDark;
+        ctx.fillRect(-30.2, py - 1.8, 2.2, 3.6);
+      });
+
+      // Panoramic curved leading-edge multi-deck cabin windows & centered bridge glass
+      ctx.fillStyle = pal.windowGlow;
+      ctx.fillRect(30.5, -1.9, 4.6, 3.8);
+      [-1, 1].forEach(side => {
+        for (let wi = 0; wi < 7; wi++) {
+          const f = wi / 6;
+          const wx = 29.0 - f * 14.0;
+          const wy = side * (4.0 + f * 7.8);
+          ctx.fillRect(wx, wy - 0.55, 1.7, 1.1);
+        }
+      });
+
+      if (Math.sin(step * 10) > 0.2) {
+        ctx.fillStyle = "#F87171";
+        ctx.beginPath();
+        ctx.arc(-24.8, -34.2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#34D399";
+        ctx.beginPath();
+        ctx.arc(-24.8, 34.2, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+
     if (!isVertical) {
       const { perspective, yaw } = this._quantizeSpaceplanePerspective(heading);
       const cosY = Math.cos(yaw);
@@ -6467,14 +6932,16 @@ const WorldGateway = {
       y = rwStart.y + Math.sin(L.rwAng) * Math.min(ml.dist, rollLen);
       heading = L.rwAng;
       scale = (0.72 + Math.min(1, rwF) * 0.14) * L.termScale * this._depthScale(L, y);
-      if (rwF < 0.78) {
+      if (rwF < 0.80) {
         showChutes = true;
-        chuteInf = rwF < 0.12 ? (rwF / 0.12) : 0.95;
+        chuteInf = rwF < 0.10 ? (rwF / 0.10) : 1.0;
       } else if (!ml.chuteDetached) {
         ml.chuteDetached = true;
-        ml.detachedChuteX = x - Math.cos(heading) * 32 * scale;
-        ml.detachedChuteY = y - Math.sin(heading) * 32 * scale;
-        ml.detachedChuteAlpha = 0.82;
+        ml.detachedChuteX = x - Math.cos(heading) * 58 * scale;
+        ml.detachedChuteY = y - Math.sin(heading) * 58 * scale * 0.52;
+        ml.detachedChuteHeading = heading;
+        ml.detachedChuteScale = scale;
+        ml.detachedChuteAlpha = 0.88;
       }
       if (ml.dist >= rollLen) {
         ml.phase = "taxi_to_gate";
@@ -6607,6 +7074,7 @@ const WorldGateway = {
         ml.phase = "dormant_wait";
         ml.t = 0;
         ml.phaseDuration = this._rand(140.0, 230.0);
+        ml.variant = this._pickMegaLinerVariant();
         return;
       }
     }
@@ -6617,36 +7085,118 @@ const WorldGateway = {
     ml.altitude = altitude;
 
     if (ml.chuteDetached && ml.detachedChuteAlpha > 0.01) {
-      ml.detachedChuteAlpha = Math.max(0, ml.detachedChuteAlpha - dt * 0.45);
+      ml.detachedChuteAlpha = Math.max(0, ml.detachedChuteAlpha - dt * 0.32);
+      const dSc = ml.detachedChuteScale || 0.72;
+      const dAng = ml.detachedChuteHeading != null ? ml.detachedChuteHeading : L.rwAng;
       ctx.save();
+      ctx.translate(ml.detachedChuteX, ml.detachedChuteY + 3);
+      ctx.rotate(dAng * 0.45);
       ctx.globalAlpha = ml.detachedChuteAlpha;
+      ctx.fillStyle = pal.shadowColor;
+      ctx.beginPath();
+      ctx.ellipse(2, 4 * dSc, 24 * dSc, 8 * dSc, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = pal.chuteColor;
       ctx.beginPath();
-      ctx.ellipse(ml.detachedChuteX, ml.detachedChuteY + 3, 7, 3, 0.2, 0, Math.PI * 2);
+      ctx.ellipse(-6 * dSc, -3 * dSc, 15 * dSc, 6.2 * dSc, 0.15, 0, Math.PI * 2);
+      ctx.ellipse(5 * dSc, 1 * dSc, 18 * dSc, 6.8 * dSc, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = pal.chuteStripe;
+      ctx.beginPath();
+      ctx.ellipse(0, -1 * dSc, 8 * dSc, 3.4 * dSc, 0.25, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
     if (!visible) return;
 
     if (showChutes && chuteInf > 0.05) {
+      // Large 2.5D Triple-Canopy Ring-Sail Heavy Drogue Parachute Array
+      const cosH = Math.cos(ml.heading);
+      const sinH = Math.sin(ml.heading);
+      const tailAnchorX = x - cosH * 30 * scale;
+      const tailAnchorY = y - sinH * 30 * scale * 0.50;
+      const backX = -cosH;
+      const backY = -sinH * 0.52;
+      const perpX = -sinH;
+      const perpY = cosH * 0.45;
+      const riserX = tailAnchorX + backX * (16 + 10 * chuteInf) * scale;
+      const riserY = tailAnchorY + backY * (16 + 10 * chuteInf) * scale - 2 * scale;
+      const cableCol = pal.isNightLights ? "rgba(226, 232, 240, 0.68)" : "rgba(51, 65, 85, 0.66)";
+
+      const canopies = [
+        { dist: 50 + 44 * chuteInf, side: -16.5, lift: -5.0, rMul: 0.94 },
+        { dist: 50 + 44 * chuteInf, side: 16.5, lift: -2.5, rMul: 0.94 },
+        { dist: 62 + 52 * chuteInf, side: 0.0, lift: -16.0, rMul: 1.08 }
+      ];
+
       ctx.save();
-      ctx.translate(x, y);
-      ctx.scale(scale, scale * 0.45);
-      ctx.rotate(ml.heading);
-      const canopyX = -32 - 22 * chuteInf;
-      [-7.5, 7.5].forEach(cy => {
-        ctx.strokeStyle = pal.isNightLights ? "rgba(226, 232, 240, 0.58)" : "rgba(71, 85, 105, 0.56)";
-        ctx.lineWidth = 1.1;
+      // Main tow bridle from tail cone to splitter yoke
+      ctx.strokeStyle = cableCol;
+      ctx.lineWidth = Math.max(1.0, 1.5 * scale);
+      ctx.beginPath();
+      ctx.moveTo(tailAnchorX, tailAnchorY);
+      ctx.lineTo(riserX, riserY);
+      ctx.stroke();
+
+      canopies.forEach((c, idx) => {
+        const flutter = Math.sin(step * 22 + idx * 2.1) * 1.6 * scale * chuteInf;
+        const cx = tailAnchorX + (backX * c.dist + perpX * c.side) * scale + flutter * 0.4;
+        const cy = tailAnchorY + (backY * c.dist + perpY * c.side + c.lift) * scale + flutter;
+        const rx = 22.0 * chuteInf * scale * c.rMul;
+        const ry = 16.2 * chuteInf * scale * c.rMul;
+
+        // Runway ground shadow below billowing canopy
+        ctx.fillStyle = pal.shadowColor;
+        ctx.globalAlpha = 0.28 * chuteInf;
         ctx.beginPath();
-        ctx.moveTo(-30, 0);
-        ctx.lineTo(canopyX, cy - 6);
-        ctx.moveTo(-30, 0);
-        ctx.lineTo(canopyX, cy + 6);
+        ctx.ellipse(cx + 3 * scale, cy + (18 - c.lift * 0.55) * scale, rx * 0.92, ry * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // 4 Suspension shroud lines fanning cleanly from splitter yoke to open canopy skirt
+        const mouthX = cx - backX * rx * 0.16;
+        const mouthY = cy - backY * rx * 0.16;
+        ctx.strokeStyle = cableCol;
+        ctx.lineWidth = Math.max(0.8, 1.15 * scale);
+        ctx.beginPath();
+        [-0.88, -0.32, 0.32, 0.88].forEach(sf => {
+          ctx.moveTo(riserX, riserY);
+          ctx.lineTo(mouthX + perpX * ry * sf * 0.45, mouthY + ry * sf);
+        });
         ctx.stroke();
+
+        // Dark recessed interior canopy cavity tucked flush at skirt rim facing tailcone
+        const tilt = Math.atan2(backY, backX);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(tilt);
+
+        ctx.fillStyle = pal.archDark;
+        ctx.beginPath();
+        ctx.ellipse(-rx * 0.12, 0, rx * 0.24, ry * 0.96, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Primary billowing high-vis aerospace drogue dome (seamless hem enclosing cavity rim)
         ctx.fillStyle = pal.chuteColor;
         ctx.beginPath();
-        ctx.ellipse(canopyX - 3, cy, 8.2 * chuteInf, 6.4 * chuteInf, 0, Math.PI * 0.5, Math.PI * 1.5);
+        ctx.ellipse(0, 0, rx, ry, 0, -Math.PI * 0.52, Math.PI * 0.52);
+        ctx.quadraticCurveTo(-rx * 0.18, 0, 0, -ry);
+        ctx.closePath();
         ctx.fill();
+
+        // Contrast white/ivory gore ring-sail panels for unmistakable aerospace parachute silhouette
+        ctx.fillStyle = pal.chuteStripe;
+        ctx.globalAlpha = 0.90;
+        [-0.48, 0.12].forEach(band => {
+          ctx.beginPath();
+          ctx.moveTo(-rx * 0.12, ry * band);
+          ctx.quadraticCurveTo(rx * 0.52, ry * (band + 0.14), rx * 0.86, ry * (band + 0.18));
+          ctx.lineTo(rx * 0.86, ry * (band + 0.34));
+          ctx.quadraticCurveTo(rx * 0.48, ry * (band + 0.30), -rx * 0.10, ry * (band + 0.22));
+          ctx.closePath();
+          ctx.fill();
+        });
+        ctx.restore();
       });
       ctx.restore();
     }
@@ -6656,7 +7206,7 @@ const WorldGateway = {
     ctx.translate(x, y);
     if (isVertical) ctx.rotate(ml.heading);
     ctx.scale(scale, scale);
-    this._drawMegaLinerModel(ctx, pal, step, afterburner, altitude, isVertical, externalBoosters, ml.heading, mlPitch);
+    this._drawMegaLinerModel(ctx, pal, step, afterburner, altitude, isVertical, externalBoosters, ml.heading, mlPitch, ml.variant || "double_deck");
     ctx.restore();
   },
 

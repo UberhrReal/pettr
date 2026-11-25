@@ -35,6 +35,9 @@ const WorldDeepBlue = {
   elevator: null,     // Vertical surface supply elevator state
   rovs: [],
   sonarRings: [],
+  cleaningMantas: [],
+  cleanerWrasse: [],
+  cleanSparkles: [],
   _lastW: 0,
   _lastH: 0,
   _lastLevStunt: "",
@@ -46,7 +49,8 @@ const WorldDeepBlue = {
     "passenger_liner",
     "heavy_freighter",
     "experimental_research",
-    "military_stealth"
+    "military_stealth",
+    "los_angeles_ssn"
   ],
 
   SUB_STYLES: [
@@ -54,6 +58,7 @@ const WorldDeepBlue = {
     "heavy_freighter",
     "experimental_research",
     "military_stealth",
+    "los_angeles_ssn",
     "bathyscaphe",
     "crew_shuttle",
     "research_catamaran",
@@ -63,6 +68,7 @@ const WorldDeepBlue = {
   ],
 
   _getSubDockOffset(style) {
+    if (style === "los_angeles_ssn") return 82;
     if (style === "passenger_liner") return 54;
     if (style === "heavy_freighter") return 58;
     if (style === "experimental_research") return 48;
@@ -360,6 +366,9 @@ const WorldDeepBlue = {
     this.elevator = null;
     this.rovs = [];
     this.sonarRings = [];
+    this.cleaningMantas = [];
+    this.cleanerWrasse = [];
+    this.cleanSparkles = [];
     this._queuedLeviathan = null;
   },
 
@@ -652,6 +661,13 @@ const WorldDeepBlue = {
       scale: isNarrow ? 0.45 : Math.min(0.90, Math.max(0.72, w / 1460))
     };
 
+    // Vibrantly populated Manta Ray Cleaning Station Coral Pinnacle on clear West-Midground sandy terrace
+    const cleaningStation = {
+      x: w * (isNarrow ? 0.30 : 0.285),
+      y: Math.min(h - 48, seabedY + (isNarrow ? 66 : 52)),
+      scale: isNarrow ? 0.62 : Math.min(1.04, Math.max(0.78, w / 1380))
+    };
+
     return {
       isNarrow, seabedY, hubX, hubY, s,
       westWingX, westWingY, farWestX, farWestY, geoWestX, geoWestY,
@@ -659,7 +675,7 @@ const WorldDeepBlue = {
       airlockX, airlockY, sonarX, sonarY, hydroTurbines,
       leftAngle, leftArmLen, leftDockX, leftDockY,
       rightAngle, rightArmLen, rightDockX, rightDockY,
-      domeX, domeY, elevX, elevDockY, wreck
+      domeX, domeY, elevX, elevDockY, wreck, cleaningStation
     };
   },
 
@@ -787,9 +803,10 @@ const WorldDeepBlue = {
     // 5b. Unobstructed Grounded Sunken Shipwreck Partially Covered in Continuous Seabed Sand (clear in front of wing terrain skirts)
     this._drawBackgroundShipwreck(ctx, L, pal);
 
-    // 6. Lush Ground-Anchored Benthic Coral Reefs, Plate Corals, Sea Fans, Sponges & Hydrothermal Chimneys
+    // 6. Lush Ground-Anchored Benthic Coral Reefs, Manta Cleaning Station Pinnacle, Sponges & Chimneys
     this._drawSeabedReefs(ctx, w, h, L, pal);
-    const floorSpots = L.isNarrow ? [] : [0.20, 0.30, 0.67, 0.88];
+    this._drawCleaningStationReef(ctx, L, pal);
+    const floorSpots = L.isNarrow ? [] : [0.18, 0.67, 0.88];
     floorSpots.forEach((xf, idx) => {
       const fx = w * xf;
       const fy = Math.min(h - 14, this._seabedYAtX(fx, w, h, L) + 18 + (idx % 3) * 18);
@@ -847,7 +864,7 @@ const WorldDeepBlue = {
     const s = L.s;
     const spots = L.isNarrow
       ? [0.08, 0.16, 0.84, 0.92]
-      : [0.07, 0.14, 0.22, 0.29, 0.36, 0.66, 0.87, 0.95];
+      : [0.07, 0.14, 0.21, 0.36, 0.66, 0.87, 0.95];
 
     ctx.save();
     spots.forEach((xf, idx) => {
@@ -894,6 +911,92 @@ const WorldDeepBlue = {
       ctx.ellipse(rx, ry - 15 * sc, 13 * sc, 9 * sc, 0, Math.PI, 0);
       ctx.fill();
     });
+    ctx.restore();
+  },
+
+  // Ground-Anchored Manta Ray Cleaning Station Coral Bommie Pinnacle (tiered table corals, brain domes, crevices & polyps)
+  _drawCleaningStationReef(ctx, L, pal) {
+    const cs = L.cleaningStation;
+    if (!cs) return;
+    const sc = cs.scale;
+    ctx.save();
+    ctx.translate(cs.x, cs.y);
+
+    // 1. Continuous Seabed Sand Apron & Basalt Carbonate Base (firmly grounded, zero floating!)
+    const moundG = ctx.createRadialGradient(0, 6 * sc, 8 * sc, 0, 10 * sc, 64 * sc);
+    moundG.addColorStop(0, pal.reefMid);
+    moundG.addColorStop(0.65, pal.seabedDark);
+    moundG.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = moundG;
+    ctx.beginPath();
+    ctx.ellipse(0, 10 * sc, 64 * sc, 16 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. Sculpted Multi-Tiered Coral Bommie Pinnacle Silhouette with dark shelter crevices for cleaner wrasse
+    ctx.fillStyle = pal.reefNear;
+    ctx.beginPath();
+    ctx.moveTo(-44 * sc, 10 * sc);
+    ctx.quadraticCurveTo(-38 * sc, -10 * sc, -24 * sc, -16 * sc);
+    ctx.quadraticCurveTo(-18 * sc, -30 * sc, -4 * sc, -34 * sc);
+    ctx.quadraticCurveTo(14 * sc, -32 * sc, 20 * sc, -18 * sc);
+    ctx.quadraticCurveTo(36 * sc, -12 * sc, 44 * sc, 10 * sc);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = pal.reefMid;
+    ctx.beginPath();
+    ctx.ellipse(-18 * sc, 2 * sc, 16 * sc, 8 * sc, 0.1, 0, Math.PI * 2);
+    ctx.ellipse(16 * sc, 3 * sc, 14 * sc, 7 * sc, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Dark recessed reef cleaning arches/crevices
+    ctx.fillStyle = pal.hullDeep;
+    ctx.beginPath();
+    ctx.ellipse(-9 * sc, -3 * sc, 7.5 * sc, 4.5 * sc, 0, Math.PI, 0);
+    ctx.ellipse(12 * sc, -1 * sc, 6.2 * sc, 3.8 * sc, 0, Math.PI, 0);
+    ctx.fill();
+
+    // 3. Layered Acropora Table Coral Ledges + Brain Corals + Vibrant Staghorn Branches
+    const tableTeal = pal.isDark ? "rgba(45, 212, 191, 0.42)" : "rgba(20, 184, 166, 0.56)";
+    const brainCoral = pal.isDark ? "rgba(244, 114, 182, 0.34)" : "rgba(244, 114, 182, 0.48)";
+    const amberPolyp = pal.isDark ? "rgba(56, 189, 248, 0.50)" : "rgba(245, 158, 11, 0.54)";
+
+    ctx.fillStyle = tableTeal;
+    ctx.beginPath();
+    ctx.ellipse(-20 * sc, -16 * sc, 16 * sc, 4.2 * sc, -0.10, 0, Math.PI * 2);
+    ctx.ellipse(18 * sc, -15 * sc, 14 * sc, 3.6 * sc, 0.08, 0, Math.PI * 2);
+    ctx.ellipse(0, -31 * sc, 15 * sc, 3.8 * sc, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sculpted grooved brain-coral dome on shoulder
+    ctx.fillStyle = brainCoral;
+    ctx.beginPath();
+    ctx.arc(-11 * sc, -19 * sc, 7.5 * sc, Math.PI, 0);
+    ctx.fill();
+
+    // Branching antler corals rising up the crown
+    ctx.strokeStyle = pal.isDark ? "rgba(103, 232, 249, 0.46)" : "rgba(251, 146, 180, 0.62)";
+    ctx.lineWidth = Math.max(1.2, 2.2 * sc);
+    ctx.lineCap = "round";
+    [-12, -2, 8, 22].forEach((bx, idx) => {
+      const hBr = (14 + (idx % 2) * 5) * sc;
+      const baseY = idx === 3 ? -12 * sc : -26 * sc;
+      ctx.beginPath();
+      ctx.moveTo(bx * sc, baseY);
+      ctx.quadraticCurveTo((bx - 3) * sc, baseY - hBr * 0.5, (bx - 5) * sc, baseY - hBr);
+      ctx.moveTo(bx * sc, baseY - hBr * 0.45);
+      ctx.quadraticCurveTo((bx + 4) * sc, baseY - hBr * 0.72, (bx + 6) * sc, baseY - hBr * 0.92);
+      ctx.stroke();
+    });
+
+    // Polyp glow dots nestled across coral table edges
+    ctx.fillStyle = amberPolyp;
+    [-26, -15, -6, 3, 12, 24].forEach((px, idx) => {
+      ctx.beginPath();
+      ctx.arc(px * sc, (-15 - (idx % 3) * 6) * sc, (1.4 + (idx % 2) * 0.5) * sc, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
     ctx.restore();
   },
 
@@ -2720,6 +2823,56 @@ const WorldDeepBlue = {
         });
       }
     }
+
+    // 14. Manta Ray Cleaning Station: Graceful Circling Mantas + Electric-Blue Cleaner Wrasse Service Crew
+    if (this.cleaningMantas.length === 0 && L.cleaningStation) {
+      const cs = L.cleaningStation;
+      const mCount = isNarrow ? 1 : 2;
+      for (let i = 0; i < mCount; i++) {
+        this.cleaningMantas.push({
+          orbitAngle: i * 2.85 + 0.55,
+          orbitSpeed: (i === 0 ? 0.36 : 0.28) * (i % 2 === 0 ? 1 : -1),
+          orbitRx: (isNarrow ? 58 : (82 + i * 26)) * cs.scale,
+          orbitRy: (isNarrow ? 15 : (18 + i * 7)) * cs.scale,
+          altY: (48 + i * 24) * cs.scale,
+          span: (isNarrow ? 34 : (46 - i * 6)) * cs.scale,
+          wingPhase: i * 2.1,
+          hoverTimer: i === 0 ? 2.4 : 0,
+          hoverCooldown: 6.0 + i * 4.0,
+          state: i === 0 ? "hover_clean" : "circling",
+          x: cs.x,
+          y: cs.y - (46 + i * 22) * cs.scale,
+          facingLeft: i % 2 === 1,
+          bank: 0,
+          isFront: i === 0
+        });
+      }
+    }
+
+    if (this.cleanerWrasse.length === 0 && L.cleaningStation) {
+      const cs = L.cleaningStation;
+      const wrCount = isNarrow ? 4 : 7;
+      const zones = ["gill", "belly", "left_wing", "right_wing", "cephalic", "gill", "belly"];
+      for (let i = 0; i < wrCount; i++) {
+        const homeX = cs.x + (i - (wrCount - 1) * 0.5) * 9 * cs.scale;
+        const homeY = cs.y - (14 + (i % 3) * 6) * cs.scale;
+        this.cleanerWrasse.push({
+          id: i,
+          homeX,
+          homeY,
+          x: homeX,
+          y: homeY - 12 * cs.scale,
+          targetMantaIdx: i % (isNarrow ? 1 : 2),
+          zone: zones[i % zones.length],
+          state: i < 4 ? "cleaning" : "reef_dance",
+          timer: 1.5 + i * 0.8,
+          wigglePhase: i * 1.4,
+          size: (3.6 + (i % 3) * 0.55) * cs.scale,
+          facingLeft: i % 2 === 1,
+          sparkleCd: 0.4 + i * 0.3
+        });
+      }
+    }
   },
 
   spawnLeviathan(w, h, opts = {}) {
@@ -2849,6 +3002,9 @@ const WorldDeepBlue = {
       this.roamingSubs = [];
       this.sub = null;
       this.cargoSub = null;
+      this.cleaningMantas = [];
+      this.cleanerWrasse = [];
+      this.cleanSparkles = [];
     }
     this._lastW = w;
     this._lastH = h;
@@ -2893,6 +3049,9 @@ const WorldDeepBlue = {
     // 6. Left-Pier & Right-Pier Horizontal Flush-Docking Submarines
     this._updateAndDrawSubmersible(ctx, w, h, L, pal, dt, step);
     this._updateAndDrawCargoSub(ctx, w, h, L, pal, dt, step);
+
+    // 6a. Manta Ray Cleaning Station (circling mantas & electric-blue cleaner wrasse servicing around west coral pinnacle)
+    this._updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step);
 
     // 6b. Foreground Playful Marine Life IN FRONT OF Habitat & Submarines (Dolphins, Sea Turtles & Reef Sharks)
     this._updateAndDrawDolphins(ctx, w, h, pal, dt, step);
@@ -3897,12 +4056,13 @@ const WorldDeepBlue = {
     hullG.addColorStop(0.52, pal.subHullMid);
     hullG.addColorStop(1, pal.subHullDark);
 
-    const beamOrigin = style === "heavy_freighter" ? 64
+    const beamOrigin = style === "los_angeles_ssn" ? 86
+      : (style === "heavy_freighter" ? 64
       : (style === "deep_explorer" ? 60
       : (style === "passenger_liner" ? 60
       : (style === "military_stealth" ? 62
       : (style === "experimental_research" ? 54
-      : (style === "bathyscaphe" ? 28 : 48)))));
+      : (style === "bathyscaphe" ? 28 : 48))))));
     if (showBeam) {
       ctx.save();
       if (pal.isDark) ctx.globalCompositeOperation = "screen";
@@ -4084,6 +4244,157 @@ const WorldDeepBlue = {
       ctx.lineTo(-48, 9);
       ctx.closePath();
       ctx.fill();
+    } else if (style === "los_angeles_ssn") {
+      // Iconic Larger Los Angeles-Class (688) Fast-Attack Nuclear Submarine
+      // Long cylindrical matte dark pressure hull + hemispherical sonar dome + tall forward fairwater sail w/ diving planes + cruciform stern & skewed propeller
+      const laG = ctx.createLinearGradient(0, -16, 0, 16);
+      laG.addColorStop(0, pal.isDark ? "#2D4258" : "#3E566E");
+      laG.addColorStop(0.42, pal.isDark ? "#19293A" : "#223447");
+      laG.addColorStop(0.84, pal.isDark ? "#0C1522" : "#111D2B");
+      laG.addColorStop(1, "#070E18");
+
+      // Long cigar hull body spanning [-86 .. +88]
+      ctx.fillStyle = laG;
+      ctx.beginPath();
+      ctx.moveTo(88, 0);
+      ctx.bezierCurveTo(88, -12.5, 74, -15.5, 52, -15.5);
+      ctx.lineTo(-56, -15.0);
+      ctx.lineTo(-85, -3.6);
+      ctx.lineTo(-85, 3.6);
+      ctx.lineTo(-56, 15.0);
+      ctx.lineTo(52, 15.5);
+      ctx.bezierCurveTo(74, 15.5, 88, 12.5, 88, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Matte black AN/BQQ-5 bow sonar dome cap
+      ctx.fillStyle = "#080D16";
+      ctx.beginPath();
+      ctx.moveTo(88, 0);
+      ctx.bezierCurveTo(88, -11.2, 76, -14.2, 66, -14.8);
+      ctx.lineTo(66, 14.8);
+      ctx.bezierCurveTo(76, 14.2, 88, 11.2, 88, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      // Soft ambient water-bounce highlight cresting along top deck
+      ctx.strokeStyle = pal.waterBounce;
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      ctx.moveTo(-54, -14.8);
+      ctx.lineTo(52, -15.2);
+      ctx.quadraticCurveTo(76, -14.8, 84, -4.5);
+      ctx.stroke();
+
+      // Subtle hull casing deck seam, vertical VLS tube hatches ahead of sail, & floodwater limber holes
+      ctx.fillStyle = pal.hullDeep;
+      ctx.fillRect(45, -15.4, 15, 2.2);
+      ctx.strokeStyle = pal.isDark ? "rgba(148, 224, 248, 0.16)" : "rgba(255, 255, 255, 0.16)";
+      ctx.lineWidth = 0.8;
+      [-42, -14, 12, 42].forEach(hx => {
+        ctx.beginPath();
+        ctx.moveTo(hx, -14.5);
+        ctx.lineTo(hx, 14.5);
+        ctx.stroke();
+      });
+      ctx.fillStyle = "#050A12";
+      for (let lx = -48; lx <= 32; lx += 10) {
+        ctx.fillRect(lx, 7.2, 4.2, 1.4);
+      }
+
+      // Tall Forward-Mounted Fairwater Conning Tower Sail (x = +12..+40, y = -15..-38)
+      const sailG = ctx.createLinearGradient(0, -38, 0, -14);
+      sailG.addColorStop(0, pal.isDark ? "#2B4056" : "#384E64");
+      sailG.addColorStop(1, pal.isDark ? "#152333" : "#1D2D3E");
+      ctx.fillStyle = sailG;
+      ctx.beginPath();
+      ctx.moveTo(40, -14.8);
+      ctx.quadraticCurveTo(39, -32, 34.5, -38.0);
+      ctx.lineTo(14.5, -38.0);
+      ctx.lineTo(11.0, -14.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = pal.waterBounce;
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      ctx.moveTo(39.5, -16);
+      ctx.quadraticCurveTo(38.5, -32, 34.2, -37.8);
+      ctx.lineTo(15.0, -37.8);
+      ctx.stroke();
+
+      // Iconic Mid-Sail Horizontal Fairwater Diving Planes!
+      ctx.fillStyle = "#0B1523";
+      ctx.beginPath();
+      ctx.roundRect(19, -27.2, 16, 3.6, 1.4);
+      ctx.fill();
+      ctx.fillStyle = pal.subHullLight;
+      ctx.fillRect(20, -27.0, 14, 1.0);
+
+      // Subtle tactical red bridge cockpit slit & crisp painted naval sail marking
+      ctx.fillStyle = "rgba(248, 113, 113, 0.72)";
+      ctx.fillRect(30.5, -34.5, 5.2, 1.6);
+      ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.28)" : "rgba(241, 245, 249, 0.42)";
+      ctx.fillRect(15.5, -20.0, 14.5, 1.4);
+      ctx.fillStyle = pal.hullDeep;
+      ctx.fillRect(13.5, -36.0, 3.2, 20.5);
+
+      // Staggered Periscope, Photonics, Radar & Whip Communication Masts atop sail
+      ctx.strokeStyle = pal.subHullLight;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(28, -38); ctx.lineTo(28, -48.5);
+      ctx.moveTo(23.5, -38); ctx.lineTo(23.5, -45.5);
+      ctx.moveTo(19.5, -38); ctx.lineTo(19.5, -43.5);
+      ctx.stroke();
+      ctx.fillStyle = pal.subHullLight;
+      ctx.fillRect(27.2, -49.2, 3.2, 1.6);
+
+      // Cruciform Stern Stabilizers (Upper & Lower Rudders + Towed-Array Pod + Stern Hydroplanes + Skewed Bronze Propeller)
+      ctx.fillStyle = pal.isDark ? "#132234" : "#1A2A3B";
+      // Upper vertical rudder + bullet towed-array sonar dispenser pod
+      ctx.beginPath();
+      ctx.moveTo(-62, -10.5);
+      ctx.lineTo(-76, -24.0);
+      ctx.lineTo(-83.5, -24.0);
+      ctx.lineTo(-81.5, -4.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#080D16";
+      ctx.beginPath();
+      ctx.roundRect(-84.5, -25.4, 9.5, 3.2, 1.5);
+      ctx.fill();
+      // Lower vertical rudder fin
+      ctx.fillStyle = pal.isDark ? "#101D2C" : "#152333";
+      ctx.beginPath();
+      ctx.moveTo(-63, 10.5);
+      ctx.lineTo(-75, 22.5);
+      ctx.lineTo(-82.5, 22.5);
+      ctx.lineTo(-81.5, 4.5);
+      ctx.closePath();
+      ctx.fill();
+      // Horizontal stern hydroplane airfoil
+      ctx.fillStyle = "#0B1523";
+      ctx.beginPath();
+      ctx.roundRect(-82.5, -2.2, 15.5, 4.4, 1.8);
+      ctx.fill();
+
+      // 7-Blade Skewed Naval Brass/Bronze Propeller + Cone Hub
+      const propSpin = Math.sin(step * 18) * 3.8;
+      ctx.fillStyle = "#8C6D46";
+      ctx.beginPath();
+      ctx.moveTo(-85, -2.6);
+      ctx.lineTo(-89.5, 0);
+      ctx.lineTo(-85, 2.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#A8885C";
+      ctx.lineWidth = 2.1;
+      ctx.beginPath();
+      ctx.moveTo(-87.2, -7.2 + propSpin * 0.45);
+      ctx.lineTo(-87.2, 7.2 - propSpin * 0.45);
+      ctx.moveTo(-87.2, -3.8 - propSpin * 0.6);
+      ctx.lineTo(-87.2, 3.8 + propSpin * 0.6);
+      ctx.stroke();
     } else if (style === "manta_glider") {
       // Sleek Winged Hydrofoil Reconnaissance Submersible
       ctx.fillStyle = hullG;
@@ -4374,24 +4685,27 @@ const WorldDeepBlue = {
     }
 
     const navBlink = 0.55 + 0.45 * Math.sin(step * 4.2);
-    const navY = style === "bathyscaphe" ? -16.5
+    const navY = style === "los_angeles_ssn" ? -49.5
+      : (style === "bathyscaphe" ? -16.5
       : (style === "deep_explorer" ? -29
       : (style === "military_stealth" ? -36
       : (style === "heavy_freighter" ? -26.5
-      : (style === "experimental_research" ? -24.5 : -22.5))));
-    ctx.fillStyle = style === "military_stealth"
+      : (style === "experimental_research" ? -24.5 : -22.5)))));
+    ctx.fillStyle = (style === "military_stealth" || style === "los_angeles_ssn")
       ? `rgba(248, 113, 113, ${(0.70 * navBlink).toFixed(3)})`
       : `rgba(56, 224, 180, ${(0.55 * navBlink).toFixed(3)})`;
     ctx.beginPath();
-    ctx.arc(style === "heavy_freighter" ? 30 : (style === "military_stealth" ? 4 : (style === "experimental_research" ? -44 : 4)), navY, 1.6, 0, Math.PI * 2);
+    ctx.arc(style === "los_angeles_ssn" ? 28 : (style === "heavy_freighter" ? 30 : (style === "military_stealth" ? 4 : (style === "experimental_research" ? -44 : 4))), navY, 1.6, 0, Math.PI * 2);
     ctx.fill();
 
     if (style !== "heavy_freighter" && thrusterGlow > 0.25) {
-      const sTail = style === "bathyscaphe" ? -33
+      const sTail = style === "los_angeles_ssn" ? -90
+        : (style === "bathyscaphe" ? -33
         : (style === "experimental_research" ? -48
-        : (style === "military_stealth" ? -64 : -58));
+        : (style === "military_stealth" ? -64 : -58)));
+      const wakeAlpha = style === "los_angeles_ssn" ? thrusterGlow * 0.22 : thrusterGlow * 0.45;
       const sg = ctx.createRadialGradient(sTail, 0, 1, sTail - 4, 0, 13);
-      sg.addColorStop(0, `rgba(${pal.elevatorGlow}, ${(thrusterGlow * 0.45).toFixed(3)})`);
+      sg.addColorStop(0, `rgba(${pal.elevatorGlow}, ${wakeAlpha.toFixed(3)})`);
       sg.addColorStop(1, `rgba(${pal.elevatorGlow}, 0)`);
       ctx.fillStyle = sg;
       ctx.beginPath();
@@ -4419,10 +4733,11 @@ const WorldDeepBlue = {
     const s = L.s;
 
     const armAng = L.leftAngle;
-    const scaleMult = sub.style === "bathyscaphe" ? 0.84 : (sub.style === "manta_glider" ? 0.90 : 0.96);
+    const scaleMult = sub.style === "los_angeles_ssn" ? 1.12
+      : (sub.style === "bathyscaphe" ? 0.84 : (sub.style === "manta_glider" ? 0.90 : 0.96));
     const dockOff = this._getSubDockOffset(sub.style) * s * scaleMult;
     const dockedPt = { x: L.leftDockX - dockOff, y: L.leftDockY };
-    const holdPt = { x: L.leftDockX - 134 * s, y: L.leftDockY };
+    const holdPt = { x: L.leftDockX - Math.max(134 * s, dockOff + 48 * s), y: L.leftDockY };
     const dockPitch = 0;
 
     let visible = true;
@@ -4543,7 +4858,7 @@ const WorldDeepBlue = {
         const oppositeStyle = this.cargoSub ? this.cargoSub.style : "";
         const pool = this.DOCKING_SUB_STYLES.filter(st => st !== oppositeStyle);
         sub.style = this._pick(pool.length > 0 ? pool : this.DOCKING_SUB_STYLES);
-        sub.cruiseSpeed = sub.style === "heavy_freighter" ? 14.0 : 17.5;
+        sub.cruiseSpeed = sub.style === "los_angeles_ssn" ? 13.0 : (sub.style === "heavy_freighter" ? 14.0 : 17.5);
       }
     } else {
       visible = false;
@@ -4576,8 +4891,9 @@ const WorldDeepBlue = {
     const thrusterGlow = this._clamp(sub.speed / Math.max(1, sub.cruiseSpeed), 0, 1) * 0.72;
     if (sub.speed > 3.5 && Math.random() < Math.min(0.32, sub.speed * 0.016)) {
       const sternDir = sub.facingLeft ? 1 : -1;
+      const tailLen = sub.style === "los_angeles_ssn" ? 84 : 44;
       this.bubbles.push({
-        x: sub.x + sternDir * 44 * s * scaleMult,
+        x: sub.x + sternDir * tailLen * s * scaleMult,
         y: sub.y - Math.sin(sub.pitch) * 32 * s + (Math.random() - 0.5) * 6,
         r: 1.0 + Math.random() * 1.6,
         vy: -(0.32 + Math.random() * 0.38),
@@ -4603,10 +4919,11 @@ const WorldDeepBlue = {
     cs.t += dt;
     const s = L.s;
 
-    const scaleMult = cs.style === "heavy_freighter" ? 1.0 : (cs.style === "industrial_tug" ? 0.96 : 0.94);
+    const scaleMult = cs.style === "los_angeles_ssn" ? 1.12
+      : (cs.style === "heavy_freighter" ? 1.0 : (cs.style === "industrial_tug" ? 0.96 : 0.94));
     const dockOff = this._getSubDockOffset(cs.style) * s * scaleMult;
     const dockedPt = { x: L.rightDockX + dockOff, y: L.rightDockY };
-    const holdPt = { x: L.rightDockX + 138 * s, y: L.rightDockY };
+    const holdPt = { x: L.rightDockX + Math.max(138 * s, dockOff + 48 * s), y: L.rightDockY };
     const dockPitch = 0;
 
     let visible = true;
@@ -4680,7 +4997,7 @@ const WorldDeepBlue = {
         const oppositeStyle = this.sub ? this.sub.style : "";
         const pool = this.DOCKING_SUB_STYLES.filter(st => st !== oppositeStyle);
         cs.style = this._pick(pool.length > 0 ? pool : this.DOCKING_SUB_STYLES);
-        cs.cruiseSpeed = cs.style === "heavy_freighter" ? 13.5 : 16.5;
+        cs.cruiseSpeed = cs.style === "los_angeles_ssn" ? 12.8 : (cs.style === "heavy_freighter" ? 13.5 : 16.5);
       }
     } else if (cs.phase === "patrol_wait") {
       visible = false;
@@ -4751,8 +5068,9 @@ const WorldDeepBlue = {
     const thrusterGlow = cs.phase === "docked" ? 0.12 : this._clamp(cs.speed / Math.max(1, cs.cruiseSpeed), 0.1, 1) * 0.80;
     if (cs.speed > 3.0 && Math.random() < Math.min(0.34, cs.speed * 0.018)) {
       const sternDir = cs.facingLeft ? 1 : -1;
+      const tailLen = cs.style === "los_angeles_ssn" ? 84 : 58;
       this.bubbles.push({
-        x: cs.x + sternDir * 58 * s * scaleMult,
+        x: cs.x + sternDir * tailLen * s * scaleMult,
         y: cs.y - Math.sin(cs.pitch) * 34 * s + (Math.random() - 0.5) * 9,
         r: 1.2 + Math.random() * 1.9,
         vy: -(0.32 + Math.random() * 0.42),
@@ -4907,7 +5225,7 @@ const WorldDeepBlue = {
             rs.startPt = { x: goRight ? -130 : w + 130, y: h * this._rand(0.18, 0.40) };
             rs.endPt = { x: goRight ? w + 130 : -130, y: h * this._rand(0.16, 0.38) };
             rs.style = this._pick(this.SUB_STYLES);
-            rs.scale = rs.style === "heavy_freighter" ? 0.44 : 0.54;
+            rs.scale = rs.style === "los_angeles_ssn" ? 0.62 : (rs.style === "heavy_freighter" ? 0.44 : 0.54);
             rs.cruiseSpeed = this._rand(12.0, 16.5);
             rs.dist = 0;
             rs.phase = "cruising";
@@ -5877,6 +6195,323 @@ const WorldDeepBlue = {
     if (!anyInCourse) {
       pod.active = false;
       pod.waitTimer = this._rand(isNarrow ? 18 : 12, isNarrow ? 34 : 26);
+    }
+  },
+
+  // Graceful Giant Reef Manta Ray with Cephalic Horn Lobes, Shoulder Markings, Pale Gill Belly & Whip Tail
+  _drawCleaningManta(ctx, m, pal, step, depthScale, alpha) {
+    const sp = m.span * depthScale;
+    const flap = Math.sin(m.wingPhase) * sp * 0.25;
+    const wingTipShift = Math.cos(m.wingPhase) * sp * 0.12;
+    const tailWag = Math.sin(m.wingPhase * 0.8 + 1.1) * sp * 0.12;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(m.x, m.y);
+    if (m.facingLeft) ctx.scale(-1, 1);
+    ctx.rotate(m.bank || 0);
+
+    // Underside pale silvery-white ventral belly silhouette peeking subtly during wing lift
+    ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.72)" : "rgba(241, 248, 255, 0.88)";
+    ctx.beginPath();
+    ctx.moveTo(sp * 0.46, sp * 0.03);
+    ctx.quadraticCurveTo(sp * 0.22, sp * 0.22 + flap * 0.28, -sp * 0.14, sp * 0.16);
+    ctx.lineTo(-sp * 0.44, sp * 0.04);
+    ctx.quadraticCurveTo(0, sp * 0.04, sp * 0.46, sp * 0.03);
+    ctx.closePath();
+    ctx.fill();
+
+    // Subtle 5 gill-slit ticks under shoulder when wing raises
+    ctx.strokeStyle = pal.isDark ? "rgba(15, 36, 58, 0.48)" : "rgba(21, 61, 90, 0.42)";
+    ctx.lineWidth = Math.max(0.7, sp * 0.022);
+    for (let g = 0; g < 5; g++) {
+      const gx = sp * (0.14 - g * 0.055);
+      const gy = sp * 0.08 + flap * 0.06;
+      ctx.beginPath();
+      ctx.moveTo(gx, gy - sp * 0.02);
+      ctx.lineTo(gx - sp * 0.015, gy + sp * 0.025);
+      ctx.stroke();
+    }
+
+    // Long slender flexible whip tail
+    ctx.strokeStyle = pal.isDark ? "#123252" : "#163F5E";
+    ctx.lineWidth = Math.max(1.2, sp * 0.045);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-sp * 0.36, 0);
+    ctx.quadraticCurveTo(-sp * 0.78, tailWag * 0.65, -sp * 1.18, tailWag);
+    ctx.stroke();
+
+    // Sculpted Dorsal Pelvic & sweeping Wing Mantle Silhouette
+    const capeG = ctx.createLinearGradient(0, -sp * 0.75, 0, sp * 0.65);
+    capeG.addColorStop(0, pal.isDark ? "#1A4369" : "#22587D");
+    capeG.addColorStop(0.5, pal.isDark ? "#0F2945" : "#153D5A");
+    capeG.addColorStop(1, pal.isDark ? "#08192E" : "#0D2B42");
+    ctx.fillStyle = capeG;
+    ctx.beginPath();
+    // Upper cephalic horn lobe & wide leading wing
+    ctx.moveTo(sp * 0.48, -sp * 0.05);
+    ctx.quadraticCurveTo(sp * 0.60, -sp * 0.13, sp * 0.56, -sp * 0.03);
+    ctx.quadraticCurveTo(sp * 0.34, -sp * 0.24, sp * 0.08 - wingTipShift, -sp * 0.88 + flap);
+    ctx.quadraticCurveTo(-sp * 0.04, -sp * 0.46 + flap * 0.45, -sp * 0.30, -sp * 0.12);
+    ctx.lineTo(-sp * 0.44, 0);
+    // Lower wing & cephalic lobe
+    ctx.lineTo(-sp * 0.30, sp * 0.12);
+    ctx.quadraticCurveTo(-sp * 0.04, sp * 0.46 - flap * 0.45, sp * 0.08 + wingTipShift * 0.5, sp * 0.86 - flap);
+    ctx.quadraticCurveTo(sp * 0.34, sp * 0.22, sp * 0.56, sp * 0.05);
+    ctx.quadraticCurveTo(sp * 0.60, sp * 0.14, sp * 0.48, sp * 0.06);
+    ctx.closePath();
+    ctx.fill();
+
+    // Iconic pale reef-manta dorsal shoulder chevron markings
+    ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.34)" : "rgba(232, 247, 255, 0.52)";
+    ctx.beginPath();
+    ctx.moveTo(sp * 0.30, -sp * 0.06);
+    ctx.quadraticCurveTo(sp * 0.16, -sp * 0.24, sp * 0.04, -sp * 0.26);
+    ctx.quadraticCurveTo(sp * 0.14, -sp * 0.12, sp * 0.22, -sp * 0.04);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(sp * 0.30, sp * 0.06);
+    ctx.quadraticCurveTo(sp * 0.16, sp * 0.24, sp * 0.04, sp * 0.26);
+    ctx.quadraticCurveTo(sp * 0.14, sp * 0.12, sp * 0.22, sp * 0.04);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  },
+
+  // Vibrant Bluestreak Cleaner Wrasse (Labroides dimidiatus) servicing mantas at the cleaning reef
+  _drawCleanerWrasse(ctx, wr, pal, step) {
+    const s = wr.size;
+    const tailWag = Math.sin(wr.wigglePhase * 4.5) * s * 0.24;
+    ctx.save();
+    ctx.translate(wr.x, wr.y);
+    if (wr.facingLeft) ctx.scale(-1, 1);
+    ctx.rotate(wr.pitch || 0);
+
+    // Pale silver-white streamlined slender torso
+    ctx.fillStyle = pal.isDark ? "#CBD5E1" : "#F1F5F9";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.90, s * 0.26, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Iridescent Electric-Blue Dorsal Flank & Fan Tail (bold bright cleaner signature!)
+    ctx.fillStyle = pal.isDark ? "#22D3EE" : "#00B4D8";
+    ctx.beginPath();
+    ctx.moveTo(s * 0.78, -s * 0.02);
+    ctx.quadraticCurveTo(0, -s * 0.36, -s * 0.85, -s * 0.12 + tailWag * 0.4);
+    ctx.lineTo(-s * 1.28, -s * 0.30 + tailWag);
+    ctx.lineTo(-s * 1.28, s * 0.30 + tailWag);
+    ctx.lineTo(-s * 0.85, s * 0.08 + tailWag * 0.4);
+    ctx.quadraticCurveTo(0, -s * 0.02, s * 0.78, -s * 0.02);
+    ctx.closePath();
+    ctx.fill();
+
+    // Signature crisp jet-black longitudinal cleaner stripe tapering cleanly into tail
+    ctx.fillStyle = "#090D16";
+    ctx.beginPath();
+    ctx.moveTo(s * 0.86, 0);
+    ctx.lineTo(-s * 0.85, -s * 0.09 + tailWag * 0.4);
+    ctx.lineTo(-s * 1.18, -s * 0.12 + tailWag);
+    ctx.lineTo(-s * 1.18, s * 0.12 + tailWag);
+    ctx.lineTo(-s * 0.85, s * 0.09 + tailWag * 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tiny bright cyan eye highlight
+    ctx.fillStyle = "#7DD3FC";
+    ctx.beginPath();
+    ctx.arc(s * 0.62, -s * 0.05, Math.max(0.65, s * 0.085), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  },
+
+  // Live Updating & 2.5D Interleaved Rendering of Manta Ray Cleaning Station + Cleaner Wrasse Crew
+  _updateAndDrawCleaningStation(ctx, w, h, L, pal, dt, step) {
+    const cs = L.cleaningStation;
+    if (!cs) return;
+    const mantas = this.cleaningMantas;
+    const wrasses = this.cleanerWrasse;
+    const sc = cs.scale;
+
+    // 1. Update circling mantas with periodic gentle hover-clean pauses directly over the coral bommie
+    for (let i = 0; i < mantas.length; i++) {
+      const m = mantas[i];
+      m.wingPhase += dt * (m.state === "hover_clean" ? 2.1 : 3.2);
+      const prevSin = Math.sin(m.orbitAngle);
+
+      if (m.state === "hover_clean") {
+        m.hoverTimer -= dt;
+        // Subtle station-keeping drift in gentle current over pinnacle crown
+        m.orbitAngle += m.orbitSpeed * 0.14 * dt;
+        if (m.hoverTimer <= 0) {
+          m.state = "circling";
+          m.hoverCooldown = this._rand(7.0, 13.0);
+        }
+      } else {
+        m.orbitAngle += m.orbitSpeed * dt;
+        m.hoverCooldown -= dt;
+        // Enter peaceful hover when sweeping gracefully across front of reef crown
+        if (m.hoverCooldown <= 0 && prevSin > 0.45 && Math.abs(Math.cos(m.orbitAngle)) < 0.25) {
+          m.state = "hover_clean";
+          m.hoverTimer = this._rand(4.2, 6.8);
+        }
+      }
+
+      const cosA = Math.cos(m.orbitAngle);
+      const sinA = Math.sin(m.orbitAngle);
+      const vx = -Math.sin(m.orbitAngle) * m.orbitSpeed;
+      m.x = cs.x + cosA * m.orbitRx;
+      m.y = cs.y - m.altY + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 2.8 * sc;
+      m.facingLeft = vx < 0;
+      m.bank = cosA * (m.orbitSpeed > 0 ? -0.09 : 0.09) + Math.cos(m.wingPhase) * 0.03;
+      m.isFront = sinA >= 0;
+    }
+
+    // 2. Back-pass mantas gliding behind coral pinnacle crown
+    for (let i = 0; i < mantas.length; i++) {
+      if (!mantas[i].isFront) {
+        this._drawCleaningManta(ctx, mantas[i], pal, step, 0.85, pal.isDark ? 0.78 : 0.74);
+      }
+    }
+
+    // 3. Subtle swaying live coral sea-whips & gentle polyp shimmer crowning the bommie (creates 2.5D depth occlusion!)
+    ctx.save();
+    ctx.translate(cs.x, cs.y);
+    ctx.strokeStyle = pal.isDark ? "rgba(45, 212, 191, 0.56)" : "rgba(251, 146, 180, 0.72)";
+    ctx.lineWidth = Math.max(1.2, 2.0 * sc);
+    ctx.lineCap = "round";
+    [-16, -5, 6, 17].forEach((wx, idx) => {
+      const sway = Math.sin(step * 1.9 + idx * 1.3) * 4.5 * sc;
+      const wh = (14 + (idx % 2) * 5) * sc;
+      const baseY = -22 * sc;
+      ctx.beginPath();
+      ctx.moveTo(wx * sc, baseY + 4 * sc);
+      ctx.quadraticCurveTo((wx + 1) * sc + sway * 0.5, baseY - wh * 0.5, wx * sc + sway, baseY - wh);
+      ctx.stroke();
+    });
+    if (pal.isDark) {
+      const pGlow = 0.35 + 0.25 * Math.sin(step * 2.4);
+      ctx.fillStyle = `rgba(56, 224, 232, ${pGlow.toFixed(3)})`;
+      [-14, 0, 14].forEach((px, idx) => {
+        ctx.beginPath();
+        ctx.arc(px * sc, (-28 - (idx % 2) * 4) * sc, 1.5 * sc, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    ctx.restore();
+
+    // 4. Front-pass mantas sweeping right across foreground of cleaning station
+    for (let i = 0; i < mantas.length; i++) {
+      if (mantas[i].isFront) {
+        this._drawCleaningManta(ctx, mantas[i], pal, step, 1.04, 0.96);
+      }
+    }
+
+    // 5. Electric-blue Cleaner Wrasse darting up from reef crevices to inspect & clean circling mantas
+    const getZoneOffset = (wr, m) => {
+      const sp = m.span * (m.isFront ? 1.04 : 0.85);
+      const dir = m.facingLeft ? -1 : 1;
+      const jitX = Math.cos(wr.id * 2.1) * sp * 0.09;
+      const jitY = Math.sin(wr.id * 2.1) * sp * 0.08;
+      if (wr.zone === "gill") return { x: sp * 0.10 * dir + jitX, y: sp * 0.15 + jitY };
+      if (wr.zone === "cephalic") return { x: sp * 0.48 * dir + jitX * 0.5, y: -sp * 0.06 + jitY };
+      if (wr.zone === "left_wing") return { x: -sp * 0.04 * dir + jitX, y: -sp * 0.42 + jitY };
+      if (wr.zone === "right_wing") return { x: -sp * 0.02 * dir + jitX, y: sp * 0.42 + jitY };
+      return { x: -sp * 0.18 * dir + jitX, y: sp * 0.12 + jitY };
+    };
+
+    for (let i = 0; i < wrasses.length; i++) {
+      const wr = wrasses[i];
+      wr.wigglePhase += dt * (wr.state === "cleaning" ? 4.4 : 3.2);
+      wr.timer -= dt;
+      const tgtManta = mantas[wr.targetMantaIdx % Math.max(1, mantas.length)];
+
+      let aimX = wr.homeX + Math.sin(step * 1.6 + wr.id) * 14 * sc;
+      let aimY = wr.homeY - 10 * sc + Math.cos(step * 1.9 + wr.id) * 6 * sc;
+      let spd = 28 * sc;
+
+      if (wr.state === "reef_dance") {
+        if (wr.timer <= 0 && tgtManta) {
+          wr.state = "dart_to_manta";
+          wr.timer = this._rand(2.0, 3.2);
+        }
+      } else if (wr.state === "dart_to_manta" && tgtManta) {
+        const off = getZoneOffset(wr, tgtManta);
+        aimX = tgtManta.x + off.x;
+        aimY = tgtManta.y + off.y;
+        spd = 62 * sc;
+        if (Math.hypot(aimX - wr.x, aimY - wr.y) < 10 * sc || wr.timer <= 0) {
+          wr.state = "cleaning";
+          wr.timer = this._rand(3.0, 5.2);
+        }
+      } else if (wr.state === "cleaning" && tgtManta) {
+        const off = getZoneOffset(wr, tgtManta);
+        const peck = Math.sin(step * 8.0 + wr.id * 1.9) * 3.5 * sc;
+        aimX = tgtManta.x + off.x + peck;
+        aimY = tgtManta.y + off.y + Math.cos(step * 6.5 + wr.id) * 3.0 * sc;
+        spd = 54 * sc;
+        wr.sparkleCd -= dt;
+        if (wr.sparkleCd <= 0 && this.cleanSparkles.length < 18) {
+          wr.sparkleCd = this._rand(0.55, 1.15);
+          this.cleanSparkles.push({
+            x: wr.x,
+            y: wr.y,
+            r: (1.2 + Math.random() * 1.1) * sc,
+            vy: -(4.0 + Math.random() * 4.0) * sc,
+            life: 0,
+            maxLife: 1.1
+          });
+        }
+        if (wr.timer <= 0) {
+          wr.state = "return_reef";
+          wr.timer = this._rand(1.8, 3.0);
+        }
+      } else {
+        aimX = wr.homeX;
+        aimY = wr.homeY;
+        spd = 48 * sc;
+        if (Math.hypot(aimX - wr.x, aimY - wr.y) < 8 * sc || wr.timer <= 0) {
+          wr.state = "reef_dance";
+          wr.timer = this._rand(1.6, 3.6);
+          wr.targetMantaIdx = (wr.targetMantaIdx + 1) % Math.max(1, mantas.length);
+        }
+      }
+
+      const dx = aimX - wr.x;
+      const dy = aimY - wr.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const stepDist = Math.min(dist, spd * dt);
+      wr.x += (dx / dist) * stepDist;
+      wr.y += (dy / dist) * stepDist;
+      if (Math.abs(dx) > 0.6) {
+        wr.facingLeft = dx < 0;
+      }
+      wr.pitch = this._clamp(dy / Math.max(12, Math.abs(dx)), -0.35, 0.35);
+
+      this._drawCleanerWrasse(ctx, wr, pal, step);
+    }
+
+    // 6. Subtle rising micro-clean sparkles around serviced mantas
+    if (this.cleanSparkles.length > 0) {
+      const aliveS = [];
+      ctx.save();
+      for (let i = 0; i < this.cleanSparkles.length; i++) {
+        const sp = this.cleanSparkles[i];
+        sp.life += dt;
+        sp.y += sp.vy * dt;
+        if (sp.life >= sp.maxLife) continue;
+        aliveS.push(sp);
+        const a = (1 - sp.life / sp.maxLife) * (pal.isDark ? 0.78 : 0.68);
+        ctx.fillStyle = `rgba(125, 211, 252, ${a.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      this.cleanSparkles = aliveS;
     }
   },
 
