@@ -651,18 +651,18 @@ const WorldDeepBlue = {
 
   getLayout(w, h) {
     const isNarrow = w < 720;
-    const seabedY = h * (isNarrow ? 0.79 : 0.76);
+    const seabedY = h * (isNarrow ? 0.77 : 0.76);
+    const s = isNarrow ? Math.max(0.42, Math.min(0.56, w / 760)) : Math.min(1.06, Math.max(0.76, w / 1320));
     const hubX = w * 0.50;
-    const hubY = h * (isNarrow ? 0.61 : 0.585);
-    const s = isNarrow ? Math.max(0.60, w / 620) : Math.min(1.06, Math.max(0.76, w / 1320));
+    const hubY = isNarrow ? (seabedY - 168 * s) : (h * 0.585);
 
     // Pre-fab horizontal station campus coordinates (wide clear berths between central hub & side wings!)
-    const westWingX = isNarrow ? (hubX - 235 * s) : (hubX - 286 * s);
+    const westWingX = isNarrow ? (hubX - 188 * s) : (hubX - 286 * s);
     const westWingY = hubY + 46 * s;
     const farWestX = hubX - 418 * s;  // Hydropower Tidal Turbine Farm!
     const farWestY = hubY + 70 * s;
 
-    const eastWingX = isNarrow ? (hubX + 235 * s) : (hubX + 272 * s); // East Sensor Wing & Anchored Sonar Relay
+    const eastWingX = isNarrow ? (hubX + 188 * s) : (hubX + 272 * s); // East Sensor Wing & Anchored Sonar Relay
     const eastWingY = hubY + 46 * s;
     const farEastX = hubX + 382 * s;
     const farEastY = hubY + 76 * s;
@@ -676,7 +676,7 @@ const WorldDeepBlue = {
     const sonarY = eastWingY - 24 * s;
 
     // Hydropower Tidal Turbines (Far West on seabed currents)
-    const hydroBaseX = isNarrow ? (hubX - 188 * s) : farWestX;
+    const hydroBaseX = isNarrow ? (hubX - 245 * s) : farWestX;
     const hydroBaseY = isNarrow ? (hubY + 86 * s) : (farWestY + 10 * s);
     const hydroTurbines = isNarrow
       ? [{ x: hydroBaseX - 18 * s, y: hydroBaseY }, { x: hydroBaseX + 16 * s, y: hydroBaseY + 3 * s }]
@@ -711,15 +711,15 @@ const WorldDeepBlue = {
     const outerEastX = isNarrow ? farEastX : (hubX + 516 * s);
     const outerEastY = hubY + 84 * s;
 
-    // Grounded Sunken Shipwreck partially buried on unobstructed open East sandy seabed!
+    // Larger Sunken Shipwreck settled deeper in the background sandy seabed behind the eastern wing
     const wreck = {
-      x: w * (isNarrow ? 0.83 : 0.772),
-      y: isNarrow ? (seabedY + 12) : (seabedY + 24),
-      scale: isNarrow ? 0.45 : Math.min(0.90, Math.max(0.72, w / 1460))
+      x: w * (isNarrow ? 0.78 : 0.805),
+      y: seabedY - (isNarrow ? 42 : 76 * s),
+      scale: isNarrow ? 0.58 : Math.min(1.42, Math.max(1.12, w / 1020))
     };
 
     // Habitat-Surrounding Manta Ray Cleaning Station Reefs (encompassing seabed BEHIND and IN FRONT OF station)
-    const csScale = isNarrow ? 0.62 : Math.min(1.04, Math.max(0.78, w / 1380));
+    const csScale = isNarrow ? 0.54 : Math.min(1.04, Math.max(0.78, w / 1380));
     const backReefs = isNarrow
       ? [
           { x: w * 0.25, y: this._seabedYAtX(w * 0.25, w, h, { seabedY }) - 14, scale: csScale * 0.92 },
@@ -902,14 +902,14 @@ const WorldDeepBlue = {
     }
     ctx.restore();
 
+    // 4a. Enlarged Sunken Shipwreck deep in the background seabed canyon BEFORE cleaning reefs & station wings!
+    this._drawBackgroundShipwreck(ctx, L, pal);
+
     // 4b. Background Cleaning Station Coral Bommies BEHIND Habitat Wings & Walkways (drawn on background cache)
     this._drawCleaningStationBackReefs(ctx, L, pal);
 
     // 5. Industrial Pre-Fab Modular Seabed Research Station + Hydropower Farm + Clear Tubes + Greenhouse (on stationCacheCanvas for true behind/front occlusion!)
     this._drawResearchStation(sCtx, L, pal);
-
-    // 5b. Unobstructed Grounded Sunken Shipwreck Partially Covered in Continuous Seabed Sand (clear in front of wing terrain skirts)
-    this._drawBackgroundShipwreck(sCtx, L, pal);
 
     // 6. Lush Ground-Anchored Benthic Coral Reefs, Habitat-Surrounding Foreground Cleaning Pinnacles, Sponges & Chimneys
     this._drawSeabedReefs(sCtx, w, h, L, pal);
@@ -1443,6 +1443,23 @@ const WorldDeepBlue = {
       this._drawExteriorFloodlight(ctx, cx + botW * 0.18, midY + 2 * s, 40 * s, (botY - midY) + 14 * s, pal);
     }
 
+    // Improvement #8: Armored seabed concrete footing pads & dark silt contact AO seam
+    [-0.38, 0, 0.38].forEach(fx => {
+      const px = cx + botW * fx;
+      ctx.fillStyle = pal.hullDark;
+      ctx.beginPath();
+      ctx.moveTo(px - 14 * s, botY + 3 * s);
+      ctx.lineTo(px + 14 * s, botY + 3 * s);
+      ctx.lineTo(px + 18 * s, botY + 14 * s);
+      ctx.lineTo(px - 18 * s, botY + 14 * s);
+      ctx.closePath();
+      ctx.fill();
+    });
+    ctx.fillStyle = pal.isDark ? "rgba(1, 6, 15, 0.56)" : "rgba(12, 34, 52, 0.34)";
+    ctx.beginPath();
+    ctx.ellipse(cx, botY + 11 * s, botW * 0.56, 5.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.fillStyle = pal.reefMid;
     ctx.beginPath();
     ctx.moveTo(cx - botW * 0.64, botY + 20 * s);
@@ -1461,8 +1478,11 @@ const WorldDeepBlue = {
     const bevel = Math.min(7.5 * s, bh * 0.24);
 
     ctx.save();
+    // Deeper grounded sill & contact shadow
     ctx.fillStyle = pal.hullShadow;
-    ctx.fillRect(x + 3 * s, y + bh - 2 * s, bw, 5 * s);
+    ctx.fillRect(x + 2 * s, y + bh - 2 * s, bw + 2 * s, 6 * s);
+    ctx.fillStyle = pal.isDark ? "rgba(1, 6, 15, 0.55)" : "rgba(12, 34, 52, 0.32)";
+    ctx.fillRect(x - 1 * s, y + bh - 1 * s, frontW + 2 * s, 2.5 * s);
 
     const mg = ctx.createLinearGradient(x, y, x, y + bh);
     mg.addColorStop(0, pal.hullLight);
@@ -1519,11 +1539,20 @@ const WorldDeepBlue = {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Modern Large Floor-to-Ceiling Mullioned Glass Windows (+ interior biophilic accent)
+    // Modern Large Floor-to-Ceiling Mullioned Glass Windows (+ dusk/night window spill wash!)
     const rows = opts.rows || 1;
     for (let r = 0; r < rows; r++) {
       const wy = y + bh * (rows === 1 ? 0.24 : (0.18 + r * 0.38));
       const wh = Math.max(3.6 * s, bh * (rows === 1 ? 0.48 : 0.26));
+      if (pal.isDark) {
+        const spill = ctx.createRadialGradient(x + frontW * 0.5, wy + wh, 1, x + frontW * 0.5, wy + wh + 6 * s, frontW * 0.68);
+        spill.addColorStop(0, "rgba(254, 232, 165, 0.20)");
+        spill.addColorStop(1, "rgba(254, 232, 165, 0)");
+        ctx.fillStyle = spill;
+        ctx.beginPath();
+        ctx.ellipse(x + frontW * 0.5, wy + wh + 5 * s, frontW * 0.64, 10 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       this._drawWindowBand(ctx, x + 5 * s, wy, frontW - 10 * s, wh, 4, pal, s);
       this._drawWindowBand(ctx, x + frontW + 3 * s, wy + 1.2 * s, Math.max(4 * s, depthX * 0.50), wh * 0.86, 1, pal, s, 0.72);
     }
@@ -1762,7 +1791,7 @@ const WorldDeepBlue = {
     }
 
     // Overhead horticultural grow-light fixture ribs inside dome
-    ctx.strokeStyle = pal.isDark ? "rgba(134, 239, 172, 0.78)" : "rgba(34, 197, 94, 0.45)";
+    ctx.strokeStyle = pal.isDark ? "rgba(134, 239, 172, 0.62)" : "rgba(34, 197, 94, 0.38)";
     ctx.lineWidth = 1.3 * s;
     ctx.beginPath();
     ctx.moveTo(-18 * s, -22 * s);
@@ -1770,14 +1799,26 @@ const WorldDeepBlue = {
     ctx.moveTo(-22 * s, -12 * s);
     ctx.lineTo(22 * s, -12 * s);
     ctx.stroke();
+
+    // Improvement #11: Diffusive underwater glass veil softening raw green saturation into deep-water interior haze
+    const veilG = ctx.createRadialGradient(-8 * s, -18 * s, 2 * s, 0, -8 * s, 38 * s);
+    veilG.addColorStop(0, pal.isDark ? "rgba(186, 242, 252, 0.24)" : "rgba(232, 250, 255, 0.38)");
+    veilG.addColorStop(1, `rgba(${pal.waterHazeRgb}, 0.28)`);
+    ctx.fillStyle = veilG;
+    ctx.fillRect(-38 * s, -38 * s, 76 * s, 38 * s);
     ctx.restore();
 
-    // Glass specular highlight arc
+    // Primary & secondary curved acrylic glass specular reflection arcs
     ctx.strokeStyle = pal.glassHighlight;
-    ctx.globalAlpha = 0.45;
-    ctx.lineWidth = 2.0 * s;
+    ctx.globalAlpha = 0.52;
+    ctx.lineWidth = 2.1 * s;
     ctx.beginPath();
-    ctx.arc(0, 0, 34 * s, Math.PI * 1.15, Math.PI * 1.48);
+    ctx.arc(0, 0, 34 * s, Math.PI * 1.12, Math.PI * 1.48);
+    ctx.stroke();
+    ctx.globalAlpha = 0.28;
+    ctx.lineWidth = 1.2 * s;
+    ctx.beginPath();
+    ctx.arc(0, 0, 31 * s, Math.PI * 1.56, Math.PI * 1.84);
     ctx.stroke();
 
     // Polygonal geodesic dome truss struts
@@ -2039,18 +2080,22 @@ const WorldDeepBlue = {
     }
 
     if (opts.haze > 0) {
-      ctx.fillStyle = `rgba(${pal.waterHazeRgb}, ${opts.haze.toFixed(3)})`;
+      const hg = ctx.createRadialGradient(cx, cy + 16 * sc, baseBotW * 0.14, cx, cy + 16 * sc, baseBotW * 0.78);
+      hg.addColorStop(0, `rgba(${pal.waterHazeRgb}, ${opts.haze.toFixed(3)})`);
+      hg.addColorStop(0.68, `rgba(${pal.waterHazeRgb}, ${(opts.haze * 0.72).toFixed(3)})`);
+      hg.addColorStop(1, `rgba(${pal.waterHazeRgb}, 0)`);
+      ctx.fillStyle = hg;
       ctx.beginPath();
-      ctx.ellipse(cx, cy + 16 * sc, baseBotW * 0.72, 74 * sc, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy + 16 * sc, baseBotW * 0.76, 78 * sc, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
   },
 
-  // Mid-Background Sunken Cargo/Expedition Shipwreck Partially Covered in Continuous Seabed Sand (Zero Isolated Plateau!)
+  // Far-Background Sunken Cargo/Expedition Shipwreck Partially Covered in Continuous Seabed Sand (behind habitat & tubes!)
   _drawBackgroundShipwreck(ctx, L, pal) {
     const wk = L.wreck;
-    if (!wk || L.isNarrow) return;
+    if (!wk) return;
     const wx = wk.x;
     const wy = wk.y;
     const sc = wk.scale;
@@ -2058,7 +2103,7 @@ const WorldDeepBlue = {
     ctx.save();
     ctx.translate(wx, wy);
     ctx.scale(sc, sc);
-    ctx.globalAlpha = pal.isDark ? 0.90 : 0.88;
+    ctx.globalAlpha = pal.isDark ? 0.80 : 0.78;
 
     // 1. Resting hull & superstructure (tilted at natural seabed angle -0.12 rad)
     ctx.save();
@@ -2189,8 +2234,22 @@ const WorldDeepBlue = {
     });
     ctx.restore();
 
-    // 2. Continuous Seabed Sand Drifts Blending Gently Across Bottom Keel (~25-30% lower bury, Zero Plateau!)
+    // 2. Continuous Background Seabed Sand Slope & Drifts Grounding the Raised Keel Smoothly (Zero Floating!)
     ctx.globalAlpha = 1;
+    const slopeGrad = ctx.createLinearGradient(0, 2, 0, 56);
+    slopeGrad.addColorStop(0, pal.seabedDark);
+    slopeGrad.addColorStop(0.52, pal.seabedDark);
+    slopeGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = slopeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-165, 56);
+    ctx.quadraticCurveTo(-132, 16, -92, 6);
+    ctx.quadraticCurveTo(-40, 2, 26, 2);
+    ctx.quadraticCurveTo(90, 2, 134, 12);
+    ctx.quadraticCurveTo(156, 24, 168, 56);
+    ctx.closePath();
+    ctx.fill();
+
     const sandGrad = ctx.createLinearGradient(0, 2, 0, 22);
     sandGrad.addColorStop(0, pal.seabedDark);
     sandGrad.addColorStop(0.55, pal.reefMid);
@@ -2224,11 +2283,15 @@ const WorldDeepBlue = {
       ctx.fill();
     });
 
-    // Subtle water depth veil keeping sand-buried wreck integrated while retaining crisp details
+    // Deep background water depth haze blending enlarged wreck softly behind station & tubes
     ctx.globalAlpha = 1;
-    ctx.fillStyle = `rgba(${pal.waterHazeRgb}, 0.10)`;
+    const wHaze = ctx.createRadialGradient(0, -18, 22, 0, -18, 148);
+    wHaze.addColorStop(0, `rgba(${pal.waterHazeRgb}, 0.22)`);
+    wHaze.addColorStop(0.75, `rgba(${pal.waterHazeRgb}, 0.16)`);
+    wHaze.addColorStop(1, `rgba(${pal.waterHazeRgb}, 0)`);
+    ctx.fillStyle = wHaze;
     ctx.beginPath();
-    ctx.ellipse(0, -18, 134, 56, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, -18, 146, 64, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   },
@@ -2370,8 +2433,8 @@ const WorldDeepBlue = {
     if (!L.isNarrow) {
       this._drawHydropowerFarm(ctx, L, pal);
       // Far-West Geothermal & Desalination Station connected cleanly to Hydro-Tidal Turbine Farm
-      this._drawClearGlassTube(ctx, L.geoWestX + 34 * s, L.geoWestY + 2 * s, L.farWestX - 24 * s, L.farWestY + 8 * s, 11.5 * s, s, pal, { depthAlpha: 0.76 });
-      this._drawSatelliteWing(ctx, L.geoWestX, L.geoWestY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.24 });
+      this._drawClearGlassTube(ctx, L.geoWestX + 34 * s, L.geoWestY + 2 * s, L.farWestX - 24 * s, L.farWestY + 8 * s, 11.5 * s, s, pal, { depthAlpha: 0.72 });
+      this._drawSatelliteWing(ctx, L.geoWestX, L.geoWestY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.30 });
       ctx.save();
       ctx.fillStyle = pal.hullDark;
       ctx.fillRect(L.geoWestX - 18 * s, L.geoWestY - 46 * s, 7 * s, 32 * s);
@@ -2382,10 +2445,10 @@ const WorldDeepBlue = {
       ctx.restore();
 
       // Far-East Marine Bio Pod + Outer-East Hyperbaric Diving Bell & Deep-Telemetry Annex
-      this._drawClearGlassTube(ctx, L.eastWingX + 52 * s, L.eastWingY + 4 * s, L.farEastX - 28 * s, L.farEastY + 2 * s, 11.5 * s, s, pal, { depthAlpha: 0.78 });
-      this._drawSatelliteWing(ctx, L.farEastX, L.farEastY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.22 });
-      this._drawClearGlassTube(ctx, L.farEastX + 32 * s, L.farEastY + 2 * s, L.outerEastX - 28 * s, L.outerEastY + 2 * s, 10.5 * s, s, pal, { depthAlpha: 0.72 });
-      this._drawSatelliteWing(ctx, L.outerEastX, L.outerEastY, seabedBaseY + 8 * s, pal, s, { kind: "habitat", haze: 0.24 });
+      this._drawClearGlassTube(ctx, L.eastWingX + 52 * s, L.eastWingY + 4 * s, L.farEastX - 28 * s, L.farEastY + 2 * s, 11.5 * s, s, pal, { depthAlpha: 0.74 });
+      this._drawSatelliteWing(ctx, L.farEastX, L.farEastY, seabedBaseY + 6 * s, pal, s, { kind: "pod", haze: 0.26 });
+      this._drawClearGlassTube(ctx, L.farEastX + 32 * s, L.farEastY + 2 * s, L.outerEastX - 28 * s, L.outerEastY + 2 * s, 10.5 * s, s, pal, { depthAlpha: 0.68 });
+      this._drawSatelliteWing(ctx, L.outerEastX, L.outerEastY, seabedBaseY + 8 * s, pal, s, { kind: "habitat", haze: 0.30 });
 
       // Subsea A-Frame Winch Gantry & Spherical Observation Bathysphere suspended cleanly over eastern seabed
       ctx.save();
@@ -2472,8 +2535,8 @@ const WorldDeepBlue = {
     this._drawClearGlassTube(ctx, L.domeX + 30 * s, L.domeY + 14 * s, L.eastWingX - 36 * s, L.eastWingY - 6 * s, 11 * s, s, pal, { depthAlpha: 0.90 });
 
     // 2. Grounded Angular Supplementary Wings (West Airlock + East Sonar Relay)
-    this._drawSatelliteWing(ctx, L.westWingX, L.westWingY, seabedBaseY + 2 * s, pal, s, { kind: "observatory", haze: 0.08 });
-    this._drawSatelliteWing(ctx, L.eastWingX, L.eastWingY, seabedBaseY + 2 * s, pal, s, { kind: "habitat", haze: 0.08 });
+    this._drawSatelliteWing(ctx, L.westWingX, L.westWingY, seabedBaseY + 2 * s, pal, s, { kind: "observatory", haze: 0.14 });
+    this._drawSatelliteWing(ctx, L.eastWingX, L.eastWingY, seabedBaseY + 2 * s, pal, s, { kind: "habitat", haze: 0.14 });
     this._drawSonarRelay(ctx, L, pal);
 
     // 3. Vertical Surface Supply Elevator Guide Shaft
@@ -3071,10 +3134,10 @@ const WorldDeepBlue = {
     if (this.cleaningMantas.length === 0 && L.cleaningStation) {
       const cs = L.cleaningStation;
       const totalMantas = isNarrow ? 2 : 4;
-      const frontY = Math.min(h - 38, L.seabedY + (isNarrow ? 64 : 62) * cs.scale);
+      const frontY = Math.min(h - 36, L.seabedY + (isNarrow ? 54 : 62) * cs.scale);
       const backY = L.hubY - 46 * cs.scale;
       const orbitCenterY = (frontY + backY) * 0.5;
-      const baseRx = isNarrow ? (w * 0.45) : Math.min(w * 0.475, 655 * s);
+      const baseRx = isNarrow ? Math.min(w * 0.38, 148) : Math.min(w * 0.435, 608 * s);
       const baseRy = Math.max(36, (frontY - backY) * 0.5);
       const orbitSpeed = isNarrow ? 0.14 : 0.135;
 
@@ -3085,6 +3148,15 @@ const WorldDeepBlue = {
         const cosA = Math.cos(startAng);
         const rNorm = Math.pow(Math.pow(Math.abs(cosA), 3.5) + Math.pow(Math.abs(sinA), 3.5), -1 / 3.5);
         const vx = -sinA * orbitSpeed;
+        const a2 = startAng + 0.025;
+        const c2 = Math.cos(a2);
+        const s2 = Math.sin(a2);
+        const r2 = Math.pow(Math.pow(Math.abs(c2), 3.5) + Math.pow(Math.abs(s2), 3.5), -1 / 3.5);
+        const tx = c2 * r2 * baseRx - cosA * rNorm * baseRx;
+        const tz = s2 * r2 * (baseRx * 0.58) - sinA * rNorm * (baseRx * 0.58);
+        const tLen = Math.hypot(tx, tz) || 1;
+        const fx0 = tx / tLen;
+        const fz0 = tz / tLen;
         this.cleaningMantas.push({
           layer: sinA < 0 ? "back" : "front",
           orbitAngle: startAng,
@@ -3093,14 +3165,18 @@ const WorldDeepBlue = {
           centerY: orbitCenterY,
           orbitRx: baseRx,
           orbitRy: baseRy,
-          span: (isNarrow ? (33 - i * 2) : (45 - (i % 2) * 3)) * cs.scale,
+          span: (isNarrow ? (30 - i * 2) : (45 - (i % 2) * 3)) * cs.scale,
           wingPhase: i * 1.65 + 0.4,
           state: "circling",
           x: L.hubX + cosA * rNorm * baseRx,
           y: orbitCenterY + sinA * rNorm * baseRy,
-          facingLeft: vx < 0,
-          turnProjX: Math.min(1, 0.30 + Math.abs(sinA) * 0.78),
-          bank: 0,
+          fx: fx0,
+          fz: fz0,
+          yaw3D: Math.atan2(fz0, fx0),
+          facingLeft: fx0 < 0,
+          turnProjX: Math.max(0.28, Math.min(1.0, Math.abs(fx0))),
+          bank: -0.24,
+          pitch3D: 0,
           isFront: sinA >= 0
         });
       }
@@ -3405,11 +3481,13 @@ const WorldDeepBlue = {
       for (let c = 0; c <= cols; c++) {
         const cf = c / cols;
         const baseX = (0.14 + cf * 0.72) * w;
-        const jx = Math.sin(step * 1.05 + c * 2.1 + r * 2.7) * 18 * persp + Math.cos(step * 0.72 - c * 1.3 + r * 3.1) * 10 * persp;
-        const jy = Math.cos(step * 1.18 - r * 2.2 + c * 1.7) * 5.0 * persp + Math.sin(step * 0.85 + c * 2.9) * 2.8 * persp;
-        const edgeFade = Math.sin(cf * Math.PI);
-        const dirFocus = Math.max(0.28, 1.18 - (Math.abs(baseX - focusX) / (w * 0.42)) * 0.68);
-        const sunFocus = edgeFade * dirFocus * (0.38 + 0.62 * (0.5 + 0.5 * Math.sin(cf * 6.5 - step * 0.45 + rf * 2.1)));
+        const jx = Math.sin(step * 1.05 + c * 2.1 + r * 2.7) * 19 * persp + Math.cos(step * 0.72 - c * 1.3 + r * 3.1) * 11 * persp;
+        const jy = Math.cos(step * 1.18 - r * 2.2 + c * 1.7) * 5.2 * persp + Math.sin(step * 0.85 + c * 2.9) * 3.0 * persp;
+        // Improvement #9: Softer attenuation near framing cliffs and deeper perspective falloff
+        const edgeFade = Math.pow(Math.max(0, Math.sin(cf * Math.PI)), 1.55);
+        const depthAtten = 0.48 + 0.52 * Math.sin(rf * Math.PI * 0.85);
+        const dirFocus = Math.max(0.26, 1.18 - (Math.abs(baseX - focusX) / (w * 0.42)) * 0.68);
+        const sunFocus = edgeFade * depthAtten * dirFocus * (0.38 + 0.62 * (0.5 + 0.5 * Math.sin(cf * 6.5 - step * 0.45 + rf * 2.1)));
         rowPts.push({ x: baseX + jx, y: yRow + jy, focus: sunFocus });
       }
       grid.push(rowPts);
@@ -3551,26 +3629,41 @@ const WorldDeepBlue = {
     const spread = Math.min(w * 0.58, 720);
     for (let i = 0; i < rayCount; i++) {
       const frac = rayCount > 1 ? (i / (rayCount - 1) - 0.5) : 0;
-      const sway = Math.sin(step * 0.52 + i * 1.3 + seedOffset) * 24;
-      const baseX = Math.max(18, Math.min(w - 18, originX + frac * spread + sway));
-      const beamSlant = slant + frac * 0.14;
-      const topW = 22 + ((i + seedOffset) % 3) * 16;
-      const botW = topW * 3.4;
-      const rayH = h * (rayLenFactor + (i % 2) * 0.14);
+      const goldenJit = (((i * 1.6180339 + seedOffset * 0.37) % 1) - 0.5) * 0.14;
+      const sway = Math.sin(step * 0.48 + i * 1.3 + seedOffset) * 24;
+      const baseX = Math.max(18, Math.min(w - 18, originX + (frac + goldenJit) * spread + sway));
+      const beamSlant = slant + (frac + goldenJit * 0.5) * 0.14;
+      const topW = 16 + (((i * 2 + seedOffset) % 5) * 9);
+      const botW = topW * (3.1 + (i % 3) * 0.45);
+      const rayH = h * (rayLenFactor + ((i + seedOffset) % 3) * 0.08);
       const centerWeight = 1 - Math.abs(frac) * 0.52;
-      const pulse = 0.68 + 0.32 * Math.sin(step * 0.85 + i * 2.0 + seedOffset);
+      const pulse = 0.66 + 0.34 * Math.sin(step * 0.85 + i * 2.0 + seedOffset);
       const a0 = rayAlpha * centerWeight * pulse;
 
+      // Improvement #9: Feathered outer scattered halo + soft tapered core beam (no hard polygon edges)
+      const gOut = ctx.createLinearGradient(baseX, 0, baseX + rayH * beamSlant, rayH);
+      gOut.addColorStop(0, `rgba(${rayColor}, ${(a0 * 0.36).toFixed(3)})`);
+      gOut.addColorStop(0.55, `rgba(${rayColor}, ${(a0 * 0.14).toFixed(3)})`);
+      gOut.addColorStop(1, `rgba(${rayColor}, 0)`);
+      ctx.fillStyle = gOut;
+      ctx.beginPath();
+      ctx.moveTo(baseX - topW * 0.88, 0);
+      ctx.lineTo(baseX + topW * 0.88, 0);
+      ctx.lineTo(baseX + rayH * beamSlant + botW * 0.78, rayH);
+      ctx.lineTo(baseX + rayH * beamSlant - botW * 0.78, rayH);
+      ctx.closePath();
+      ctx.fill();
+
       const g = ctx.createLinearGradient(baseX, 0, baseX + rayH * beamSlant, rayH);
-      g.addColorStop(0, `rgba(${rayColor}, ${a0.toFixed(3)})`);
-      g.addColorStop(0.62, `rgba(${rayColor}, ${(a0 * 0.34).toFixed(3)})`);
+      g.addColorStop(0, `rgba(${rayColor}, ${(a0 * 0.76).toFixed(3)})`);
+      g.addColorStop(0.62, `rgba(${rayColor}, ${(a0 * 0.28).toFixed(3)})`);
       g.addColorStop(1, `rgba(${rayColor}, 0)`);
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.moveTo(baseX - topW * 0.5, 0);
-      ctx.lineTo(baseX + topW * 0.5, 0);
-      ctx.lineTo(baseX + rayH * beamSlant + botW * 0.5, rayH);
-      ctx.lineTo(baseX + rayH * beamSlant - botW * 0.5, rayH);
+      ctx.moveTo(baseX - topW * 0.46, 0);
+      ctx.lineTo(baseX + topW * 0.46, 0);
+      ctx.lineTo(baseX + rayH * beamSlant + botW * 0.44, rayH);
+      ctx.lineTo(baseX + rayH * beamSlant - botW * 0.44, rayH);
       ctx.closePath();
       ctx.fill();
     }
@@ -4185,7 +4278,7 @@ const WorldDeepBlue = {
         continue;
       }
 
-      const alpha = (0.14 + wh.depth * 0.52) * (pal.isDark && !pal.isGoldenCoastal ? 0.68 : 0.78);
+      const alpha = (0.10 + wh.depth * 0.44) * (pal.isDark && !pal.isGoldenCoastal ? 0.64 : 0.72);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${alpha.toFixed(3)})`;
 
       ctx.save();
@@ -4251,7 +4344,7 @@ const WorldDeepBlue = {
         continue;
       }
 
-      const alpha = (0.18 + sh.depth * 0.55) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.86);
+      const alpha = (0.12 + sh.depth * 0.44) * (pal.isDark && !pal.isGoldenCoastal ? 0.64 : 0.76);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${alpha.toFixed(3)})`;
 
       ctx.save();
@@ -4367,7 +4460,7 @@ const WorldDeepBlue = {
       if (f.vx > 0 && f.x > w + 75) f.x = -75;
       if (f.vx < 0 && f.x < -75) f.x = w + 75;
 
-      const visAlpha = (0.14 + f.depth * 0.45) * (pal.isDark && !pal.isGoldenCoastal ? 0.72 : 0.85);
+      const visAlpha = (0.10 + f.depth * 0.36) * (pal.isDark && !pal.isGoldenCoastal ? 0.64 : 0.76);
       ctx.fillStyle = `rgba(${pal.farCreatureRgb}, ${visAlpha.toFixed(3)})`;
 
       ctx.save();
@@ -4386,6 +4479,26 @@ const WorldDeepBlue = {
       ctx.restore();
     }
     ctx.restore();
+  },
+
+  // Improvement #12: Suspended marine-snow particulate glint inside ROV & Submarine spotlight beams
+  _drawSpotlightParticulates(ctx, originX, coneLen, spreadY, rgb, alpha, step, seed = 0) {
+    if (alpha <= 0.04) return;
+    const count = 9;
+    for (let i = 0; i < count; i++) {
+      const f = 0.14 + ((i * 0.6180339 + seed * 0.23) % 0.76);
+      const lane = (((i * 2.31 + seed) % 2) - 1) * 0.68;
+      const driftX = Math.sin(step * 1.1 + i * 2.1 + seed) * 3.5;
+      const driftY = Math.cos(step * 0.9 + i * 1.7 + seed) * 2.8;
+      const px = originX + coneLen * f + driftX;
+      const py = lane * spreadY * f + driftY;
+      const glint = 0.45 + 0.55 * Math.sin(step * 2.4 + i * 1.9 + seed);
+      const a = alpha * (1 - f * 0.55) * glint * 0.95;
+      ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 0.9 + (i % 2) * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   },
 
   // 10 Cohesive Theme-Synchronized Submarine Classes (Passenger, Cargo, Experimental, Military & Patrol)
@@ -4418,6 +4531,7 @@ const WorldDeepBlue = {
       ctx.lineTo(beamOrigin - 2, 3.5);
       ctx.closePath();
       ctx.fill();
+      this._drawSpotlightParticulates(ctx, beamOrigin, coneLen, 22, pal.beamRgb, pal.beamAlpha * 0.9, step, beamOrigin);
       ctx.restore();
     }
 
@@ -5725,6 +5839,7 @@ const WorldDeepBlue = {
       ctx.lineTo(6, 3);
       ctx.closePath();
       ctx.fill();
+      this._drawSpotlightParticulates(ctx, 8, beamLen - 10, beamSpread * 0.9, beamColor, pal.beamAlpha, step, rov.phaseOsc || 0);
 
       // Fine exterior laser scanlines during shipwreck survey
       if (isLaserSurvey) {
@@ -6877,115 +6992,222 @@ const WorldDeepBlue = {
     }
   },
 
-  // Graceful Side-On / 3/4 Oblique Oceanic Manta Ray matching Canvas Horizon Camera Plane!
+  // True 3D Parametric Oceanic Manta Ray with Continuous Yaw, Inward Turn Bank & Travelling Pectoral Wave!
   _drawCleaningManta(ctx, m, pal, step, depthScale, alpha) {
     const sp = m.span * depthScale;
     const flapSin = Math.sin(m.wingPhase);
-    const farSin = Math.sin(m.wingPhase - 0.72);
-    const wingDownY = sp * (0.20 + flapSin * 0.24);
-    const farWingUpY = -sp * (0.14 - farSin * 0.16);
-    const tailWag = Math.sin(m.wingPhase * 0.8 + 1.1) * sp * 0.11;
+    const tailWag = Math.sin(m.wingPhase * 0.8 + 1.1) * sp * 0.10;
+
+    const fx = (m.fx != null) ? m.fx : (m.facingLeft ? -1 : 1);
+    const fz = (m.fz != null) ? m.fz : 0;
+    const rxv = -fz;
+    const rzv = fx;
+
+    const roll = (m.bank != null) ? m.bank : 0;
+    const cosR = Math.cos(roll);
+    const sinR = Math.sin(roll);
+    const pitch = m.pitch3D || 0;
+    const cosP = Math.cos(pitch);
+    const sinP = Math.sin(pitch);
+    const camCos = 0.94;
+    const camSin = 0.34;
+
+    const proj = (lx, ly, lz) => {
+      const ly1 = ly * cosR - lz * sinR;
+      const lz1 = ly * sinR + lz * cosR;
+      const lx2 = lx * cosP - ly1 * sinP;
+      const ly2 = lx * sinP + ly1 * cosP;
+      const wx = lx2 * fx + lz1 * rxv;
+      const wz = lx2 * fz + lz1 * rzv;
+      return {
+        x: wx,
+        y: ly2 * camCos + wz * camSin,
+        z: wz
+      };
+    };
+
+    const wingLift = (zAbs) => {
+      const env = Math.pow(Math.max(0, zAbs), 1.15);
+      return Math.sin(m.wingPhase - zAbs * 1.05) * sp * 0.38 * env;
+    };
+
+    const dorsalGrad = ctx.createLinearGradient(0, -sp * 0.24, 0, sp * 0.24);
+    dorsalGrad.addColorStop(0, pal.isDark ? "#1E4E7A" : "#28658E");
+    dorsalGrad.addColorStop(0.55, pal.isDark ? "#102B48" : "#16405E");
+    dorsalGrad.addColorStop(1, pal.isDark ? "#08192E" : "#0D2B42");
+    const bellyColor = pal.isDark ? "rgba(192, 232, 255, 0.80)" : "rgba(238, 248, 255, 0.92)";
+    const bellyShade = pal.isDark ? "rgba(148, 206, 240, 0.72)" : "rgba(210, 234, 248, 0.88)";
+
+    const drawWing = (zSign) => {
+      const pLeadRoot = proj(sp * 0.32, -sp * 0.01, zSign * sp * 0.12);
+      const pLeadMid = proj(sp * 0.21, wingLift(0.48) * 0.55 - sp * 0.025, zSign * sp * 0.50);
+      const pTip = proj(-sp * 0.11, wingLift(1.0), zSign * sp * 1.05);
+      const pTrailMid = proj(-sp * 0.23, wingLift(0.50) * 0.58 + sp * 0.012, zSign * sp * 0.50);
+      const pTrailRoot = proj(-sp * 0.31, sp * 0.015, zSign * sp * 0.11);
+
+      const v1x = pTip.x - pLeadRoot.x;
+      const v1y = pTip.y - pLeadRoot.y;
+      const v2x = pTrailRoot.x - pLeadRoot.x;
+      const v2y = pTrailRoot.y - pLeadRoot.y;
+      const dorsalCross = (v1x * v2y - v1y * v2x) * zSign;
+      const showVentral = dorsalCross < 0 || (flapSin < -0.58 && dorsalCross < sp * sp * 0.035);
+
+      ctx.fillStyle = showVentral ? bellyColor : dorsalGrad;
+      ctx.beginPath();
+      ctx.moveTo(pLeadRoot.x, pLeadRoot.y);
+      ctx.quadraticCurveTo(pLeadMid.x, pLeadMid.y, pTip.x, pTip.y);
+      ctx.quadraticCurveTo(pTrailMid.x, pTrailMid.y, pTrailRoot.x, pTrailRoot.y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = showVentral
+        ? (pal.isDark ? "rgba(18, 48, 76, 0.32)" : "rgba(18, 56, 84, 0.26)")
+        : (pal.isDark ? "rgba(125, 211, 252, 0.26)" : "rgba(255, 255, 255, 0.36)");
+      ctx.lineWidth = 0.85;
+      ctx.stroke();
+
+      // Distinctive pale shoulder chevron patch on dorsal surface
+      if (!showVentral) {
+        const s0 = proj(sp * 0.28, -sp * 0.02, zSign * sp * 0.16);
+        const s1 = proj(sp * 0.14, wingLift(0.40) * 0.55 - sp * 0.035, zSign * sp * 0.42);
+        const s2 = proj(sp * 0.03, -sp * 0.01, zSign * sp * 0.15);
+        ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.30)" : "rgba(232, 247, 255, 0.48)";
+        ctx.beginPath();
+        ctx.moveTo(s0.x, s0.y);
+        ctx.lineTo(s1.x, s1.y);
+        ctx.lineTo(s2.x, s2.y);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
+
+    const drawBody = () => {
+      // 1. Tapering whip tail
+      const t0 = proj(-sp * 0.35, 0, 0);
+      const t1 = proj(-sp * 0.74, tailWag * 0.35, tailWag * 0.48);
+      const t2 = proj(-sp * 1.14, tailWag * 0.58, tailWag * 0.92);
+      ctx.strokeStyle = pal.isDark ? "#123252" : "#163F5E";
+      ctx.lineWidth = Math.max(1.2, sp * 0.042);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(t0.x, t0.y);
+      ctx.quadraticCurveTo(t1.x, t1.y, t2.x, t2.y);
+      ctx.stroke();
+
+      // 2. Sculpted pale ventral throat & gill belly dome
+      const nearSideZ = rzv >= 0 ? 1 : -1;
+      const bNose = proj(sp * 0.49, sp * 0.03, 0);
+      const bLeft = proj(sp * 0.20, sp * 0.16, -sp * 0.13);
+      const bBot = proj(sp * 0.16, sp * 0.19, 0);
+      const bRight = proj(sp * 0.20, sp * 0.16, sp * 0.13);
+      const bTail = proj(-sp * 0.37, sp * 0.02, 0);
+      ctx.fillStyle = bellyShade;
+      ctx.beginPath();
+      ctx.moveTo(bNose.x, bNose.y);
+      ctx.quadraticCurveTo(bLeft.x, bLeft.y, bTail.x, bTail.y);
+      ctx.quadraticCurveTo(bRight.x, bRight.y, bNose.x, bNose.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = bellyColor;
+      ctx.beginPath();
+      ctx.moveTo(bNose.x, bNose.y);
+      ctx.quadraticCurveTo(bBot.x, bBot.y, bTail.x, bTail.y);
+      ctx.quadraticCurveTo(proj(sp * 0.14, sp * 0.04, nearSideZ * sp * 0.12).x, proj(sp * 0.14, sp * 0.04, nearSideZ * sp * 0.12).y, bNose.x, bNose.y);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. Arched dorsal mantle carapace
+      const mNose = proj(sp * 0.55, -sp * 0.01, 0);
+      const mTopL = proj(sp * 0.16, -sp * 0.13, -sp * 0.14);
+      const mTopC = proj(sp * 0.14, -sp * 0.15, 0);
+      const mTopR = proj(sp * 0.16, -sp * 0.13, sp * 0.14);
+      const mTail = proj(-sp * 0.41, 0, 0);
+      ctx.fillStyle = dorsalGrad;
+      ctx.beginPath();
+      ctx.moveTo(mNose.x, mNose.y);
+      ctx.quadraticCurveTo(mTopL.x, mTopL.y, mTail.x, mTail.y);
+      ctx.quadraticCurveTo(mTopR.x, mTopR.y, mNose.x, mNose.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(mNose.x, mNose.y);
+      ctx.quadraticCurveTo(mTopC.x, mTopC.y, mTail.x, mTail.y);
+      ctx.quadraticCurveTo(proj(sp * 0.16, sp * 0.05, nearSideZ * sp * 0.12).x, proj(sp * 0.16, sp * 0.05, nearSideZ * sp * 0.12).y, mNose.x, mNose.y);
+      ctx.closePath();
+      ctx.fill();
+
+      // Frontal open filter-feeding mouth cavern visible when turning toward viewer (fz > 0.25)
+      if (fz > 0.20) {
+        const mL = proj(sp * 0.52, sp * 0.04, -sp * 0.11);
+        const mC = proj(sp * 0.55, sp * 0.08, 0);
+        const mR = proj(sp * 0.52, sp * 0.04, sp * 0.11);
+        ctx.fillStyle = pal.isDark ? "rgba(6, 18, 34, 0.86)" : "rgba(10, 32, 52, 0.82)";
+        ctx.beginPath();
+        ctx.moveTo(mL.x, mL.y);
+        ctx.quadraticCurveTo(mC.x, mC.y, mR.x, mR.y);
+        ctx.quadraticCurveTo(mC.x, proj(sp * 0.52, sp * 0.02, 0).y, mL.x, mL.y);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 4. Crisp 5 curved gill slits on visible ventral flank
+      ctx.strokeStyle = pal.isDark ? "rgba(15, 36, 58, 0.52)" : "rgba(21, 61, 90, 0.46)";
+      ctx.lineWidth = Math.max(0.75, sp * 0.020);
+      for (let g = 0; g < 5; g++) {
+        const gx = sp * (0.20 - g * 0.055);
+        const gTop = proj(gx, sp * 0.068, nearSideZ * sp * 0.12);
+        const gBot = proj(gx - sp * 0.01, sp * 0.125, nearSideZ * sp * 0.10);
+        ctx.beginPath();
+        ctx.moveTo(gTop.x, gTop.y);
+        ctx.lineTo(gBot.x, gBot.y);
+        ctx.stroke();
+      }
+
+      // 5. Paired forward-curling cephalic feeding horns (sorted by depth)
+      const drawHorn = (zS) => {
+        const h0 = proj(sp * 0.45, sp * 0.02, zS * sp * 0.14);
+        const h1 = proj(sp * 0.65, sp * 0.08, zS * sp * 0.17);
+        const h2 = proj(sp * 0.57, sp * 0.135, zS * sp * 0.135);
+        const h3 = proj(sp * 0.38, sp * 0.075, zS * sp * 0.12);
+        ctx.fillStyle = pal.isDark ? "#0D243E" : "#12354E";
+        ctx.beginPath();
+        ctx.moveTo(h0.x, h0.y);
+        ctx.quadraticCurveTo(h1.x, h1.y, h2.x, h2.y);
+        ctx.quadraticCurveTo(h3.x, h3.y, h0.x, h0.y);
+        ctx.closePath();
+        ctx.fill();
+      };
+      if (proj(sp * 0.5, 0, -sp * 0.15).z < proj(sp * 0.5, 0, sp * 0.15).z) {
+        drawHorn(-1);
+        drawHorn(1);
+      } else {
+        drawHorn(1);
+        drawHorn(-1);
+      }
+
+      // 6. Camera-facing glossy eye(s)
+      [-1, 1].forEach(zS => {
+        const eye = proj(sp * 0.42, -sp * 0.02, zS * sp * 0.16);
+        if (eye.z >= -sp * 0.06) {
+          ctx.fillStyle = "#08111E";
+          ctx.beginPath();
+          ctx.arc(eye.x, eye.y, Math.max(1.0, sp * 0.030), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    };
+
+    // Depth-sort far wing -> torso body -> near wing continuously for zero flip or pop at ANY azimuth!
+    const parts = [
+      { z: proj(0, 0, -sp * 0.52).z, draw: () => drawWing(-1) },
+      { z: proj(0, 0, 0).z, draw: drawBody },
+      { z: proj(0, 0, sp * 0.52).z, draw: () => drawWing(1) }
+    ].sort((a, b) => a.z - b.z);
 
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(m.x, m.y);
-    ctx.scale((m.facingLeft ? -1 : 1) * (m.turnProjX != null ? m.turnProjX : 1), 1);
-    ctx.rotate(m.bank || 0);
-
-    // 1. Far Pectoral Wing sweeping obliquely above/behind dorsal ridge (foreshortened depth tint)
-    ctx.fillStyle = pal.isDark ? "#08182C" : "#0D2B42";
-    ctx.beginPath();
-    ctx.moveTo(sp * 0.26, -sp * 0.04);
-    ctx.quadraticCurveTo(sp * 0.06, -sp * 0.24 + farWingUpY, -sp * 0.18, -sp * (0.12 - farSin * 0.08));
-    ctx.quadraticCurveTo(0, -sp * 0.06, -sp * 0.30, -sp * 0.02);
-    ctx.closePath();
-    ctx.fill();
-
-    // 2. Long slender flexible whip tail streaming cleanly aft
-    ctx.strokeStyle = pal.isDark ? "#123252" : "#163F5E";
-    ctx.lineWidth = Math.max(1.2, sp * 0.042);
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(-sp * 0.36, 0);
-    ctx.quadraticCurveTo(-sp * 0.78, tailWag * 0.65, -sp * 1.18, tailWag);
-    ctx.stroke();
-
-    // 3. Arched Sculpted Side-On Dark Dorsal Mantle Body & Pale Ventral Gill Belly
-    const capeG = ctx.createLinearGradient(0, -sp * 0.20, 0, sp * 0.22);
-    capeG.addColorStop(0, pal.isDark ? "#1C4973" : "#245F87");
-    capeG.addColorStop(0.55, pal.isDark ? "#102B48" : "#16405E");
-    capeG.addColorStop(1, pal.isDark ? "#08192E" : "#0D2B42");
-    ctx.fillStyle = capeG;
-    ctx.beginPath();
-    // Sculpted cephalic horn & brow ridge arcing gracefully across arched back to tail root
-    ctx.moveTo(sp * 0.56, -sp * 0.01);
-    ctx.quadraticCurveTo(sp * 0.44, -sp * 0.14, sp * 0.16, -sp * 0.13);
-    ctx.quadraticCurveTo(-sp * 0.14, -sp * 0.11, -sp * 0.42, 0);
-    ctx.quadraticCurveTo(-sp * 0.14, sp * 0.11, sp * 0.24, sp * 0.12);
-    ctx.quadraticCurveTo(sp * 0.48, sp * 0.10, sp * 0.56, -sp * 0.01);
-    ctx.closePath();
-    ctx.fill();
-
-    // Prominent forward-curling cephalic feeding horns (lower jaw profile & subtle snout cleft)
-    ctx.fillStyle = pal.isDark ? "#0D243E" : "#12354E";
-    ctx.beginPath();
-    ctx.moveTo(sp * 0.46, sp * 0.03);
-    ctx.quadraticCurveTo(sp * 0.64, sp * 0.09, sp * 0.58, sp * 0.14);
-    ctx.quadraticCurveTo(sp * 0.48, sp * 0.12, sp * 0.38, sp * 0.07);
-    ctx.closePath();
-    ctx.fill();
-
-    // Creamy-white convex ventral throat & belly curve with 5 curved gill slits!
-    ctx.fillStyle = pal.isDark ? "rgba(196, 234, 255, 0.80)" : "rgba(241, 248, 255, 0.92)";
-    ctx.beginPath();
-    ctx.moveTo(sp * 0.48, sp * 0.03);
-    ctx.quadraticCurveTo(sp * 0.22, sp * 0.20, -sp * 0.16, sp * 0.13);
-    ctx.lineTo(-sp * 0.38, sp * 0.02);
-    ctx.quadraticCurveTo(0, sp * 0.04, sp * 0.48, sp * 0.03);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = pal.isDark ? "rgba(15, 36, 58, 0.52)" : "rgba(21, 61, 90, 0.46)";
-    ctx.lineWidth = Math.max(0.8, sp * 0.022);
-    for (let g = 0; g < 5; g++) {
-      const gx = sp * (0.20 - g * 0.055);
-      const gy = sp * 0.085;
-      ctx.beginPath();
-      ctx.moveTo(gx, gy - sp * 0.022);
-      ctx.quadraticCurveTo(gx - sp * 0.015, gy, gx - sp * 0.008, gy + sp * 0.028);
-      ctx.stroke();
-    }
-
-    // Subtle lateral dorsal shoulder pale chevron patch + watchful eye
-    ctx.fillStyle = pal.isDark ? "rgba(186, 230, 253, 0.34)" : "rgba(232, 247, 255, 0.54)";
-    ctx.beginPath();
-    ctx.moveTo(sp * 0.32, -sp * 0.05);
-    ctx.quadraticCurveTo(sp * 0.16, -sp * 0.11, 0, -sp * 0.08);
-    ctx.quadraticCurveTo(sp * 0.14, -sp * 0.04, sp * 0.26, -sp * 0.02);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = "#08111E";
-    ctx.beginPath();
-    ctx.arc(sp * 0.42, -sp * 0.02, Math.max(1.1, sp * 0.032), 0, Math.PI * 2);
-    ctx.fill();
-
-    // 4. Foreground Sweeping Near Pectoral Wing (dark dorsal mantle on downstroke, gleaming pale underside on upstroke!)
-    const wingUpstroke = flapSin < -0.15;
-    const tipY = wingUpstroke ? (-sp * (0.04 + Math.abs(flapSin) * 0.26)) : (sp * 0.14 + wingDownY * 0.72);
-    ctx.fillStyle = wingUpstroke
-      ? (pal.isDark ? "rgba(186, 230, 253, 0.78)" : "rgba(232, 245, 255, 0.90)")
-      : capeG;
-    ctx.beginPath();
-    ctx.moveTo(sp * 0.28, sp * 0.01);
-    ctx.quadraticCurveTo(sp * 0.14, tipY * 0.92, -sp * 0.08, tipY);
-    ctx.quadraticCurveTo(-sp * 0.12, sp * 0.05, -sp * 0.24, sp * 0.01);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = pal.isDark ? "rgba(125, 211, 252, 0.24)" : "rgba(255, 255, 255, 0.34)";
-    ctx.lineWidth = 0.85;
-    ctx.stroke();
-
+    for (let i = 0; i < parts.length; i++) parts[i].draw();
     ctx.restore();
   },
 
@@ -7076,15 +7298,28 @@ const WorldDeepBlue = {
         const cosA = Math.cos(m.orbitAngle);
         const sinA = Math.sin(m.orbitAngle);
         const rNorm = Math.pow(Math.pow(Math.abs(cosA), 3.5) + Math.pow(Math.abs(sinA), 3.5), -1 / 3.5);
-        const vx = -sinA * m.orbitSpeed;
         const cxBase = m.centerX != null ? m.centerX : L.hubX;
         const cyBase = m.centerY != null ? m.centerY : (L.seabedY - 26 * sc);
+
+        // True 3D superellipse tangent heading vector (fx, fz) so turnaround glides seamlessly in 3D without mirror snapping
+        const eps = 0.025;
+        const a2 = m.orbitAngle + eps;
+        const c2 = Math.cos(a2);
+        const s2 = Math.sin(a2);
+        const r2 = Math.pow(Math.pow(Math.abs(c2), 3.5) + Math.pow(Math.abs(s2), 3.5), -1 / 3.5);
+        const tx = c2 * r2 * m.orbitRx - cosA * rNorm * m.orbitRx;
+        const tz = s2 * r2 * (m.orbitRx * 0.58) - sinA * rNorm * (m.orbitRx * 0.58);
+        const tLen = Math.hypot(tx, tz) || 1;
+        m.fx = tx / tLen;
+        m.fz = tz / tLen;
+        m.yaw3D = Math.atan2(m.fz, m.fx);
+
         m.x = cxBase + cosA * rNorm * m.orbitRx;
         m.y = cyBase + sinA * rNorm * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 3.0 * sc;
-        m.facingLeft = vx < 0;
-        // Foreshorten smoothly at East & West orbit apexes so back<->front turnaround never snaps
-        m.turnProjX = Math.max(0.28, Math.min(1.0, 0.28 + Math.abs(sinA) * 0.85));
-        m.bank = cosA * (m.orbitSpeed > 0 ? -0.08 : 0.08) + Math.cos(m.wingPhase) * 0.025;
+        m.facingLeft = m.fx < 0;
+        m.turnProjX = Math.max(0.28, Math.min(1.0, Math.abs(m.fx)));
+        m.bank = -0.34 * Math.pow(Math.abs(cosA), 1.25) + Math.cos(m.wingPhase) * 0.035;
+        m.pitch3D = Math.sin(m.wingPhase * 0.5 + 0.4) * 0.055;
         m.layer = sinA < 0 ? "back" : "front";
         m.isFront = sinA >= 0;
       }
@@ -7138,11 +7373,11 @@ const WorldDeepBlue = {
       });
     };
 
-    // 2. Step all Cleaner Wrasse & Clean Sparkles once per frame
+    // 2. Step all Cleaner Wrasse & Clean Sparkles once per frame (using continuous m.fx so zero flip jumps!)
     const getZoneOffset = (wr, m) => {
       const mLayer = m.layer || "front";
       const sp = m.span * (mLayer === "back" ? 0.80 : (m.isFront ? 1.04 : 0.88));
-      const dir = m.facingLeft ? -1 : 1;
+      const dir = m.fx != null ? m.fx : (m.facingLeft ? -1 : 1);
       const jitX = Math.cos(wr.id * 2.1) * sp * 0.09;
       const jitY = Math.sin(wr.id * 2.1) * sp * 0.08;
       if (wr.zone === "gill") return { x: sp * 0.10 * dir + jitX, y: sp * 0.15 + jitY };

@@ -38,10 +38,12 @@ const WaveCanvas = {
   // v11.2 Activity-Reactive Atmospheric Ripples & Glow Boost
   ripples: [],
   auroraBoost: 0,
-  // v13.7 Diurnal Nature Reactive Atmospheric Phenomena (on task completion)
-  NATURE_PHENOMENA: ["thermal_flock", "botanical_gust", "sky_phenomenon", "horizon_drift"],
+  // v13.8 Streamlined Diurnal Nature Reactive Flocks (6 Bird Species, Detailed 2-Segment Wings)
+  NATURE_BIRD_SPECIES: ["swallow", "crane", "falcon", "heron", "albatross", "starling"],
+  NATURE_PHENOMENA: ["thermal_flock"],
   naturePhenomena: [],
   _lastNaturePhenomenon: "",
+  _lastBirdSpecies: "",
 
   _modeForHour(hour) {
     const h = ((Number(hour) % 24) + 24) % 24;
@@ -311,8 +313,8 @@ const WaveCanvas = {
     ctx.fillStyle = waveGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // 3. Topographical contour ribs seen from an elevated perspective
-    const numRows = Math.min(34, Math.max(20, Math.floor(h / 36)));
+    // 3. Topographical contour ribs seen from an elevated perspective (decluttered on mobile)
+    const numRows = w < 720 ? 15 : Math.min(34, Math.max(20, Math.floor(h / 36)));
     const rowSpacing = (h * 1.18) / numRows;
     const startY = -h * 0.08;
 
@@ -1211,7 +1213,7 @@ const WaveCanvas = {
       return;
     }
 
-    // 1b. Diurnal Nature Atmospheric Phenomenon (Thermal Flock, Botanical Gust, Sky Rainbow/Aurora, Balloon/Glider)
+    // 1b. Streamlined Diurnal Thermal Bird Flock (6 Randomised Bird Species)
     if (kind === "complete" || isMajor) {
       this.spawnNaturePhenomenon(w, h, { mode });
     }
@@ -1316,712 +1318,453 @@ const WaveCanvas = {
     return c * c * c * (c * (c * 6 - 15) + 10);
   },
 
+  spawnThermalFlock(w, h, opts = {}) {
+    return this.spawnNaturePhenomenon(w, h, opts);
+  },
+
   spawnNaturePhenomenon(w, h, opts = {}) {
     if (!w || !h) return;
     if (this.naturePhenomena.length >= 2) {
       this.naturePhenomena.shift();
     }
     const isNarrow = w < 720;
-    const pool = this.NATURE_PHENOMENA.filter(t => t !== this._lastNaturePhenomenon);
-    const type = (opts.type && this.NATURE_PHENOMENA.includes(opts.type))
-      ? opts.type
-      : (pool[Math.floor(Math.random() * pool.length)] || "thermal_flock");
-    this._lastNaturePhenomenon = type;
+    const pool = this.NATURE_BIRD_SPECIES.filter(s => s !== this._lastBirdSpecies);
+    const species = (opts.species && this.NATURE_BIRD_SPECIES.includes(opts.species))
+      ? opts.species
+      : (pool[Math.floor(Math.random() * pool.length)] || "crane");
+    this._lastBirdSpecies = species;
+    this._lastNaturePhenomenon = "thermal_flock";
 
     const mode = opts.mode || this.getThemeMode();
     const dir = Math.random() < 0.62 ? 1 : -1;
-    const ph = {
-      type,
+    const baseY = h * (0.28 + Math.random() * 0.14);
+    const scaleBias = isNarrow ? 0.76 : 1.0;
+
+    const specs = {
+      swallow: {
+        count: isNarrow ? 9 : 13, baseSize: 15.5, duration: 7.4, flapSpeed: 7.8,
+        glideBias: 0.42, vSpreadX: 30, vSpreadY: 16, formation: "echelon"
+      },
+      crane: {
+        count: isNarrow ? 7 : 11, baseSize: 22.0, duration: 8.8, flapSpeed: 4.1,
+        glideBias: 0.25, vSpreadX: 44, vSpreadY: 22, formation: "v_form"
+      },
+      falcon: {
+        count: isNarrow ? 6 : 9, baseSize: 18.0, duration: 6.8, flapSpeed: 6.6,
+        glideBias: 0.68, vSpreadX: 36, vSpreadY: 18, formation: "echelon"
+      },
+      heron: {
+        count: isNarrow ? 5 : 8, baseSize: 24.0, duration: 9.2, flapSpeed: 3.3,
+        glideBias: 0.18, vSpreadX: 46, vSpreadY: 20, formation: "stagger"
+      },
+      albatross: {
+        count: isNarrow ? 4 : 7, baseSize: 23.0, duration: 9.4, flapSpeed: 2.6,
+        glideBias: 0.90, vSpreadX: 52, vSpreadY: 26, formation: "soar"
+      },
+      starling: {
+        count: isNarrow ? 12 : 22, baseSize: 11.2, duration: 7.8, flapSpeed: 9.4,
+        glideBias: 0.20, vSpreadX: 18, vSpreadY: 16, formation: "murmuration"
+      }
+    };
+    const cfg = specs[species] || specs.crane;
+
+    const birds = Array.from({ length: cfg.count }, (_, idx) => {
+      const layer = idx % 3;
+      const depth = 0.58 + layer * 0.23;
+      const arm = idx % 2 === 0 ? -1 : 1;
+      const rank = Math.ceil(idx / 2);
+      let offX = 0;
+      let offY = 0;
+      if (cfg.formation === "v_form") {
+        offX = -dir * rank * cfg.vSpreadX * (isNarrow ? 0.68 : 1);
+        offY = arm * rank * cfg.vSpreadY * (isNarrow ? 0.72 : 1);
+      } else if (cfg.formation === "echelon") {
+        offX = -dir * idx * (cfg.vSpreadX * 0.76) * (isNarrow ? 0.68 : 1);
+        offY = (idx * 13 - cfg.count * 5.5) * (isNarrow ? 0.75 : 1);
+      } else if (cfg.formation === "stagger") {
+        offX = -dir * idx * (cfg.vSpreadX * 0.85) * (isNarrow ? 0.65 : 1);
+        offY = arm * (10 + rank * 14) * (isNarrow ? 0.70 : 1);
+      } else if (cfg.formation === "soar") {
+        offX = -dir * rank * cfg.vSpreadX * (isNarrow ? 0.72 : 1) + (Math.random() - 0.5) * 26;
+        offY = arm * (18 + rank * 24) * (isNarrow ? 0.72 : 1);
+      } else {
+        // Murmuration cluster
+        const col = idx % 6;
+        const row = Math.floor(idx / 6);
+        offX = -dir * (col - 2.5) * (cfg.vSpreadX * 1.45) + (Math.random() - 0.5) * 18;
+        offY = (row - 1.5) * (cfg.vSpreadY * 1.65) + (Math.random() - 0.5) * 20;
+      }
+
+      return {
+        idx,
+        depth,
+        size: cfg.baseSize * scaleBias * depth,
+        offX,
+        offY,
+        flapPhase: idx * (species === "starling" ? 0.48 : 0.72) + Math.random() * 0.6,
+        flapSpeed: cfg.flapSpeed * (0.92 + Math.random() * 0.16),
+        gliderBias: cfg.glideBias,
+        indivPhase: Math.random() * Math.PI * 2,
+        murmFreq: 2.2 + (idx % 5) * 0.45
+      };
+    });
+
+    this.naturePhenomena.push({
+      type: "thermal_flock",
+      species,
       dir,
       elapsed: 0,
-      duration: type === "horizon_drift" ? (isNarrow ? 8.5 : 10.0) : (type === "sky_phenomenon" ? 8.2 : 7.6),
+      duration: cfg.duration,
+      centerY: baseY,
+      wavePhase: Math.random() * Math.PI * 2,
       w,
       h,
-      mode
-    };
-
-    if (type === "thermal_flock") {
-      const count = isNarrow ? 9 : 14;
-      const baseY = h * (0.28 + Math.random() * 0.14);
-      ph.centerY = baseY;
-      ph.birds = Array.from({ length: count }, (_, idx) => {
-        const layer = idx % 3; // 0=far, 1=mid, 2=near
-        const depth = 0.56 + layer * 0.24;
-        const arm = idx % 2 === 0 ? -1 : 1;
-        const rank = Math.ceil(idx / 2);
-        return {
-          depth,
-          size: (isNarrow ? 11.5 : 16.5) * depth,
-          offX: -dir * rank * (isNarrow ? 22 : 32) * (0.85 + Math.random() * 0.3),
-          offY: arm * rank * (isNarrow ? 11 : 15) + (Math.random() - 0.5) * 14,
-          flapPhase: idx * 0.62 + Math.random() * 0.8,
-          flapSpeed: 5.4 + Math.random() * 1.6,
-          gliderBias: 0.3 + Math.random() * 0.5
-        };
-      });
-    } else if (type === "botanical_gust") {
-      ph.centerY = h * (0.40 + Math.random() * 0.16);
-      ph.amp = h * (isNarrow ? 0.06 : 0.085);
-      const itemCount = isNarrow ? 24 : 36;
-      ph.particles = Array.from({ length: itemCount }, (_, i) => ({
-        offsetT: (i / itemCount) * 0.42 + Math.random() * 0.10,
-        laneY: (Math.random() - 0.5) * h * 0.28,
-        waveFreq: 2.2 + Math.random() * 2.0,
-        waveAmp: 12 + Math.random() * 22,
-        size: (isNarrow ? 4.2 : 5.6) + Math.random() * 4.4,
-        rot: Math.random() * Math.PI * 2,
-        rotSpd: (Math.random() - 0.5) * 4.2,
-        phase: Math.random() * Math.PI * 2,
-        variant: i % 4
-      }));
-      const bCount = isNarrow ? 3 : 4;
-      ph.butterflies = Array.from({ length: bCount }, (_, bi) => ({
-        offsetT: 0.04 + bi * 0.11 + Math.random() * 0.04,
-        laneY: (bi - 1.5) * (isNarrow ? 36 : 48),
-        wingPhase: bi * 1.4,
-        scale: (isNarrow ? 0.85 : 1.15) + (bi % 2) * 0.2
-      }));
-    } else if (type === "sky_phenomenon") {
-      ph.cloudX = dir > 0 ? w * 0.28 : w * 0.72;
-      ph.cloudY = h * (isNarrow ? 0.19 : 0.21);
-      ph.arcCenterX = w * (dir > 0 ? 0.54 : 0.46);
-      ph.arcCenterY = h * (isNarrow ? 0.56 : 0.62);
-      ph.arcR = Math.min(w * (isNarrow ? 0.44 : 0.36), h * 0.52);
-      ph.drops = Array.from({ length: isNarrow ? 28 : 46 }, () => ({
-        rx: (Math.random() - 0.5) * (isNarrow ? 150 : 250),
-        ry: Math.random() * (h * 0.44),
-        len: 12 + Math.random() * 16,
-        spd: 340 + Math.random() * 140
-      }));
-      ph.splashes = Array.from({ length: isNarrow ? 7 : 12 }, (_, si) => ({
-        rx: (Math.random() - 0.5) * (isNarrow ? 140 : 240),
-        ry: h * (0.48 + (si % 4) * 0.06),
-        phase: Math.random()
-      }));
-      ph.meteorMilestones = [0.06, 0.20, 0.35, 0.50, 0.66];
-      ph.meteorsFired = 0;
-      if (mode === "dark") {
-        this.auroraBoost = Math.min(1.5, this.auroraBoost + 0.95);
-      }
-    } else {
-      ph.subType = (opts.subType === "balloon" || opts.subType === "glider")
-        ? opts.subType
-        : (Math.random() < 0.65 ? "balloon" : "glider");
-      ph.startY = h * (ph.subType === "balloon" ? 0.48 : 0.34);
-      ph.scale = isNarrow ? 1.02 : 1.38;
-      ph.trail = [];
-    }
-
-    this.naturePhenomena.push(ph);
+      mode,
+      birds
+    });
   },
 
-  _drawNatureRibbon(ctx, x0, y0, cx, cy, x1, y1, rgb, alpha, maxW = 2.4) {
-    ctx.save();
-    ctx.strokeStyle = `rgba(${rgb}, ${alpha.toFixed(3)})`;
-    ctx.lineWidth = maxW;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.quadraticCurveTo(cx, cy, x1, y1);
-    ctx.stroke();
-    ctx.restore();
+  _getFlockSpeciesPalette(species, mode) {
+    // Rich diurnal-aware tones while preserving iconic biological plumage accents
+    const base = {
+      dorsal: "#1E293B",
+      ventral: "#E2E8F0",
+      accent: "#38BDF8",
+      tip: "#0F172A",
+      rim: "rgba(255, 255, 255, 0.72)",
+      ribbon: "148, 163, 184",
+      crest: "#EF4444"
+    };
+    if (species === "swallow") {
+      base.dorsal = "#1E3A5F";
+      base.ventral = "#F8FAFC";
+      base.accent = "#C2410C";
+      base.tip = "#0F172A";
+    } else if (species === "crane") {
+      base.dorsal = "#DCE4EC";
+      base.ventral = "#FFFFFF";
+      base.accent = "#475569";
+      base.tip = "#1E293B";
+      base.crest = "#DC2626";
+    } else if (species === "falcon") {
+      base.dorsal = "#334155";
+      base.ventral = "#F1E6D6";
+      base.accent = "#94A3B8";
+      base.tip = "#0F172A";
+    } else if (species === "heron") {
+      base.dorsal = "#64748B";
+      base.ventral = "#CBD5E1";
+      base.accent = "#334155";
+      base.tip = "#1E293B";
+    } else if (species === "albatross") {
+      base.dorsal = "#2B3A4D";
+      base.ventral = "#FFFFFF";
+      base.accent = "#F8FAFC";
+      base.tip = "#0F172A";
+    } else {
+      base.dorsal = "#1F2430";
+      base.ventral = "#475569";
+      base.accent = "#6366F1";
+      base.tip = "#090D16";
+    }
+
+    if (mode === "morning") {
+      base.rim = "rgba(254, 215, 170, 0.88)";
+      base.ribbon = "251, 191, 36";
+      if (species !== "crane" && species !== "albatross") {
+        base.dorsal = "#4E2A38";
+      }
+    } else if (mode === "evening") {
+      base.rim = "rgba(253, 224, 102, 0.92)";
+      base.ribbon = "245, 158, 11";
+      if (species === "crane" || species === "albatross") {
+        base.ventral = "#FDE6C4";
+      } else {
+        base.dorsal = "#2E1C1A";
+      }
+    } else if (mode === "dark") {
+      base.rim = "rgba(186, 230, 253, 0.92)";
+      base.ribbon = "125, 211, 252";
+      if (species !== "crane" && species !== "albatross") {
+        base.dorsal = "#334155";
+        base.ventral = "#94A3B8";
+      } else {
+        base.dorsal = "#94A3B8";
+        base.ventral = "#E2E8F0";
+      }
+    }
+    return base;
   },
 
   _drawThermalFlock(ctx, w, h, p, ph, mode) {
     const dir = ph.dir;
-    const fadeIn = this._smooth5(Math.min(1, p / 0.14));
-    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.16));
+    const species = ph.species || "crane";
+    const pal = this._getFlockSpeciesPalette(species, mode);
+    const isNarrow = w < 720;
+
+    // C2 smooth enter & exit fading + thermal glide arc
+    const fadeIn = this._smooth5(Math.min(1, p / 0.12));
+    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.14));
     const env = fadeIn * fadeOut;
     if (env <= 0.01) return;
 
-    const progressX = dir > 0
-      ? (-130 + p * (w + 280))
-      : (w + 130 - p * (w + 280));
-    const liftY = Math.sin(p * Math.PI) * (-h * 0.09) + Math.sin(p * Math.PI * 2.2) * 14;
-    const pivotT = (p > 0.34 && p < 0.68)
-      ? Math.sin(this._smooth5((p - 0.34) / 0.34) * Math.PI)
-      : 0;
-
-    let bodyFill = "rgba(30, 41, 59, 0.82)";
-    let rimStroke = "rgba(255, 255, 255, 0.62)";
-    let ribbonRgb = "148, 163, 184";
-    if (mode === "morning") {
-      bodyFill = "rgba(88, 42, 54, 0.78)";
-      rimStroke = "rgba(253, 210, 145, 0.85)";
-      ribbonRgb = "251, 191, 36";
-    } else if (mode === "evening") {
-      bodyFill = "rgba(46, 26, 20, 0.84)";
-      rimStroke = "rgba(254, 215, 102, 0.90)";
-      ribbonRgb = "245, 158, 11";
-    } else if (mode === "dark") {
-      bodyFill = "rgba(186, 230, 253, 0.78)";
-      rimStroke = "rgba(241, 245, 249, 0.88)";
-      ribbonRgb = "125, 211, 252";
-    }
-
-    // Translucent rising thermal updraft streamlines behind flock
-    for (let s = 0; s < 3; s++) {
-      const sx0 = progressX - dir * (160 - s * 45);
-      const sy0 = ph.centerY + liftY + 46 + s * 18;
-      this._drawNatureRibbon(
-        ctx,
-        sx0,
-        sy0,
-        sx0 + dir * 110,
-        sy0 - 38 - pivotT * 24,
-        sx0 + dir * 235,
-        sy0 - 52 - pivotT * 18,
-        ribbonRgb,
-        env * (0.14 - s * 0.03),
-        2.0 - s * 0.35
-      );
-    }
-
-    // Render layered birds (far -> near)
-    const sorted = ph.birds.slice().sort((a, b) => a.depth - b.depth);
-    sorted.forEach((b) => {
-      const bx = progressX + b.offX * (1 - pivotT * 0.25);
-      const by = ph.centerY + liftY + b.offY - pivotT * 26 * b.depth;
-      const glideFactor = 1 - pivotT * b.gliderBias;
-      const flap = Math.sin(b.flapPhase + ph.elapsed * b.flapSpeed) * glideFactor;
-      const sz = b.size;
-      const bankRot = dir * (-0.10 - pivotT * 0.36);
-
-      ctx.save();
-      ctx.globalAlpha = env * (0.52 + b.depth * 0.44);
-      ctx.translate(bx, by);
-      if (dir < 0) ctx.scale(-1, 1);
-      ctx.rotate(dir < 0 ? -bankRot : bankRot);
-
-      // Sweeping Articulated Wing Silhouette + Forked Swallow Tail
-      ctx.fillStyle = bodyFill;
-      ctx.strokeStyle = rimStroke;
-      ctx.lineWidth = Math.max(0.7, 1.05 * b.depth);
-      const wingUpY = -sz * (0.58 * flap + 0.16);
-      const farWingY = -sz * (0.36 * flap + 0.24);
-
-      // Far wing
-      ctx.beginPath();
-      ctx.moveTo(sz * 0.12, -sz * 0.05);
-      ctx.quadraticCurveTo(-sz * 0.18, farWingY - sz * 0.22, -sz * 0.72, farWingY);
-      ctx.quadraticCurveTo(-sz * 0.28, farWingY * 0.42, -sz * 0.10, sz * 0.02);
-      ctx.closePath();
-      ctx.fill();
-
-      // Slender torso + pointed beak + forked tail
-      ctx.beginPath();
-      ctx.moveTo(sz * 0.56, 0);
-      ctx.quadraticCurveTo(sz * 0.18, -sz * 0.14, -sz * 0.32, -sz * 0.05);
-      ctx.lineTo(-sz * 0.68, -sz * 0.18);
-      ctx.lineTo(-sz * 0.48, 0);
-      ctx.lineTo(-sz * 0.68, sz * 0.18);
-      ctx.lineTo(-sz * 0.32, sz * 0.06);
-      ctx.quadraticCurveTo(sz * 0.18, sz * 0.12, sz * 0.56, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Near primary wing with rim catch-light
-      ctx.beginPath();
-      ctx.moveTo(sz * 0.16, 0);
-      ctx.quadraticCurveTo(-sz * 0.12, wingUpY * 1.18, -sz * 0.86, wingUpY);
-      ctx.quadraticCurveTo(-sz * 0.36, wingUpY * 0.35 + sz * 0.08, -sz * 0.14, sz * 0.06);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      if (mode === "dark") {
-        ctx.fillStyle = `rgba(186, 230, 253, ${(env * 0.35).toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(-sz * 0.86, wingUpY, 1.3 * b.depth, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-    });
-  },
-
-  _drawBotanicalGust(ctx, w, h, p, ph, mode) {
-    const dir = ph.dir;
-    const fadeIn = this._smooth5(Math.min(1, p / 0.14));
-    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.18));
-    const env = fadeIn * fadeOut;
-    if (env <= 0.01) return;
-
-    let ribbonRgb = "16, 185, 129";
-    let palette = ["52, 211, 153", "110, 231, 183", "147, 197, 253", "253, 230, 138"];
-    if (mode === "morning") {
-      ribbonRgb = "251, 146, 60";
-      palette = ["251, 113, 133", "253, 164, 175", "254, 215, 170", "252, 211, 77"];
-    } else if (mode === "evening") {
-      ribbonRgb = "245, 158, 11";
-      palette = ["239, 68, 68", "234, 88, 12", "245, 158, 11", "253, 224, 71"];
-    } else if (mode === "dark") {
-      ribbonRgb = "45, 212, 191";
-      palette = ["52, 211, 153", "34, 211, 238", "192, 132, 252", "253, 224, 71"];
-    }
-
-    // 1. Graceful Wind Streamlines & Eddy Curls Sweeping Across Screen
-    for (let l = 0; l < 3; l++) {
-      const headX = dir > 0
-        ? (-160 + p * (w + 460) - l * 70)
-        : (w + 160 - p * (w + 460) + l * 70);
-      const tailX = headX - dir * (280 + l * 45);
-      const yMid = ph.centerY + (l - 1) * 58 + Math.sin(p * Math.PI * 2 + l) * ph.amp;
-      ctx.save();
-      ctx.strokeStyle = `rgba(${ribbonRgb}, ${(env * (0.20 - l * 0.04)).toFixed(3)})`;
-      ctx.lineWidth = 2.2 - l * 0.45;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(tailX, yMid + 18);
-      ctx.bezierCurveTo(
-        tailX + dir * 90, yMid - 28,
-        headX - dir * 90, yMid + 26,
-        headX, yMid - 6
-      );
-      // Graceful spiral gust curl near leading tip
-      const curlR = 14 + l * 3;
-      ctx.arc(headX, yMid - 6 - curlR, curlR, Math.PI * 0.5, Math.PI * (dir > 0 ? -0.9 : 1.9), dir > 0);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // 2. Diurnal-Matched Sweeping Blossoms / Leaves / Fireflies
-    ph.particles.forEach((pt, idx) => {
-      const localP = Math.max(0, Math.min(1, (p - pt.offsetT * 0.45) / (1 - pt.offsetT * 0.35)));
-      if (localP <= 0 || localP >= 1) return;
-      const pFade = Math.sin(localP * Math.PI);
-      const px = dir > 0
-        ? (-40 + localP * (w + 100))
-        : (w + 40 - localP * (w + 100));
-      const py = ph.centerY + pt.laneY + Math.sin(localP * Math.PI * pt.waveFreq + pt.phase) * pt.waveAmp;
-      const rgb = palette[idx % palette.length];
-      const a = env * pFade * (mode === "dark" ? 0.90 : 0.84);
-
-      ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(pt.rot + ph.elapsed * pt.rotSpd);
-      const tilt = Math.max(0.30, Math.abs(Math.cos(ph.elapsed * 2.4 + pt.phase)));
-      ctx.scale(tilt, 1);
-
-      if (mode === "dark" && idx % 2 === 0) {
-        // Luminous glowing firefly / spore orb
-        const pulse = 0.6 + 0.4 * Math.sin(ph.elapsed * 5.2 + pt.phase);
-        const g = ctx.createRadialGradient(0, 0, 0.5, 0, 0, pt.size * 2.4);
-        g.addColorStop(0, `rgba(${rgb}, ${(a * pulse).toFixed(3)})`);
-        g.addColorStop(1, `rgba(${rgb}, 0)`);
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(0, 0, pt.size * 2.4, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (mode === "morning") {
-        // 5-petal sakura blossom or sunlit seed
-        ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
-        for (let k = 0; k < 5; k++) {
-          const ang = (k / 5) * Math.PI * 2;
-          ctx.beginPath();
-          ctx.ellipse(Math.cos(ang) * pt.size * 0.42, Math.sin(ang) * pt.size * 0.42, pt.size * 0.48, pt.size * 0.28, ang, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = `rgba(254, 240, 138, ${a.toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, pt.size * 0.22, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (mode === "evening") {
-        // Multi-lobed Maple Leaf
-        const sz = pt.size * 1.15;
-        ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
-        ctx.beginPath();
-        ctx.moveTo(0, -sz * 1.1);
-        ctx.lineTo(sz * 0.35, -sz * 0.4);
-        ctx.lineTo(sz * 1.0, -sz * 0.55);
-        ctx.lineTo(sz * 0.52, 0);
-        ctx.lineTo(sz * 0.85, sz * 0.45);
-        ctx.lineTo(0, sz * 0.9);
-        ctx.lineTo(-sz * 0.85, sz * 0.45);
-        ctx.lineTo(-sz * 0.52, 0);
-        ctx.lineTo(-sz * 1.0, -sz * 0.55);
-        ctx.lineTo(-sz * 0.35, -sz * 0.4);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        // Botanical willow/sage leaf
-        ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
-        ctx.beginPath();
-        ctx.moveTo(-pt.size, 0);
-        ctx.quadraticCurveTo(0, -pt.size * 0.72, pt.size, 0);
-        ctx.quadraticCurveTo(0, pt.size * 0.72, -pt.size, 0);
-        ctx.fill();
-      }
-      ctx.restore();
-    });
-
-    // 3. Fluttering Monarch Butterflies / Night Lunar Moths hitchhiking on the breeze
-    ph.butterflies.forEach((bf) => {
-      const localP = Math.max(0, Math.min(1, (p - bf.offsetT) / 0.78));
-      if (localP <= 0 || localP >= 1) return;
-      const bFade = Math.sin(localP * Math.PI);
-      const bx = dir > 0
-        ? (-30 + localP * (w + 70))
-        : (w + 30 - localP * (w + 70));
-      const by = ph.centerY + bf.laneY + Math.sin(localP * Math.PI * 3.4 + bf.wingPhase) * 28;
-      const flutter = Math.sin(ph.elapsed * 13.5 + bf.wingPhase);
-      const wingScaleX = 0.32 + Math.abs(flutter) * 0.68;
-
-      ctx.save();
-      ctx.globalAlpha = env * bFade * 0.92;
-      ctx.translate(bx, by);
-      if (dir < 0) ctx.scale(-1, 1);
-      ctx.scale(bf.scale, bf.scale);
-      ctx.rotate(Math.cos(localP * Math.PI * 3.4 + bf.wingPhase) * 0.22);
-
-      const wingCol = mode === "dark" ? "#5EEAD4" : (mode === "morning" ? "#FB7185" : "#F97316");
-      const trimCol = mode === "dark" ? "#0F172A" : "#1E1B18";
-      ctx.save();
-      ctx.scale(1, wingScaleX);
-      ctx.fillStyle = wingCol;
-      ctx.strokeStyle = trimCol;
-      ctx.lineWidth = 1.2;
-      // Forewing & hindwing silhouette
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.bezierCurveTo(6, -15, 16, -14, 14, -2);
-      ctx.bezierCurveTo(15, 8, 5, 12, 0, 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-
-      // Slender thorax
-      ctx.fillStyle = trimCol;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 5.5, 1.3, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
-  },
-
-  _drawSkyPhenomenon(ctx, w, h, p, ph, mode, dt) {
-    const fadeIn = this._smooth5(Math.min(1, p / 0.16));
-    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.20));
-    const env = fadeIn * fadeOut;
-    if (env <= 0.01) return;
-
-    if (mode === "dark") {
-      // Night Sky Phenomenon: Sweeping Reactive Aurora Ribbon + Choreographed Meteor Cascade
-      const ms = ph.meteorMilestones || [];
-      while (ph.meteorsFired < ms.length && p >= ms[ph.meteorsFired]) {
-        const cols = ["56, 189, 248", "52, 211, 153", "167, 139, 250", "244, 114, 182", "253, 224, 71"];
-        this.spawnMeteor(w, h, cols[ph.meteorsFired % cols.length]);
-        ph.meteorsFired++;
-      }
-
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      const curtains = [
-        { rgb: "16, 185, 129", y: h * 0.24, amp: 36, a: 0.34 },
-        { rgb: "34, 211, 238", y: h * 0.29, amp: 30, a: 0.28 },
-        { rgb: "167, 139, 250", y: h * 0.20, amp: 42, a: 0.24 }
-      ];
-      curtains.forEach((c, ci) => {
-        ctx.beginPath();
-        for (let x = -20; x <= w + 20; x += 22) {
-          const wave = Math.sin(x * 0.004 + this.step * 1.1 + ci * 1.4) * c.amp +
-                       Math.cos(x * 0.008 - this.step * 0.7) * 14;
-          const yy = c.y + wave;
-          if (x === -20) ctx.moveTo(x, yy);
-          else ctx.lineTo(x, yy);
-        }
-        ctx.lineTo(w + 20, Math.max(0, c.y - 135));
-        ctx.lineTo(-20, Math.max(0, c.y - 135));
-        ctx.closePath();
-        const ag = ctx.createLinearGradient(0, c.y - 135, 0, c.y + c.amp);
-        ag.addColorStop(0, `rgba(${c.rgb}, 0)`);
-        ag.addColorStop(0.5, `rgba(${c.rgb}, ${(c.a * env).toFixed(3)})`);
-        ag.addColorStop(1, `rgba(${c.rgb}, 0)`);
-        ctx.fillStyle = ag;
-        ctx.fill();
-      });
-      ctx.restore();
-      return;
-    }
-
-    // Daytime Sun-Shower + Rainbow Arc + Gentle Surface Ripples
-    const dir = ph.dir;
-    const cx = ph.cloudX + dir * (p - 0.5) * w * 0.22;
-    const cy = ph.cloudY;
-    const rainPhase = p < 0.62 ? Math.sin(this._smooth5(p / 0.62) * Math.PI) : 0;
-    const bowPhase = p > 0.26 ? this._smooth5(Math.min(1, (p - 0.26) / 0.24)) * fadeOut : 0;
-
-    // 1. Translucent Primary & Secondary Rainbow Arcs (feathered vertically so ends dissolve smoothly!)
-    if (bowPhase > 0.02) {
-      const bands = ["239, 68, 68", "249, 115, 22", "250, 204, 21", "34, 197, 94", "56, 189, 248", "99, 102, 241", "168, 85, 247"];
-      const bowW = w < 720 ? 3.4 : 4.8;
-      const baseAlpha = (mode === "light" ? 0.25 : 0.30) * bowPhase;
-      const arcTopY = ph.arcCenterY - ph.arcR - 20;
-      const arcEndY = ph.arcCenterY - ph.arcR * Math.sin(Math.PI * 0.12);
-      ctx.save();
-      bands.forEach((rgb, bi) => {
-        const gArc = ctx.createLinearGradient(0, arcTopY, 0, arcEndY);
-        gArc.addColorStop(0, `rgba(${rgb}, ${baseAlpha.toFixed(3)})`);
-        gArc.addColorStop(0.72, `rgba(${rgb}, ${(baseAlpha * 0.78).toFixed(3)})`);
-        gArc.addColorStop(1, `rgba(${rgb}, 0)`);
-        ctx.strokeStyle = gArc;
-        ctx.lineWidth = bowW;
-        ctx.beginPath();
-        ctx.arc(ph.arcCenterX, ph.arcCenterY, ph.arcR - bi * (bowW - 0.55), Math.PI * 1.10, Math.PI * 1.90);
-        ctx.stroke();
-      });
-      // Soft secondary outer bow
-      bands.slice().reverse().forEach((rgb, bi) => {
-        const gSec = ctx.createLinearGradient(0, arcTopY - 30, 0, arcEndY - 12);
-        gSec.addColorStop(0, `rgba(${rgb}, ${(baseAlpha * 0.30).toFixed(3)})`);
-        gSec.addColorStop(0.75, `rgba(${rgb}, ${(baseAlpha * 0.20).toFixed(3)})`);
-        gSec.addColorStop(1, `rgba(${rgb}, 0)`);
-        ctx.strokeStyle = gSec;
-        ctx.lineWidth = bowW * 0.70;
-        ctx.beginPath();
-        ctx.arc(ph.arcCenterX, ph.arcCenterY, ph.arcR + 28 - bi * (bowW * 0.58), Math.PI * 1.14, Math.PI * 1.86);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-
-    // 2. Diagonal Sunlit Raindrops + Lower Ground Splash Ripples (high-legibility silver-slate in Light/Morning!)
-    if (rainPhase > 0.02) {
-      ctx.save();
-      ctx.strokeStyle = mode === "evening"
-        ? `rgba(253, 224, 178, ${(0.52 * rainPhase).toFixed(3)})`
-        : (mode === "morning"
-          ? `rgba(180, 120, 110, ${(0.42 * rainPhase).toFixed(3)})`
-          : `rgba(71, 130, 190, ${(0.44 * rainPhase).toFixed(3)})`);
-      ctx.lineWidth = 1.15;
-      ctx.lineCap = "round";
-      ph.drops.forEach((dr) => {
-        dr.ry += dr.spd * dt;
-        dr.rx += dir * 65 * dt;
-        if (dr.ry > h * 0.44) {
-          dr.ry = 0;
-          dr.rx = (Math.random() - 0.5) * (w < 720 ? 150 : 250);
-        }
-        const x0 = cx + dr.rx;
-        const y0 = cy + 16 + dr.ry;
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x0 + dir * dr.len * 0.25, y0 + dr.len);
-        ctx.stroke();
-      });
-
-      ph.splashes.forEach((sp) => {
-        sp.phase = (sp.phase + dt * 1.15) % 1;
-        const rr = 3.5 + sp.phase * 22;
-        ctx.strokeStyle = mode === "light"
-          ? `rgba(71, 130, 190, ${((1 - sp.phase) * 0.34 * rainPhase).toFixed(3)})`
-          : `rgba(255, 255, 255, ${((1 - sp.phase) * 0.38 * rainPhase).toFixed(3)})`;
-        ctx.lineWidth = 1.05;
-        ctx.beginPath();
-        ctx.ellipse(cx + sp.rx, cy + sp.ry, rr, rr * 0.34, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      });
-      ctx.restore();
-    }
-
-    // 3. Soft Layered Flat-Bottom Sun-Shower Cumulus Cloud Silhouette (no harsh soap-bubble circles!)
-    ctx.save();
-    ctx.globalAlpha = env * 0.90;
-    const cloudUnder = mode === "evening" ? "rgba(180, 130, 105, 0.36)" : (mode === "morning" ? "rgba(195, 150, 145, 0.34)" : "rgba(148, 175, 208, 0.42)");
-    const cloudTop = mode === "evening" ? "rgba(255, 244, 224, 0.88)" : "rgba(255, 255, 255, 0.94)";
-    const baseG = ctx.createLinearGradient(cx, cy - 38, cx, cy + 20);
-    baseG.addColorStop(0, cloudTop);
-    baseG.addColorStop(0.68, cloudTop);
-    baseG.addColorStop(1, cloudUnder);
-    ctx.fillStyle = baseG;
-    ctx.beginPath();
-    ctx.moveTo(cx - 72, cy + 16);
-    ctx.bezierCurveTo(cx - 86, cy + 14, cx - 80, cy - 12, cx - 50, cy - 12);
-    ctx.bezierCurveTo(cx - 46, cy - 34, cx - 18, cy - 42, cx - 2, cy - 30);
-    ctx.bezierCurveTo(cx + 12, cy - 44, cx + 44, cy - 34, cx + 48, cy - 14);
-    ctx.bezierCurveTo(cx + 76, cy - 12, cx + 82, cy + 14, cx + 64, cy + 16);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = mode === "light" ? "rgba(148, 175, 208, 0.32)" : "rgba(255, 255, 255, 0.25)";
-    ctx.lineWidth = 1.0;
-    ctx.stroke();
-    ctx.restore();
-  },
-
-  _drawHorizonDrift(ctx, w, h, p, ph, mode) {
-    const dir = ph.dir;
-    const fadeIn = this._smooth5(Math.min(1, p / 0.14));
-    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.16));
-    const env = fadeIn * fadeOut;
-    if (env <= 0.01) return;
-
-    const x = dir > 0 ? (-110 + p * (w + 220)) : (w + 110 - p * (w + 220));
-    const sc = ph.scale || 1;
-
-    if (ph.subType === "glider") {
-      // Sleek High-Aspect Ridge-Soaring Sailplane
-      const y = ph.startY - Math.sin(p * Math.PI) * (h * 0.11) + Math.sin(p * Math.PI * 2.6) * 24;
-      const dy = -Math.cos(p * Math.PI) * 0.08 + Math.cos(p * Math.PI * 2.6) * 0.10;
-      const pitch = dir * dy;
-      ph.trail.push({ x, y });
-      if (ph.trail.length > 26) ph.trail.shift();
-
-      if (ph.trail.length > 2) {
-        ctx.save();
-        for (let i = 1; i < ph.trail.length; i++) {
-          const tf = i / ph.trail.length;
-          ctx.strokeStyle = mode === "dark"
-            ? `rgba(125, 211, 252, ${(tf * 0.28 * env).toFixed(3)})`
-            : `rgba(255, 255, 255, ${(tf * 0.34 * env).toFixed(3)})`;
-          ctx.lineWidth = tf * 1.8;
-          ctx.beginPath();
-          ctx.moveTo(ph.trail[i - 1].x, ph.trail[i - 1].y);
-          ctx.lineTo(ph.trail[i].x, ph.trail[i].y);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      ctx.save();
-      ctx.globalAlpha = env;
-      ctx.translate(x, y);
-      if (dir < 0) ctx.scale(-1, 1);
-      ctx.rotate(pitch);
-      ctx.scale(sc, sc);
-
-      const hull = mode === "dark" ? "#CBD5E1" : "#FFFFFF";
-      const shade = mode === "evening" ? "#F59E0B" : (mode === "morning" ? "#F43F5E" : "#38BDF8");
-      // Far high-aspect wing
-      ctx.fillStyle = "#94A3B8";
-      ctx.beginPath();
-      ctx.moveTo(2, -1);
-      ctx.lineTo(-10, -28);
-      ctx.lineTo(-16, -27);
-      ctx.lineTo(-5, 0);
-      ctx.closePath();
-      ctx.fill();
-      // Fuselage + T-tail
-      ctx.fillStyle = hull;
-      ctx.beginPath();
-      ctx.moveTo(26, 0);
-      ctx.quadraticCurveTo(10, -4.5, -24, -1.5);
-      ctx.lineTo(-30, -11);
-      ctx.lineTo(-36, -11);
-      ctx.lineTo(-31, 0);
-      ctx.lineTo(8, 3.2);
-      ctx.quadraticCurveTo(22, 3, 26, 0);
-      ctx.closePath();
-      ctx.fill();
-      // Glass cockpit canopy & accent wingtip
-      ctx.fillStyle = mode === "dark" ? "#38BDF8" : "#0F172A";
-      ctx.beginPath();
-      ctx.ellipse(11, -1.8, 7.5, 2.1, -0.08, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = hull;
-      ctx.beginPath();
-      ctx.moveTo(3, 1);
-      ctx.lineTo(-12, 26);
-      ctx.lineTo(-18, 25);
-      ctx.lineTo(-6, 1.5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = shade;
-      ctx.beginPath();
-      ctx.ellipse(-14.5, 25.2, 2.8, 1.2, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      return;
-    }
-
-    // Buoyant Hot-Air Balloon with Multi-Gore Shading, Basket Rigging & Pulsing Burner Glow
-    const y = ph.startY - Math.sin(p * Math.PI) * (h * 0.16) + Math.sin(ph.elapsed * 0.9) * 8;
-    const sway = Math.sin(ph.elapsed * 1.15) * 0.05;
-    const burnerPulse = 0.55 + 0.45 * Math.sin(ph.elapsed * 6.5);
-    const burnerGlow = (p % 0.28 < 0.12) ? (0.75 + burnerPulse * 0.25) : 0.22;
-
-    ctx.save();
-    ctx.globalAlpha = env;
-    ctx.translate(x, y);
-    ctx.rotate(sway);
-    ctx.scale(sc, sc);
-
-    const goreA = mode === "dark" ? "#38BDF8" : (mode === "evening" ? "#F97316" : (mode === "morning" ? "#F43F5E" : "#0EA5E9"));
-    const goreB = mode === "dark" ? "#1E293B" : "#FFFBEB";
-    const bandCol = mode === "dark" ? "#FBBF24" : "#F59E0B";
-
-    // Envelope teardrop path (center 0, top -44, equator -18, throat +18)
-    const traceEnvelope = () => {
-      ctx.beginPath();
-      ctx.moveTo(0, -44);
-      ctx.bezierCurveTo(28, -44, 34, -14, 18, 8);
-      ctx.lineTo(8, 20);
-      ctx.lineTo(-8, 20);
-      ctx.lineTo(-18, 8);
-      ctx.bezierCurveTo(-34, -14, -28, -44, 0, -44);
-      ctx.closePath();
+    const evalFlockCenter = (u) => {
+      const x = dir > 0 ? (-150 + u * (w + 300)) : (w + 150 - u * (w + 300));
+      const arcLift = Math.sin(u * Math.PI) * (-h * (isNarrow ? 0.085 : 0.115));
+      const waveAmp = species === "albatross" ? h * 0.052 : (species === "falcon" ? h * 0.042 : h * 0.026);
+      const y = ph.centerY + arcLift + Math.sin(u * Math.PI * 2.2 + ph.wavePhase) * waveAmp;
+      return { x, y };
     };
 
-    ctx.save();
-    traceEnvelope();
-    ctx.fillStyle = goreA;
-    ctx.fill();
-    ctx.clip();
+    const cNow = evalFlockCenter(p);
+    const cNext = evalFlockCenter(Math.min(1, p + 0.004));
+    const cPrev = evalFlockCenter(Math.max(0, p - 0.004));
+    const tanX = cNext.x - cPrev.x;
+    const tanY = cNext.y - cPrev.y;
+    const baseFlightAngle = Math.atan2(tanY, tanX);
 
-    // Alternating sculpted gores
-    ctx.fillStyle = goreB;
-    [-16, 4].forEach((gx) => {
+    // Mid-crossing dynamic banking/swoop curve via C2 smooth5
+    const pivotT = (p > 0.30 && p < 0.72)
+      ? Math.sin(this._smooth5((p - 0.30) / 0.42) * Math.PI)
+      : 0;
+    const falconStoop = (species === "falcon" && p > 0.36 && p < 0.66)
+      ? Math.sin(this._smooth5((p - 0.36) / 0.30) * Math.PI)
+      : 0;
+
+    // Subtle rising thermal updraft silk streamlines beneath flock
+    for (let s = 0; s < 3; s++) {
+      const sx0 = cNow.x - dir * (175 - s * 50);
+      const sy0 = cNow.y + 42 + s * 18;
+      ctx.save();
+      ctx.strokeStyle = `rgba(${pal.ribbon}, ${(env * (0.14 - s * 0.032)).toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.9, (2.1 - s * 0.38) * (isNarrow ? 0.8 : 1));
+      ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(0, -44);
-      ctx.quadraticCurveTo(gx + 6, -12, gx * 0.4, 20);
-      ctx.lineTo((gx + 10) * 0.4, 20);
-      ctx.quadraticCurveTo(gx + 16, -12, 0, -44);
-      ctx.fill();
-    });
-
-    // Equatorial decorative chevron stripe
-    ctx.fillStyle = bandCol;
-    ctx.fillRect(-34, -21, 68, 5);
-
-    // Internal warm burner glow illuminating the balloon throat
-    const bg = ctx.createRadialGradient(0, 18, 1, 0, 8, 28);
-    bg.addColorStop(0, `rgba(254, 240, 138, ${(0.88 * burnerGlow).toFixed(3)})`);
-    bg.addColorStop(0.55, `rgba(249, 115, 22, ${(0.45 * burnerGlow).toFixed(3)})`);
-    bg.addColorStop(1, "rgba(249, 115, 22, 0)");
-    ctx.fillStyle = bg;
-    ctx.fillRect(-32, -16, 64, 38);
-    ctx.restore();
-
-    traceEnvelope();
-    ctx.strokeStyle = "rgba(15, 23, 42, 0.25)";
-    ctx.lineWidth = 0.9;
-    ctx.stroke();
-
-    // Burner Flame between envelope throat & basket
-    if (burnerGlow > 0.35) {
-      ctx.fillStyle = `rgba(251, 191, 36, ${burnerGlow.toFixed(3)})`;
-      ctx.beginPath();
-      ctx.moveTo(-2.5, 27);
-      ctx.quadraticCurveTo(0, 19 - burnerGlow * 3, 2.5, 27);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(sx0, sy0);
+      ctx.bezierCurveTo(
+        sx0 + dir * 75, sy0 - 18,
+        sx0 + dir * 155, sy0 - 44 - pivotT * 24,
+        sx0 + dir * 245, sy0 - 52 - pivotT * 18
+      );
+      ctx.stroke();
+      ctx.restore();
     }
 
-    // Rigging cables & Wicker Gondola Basket
-    ctx.strokeStyle = mode === "dark" ? "rgba(203, 213, 225, 0.65)" : "rgba(71, 85, 105, 0.65)";
-    ctx.lineWidth = 0.9;
-    ctx.beginPath();
-    ctx.moveTo(-7, 20);
-    ctx.lineTo(-6, 30);
-    ctx.moveTo(7, 20);
-    ctx.lineTo(6, 30);
-    ctx.stroke();
+    // Depth-sorted rendering (far -> near) with 2-segment articulated wings & detailed anatomical markings
+    const sorted = ph.birds.slice().sort((a, b) => a.depth - b.depth);
+    sorted.forEach((b) => {
+      let mx = 0;
+      let my = Math.sin(ph.elapsed * 0.9 + b.indivPhase) * 4.5 * b.depth;
+      if (species === "starling") {
+        mx = Math.sin(p * Math.PI * b.murmFreq + b.indivPhase) * (isNarrow ? 26 : 46);
+        my = Math.cos(p * Math.PI * (b.murmFreq * 0.85) + b.indivPhase) * (isNarrow ? 22 : 38);
+      }
 
-    ctx.fillStyle = mode === "dark" ? "#92400E" : "#B45309";
-    ctx.beginPath();
-    ctx.roundRect(-7, 30, 14, 9, 2);
-    ctx.fill();
-    ctx.restore();
+      const bx = cNow.x + b.offX * (1 - pivotT * 0.22) + mx;
+      const by = cNow.y + b.offY + my - pivotT * 24 * b.depth + falconStoop * 36 * b.depth;
+      const glideFactor = 1 - Math.max(pivotT * b.gliderBias, falconStoop * 0.92);
+      const wingPhase = b.flapPhase + ph.elapsed * b.flapSpeed;
+      const flapInner = Math.sin(wingPhase) * glideFactor;
+      const flapOuter = Math.sin(wingPhase - 0.56) * glideFactor; // Realistic wrist-to-primary feather phase lag!
+
+      const sz = b.size;
+      const pitchShift = falconStoop * 0.24 - pivotT * 0.14;
+      const facingAngle = (dir > 0 ? baseFlightAngle : (Math.PI - baseFlightAngle)) + pitchShift;
+
+      ctx.save();
+      ctx.globalAlpha = env * (0.56 + b.depth * 0.42);
+      ctx.translate(bx, by);
+      if (dir < 0) ctx.scale(-1, 1);
+      ctx.rotate(dir > 0 ? facingAngle : (baseFlightAngle - Math.PI) * -1 - pitchShift);
+
+      // Subtle trailing wingtip thermal vortex whisper (desktop near-layer birds)
+      if (!isNarrow && b.depth > 0.78 && (species === "albatross" || species === "crane" || species === "falcon")) {
+        ctx.strokeStyle = `rgba(${pal.ribbon}, ${(env * 0.16).toFixed(3)})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(-sz * 0.9, -sz * (0.45 * flapOuter + 0.1));
+        ctx.quadraticCurveTo(-sz * 1.6, -sz * 0.12, -sz * 2.1, -sz * 0.04);
+        ctx.stroke();
+      }
+
+      const spanMult = species === "albatross" ? 1.48 : (species === "crane" || species === "heron" ? 1.24 : (species === "falcon" ? 1.12 : 1.0));
+      const tucked = species === "falcon" ? (1 - falconStoop * 0.55) : 1;
+      const farElbX = -sz * 0.16 * tucked;
+      const farElbY = -sz * (0.28 * flapInner + 0.22);
+      const farTipX = -sz * (0.78 * spanMult) * tucked;
+      const farTipY = farElbY - sz * (0.20 * flapOuter + 0.06);
+
+      const nearElbX = -sz * 0.12 * tucked;
+      const nearElbY = -sz * (0.42 * flapInner + 0.16);
+      const nearTipX = -sz * (0.94 * spanMult) * tucked;
+      const nearTipY = nearElbY - sz * (0.34 * flapOuter + 0.08);
+
+      // 1. Far Articulated Wing (shaded interior depth)
+      ctx.fillStyle = pal.tip;
+      ctx.beginPath();
+      ctx.moveTo(sz * 0.14, -sz * 0.04);
+      ctx.quadraticCurveTo(sz * 0.02, farElbY * 0.72, farElbX, farElbY);
+      ctx.lineTo(farTipX, farTipY);
+      ctx.quadraticCurveTo(farElbX * 0.9, farElbY * 0.42, -sz * 0.12, sz * 0.02);
+      ctx.closePath();
+      ctx.fill();
+
+      // 2. Anatomical Body, Neck/Head & Tail per Bird Species
+      ctx.fillStyle = pal.dorsal;
+      ctx.strokeStyle = pal.rim;
+      ctx.lineWidth = Math.max(0.65, 0.95 * b.depth);
+
+      if (species === "crane") {
+        // Long extended crane neck, delicate pointed bill & long trailing legs!
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.98, -sz * 0.03); // Sharp bill tip
+        ctx.lineTo(sz * 0.76, -sz * 0.08);
+        ctx.quadraticCurveTo(sz * 0.42, -sz * 0.11, sz * 0.24, -sz * 0.13);
+        ctx.quadraticCurveTo(0, -sz * 0.15, -sz * 0.34, -sz * 0.06);
+        ctx.lineTo(-sz * 0.48, -sz * 0.09);
+        ctx.lineTo(-sz * 0.42, sz * 0.08);
+        ctx.quadraticCurveTo(0, sz * 0.14, sz * 0.26, sz * 0.06);
+        ctx.quadraticCurveTo(sz * 0.56, -sz * 0.02, sz * 0.76, -sz * 0.03);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Trailing crane legs
+        ctx.strokeStyle = pal.accent;
+        ctx.lineWidth = Math.max(0.7, 0.9 * b.depth);
+        ctx.beginPath();
+        ctx.moveTo(-sz * 0.28, sz * 0.05);
+        ctx.lineTo(-sz * 0.84, sz * 0.12);
+        ctx.moveTo(-sz * 0.28, sz * 0.08);
+        ctx.lineTo(-sz * 0.80, sz * 0.18);
+        ctx.stroke();
+
+        // Characteristic ruby crane crown spot
+        ctx.fillStyle = pal.crest;
+        ctx.beginPath();
+        ctx.arc(sz * 0.76, -sz * 0.065, Math.max(0.8, sz * 0.034), 0, Math.PI * 2);
+        ctx.fill();
+      } else if (species === "heron") {
+        // S-curved retracted heron neck + long dagger bill + trailing stilts!
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.64, -sz * 0.08); // Bill tip
+        ctx.lineTo(sz * 0.36, -sz * 0.14);
+        ctx.bezierCurveTo(sz * 0.14, -sz * 0.02, sz * 0.30, -sz * 0.20, sz * 0.04, -sz * 0.16);
+        ctx.quadraticCurveTo(-sz * 0.20, -sz * 0.14, -sz * 0.42, -sz * 0.04);
+        ctx.lineTo(-sz * 0.46, sz * 0.08);
+        ctx.quadraticCurveTo(0, sz * 0.16, sz * 0.26, sz * 0.04);
+        ctx.quadraticCurveTo(sz * 0.34, -sz * 0.04, sz * 0.64, -sz * 0.08);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = pal.accent;
+        ctx.lineWidth = Math.max(0.75, 0.95 * b.depth);
+        ctx.beginPath();
+        ctx.moveTo(-sz * 0.30, sz * 0.04);
+        ctx.lineTo(-sz * 0.88, sz * 0.10);
+        ctx.stroke();
+      } else if (species === "swallow") {
+        // Glossy dorsal torso + deeply forked swallow streamers + warm chestnut throat!
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.48, -sz * 0.01);
+        ctx.quadraticCurveTo(sz * 0.18, -sz * 0.15, -sz * 0.26, -sz * 0.05);
+        ctx.lineTo(-sz * 0.78, -sz * 0.21); // Long upper fork streamer
+        ctx.lineTo(-sz * 0.46, 0);
+        ctx.lineTo(-sz * 0.78, sz * 0.20);  // Long lower fork streamer
+        ctx.lineTo(-sz * 0.26, sz * 0.06);
+        ctx.quadraticCurveTo(sz * 0.18, sz * 0.13, sz * 0.48, -sz * 0.01);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Warm chestnut-rust gorget & pale chest wash
+        ctx.fillStyle = pal.ventral;
+        ctx.beginPath();
+        ctx.ellipse(sz * 0.04, sz * 0.05, sz * 0.22, sz * 0.065, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.accent;
+        ctx.beginPath();
+        ctx.arc(sz * 0.30, sz * 0.03, sz * 0.075, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (species === "falcon") {
+        // Sleek raptor torso, notched hooked beak silhouette & fanned barred tail
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.50, -sz * 0.02);
+        ctx.quadraticCurveTo(sz * 0.38, -sz * 0.14, sz * 0.12, -sz * 0.15);
+        ctx.quadraticCurveTo(-sz * 0.16, -sz * 0.11, -sz * 0.38, -sz * 0.05);
+        ctx.lineTo(-sz * 0.68, -sz * 0.11);
+        ctx.lineTo(-sz * 0.68, sz * 0.11);
+        ctx.lineTo(-sz * 0.38, sz * 0.06);
+        ctx.quadraticCurveTo(sz * 0.12, sz * 0.15, sz * 0.50, -sz * 0.02);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = pal.ventral;
+        ctx.beginPath();
+        ctx.ellipse(sz * 0.04, sz * 0.06, sz * 0.24, sz * 0.065, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Streamlined Albatross / Starling body with distinct pale underbelly
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.54, 0);
+        ctx.quadraticCurveTo(sz * 0.16, -sz * 0.14, -sz * 0.34, -sz * 0.05);
+        ctx.lineTo(-sz * 0.56, -sz * 0.09);
+        ctx.lineTo(-sz * 0.54, sz * 0.09);
+        ctx.lineTo(-sz * 0.34, sz * 0.06);
+        ctx.quadraticCurveTo(sz * 0.16, sz * 0.13, sz * 0.54, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        if (species === "albatross") {
+          ctx.fillStyle = pal.ventral;
+          ctx.beginPath();
+          ctx.ellipse(sz * 0.28, -sz * 0.01, sz * 0.16, sz * 0.08, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 3. Near Articulated Two-Segment Wing (inner shoulder wing + flexed primary feather tip!)
+      ctx.fillStyle = species === "albatross" ? pal.ventral : pal.dorsal;
+      ctx.beginPath();
+      ctx.moveTo(sz * 0.18, 0);
+      ctx.quadraticCurveTo(sz * 0.05, nearElbY * 0.72, nearElbX, nearElbY);
+      ctx.quadraticCurveTo((nearElbX + nearTipX) * 0.5, (nearElbY + nearTipY) * 0.55 - sz * 0.04, nearTipX, nearTipY);
+      // Slotted primary feather tips for Cranes & Falcons
+      if (species === "crane" || species === "falcon") {
+        ctx.lineTo(nearTipX + sz * 0.09, nearTipY + sz * 0.10);
+        ctx.lineTo(nearTipX + sz * 0.02, nearTipY + sz * 0.13);
+        ctx.lineTo(nearTipX + sz * 0.12, nearTipY + sz * 0.18);
+      }
+      ctx.quadraticCurveTo(nearElbX * 0.92, nearElbY * 0.36 + sz * 0.08, -sz * 0.16, sz * 0.07);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = pal.rim;
+      ctx.lineWidth = Math.max(0.65, 0.95 * b.depth);
+      ctx.stroke();
+
+      // Dark outer primary wingtip trim on Crane / Albatross
+      if (species === "crane" || species === "albatross") {
+        ctx.fillStyle = pal.tip;
+        ctx.beginPath();
+        ctx.moveTo(nearElbX * 0.6 + nearTipX * 0.4, nearElbY * 0.6 + nearTipY * 0.4);
+        ctx.lineTo(nearTipX, nearTipY);
+        ctx.lineTo(nearTipX + sz * 0.11, nearTipY + sz * 0.16);
+        ctx.lineTo(nearElbX * 0.55 + nearTipX * 0.45, nearElbY * 0.4 + nearTipY * 0.45 + sz * 0.10);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      if (mode === "dark") {
+        ctx.fillStyle = `rgba(186, 230, 253, ${(env * 0.38).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(nearTipX, nearTipY, 1.3 * b.depth, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
   },
 
   _updateAndDrawNaturePhenomena(ctx, w, h, mode, dt) {
@@ -2032,16 +1775,7 @@ const WaveCanvas = {
       ph.elapsed += dt;
       const p = ph.elapsed / Math.max(0.5, ph.duration);
       if (p >= 1) continue;
-
-      if (ph.type === "thermal_flock") {
-        this._drawThermalFlock(ctx, w, h, p, ph, mode);
-      } else if (ph.type === "botanical_gust") {
-        this._drawBotanicalGust(ctx, w, h, p, ph, mode);
-      } else if (ph.type === "sky_phenomenon") {
-        this._drawSkyPhenomenon(ctx, w, h, p, ph, mode, dt);
-      } else if (ph.type === "horizon_drift") {
-        this._drawHorizonDrift(ctx, w, h, p, ph, mode);
-      }
+      this._drawThermalFlock(ctx, w, h, p, ph, mode);
       alive.push(ph);
     }
     this.naturePhenomena = alive;
