@@ -3972,18 +3972,14 @@ const Dashboard = {
       const permanentList = document.getElementById("unorgPermanentList");
       const permanentPanel = document.getElementById("unorgPermanentPanel");
       const unorgBadgeCount = document.getElementById("unorgPermanentCount");
-      const unorgInlineBadge = document.getElementById("unorgBadge");
-      const unorgInlineCount = document.getElementById("unorgCount");
       const statPill = document.getElementById("statPillUnorg");
       const pillCount = document.getElementById("statUnorg");
 
       if (unorgBadgeCount) unorgBadgeCount.textContent = items.length;
-      if (unorgInlineCount) unorgInlineCount.textContent = items.length;
       if (pillCount) pillCount.textContent = items.length;
 
       const hasUnorg = items.length > 0;
       if (permanentPanel) permanentPanel.style.display = hasUnorg ? "block" : "none";
-      if (unorgInlineBadge) unorgInlineBadge.style.display = hasUnorg ? "inline-flex" : "none";
       if (statPill) statPill.style.display = hasUnorg ? "inline-flex" : "none";
 
       if (permanentList) {

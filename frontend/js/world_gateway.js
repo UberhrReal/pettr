@@ -3856,7 +3856,7 @@ const WorldGateway = {
     return this._getGateToHangarPath(L, srcGate);
   },
 
-  // Steep authoritative spaceplane climbout along runway heading (35-42° nose-high pitch up!)
+  // Smooth C1-tangent spaceplane climbout along runway heading (gentle liftoff into sustained 35-42° climb)
   _getTakeoffClimbPath(L, w, h, sp) {
     const liftPt = L.rwPt(0.64);
     const dirX = Math.cos(L.rwAng);
@@ -3866,17 +3866,17 @@ const WorldGateway = {
     return this._buildArcPath([
       [
         liftPt,
-        { x: liftPt.x + dirX * 90, y: liftPt.y + dirY * 90 - 32 },
-        { x: Math.min(w - 20, liftPt.x + 225), y: liftPt.y - climbGain * 0.58 },
+        { x: liftPt.x + dirX * 118, y: liftPt.y + dirY * 118 - 4 },
+        { x: Math.min(w - 20, liftPt.x + 250), y: liftPt.y - climbGain * 0.50 },
         { x: w + 135, y: endY }
       ]
-    ], 58);
+    ], 64);
   },
 
-  // Elevated realistic ~12° 2.5D glideslope clearing western seaport cranes smoothly and flaring onto tdPt!
+  // Gentle C1-tangent ~11° glideslope flattening smoothly along runway heading to kiss tdPt!
   _getApproachPath(L) {
     const tdPt = L.rwPt(0.14);
-    const glideSlopeAng = L.rwAng + 0.22;
+    const glideSlopeAng = L.rwAng + 0.20;
     const dx = tdPt.x - (-110);
     const startPt = { x: -110, y: Math.max(L.horizonY - 12, tdPt.y - Math.tan(glideSlopeAng) * dx) };
     const dirX = Math.cos(L.rwAng);
@@ -3884,11 +3884,11 @@ const WorldGateway = {
     return this._buildArcPath([
       [
         startPt,
-        { x: startPt.x + dx * 0.36, y: startPt.y + (tdPt.y - startPt.y) * 0.34 },
-        { x: tdPt.x - dirX * 135, y: tdPt.y - dirY * 135 - 24 },
+        { x: startPt.x + dx * 0.42, y: startPt.y + (tdPt.y - startPt.y) * 0.56 },
+        { x: tdPt.x - dirX * 165, y: tdPt.y - dirY * 165 - 1.2 },
         tdPt
       ]
-    ], 56);
+    ], 64);
   },
 
   _getHeliPatrolPath(L, w, h, pad, variant) {
@@ -9174,7 +9174,8 @@ const WorldGateway = {
         ml.phase = "approach";
         ml.t = 0;
         ml.dist = 0;
-        ml.phaseDuration = 8.4;
+        ml.phaseDuration = 9.4;
+        ml.smoothPitch = 0.05;
         ml.chuteDetached = false;
         ml.detachedChuteAlpha = 0;
       }
@@ -9184,31 +9185,37 @@ const WorldGateway = {
       const p = Math.min(1, ml.t / ml.phaseDuration);
       const startX = -110;
       const startY = Math.max(L.horizonY + 8, rwStart.y - 148);
-      const ease = 1 - Math.pow(1 - p, 1.5);
+      const yEase = 1 - Math.pow(1 - p, 2.35);
       x = this._lerp(startX, rwStart.x, p);
-      y = this._lerp(startY, rwStart.y, ease);
+      y = this._lerp(startY, rwStart.y, yEase);
       const groundY = Math.max(L.islandTopY + 10, L.rwYAtX(x));
       altitude = Math.max(0, L.rwYAtX(x) - y);
-      scale = (0.60 + ease * 0.12) * L.termScale * this._depthScale(L, groundY);
-      heading = L.rwAng + (1 - ease) * 0.11;
+      scale = (0.60 + yEase * 0.12) * L.termScale * this._depthScale(L, groundY);
+      const flare = p > 0.55 ? ((p - 0.55) / 0.45) : 0;
+      const flareEase = flare * flare * (3 - 2 * flare);
+      heading = L.rwAng + (1 - yEase) * 0.09 - flareEase * 0.04;
+      const targetMlPitch = 0.05 + flareEase * 0.07;
+      ml.smoothPitch = (ml.smoothPitch || 0) + (targetMlPitch - (ml.smoothPitch || 0)) * (1 - Math.exp(-5.0 * dt));
       afterburner = 0.22;
       if (p >= 1) {
         ml.phase = "rollout";
         ml.t = 0;
         ml.dist = 0;
-        ml.speed = 108.0;
-        ml.phaseDuration = 5.2;
+        ml.speed = 98.0;
+        ml.phaseDuration = 5.4;
       }
     } else if (ml.phase === "rollout") {
       visible = true;
       const rollLen = Math.hypot(rwExit.x - rwStart.x, rwExit.y - rwStart.y);
       const rwF = Math.min(1, ml.dist / Math.max(1, rollLen));
-      const targetV = 9.5 + (108.0 - 9.5) * Math.pow(Math.max(0, 1 - rwF / 0.85), 1.95);
+      const targetV = 9.5 + (98.0 - 9.5) * Math.pow(Math.max(0, 1 - rwF / 0.85), 1.95);
       ml.speed += (targetV - ml.speed) * Math.min(1, dt * 6.5);
       ml.dist += ml.speed * dt;
       x = rwStart.x + Math.cos(L.rwAng) * Math.min(ml.dist, rollLen);
       y = rwStart.y + Math.sin(L.rwAng) * Math.min(ml.dist, rollLen);
       heading = L.rwAng;
+      const targetMlPitch = Math.max(0, 1 - rwF / 0.26) * 0.11;
+      ml.smoothPitch = (ml.smoothPitch || 0) + (targetMlPitch - (ml.smoothPitch || 0)) * (1 - Math.exp(-6.5 * dt));
       scale = (0.72 + Math.min(1, rwF) * 0.14) * L.termScale * this._depthScale(L, y);
       if (rwF < 0.80) {
         showChutes = true;
@@ -9479,7 +9486,7 @@ const WorldGateway = {
       ctx.restore();
     }
 
-    const mlPitch = ml.phase === "approach" ? 0.08 : 0;
+    const mlPitch = (ml.phase === "approach" || ml.phase === "rollout") ? (ml.smoothPitch || 0) : 0;
     ctx.save();
     ctx.translate(x, y);
     if (isVertical) ctx.rotate(ml.heading);
@@ -9511,6 +9518,7 @@ const WorldGateway = {
     let groundY = null;
     let scale = 0.48 * L.termScale;
     let targetHeading = sp.heading;
+    let targetPitch = 0;
     let altitude = 0;
     let showChute = false;
     let chuteInflation = 0;
@@ -9670,9 +9678,11 @@ const WorldGateway = {
         y = entryPt.y + (liftPt.y - entryPt.y) * frac;
         groundY = y;
         afterburner = Math.min(1, 0.35 + frac * 0.75);
-        const rotPitch = Math.max(0, (frac - 0.80) / 0.20);
-        targetHeading = L.rwAng - rotPitch * 0.08;
-        altitude = rotPitch * rotPitch * 2.2;
+        const rotU = Math.max(0, (frac - 0.70) / 0.30);
+        const rotEase = rotU * rotU * (3 - 2 * rotU);
+        targetHeading = L.rwAng - rotEase * 0.05;
+        targetPitch = rotEase * 0.22;
+        altitude = rotEase * rotEase * rotEase * 3.0;
         scale = (0.50 + frac * 0.10) * L.termScale;
 
         if (sp.dist >= rollLen) {
@@ -9691,7 +9701,10 @@ const WorldGateway = {
         // Flying straight ahead (not receding back!): anchor perspective depth along forward ground track instead of sky y!
         groundY = liftPt.y + (Math.min(L.islandBotY + 8, L.rwYAtX(x)) - liftPt.y) * 0.30;
         targetHeading = pt.angle;
-        altitude = Math.max(2.2, L.rwYAtX(x) - y);
+        const climbBlend = Math.min(1, cp / 0.30);
+        const cbEase = climbBlend * climbBlend * (3 - 2 * climbBlend);
+        targetPitch = 0.22 + cbEase * 0.16;
+        altitude = Math.max(3.0, L.rwYAtX(x) - y);
         afterburner = cp < 0.78 ? 1.0 : Math.max(0, (1 - cp) * 4.5);
         scale = 0.60 * L.termScale;
 
@@ -9724,24 +9737,28 @@ const WorldGateway = {
         sp.x = p0.x;
         sp.y = p0.y;
         sp.heading = p0.angle;
+        sp.smoothPitch = 0.06;
         sp.dist = 0;
-        sp.speed = 168;
+        sp.speed = 160;
         sp.phase = "approach";
         sp.t = 0;
         sp.chuteDetached = false;
       }
     } else if (sp.phase === "approach") {
-      // Elevated ~12° glideslope cleanly clearing western bay & seaport cranes, flaring onto tdPt at V_TD
+      // Gentle C1-tangent glideslope flaring smoothly onto tdPt with eased airspeed
       visible = true;
       const appPath = this._getApproachPath(L);
       const frac = Math.min(1, sp.dist / appPath.totalLen);
-      sp.speed = 168 - (168 - V_TD) * frac;
+      const speedEase = frac * frac * (3 - 2 * frac);
+      const flareU = frac > 0.58 ? ((frac - 0.58) / 0.42) : 0;
+      const flareEase = flareU * flareU * (3 - 2 * flareU);
+      sp.speed = 160 - (160 - V_TD) * speedEase - flareEase * 16;
       sp.dist += sp.speed * dt;
       const pt = this._sampleArcPath(appPath, sp.dist);
       x = pt.x;
       y = pt.y;
-      const flare = frac > 0.76 ? ((frac - 0.76) / 0.24) * 0.08 : 0;
-      targetHeading = pt.angle - flare;
+      targetHeading = pt.angle - flareEase * 0.055;
+      targetPitch = 0.06 + flareEase * 0.09;
       groundY = Math.max(L.islandTopY + 10, L.rwYAtX(x));
       altitude = Math.max(0, L.rwYAtX(x) - y);
       scale = (0.44 + frac * 0.06) * L.termScale;
@@ -9762,7 +9779,7 @@ const WorldGateway = {
         sp.phase = "chute_rollout";
         sp.t = 0;
         sp.dist = 0;
-        sp.speed = V_TD;
+        sp.speed = V_TD - 16;
       }
     } else if (sp.phase === "chute_rollout") {
       // Decisive aerodynamic drag & reverse thrust braking from V_TD (142) down to slow V_RW_EXIT (11.5 px/s) before turnoff!
@@ -9770,14 +9787,15 @@ const WorldGateway = {
       const tdPt = L.rwPt(0.14);
       const rollLen = Math.max(60, Math.hypot(exitPt.x - tdPt.x, exitPt.y - tdPt.y));
       const frac = Math.min(1, sp.dist / rollLen);
-      sp.speed = V_RW_EXIT + (V_TD - V_RW_EXIT) * Math.pow(1 - frac, 2.05);
+      sp.speed = V_RW_EXIT + ((V_TD - 16) - V_RW_EXIT) * Math.pow(1 - frac, 2.05);
       sp.dist += sp.speed * dt;
       const rwF = Math.min(1, sp.dist / rollLen);
       x = tdPt.x + (exitPt.x - tdPt.x) * rwF;
       y = tdPt.y + (exitPt.y - tdPt.y) * rwF;
       scale = (0.50 + rwF * 0.08) * L.termScale;
-      const noseSettle = Math.max(0, 1 - rwF / 0.16) * 0.055;
+      const noseSettle = Math.max(0, 1 - rwF / 0.24) * 0.055;
       targetHeading = L.rwAng - noseSettle;
+      targetPitch = Math.max(0, 1 - rwF / 0.26) * 0.14;
       altitude = 0;
 
       if (rwF < 0.78) {
@@ -9833,6 +9851,7 @@ const WorldGateway = {
     sp.x = x;
     sp.y = y;
     sp.heading = this._lerpAngle(sp.heading, targetHeading, 1 - Math.exp(-5.8 * dt));
+    sp.smoothPitch = (sp.smoothPitch || 0) + (targetPitch - (sp.smoothPitch || 0)) * (1 - Math.exp(-5.4 * dt));
     sp.altitude = altitude;
     const depth = this._depthScale(L, groundY != null ? groundY : y);
     const drawScale = scale * depth;
@@ -9903,12 +9922,11 @@ const WorldGateway = {
     ctx.fill();
     ctx.restore();
 
-    // 2. Render Spaceplane across 6 True Symmetrical 2.5D Oblique Perspectives + steep takeoff climb pitch
-    const climbPitch = sp.phase === "runway_takeoff" ? (sp._airborne ? 0.38 : Math.max(0, altitude * 0.09)) : (sp.phase === "approach" ? 0.12 : 0);
+    // 2. Render Spaceplane across 6 True Symmetrical 2.5D Oblique Perspectives + damped continuous pitch
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(drawScale, drawScale);
-    this._drawSpaceplaneModel(ctx, sp.variant, pal, step, afterburner, altitude, sp.heading, climbPitch);
+    this._drawSpaceplaneModel(ctx, sp.variant, pal, step, afterburner, altitude, sp.heading, sp.smoothPitch);
     ctx.restore();
   },
 

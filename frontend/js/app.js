@@ -686,27 +686,22 @@ const App = {
   setTheme(mode, notify = true) {
     localStorage.setItem("pettr_theme_mode", mode);
 
-    // Update switcher buttons UI
-    document.querySelectorAll("#themeSliderDrawer .theme-btn, .theme-switcher-control .theme-btn").forEach(btn => {
-      if (btn.id === "themeBtnSliderToggle") return;
-      const modeKey = mode.charAt(0).toUpperCase() + mode.slice(1);
-      if (btn.id === `themeBtn${modeKey}` || btn.dataset.themeSet === mode) {
-        btn.classList.add("active");
-      } else {
-        btn.classList.remove("active");
-      }
-    });
-
-    const triggerBtn = document.getElementById("themeBtnSliderToggle");
-    if (triggerBtn) {
-      const triggerIcon = mode === "dark" ? "moon" : (mode === "light" ? "sun" : "sun-moon");
-      triggerBtn.innerHTML = `<i id="themeTriggerIcon" data-lucide="${triggerIcon}"></i>`;
-    }
+    // Update switcher / auto chip UI
+    const autoChip = document.getElementById("themeBtnAuto");
+    if (autoChip) autoChip.classList.toggle("active", mode === "auto");
 
     let effectiveTheme = mode;
     if (mode === "auto") {
       const currentHour = new Date().getHours();
       effectiveTheme = this.getDiurnalTheme(currentHour).theme;
+    }
+
+    const triggerBtn = document.getElementById("themeBtnSliderToggle");
+    if (triggerBtn) {
+      const triggerIcon = mode === "auto"
+        ? "sun-moon"
+        : ((effectiveTheme === "dark" || effectiveTheme === "evening") ? "moon" : "sun");
+      triggerBtn.innerHTML = `<i id="themeTriggerIcon" data-lucide="${triggerIcon}"></i>`;
     }
 
     this.applyEffectiveTheme(effectiveTheme);
@@ -861,10 +856,14 @@ const App = {
     if (typeof WorldDeepBlue !== "undefined") WorldDeepBlue.cacheKey = "";
     this.applyEffectiveTheme(theme);
 
-    // Deselect other preset buttons
-    document.querySelectorAll(".theme-switcher-control .theme-btn").forEach(btn => {
-      if (btn.id !== "themeBtnSliderToggle") btn.classList.remove("active");
-    });
+    const autoChip = document.getElementById("themeBtnAuto");
+    if (autoChip) autoChip.classList.remove("active");
+    const triggerBtn = document.getElementById("themeBtnSliderToggle");
+    if (triggerBtn) {
+      const triggerIcon = (theme === "dark" || theme === "evening") ? "moon" : "sun";
+      triggerBtn.innerHTML = `<i id="themeTriggerIcon" data-lucide="${triggerIcon}"></i>`;
+      this.renderIcons();
+    }
   },
 
   setThemeHourPreset(hour) {

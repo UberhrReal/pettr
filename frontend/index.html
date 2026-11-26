@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=14.0">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=14.1">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -85,10 +85,14 @@
     <!-- Top Brand Row: Centred title, left status, right controls -->
     <div class="header-top-row">
       <div class="header-left-pills">
-        <div class="status-pill is-healthy" id="systemStatusPill" title="Tailscale Ready">
+        <div class="status-pill is-healthy" id="systemStatusPill" title="Tailscale Ready" tabindex="0">
           <span class="status-dot"></span>
           <span id="statusText">Tailscale Ready</span>
         </div>
+        <button class="action-icon-btn horace-toggle-btn" id="horaceToggleBtn" onclick="HoraceChat.toggle()" title="Horace [Alt+H]">
+          <i data-lucide="bot" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> <span class="horace-toggle-btn-text">Horace</span>
+          <span class="horace-status-dot online" id="horaceStatusDot" title="Horace Status"></span>
+        </button>
         <div class="header-clock-pill" id="headerClockPill" title="Live Mission Time">
           <span class="header-clock-pulse"></span>
           <span id="headerClockDigits" class="font-mono">--:--:--</span>
@@ -107,28 +111,15 @@
       </div>
 
       <div class="header-right-controls">
-        <button class="action-icon-btn horace-toggle-btn" id="horaceToggleBtn" onclick="HoraceChat.toggle()" title="Horace [Alt+H]">
-          <i data-lucide="bot" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> <span class="horace-toggle-btn-text">Horace</span>
-          <span class="horace-status-dot online" id="horaceStatusDot" title="Horace Status"></span>
-        </button>
-        <!-- Unified Theme & Appearance Trigger + Popover -->
+        <!-- Theme, World & Solar Time Trigger + Popover -->
         <div class="theme-switcher-wrapper">
           <div class="theme-switcher-control" id="themeSwitcherControl">
-            <button class="theme-btn theme-trigger-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="Appearance &amp; Solar Time" aria-label="Appearance and Time of Day"><i id="themeTriggerIcon" data-lucide="sun-moon"></i></button>
+            <button class="theme-btn theme-trigger-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="World &amp; Solar Time" aria-label="Theme and Time of Day"><i id="themeTriggerIcon" data-lucide="sun-moon"></i></button>
           </div>
           <div id="themeSliderDrawer" class="theme-slider-drawer" style="display: none;">
             <div class="theme-slider-header">
-              <span class="theme-drawer-section-title">Appearance</span>
-              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()" aria-label="Close appearance drawer"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
-            </div>
-            <div class="theme-mode-segmented" role="group" aria-label="Color mode">
-              <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Solar Cycle" aria-label="Auto Theme"><i data-lucide="sun-moon"></i><span>Auto</span></button>
-              <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light Mode" aria-label="Light Theme"><i data-lucide="sun"></i><span>Light</span></button>
-              <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode" aria-label="Dark Theme"><i data-lucide="moon"></i><span>Dark</span></button>
-            </div>
-            <div class="theme-drawer-divider"></div>
-            <div class="theme-slider-header">
               <span class="theme-drawer-section-title">World</span>
+              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()" aria-label="Close theme drawer"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
             </div>
             <div class="world-selector-grid" id="worldSelectorGrid" role="group" aria-label="Select theme">
               <button type="button" class="world-selector-card active" data-world-option="nature" onclick="App.setWorld('nature')" aria-pressed="true">
@@ -156,7 +147,10 @@
             <div class="theme-drawer-divider"></div>
             <div class="theme-slider-header theme-slider-title-row">
               <span class="theme-drawer-section-title theme-slider-heading"><i data-lucide="sun-moon" style="width:12px;height:12px;color:var(--accent-cyan);"></i> Solar Time</span>
-              <span id="themeSliderLabel" class="theme-frost-value font-mono">12:00 · Afternoon</span>
+              <div style="display:inline-flex;align-items:center;gap:6px;">
+                <span id="themeSliderLabel" class="theme-frost-value font-mono">12:00 · Afternoon</span>
+                <button type="button" class="scenic-time-auto-chip active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Follow live solar cycle">Auto</button>
+              </div>
             </div>
             <input type="range" id="themeHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)">
             <div class="theme-slider-ticks">
@@ -302,10 +296,6 @@
           </button>
           <button class="action-icon-btn jump-today-btn" id="dashboardJumpTodayBtn" onclick="Dashboard.jumpToToday()" style="display:none;" title="Return to Today">
             <i data-lucide="rotate-ccw" style="width:12px;height:12px;"></i> Today
-          </button>
-          <button type="button" class="unorg-inline-pill" id="unorgBadge" style="display:none;" onclick="Dashboard.openUnorganizedModal()" title="Sort unorganised items">
-            <i data-lucide="inbox" style="width:12px;height:12px;"></i>
-            <span><span id="unorgCount">0</span> Unorganised →</span>
           </button>
         </div>
       </div>
@@ -2611,24 +2601,24 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=14.0"></script>
-  <script src="/static/js/app.js?v=14.0"></script>
-  <script src="/static/js/drag_drop.js?v=14.0"></script>
-  <script src="/static/js/holidays.js?v=14.0"></script>
-  <script src="/static/js/world_gateway.js?v=14.0"></script>
-  <script src="/static/js/world_deepblue.js?v=14.0"></script>
-  <script src="/static/js/wave_canvas.js?v=14.0"></script>
-  <script src="/static/js/tactile.js?v=14.0"></script>
-  <script src="/static/js/entity_modal.js?v=14.0"></script>
-  <script src="/static/js/timeline.js?v=14.0"></script>
-  <script src="/static/js/mindmap.js?v=14.0"></script>
-  <script src="/static/js/dashboard.js?v=14.0"></script>
-  <script src="/static/js/exploded.js?v=14.0"></script>
-  <script src="/static/js/notes.js?v=14.0"></script>
-  <script src="/static/js/history.js?v=14.0"></script>
-  <script src="/static/js/command_palette.js?v=14.0"></script>
-  <script src="/static/js/focus_cockpit.js?v=14.0"></script>
-  <script src="/static/js/evening_debrief.js?v=14.0"></script>
-  <script src="/static/js/horace_chat.js?v=14.0"></script>
+  <script src="/static/js/pin_lock.js?v=14.1"></script>
+  <script src="/static/js/app.js?v=14.1"></script>
+  <script src="/static/js/drag_drop.js?v=14.1"></script>
+  <script src="/static/js/holidays.js?v=14.1"></script>
+  <script src="/static/js/world_gateway.js?v=14.1"></script>
+  <script src="/static/js/world_deepblue.js?v=14.1"></script>
+  <script src="/static/js/wave_canvas.js?v=14.1"></script>
+  <script src="/static/js/tactile.js?v=14.1"></script>
+  <script src="/static/js/entity_modal.js?v=14.1"></script>
+  <script src="/static/js/timeline.js?v=14.1"></script>
+  <script src="/static/js/mindmap.js?v=14.1"></script>
+  <script src="/static/js/dashboard.js?v=14.1"></script>
+  <script src="/static/js/exploded.js?v=14.1"></script>
+  <script src="/static/js/notes.js?v=14.1"></script>
+  <script src="/static/js/history.js?v=14.1"></script>
+  <script src="/static/js/command_palette.js?v=14.1"></script>
+  <script src="/static/js/focus_cockpit.js?v=14.1"></script>
+  <script src="/static/js/evening_debrief.js?v=14.1"></script>
+  <script src="/static/js/horace_chat.js?v=14.1"></script>
 </body>
 </html>
