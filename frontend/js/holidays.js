@@ -9,67 +9,122 @@ const HolidayThemes = {
       id: "new_year", family: "new_year", name: "New Year's Day", icon: "✨",
       kicker: "First Light", tagline: "First light of a bright new year.",
       accent: "250, 204, 21", secondary: "56, 189, 248", tertiary: "244, 114, 182",
-      decorations: ["✨", "🥂", "🎆", "🌟"]
+      decorations: ["✨", "🥂", "🎆", "🌟"],
+      funFacts: [
+        "Julius Caesar established January 1 as the start of the civic year in 46 BCE, honouring Janus — the Roman god of doorways and new beginnings.",
+        "Kiribati's Line Islands in the Pacific greet every New Year first, while American Samoa welcomes it a full 25 hours later.",
+        "Around the world, eating round foods — like grapes in Spain or rice cakes in East Asia — symbolises continuity and good fortune."
+      ]
     },
     "2-14": {
       id: "valentines", family: "valentines", name: "Valentine's Day", icon: "💖",
       kicker: "Hearts & Roses", tagline: "Warmth, roses, and cherished company.",
       accent: "244, 114, 182", secondary: "251, 113, 133", tertiary: "253, 164, 175",
-      decorations: ["🌹", "💖", "✨", "💌"]
+      decorations: ["🌹", "💖", "✨", "💌"],
+      funFacts: [
+        "The oldest surviving Valentine's love poem was written in 1415 by Charles, Duke of Orléans, to his wife while imprisoned in the Tower of London.",
+        "Richard Cadbury created the very first heart-shaped box of chocolates for Valentine's Day in 1861 — designed to store love letters afterward.",
+        "In Finland and Estonia, February 14 is celebrated as 'Friend's Day' (Ystävänpäivä / Sõbrapäev), honouring friendships as much as romance."
+      ]
     },
     "3-17": {
       id: "st_patricks", family: "st_patricks", name: "St. Patrick's Day", icon: "☘️",
       kicker: "Emerald Folklore", tagline: "Emerald clovers and cheerful good fortune.",
       accent: "16, 185, 129", secondary: "250, 204, 21", tertiary: "52, 211, 153",
-      decorations: ["☘️", "🌈", "🪙", "✨"]
+      decorations: ["☘️", "🌈", "🪙", "✨"],
+      funFacts: [
+        "The colour originally linked with St. Patrick was 'St. Patrick's Blue' — green became the global emblem later during 18th-century Irish movements.",
+        "The first St. Patrick's Day parade didn't take place in Ireland — it was marched in St. Augustine, Florida in 1601, before Dublin's first parade in 1931.",
+        "The botanical chances of finding a genuine four-leaf clover are roughly 1 in 5,000, making each extra leaflet a traditional token of luck."
+      ]
     },
     "4-22": {
       id: "earth_day", family: "earth_day", name: "Earth Day", icon: "🌍",
       kicker: "Blue Planet", tagline: "Wild forests, open skies, and living oceans.",
       accent: "16, 185, 129", secondary: "56, 189, 248", tertiary: "45, 212, 191",
-      decorations: ["🌍", "🌿", "🐋", "✨"]
+      decorations: ["🌍", "🌿", "🐋", "✨"],
+      funFacts: [
+        "When Earth Day launched on April 22, 1970, 20 million people took part in rallies and cleanups — roughly 10% of the entire United States population at the time.",
+        "Over 71% of Earth's surface is ocean, and marine phytoplankton quietly generate about half of the oxygen in every breath we take.",
+        "The Paris Climate Agreement was formally opened for signature on Earth Day in 2016, joined by 175 countries in a single day."
+      ]
     },
     "6-21": {
       id: "midsummer", family: "midsummer", name: "Summer Solstice", icon: "☀️",
       kicker: "Solstice Sun", tagline: "The longest sunlit horizon of the year.",
       accent: "245, 158, 11", secondary: "251, 146, 60", tertiary: "253, 224, 71",
-      decorations: ["☀️", "🌻", "🌾", "✨"]
+      decorations: ["☀️", "🌻", "🌾", "✨"],
+      funFacts: [
+        "The word 'solstice' comes from Latin 'solstitium' — literally 'sun standing still' — because the Sun's noon altitude pauses before reversing.",
+        "Despite having the longest daylight of the year, Earth is actually nearing aphelion, its farthest orbital distance from the Sun.",
+        "Ancient monuments from Stonehenge in England to Chichén Itzá in Mexico align precisely with solstice sunrise and sunset azimuths."
+      ]
     },
     "8-9": {
       id: "sg_national_day", family: "national_day", name: "Singapore National Day", icon: "🇸🇬",
       kicker: "Majulah Singapura", tagline: "Crimson, white, and fireworks across the bay.",
       accent: "239, 68, 68", secondary: "255, 255, 255", tertiary: "252, 165, 165",
-      decorations: ["🇸🇬", "🎆", "🦁", "✨"]
+      decorations: ["🇸🇬", "🎆", "🦁", "✨"],
+      funFacts: [
+        "Each of the five stars on Singapore's flag stands for democracy, peace, progress, justice, and equality, beside the crescent of a young nation rising.",
+        "Red symbolises universal brotherhood and equality, while white represents pervading and everlasting purity and virtue.",
+        "The first National Day Parade was held on the Padang in 1966, and Marina Bay flypasts and harbour fireworks remain signature traditions."
+      ]
     },
     "10-31": {
       id: "halloween", family: "halloween", name: "Halloween", icon: "🎃",
       kicker: "All Hallows' Eve", tagline: "Amber lanterns, midnight bats, and playful mystery.",
       accent: "249, 115, 22", secondary: "168, 85, 247", tertiary: "245, 158, 11",
-      decorations: ["🎃", "🕯️", "🦇", "🌙"]
+      decorations: ["🎃", "🕯️", "🦇", "🌙"],
+      funFacts: [
+        "Jack-o'-lanterns originally began in Ireland and Scotland carved out of turnips, rutabagas, and beets before immigrants discovered North American pumpkins.",
+        "Halloween evolves from the ancient Celtic harvest festival of Samhain, which marked the turning of the year into the darker winter half.",
+        "A single little brown bat near dusk can catch up to 1,000 mosquito-sized insects per hour using biological sonar."
+      ]
     },
     "12-24": {
       id: "christmas_eve", family: "christmas", name: "Christmas Eve", icon: "🎄",
       kicker: "Silent Night", tagline: "Twinkling fairy lights and wintry anticipation.",
       accent: "220, 38, 38", secondary: "22, 163, 74", tertiary: "250, 204, 21",
-      decorations: ["🎄", "🕯️", "❄️", "⭐"]
+      decorations: ["🎄", "🕯️", "❄️", "⭐"],
+      funFacts: [
+        "'Silent Night' (Stille Nacht) was first performed on Christmas Eve 1818 in Oberndorf, Austria, accompanied only by guitar because the church organ had rusted.",
+        "NORAD's Santa Tracker began by accident in 1955 after a department store newspaper misprinted an emergency defense hotline number.",
+        "In Iceland, Jólabókaflóð ('Christmas Book Flood') sees families exchange books on Christmas Eve and spend the night reading with hot chocolate."
+      ]
     },
     "12-25": {
       id: "christmas", family: "christmas", name: "Christmas Day", icon: "🎄",
       kicker: "Winter Solstice", tagline: "Warm hearths, snowfall, and peaceful holiday joy.",
       accent: "220, 38, 38", secondary: "22, 163, 74", tertiary: "250, 204, 21",
-      decorations: ["🎄", "❄️", "🎁", "✨"]
+      decorations: ["🎄", "❄️", "🎁", "✨"],
+      funFacts: [
+        "Every winter snowflake forms a unique six-sided crystal symmetry shaped by the exact humidity and temperature cloud layers it tumbles through.",
+        "The 1965 NASA Gemini 6 crew played 'Jingle Bells' on a smuggled mini harmonica and sleigh bells — making it the first song ever broadcast from space.",
+        "Evergreen pine boughs became winter festival decorations millennia ago as a vivid promise that spring greenery would return."
+      ]
     },
     "12-26": {
       id: "boxing_day", family: "christmas", name: "Boxing Day", icon: "🎁",
       kicker: "Fireside Rest", tagline: "Cosy blankets, warm cocoa, and quiet strolling.",
       accent: "220, 38, 38", secondary: "250, 204, 21", tertiary: "52, 211, 153",
-      decorations: ["🎁", "🧣", "❄️", "☕"]
+      decorations: ["🎁", "🧣", "❄️", "☕"],
+      funFacts: [
+        "The name 'Boxing Day' comes from 19th-century Britain, when alms boxes opened in churches and gift boxes were given to tradespeople and staff on December 26.",
+        "In Ireland, December 26 is St. Stephen's Day (Wren Day), celebrated with traditional music processions.",
+        "Boxing Day cricket Test matches at the Melbourne Cricket Ground date all the way back to 1950."
+      ]
     },
     "12-31": {
       id: "new_years_eve", family: "new_year", name: "New Year's Eve", icon: "🥂",
       kicker: "Midnight Countdown", tagline: "Toasts at midnight and sparks over the harbour.",
       accent: "250, 204, 21", secondary: "167, 139, 250", tertiary: "56, 189, 248",
-      decorations: ["🥂", "🎆", "🕰️", "✨"]
+      decorations: ["🥂", "🎆", "🕰️", "✨"],
+      funFacts: [
+        "Times Square's illuminated New Year's Eve Ball first dropped in 1907 made of iron, wood, and 100 incandescent light bulbs.",
+        "Scottish poet Robert Burns transcribed 'Auld Lang Syne' in 1788 — an old Scots phrase roughly meaning 'for the sake of old times.'",
+        "In Denmark, leaping off a chair just as midnight strikes symbolises literally jumping smoothly into the new year."
+      ]
     }
   },
 
@@ -82,7 +137,12 @@ const HolidayThemes = {
       id: "cny", family: "lantern", name: "Lunar New Year", icon: "🏮",
       kicker: "Spring Festival", tagline: "Crimson silk lanterns, reunion feasts, and warm fortune.",
       accent: "239, 68, 68", secondary: "250, 204, 21", tertiary: "251, 146, 60",
-      decorations: ["🏮", "🧧", "🍊", "✨"]
+      decorations: ["🏮", "🧧", "🍊", "✨"],
+      funFacts: [
+        "Because the lunisolar calendar tracks both Moon phases and solar seasons, Lunar New Year always falls on the second New Moon after the Winter Solstice.",
+        "Mandarin oranges (橘) are exchanged in pairs because their Cantonese pronunciation sounds like 'gold' and 'good luck.'",
+        "Reunion dinner dishes tell wishes aloud — whole fish (余) for abundance year after year and long noodles for longevity."
+      ]
     }]),
     // Easter Weekend
     ...[
@@ -92,7 +152,12 @@ const HolidayThemes = {
       id: "easter", family: "easter", name: "Easter", icon: "🌸",
       kicker: "Spring Bloom", tagline: "Pastel spring blossoms and gentle renewal.",
       accent: "244, 114, 182", secondary: "52, 211, 153", tertiary: "196, 181, 253",
-      decorations: ["🌸", "🐣", "🌷", "✨"]
+      decorations: ["🌸", "🐣", "🌷", "✨"],
+      funFacts: [
+        "Easter falls on the first Sunday after the first full Moon following the March vernal equinox, so its date moves between March 22 and April 25.",
+        "Intricately hand-painted Easter eggs (pysanky) have been crafted in Eastern Europe for over a millennium as symbols of spring renewal.",
+        "The spring tradition of chocolate eggs began in 19th-century France and Germany before becoming a global craft."
+      ]
     }]),
     // Mid-Autumn Festival
     ...[
@@ -102,7 +167,12 @@ const HolidayThemes = {
       id: "mid_autumn", family: "mid_autumn", name: "Mid-Autumn Festival", icon: "🌕",
       kicker: "Harvest Moon", tagline: "Luminous harvest moon, glowing lanterns, and mooncakes.",
       accent: "245, 158, 11", secondary: "253, 224, 71", tertiary: "251, 146, 60",
-      decorations: ["🌕", "🏮", "🥮", "🐇"]
+      decorations: ["🌕", "🏮", "🥮", "🐇"],
+      funFacts: [
+        "Celebrated on the 15th day of the 8th lunar month, Mid-Autumn night coincides with one of the brightest, fullest moons of the autumn sky.",
+        "Because the Moon's surface dark basalt plains look like a rabbit pounding herbs with a mortar, folklore pairs the Jade Rabbit with mooncakes.",
+        "China's Chang'e lunar exploration programme takes its name directly from the Moon goddess celebrated on Mid-Autumn night."
+      ]
     }]),
     // Diwali / Festival of Lights
     ...[
@@ -112,7 +182,12 @@ const HolidayThemes = {
       id: "diwali", family: "diwali", name: "Diwali", icon: "🪔",
       kicker: "Festival of Lights", tagline: "Golden earthen lamps and radiant courtyard light.",
       accent: "245, 158, 11", secondary: "236, 72, 153", tertiary: "253, 224, 71",
-      decorations: ["🪔", "✨", "🪷", "🎇"]
+      decorations: ["🪔", "✨", "🪷", "🎇"],
+      funFacts: [
+        "The word 'Diwali' comes from Sanskrit 'Deepavali', meaning 'rows of lighted lamps' — signifying light overcoming darkness.",
+        "Colourful courtyard rangoli mandalas made from dyed rice flour or flower petals welcome guests and share food with tiny birds and insects.",
+        "In 2024, over 2.5 million clay oil diyas were lit simultaneously along the Sarayu riverfront in Ayodhya."
+      ]
     }]),
     // Thanksgiving
     ...[
@@ -122,7 +197,12 @@ const HolidayThemes = {
       id: "thanksgiving", family: "thanksgiving", name: "Thanksgiving", icon: "🍁",
       kicker: "Autumn Harvest", tagline: "Amber maple leaves, harvest warmth, and gratitude.",
       accent: "234, 88, 12", secondary: "217, 119, 6", tertiary: "245, 158, 11",
-      decorations: ["🍁", "🍂", "🕯️", "🌾"]
+      decorations: ["🍁", "🍂", "🕯️", "🌾"],
+      funFacts: [
+        "President Abraham Lincoln proclaimed Thanksgiving a national annual holiday in 1863 after magazine editor Sarah Josepha Hale campaigned for 17 years.",
+        "Cranberries earn the nickname 'bounceberries' because farmers test ripeness by whether fresh berries bounce briskly off wooden sorting boards.",
+        "Maple trees turn fiery amber and crimson in autumn as cool nights reveal carotenoid and anthocyanin pigments hidden beneath summer chlorophyll."
+      ]
     }])
   ],
 
@@ -137,6 +217,11 @@ const HolidayThemes = {
   _sleighTimer: 5,
   _surfaceBursts: [],
   _surfaceBurstTimer: 0.6,
+  _factIndexByHoliday: {},
+  _factDismissTimer: null,
+  _celebrationCanvas: null,
+  _celebrationRaf: null,
+  _celebrationState: null,
 
   _escapeHtml(str) {
     return String(str || "")
@@ -160,7 +245,10 @@ const HolidayThemes = {
       id: hid, family: "generic", name: hid.replace(/_/g, " "), icon: "🎉",
       kicker: "Celebration", tagline: "Wishing you a joyful holiday.",
       accent: "245, 158, 11", secondary: "56, 189, 248", tertiary: "250, 204, 21",
-      decorations: ["✨", "🎉", "🌟", "🎈"]
+      decorations: ["✨", "🎉", "🌟", "🎈"],
+      funFacts: [
+        "Seasonal festivals across cultures grew out of solstices, harvests, and lunar cycles to bring communities together across the turning year."
+      ]
     };
   },
 
@@ -173,6 +261,10 @@ const HolidayThemes = {
     this._sleigh = null;
     this._surfaceBursts = [];
     const active = this.getActiveHoliday();
+    if (!active) {
+      this.dismissHolidayFactPopup();
+      this.clearCelebrationCanvas();
+    }
     this.applyHolidayUITheme(active);
     if (typeof Dashboard !== "undefined" && Dashboard.renderHolidayDecorations) {
       try { Dashboard.renderHolidayDecorations(active); } catch (_) {}
@@ -1229,6 +1321,414 @@ const HolidayThemes = {
       this._drawSnowflakesAndParticles(ctx, { ...hol, family: "diwali" }, isDark);
     }
     ctx.restore();
+  },
+
+  getFunFact(holiday) {
+    const base = (holiday && holiday.id) ? (this._lookupById(holiday.id) || {}) : {};
+    const merged = { ...base, ...(holiday || {}) };
+    const facts = Array.isArray(merged.funFacts) && merged.funFacts.length > 0
+      ? merged.funFacts
+      : ["Seasonal festivals around the world bring warmth, shared stories, and traditions across the calendar."];
+    const key = merged.id || merged.name || "generic";
+    const idx = (this._factIndexByHoliday[key] || 0) % facts.length;
+    this._factIndexByHoliday[key] = (idx + 1) % facts.length;
+    return facts[idx];
+  },
+
+  dismissHolidayFactPopup() {
+    const pop = document.getElementById("holidayFactPopup");
+    if (pop) pop.classList.remove("is-visible");
+    if (this._factDismissTimer) {
+      clearTimeout(this._factDismissTimer);
+      this._factDismissTimer = null;
+    }
+  },
+
+  showHolidayFactPopup(holiday) {
+    const hol = holiday || this.getActiveHoliday();
+    if (!hol || !hol.name) return;
+    const base = hol.id ? (this._lookupById(hol.id) || {}) : {};
+    const merged = { ...base, ...hol };
+    const fam = merged.family || "generic";
+    const factText = this.getFunFact(merged);
+    const flourish = this._getFamilyFlourishSvg(fam);
+
+    let pop = document.getElementById("holidayFactPopup");
+    if (!pop) {
+      pop = document.createElement("div");
+      pop.id = "holidayFactPopup";
+      pop.className = "holiday-fact-popup";
+      pop.setAttribute("role", "dialog");
+      pop.setAttribute("aria-live", "polite");
+      document.body.appendChild(pop);
+    }
+
+    if (!this._boundFactEscListener) {
+      this._boundFactEscListener = (ev) => {
+        if (ev.key === "Escape") this.dismissHolidayFactPopup();
+      };
+      document.addEventListener("keydown", this._boundFactEscListener);
+    }
+
+    pop.dataset.holidayFamily = fam;
+    pop.dataset.holidayId = merged.id || "generic";
+    pop.style.setProperty("--holiday-accent", merged.accent || "234, 88, 12");
+    pop.style.setProperty("--holiday-secondary", merged.secondary || "245, 158, 11");
+    pop.innerHTML = [
+      `<div class="holiday-fact-popup-inner">`,
+      `<div class="holiday-fact-popup-header">`,
+      `<div class="holiday-fact-popup-title-wrap">`,
+      `<span class="holiday-fact-popup-flourish" aria-hidden="true">${flourish}</span>`,
+      `<span class="holiday-fact-popup-emblem" aria-hidden="true">${this._escapeHtml(merged.icon || "✨")}</span>`,
+      `<div class="holiday-fact-popup-titles">`,
+      `<span class="holiday-fact-popup-kicker">Did You Know? · ${this._escapeHtml(merged.kicker || "Holiday Tradition")}</span>`,
+      `<strong class="holiday-fact-popup-name">${this._escapeHtml(merged.name)}</strong>`,
+      `</div>`,
+      `</div>`,
+      `<button type="button" class="holiday-fact-popup-close" aria-label="Close holiday fun fact">&times;</button>`,
+      `</div>`,
+      `<p class="holiday-fact-popup-body">${this._escapeHtml(factText)}</p>`,
+      `<div class="holiday-fact-popup-footer">`,
+      `<span class="holiday-fact-popup-tagline">${this._escapeHtml(merged.tagline || "")}</span>`,
+      `<button type="button" class="holiday-fact-popup-replay">${this._escapeHtml(merged.icon || "✨")} Replay &amp; Next Fact</button>`,
+      `</div>`,
+      `</div>`
+    ].join("");
+
+    const closeBtn = pop.querySelector(".holiday-fact-popup-close");
+    if (closeBtn) closeBtn.onclick = () => this.dismissHolidayFactPopup();
+    const replayBtn = pop.querySelector(".holiday-fact-popup-replay");
+    if (replayBtn) replayBtn.onclick = () => this.triggerCelebration(merged);
+
+    // Trigger CSS entrance animation reliably
+    pop.classList.remove("is-visible");
+    void pop.offsetWidth;
+    pop.classList.add("is-visible");
+
+    if (this._factDismissTimer) clearTimeout(this._factDismissTimer);
+    this._factDismissTimer = setTimeout(() => {
+      this.dismissHolidayFactPopup();
+    }, 8500);
+  },
+
+  clearCelebrationCanvas() {
+    if (this._celebrationRaf) {
+      try { cancelAnimationFrame(this._celebrationRaf); } catch (_) {}
+      this._celebrationRaf = null;
+    }
+    const canvas = this._celebrationCanvas || document.getElementById("holidayCelebrationCanvas");
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = "none";
+    }
+    this._celebrationState = null;
+  },
+
+  launchFullScreenAnimation(holiday) {
+    const hol = holiday || this.getActiveHoliday();
+    if (!hol) return;
+    const base = hol.id ? (this._lookupById(hol.id) || {}) : {};
+    const merged = { ...base, ...hol };
+    const fam = merged.family || "generic";
+
+    let canvas = document.getElementById("holidayCelebrationCanvas");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.id = "holidayCelebrationCanvas";
+      canvas.className = "holiday-celebration-canvas";
+      canvas.setAttribute("aria-hidden", "true");
+      document.body.appendChild(canvas);
+    }
+    this._celebrationCanvas = canvas;
+
+    const w = window.innerWidth || 1440;
+    const h = window.innerHeight || 900;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.max(1, Math.round(w * dpr));
+    canvas.height = Math.max(1, Math.round(h * dpr));
+    canvas.style.display = "block";
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    if (this._celebrationRaf) {
+      try { cancelAnimationFrame(this._celebrationRaf); } catch (_) {}
+      this._celebrationRaf = null;
+    }
+
+    const isNarrow = w < 720;
+    const palette = [
+      merged.accent || "250, 204, 21",
+      merged.secondary || "56, 189, 248",
+      merged.tertiary || "244, 114, 182"
+    ];
+
+    const state = {
+      family: fam,
+      elapsed: 0.28, // Start partway into bloom so initial frame is visually rich
+      duration: 4.6,
+      items: [],
+      bursts: [],
+      bats: []
+    };
+
+    if (fam === "new_year" || fam === "national_day" || fam === "diwali") {
+      const burstCount = fam === "national_day" ? 7 : 8;
+      for (let b = 0; b < burstCount; b++) {
+        const bx = w * (0.14 + (b / Math.max(1, burstCount - 1)) * 0.72 + (Math.random() - 0.5) * 0.08);
+        const by = h * (0.16 + (b % 3) * 0.14 + Math.random() * 0.08);
+        const rgb = fam === "national_day"
+          ? (b % 2 === 0 ? "239, 68, 68" : "255, 255, 255")
+          : palette[b % palette.length];
+        const sparks = [];
+        const rays = isNarrow ? 20 : 30;
+        for (let r = 0; r < rays; r++) {
+          const ang = (r / rays) * Math.PI * 2 + (Math.random() - 0.5) * 0.14;
+          const spd = (isNarrow ? 115 : 175) * (0.55 + Math.random() * 0.65);
+          sparks.push({ ang, spd, size: 1.8 + Math.random() * 2.2 });
+        }
+        state.bursts.push({ x: bx, y: by, delay: b * 0.44, rgb, sparks });
+      }
+      for (let i = 0; i < (isNarrow ? 26 : 44); i++) {
+        state.items.push({
+          x: Math.random() * w,
+          y: h * (0.35 + Math.random() * 0.65),
+          vx: (Math.random() - 0.5) * 38,
+          vy: -(70 + Math.random() * 110),
+          size: 3 + Math.random() * 5,
+          rot: Math.random() * Math.PI * 2,
+          phase: Math.random() * Math.PI * 2,
+          rgb: palette[i % palette.length]
+        });
+      }
+    } else if (fam === "halloween") {
+      for (let i = 0; i < (isNarrow ? 14 : 22); i++) {
+        const fromLeft = i % 2 === 0;
+        state.bats.push({
+          x: fromLeft ? (-40 - i * 28) : (w + 40 + i * 28),
+          y: h * (0.14 + Math.random() * 0.56),
+          vx: (fromLeft ? 1 : -1) * (260 + Math.random() * 180),
+          vy: (Math.random() - 0.5) * 55,
+          scale: (isNarrow ? 0.75 : 1.05) + Math.random() * 0.55,
+          wingPhase: Math.random() * Math.PI * 2
+        });
+      }
+      for (let i = 0; i < (isNarrow ? 34 : 58); i++) {
+        state.items.push({
+          x: Math.random() * w,
+          y: h + Math.random() * h * 0.3,
+          vx: (Math.random() - 0.5) * 55,
+          vy: -(95 + Math.random() * 120),
+          size: 2.5 + Math.random() * 5.5,
+          rot: Math.random() * Math.PI * 2,
+          phase: Math.random() * Math.PI * 2,
+          rgb: palette[i % palette.length]
+        });
+      }
+    } else if (fam === "lantern" || fam === "mid_autumn") {
+      for (let i = 0; i < (isNarrow ? 22 : 36); i++) {
+        state.items.push({
+          x: w * (0.05 + Math.random() * 0.90),
+          y: h * (0.45 + Math.random() * 0.65),
+          vx: (Math.random() - 0.5) * 28,
+          vy: -(80 + Math.random() * 95),
+          size: (isNarrow ? 12 : 16) + Math.random() * 10,
+          rot: (Math.random() - 0.5) * 0.14,
+          phase: Math.random() * Math.PI * 2,
+          rgb: palette[i % palette.length]
+        });
+      }
+    } else {
+      // Sweeping full-screen celebratory cascade tailored to Christmas snow/stars, Autumn leaves, Hearts, Clovers, Blossoms, Sunbursts
+      const count = isNarrow ? 48 : 82;
+      const isRise = fam === "valentines" || fam === "earth_day";
+      for (let i = 0; i < count; i++) {
+        state.items.push({
+          x: Math.random() * w,
+          y: isRise ? (h * (0.35 + Math.random() * 0.72)) : (-20 - Math.random() * h * 0.65),
+          vx: (fam === "thanksgiving" ? 45 : 0) + (Math.random() - 0.5) * 90,
+          vy: isRise ? -(85 + Math.random() * 110) : (105 + Math.random() * 145),
+          size: (isNarrow ? 4.5 : 6.2) + Math.random() * 7.2,
+          rot: Math.random() * Math.PI * 2,
+          rotSpd: (Math.random() - 0.5) * 4.5,
+          phase: Math.random() * Math.PI * 2,
+          rgb: palette[i % palette.length]
+        });
+      }
+    }
+    this._celebrationState = state;
+
+    const renderFrame = (dt) => {
+      state.elapsed += dt;
+      const fadeOut = state.elapsed > state.duration - 0.85
+        ? Math.max(0, (state.duration - state.elapsed) / 0.85)
+        : Math.min(1, state.elapsed / 0.35);
+
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      // Luminous festive radial flash wash during first 1.2s
+      if (state.elapsed < 1.3) {
+        const flashA = Math.sin((state.elapsed / 1.3) * Math.PI) * 0.22;
+        const rg = ctx.createRadialGradient(w * 0.5, h * 0.42, 10, w * 0.5, h * 0.42, Math.max(w, h) * 0.65);
+        rg.addColorStop(0, `rgba(${palette[0]}, ${flashA.toFixed(3)})`);
+        rg.addColorStop(0.55, `rgba(${palette[1]}, ${(flashA * 0.45).toFixed(3)})`);
+        rg.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = rg;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // Draw aerial fireworks bursts (New Year / National Day / Diwali)
+      for (let i = 0; i < state.bursts.length; i++) {
+        const b = state.bursts[i];
+        const age = state.elapsed - b.delay;
+        if (age < 0 || age > 1.75) continue;
+        const prog = age / 1.75;
+        const alpha = (1 - prog * prog) * fadeOut;
+        for (let r = 0; r < b.sparks.length; r++) {
+          const sp = b.sparks[r];
+          const sx = b.x + Math.cos(sp.ang) * sp.spd * age * (1 - prog * 0.28);
+          const sy = b.y + Math.sin(sp.ang) * sp.spd * age * (1 - prog * 0.28) + 46 * age * age;
+          const tailX = b.x + Math.cos(sp.ang) * sp.spd * Math.max(0, age - 0.11);
+          const tailY = b.y + Math.sin(sp.ang) * sp.spd * Math.max(0, age - 0.11) + 46 * Math.max(0, age - 0.11) ** 2;
+          ctx.strokeStyle = `rgba(${b.rgb}, ${(alpha * 0.72).toFixed(3)})`;
+          ctx.lineWidth = sp.size * 0.85;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(tailX, tailY);
+          ctx.lineTo(sx, sy);
+          ctx.stroke();
+          ctx.fillStyle = `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, sp.size * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Draw Halloween soaring bats
+      for (let i = 0; i < state.bats.length; i++) {
+        const bt = state.bats[i];
+        bt.x += bt.vx * dt;
+        bt.y += bt.vy * dt + Math.sin(state.elapsed * 5 + i) * 24 * dt;
+        bt.wingPhase += dt * 15;
+        const flap = Math.sin(bt.wingPhase) * 9;
+        ctx.save();
+        ctx.translate(bt.x, bt.y);
+        ctx.scale(bt.scale, bt.scale);
+        ctx.fillStyle = `rgba(17, 12, 34, ${(0.88 * fadeOut).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.moveTo(0, -3);
+        ctx.quadraticCurveTo(-11, -12 + flap, -22, 1 + flap * 0.5);
+        ctx.quadraticCurveTo(-11, 4, 0, 5);
+        ctx.quadraticCurveTo(11, 4, 22, 1 + flap * 0.5);
+        ctx.quadraticCurveTo(11, -12 + flap, 0, -3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Draw themed celebration particles
+      for (let i = 0; i < state.items.length; i++) {
+        const it = state.items[i];
+        it.phase += dt * 3.2;
+        it.x += it.vx * dt + Math.sin(it.phase) * 28 * dt;
+        it.y += it.vy * dt;
+        it.rot += (it.rotSpd || 1.2) * dt;
+        const a = 0.88 * fadeOut;
+        if (a <= 0.01) continue;
+
+        ctx.save();
+        ctx.translate(it.x, it.y);
+        ctx.rotate(it.rot);
+        if (fam === "lantern" || fam === "mid_autumn") {
+          const halo = ctx.createRadialGradient(0, 0, 2, 0, 0, it.size * 1.9);
+          halo.addColorStop(0, `rgba(${it.rgb}, ${(a * 0.55).toFixed(3)})`);
+          halo.addColorStop(1, `rgba(${it.rgb}, 0)`);
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(0, 0, it.size * 1.9, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = `rgba(${it.rgb}, ${a.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.roundRect(-it.size * 0.55, -it.size * 0.72, it.size * 1.1, it.size * 1.44, it.size * 0.35);
+          ctx.fill();
+          ctx.fillStyle = `rgba(254, 240, 138, ${a.toFixed(3)})`;
+          ctx.fillRect(-it.size * 0.25, it.size * 0.62, it.size * 0.5, it.size * 0.16);
+        } else if (fam === "christmas") {
+          ctx.strokeStyle = `rgba(241, 245, 249, ${a.toFixed(3)})`;
+          ctx.lineWidth = 1.6;
+          ctx.lineCap = "round";
+          for (let k = 0; k < 3; k++) {
+            const ang = (k * Math.PI) / 3;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(ang) * it.size, Math.sin(ang) * it.size);
+            ctx.lineTo(-Math.cos(ang) * it.size, -Math.sin(ang) * it.size);
+            ctx.stroke();
+          }
+          ctx.fillStyle = `rgba(${it.rgb}, ${(a * 0.8).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, 2.0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (fam === "valentines") {
+          const hs = it.size * 0.85;
+          ctx.fillStyle = `rgba(${it.rgb}, ${a.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(0, hs * 0.35);
+          ctx.bezierCurveTo(-hs, -hs * 0.45, -hs * 0.5, -hs * 1.15, 0, -hs * 0.4);
+          ctx.bezierCurveTo(hs * 0.5, -hs * 1.15, hs, -hs * 0.45, 0, hs * 0.35);
+          ctx.fill();
+        } else if (fam === "thanksgiving") {
+          ctx.fillStyle = `rgba(${it.rgb}, ${a.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.moveTo(0, -it.size);
+          ctx.lineTo(it.size * 0.45, -it.size * 0.25);
+          ctx.lineTo(it.size * 0.95, -it.size * 0.1);
+          ctx.lineTo(it.size * 0.4, it.size * 0.45);
+          ctx.lineTo(0, it.size * 0.9);
+          ctx.lineTo(-it.size * 0.4, it.size * 0.45);
+          ctx.lineTo(-it.size * 0.95, -it.size * 0.1);
+          ctx.lineTo(-it.size * 0.45, -it.size * 0.25);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.fillStyle = `rgba(${it.rgb}, ${a.toFixed(3)})`;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, it.size, it.size * 0.56, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      ctx.restore();
+    };
+
+    // Draw initial burst frame immediately so headless snapshots & first frame show cleanly
+    renderFrame(0);
+
+    let lastTs = performance.now();
+    const tick = (now) => {
+      const dt = Math.min(0.05, Math.max(0.008, (now - lastTs) / 1000));
+      lastTs = now;
+      renderFrame(dt);
+      if (state.elapsed < state.duration) {
+        this._celebrationRaf = requestAnimationFrame(tick);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.style.display = "none";
+        this._celebrationRaf = null;
+      }
+    };
+    this._celebrationRaf = requestAnimationFrame(tick);
+  },
+
+  triggerCelebration(holiday) {
+    const hol = holiday || this.getActiveHoliday();
+    if (!hol || !hol.name) return;
+    this.showHolidayFactPopup(hol);
+    this.launchFullScreenAnimation(hol);
   }
 };
 

@@ -2387,24 +2387,81 @@ const WorldDeepBlue = {
       this._drawClearGlassTube(ctx, L.farEastX + 32 * s, L.farEastY + 2 * s, L.outerEastX - 28 * s, L.outerEastY + 2 * s, 10.5 * s, s, pal, { depthAlpha: 0.72 });
       this._drawSatelliteWing(ctx, L.outerEastX, L.outerEastY, seabedBaseY + 8 * s, pal, s, { kind: "habitat", haze: 0.24 });
 
-      // Hyperbaric Diving Bell A-Frame Gantry & Suspended Bell beside Outer-East Annex
+      // Subsea A-Frame Winch Gantry & Spherical Observation Bathysphere suspended cleanly over eastern seabed
       ctx.save();
-      ctx.strokeStyle = pal.hullLight;
-      ctx.lineWidth = 2.0 * s;
+      const bx = L.outerEastX + 36 * s;
+      const topY = L.outerEastY - 40 * s;
+      const bellY = L.outerEastY - 12 * s;
+      const rBell = 7.6 * s;
+
+      // Platform deck apron under A-frame base
+      ctx.fillStyle = pal.hullDark;
+      ctx.fillRect(L.outerEastX + 22 * s, L.outerEastY - 5 * s, 26 * s, 5 * s);
+
+      // Braced steel A-frame legs & top winch sheave housing
+      ctx.strokeStyle = pal.hullMid;
+      ctx.lineWidth = 2.4 * s;
+      ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(L.outerEastX + 24 * s, L.outerEastY - 4 * s);
-      ctx.lineTo(L.outerEastX + 34 * s, L.outerEastY - 36 * s);
-      ctx.lineTo(L.outerEastX + 44 * s, L.outerEastY - 4 * s);
+      ctx.moveTo(bx - 11 * s, L.outerEastY - 4 * s);
+      ctx.lineTo(bx, topY);
+      ctx.lineTo(bx + 11 * s, L.outerEastY - 4 * s);
       ctx.stroke();
-      ctx.strokeStyle = pal.hullDark;
+
+      ctx.fillStyle = pal.hullLight;
+      ctx.fillRect(bx - 4.5 * s, topY - 2.5 * s, 9 * s, 4.5 * s);
+
+      // Taut hoist cable down to metallic pressure bathysphere
+      ctx.strokeStyle = pal.hullLight;
       ctx.lineWidth = 1.2 * s;
       ctx.beginPath();
-      ctx.moveTo(L.outerEastX + 34 * s, L.outerEastY - 36 * s);
-      ctx.lineTo(L.outerEastX + 34 * s, L.outerEastY - 12 * s);
+      ctx.moveTo(bx, topY + 2 * s);
+      ctx.lineTo(bx, bellY - rBell);
       ctx.stroke();
-      ctx.fillStyle = pal.rovBody;
+
+      // Subtle downward observation spotlight cone on seabed at night
+      if (pal.isDark) {
+        const cone = ctx.createLinearGradient(bx, bellY + rBell, bx, L.seabedY + 22 * s);
+        cone.addColorStop(0, "rgba(103, 232, 249, 0.30)");
+        cone.addColorStop(1, "rgba(103, 232, 249, 0)");
+        ctx.fillStyle = cone;
+        ctx.beginPath();
+        ctx.moveTo(bx - 3 * s, bellY + rBell);
+        ctx.lineTo(bx + 3 * s, bellY + rBell);
+        ctx.lineTo(bx + 20 * s, L.seabedY + 22 * s);
+        ctx.lineTo(bx - 20 * s, L.seabedY + 22 * s);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // 3D Spherical Pressure Hull + Equator Flange + Landing Skids
+      const bellG = ctx.createRadialGradient(bx - rBell * 0.3, bellY - rBell * 0.3, 1, bx, bellY, rBell);
+      bellG.addColorStop(0, pal.hullLight);
+      bellG.addColorStop(0.62, pal.hullMid);
+      bellG.addColorStop(1, pal.hullDark);
+      ctx.fillStyle = bellG;
       ctx.beginPath();
-      ctx.roundRect(L.outerEastX + 28 * s, L.outerEastY - 13 * s, 12 * s, 14 * s, 4 * s);
+      ctx.arc(bx, bellY, rBell, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = pal.hullDark;
+      ctx.lineWidth = 1.6 * s;
+      ctx.beginPath();
+      ctx.moveTo(bx - rBell * 0.96, bellY);
+      ctx.lineTo(bx + rBell * 0.96, bellY);
+      ctx.moveTo(bx - rBell * 0.72, bellY + rBell + 1.5 * s);
+      ctx.lineTo(bx + rBell * 0.72, bellY + rBell + 1.5 * s);
+      ctx.stroke();
+
+      // Illuminated sapphire/cyan observation viewport & specular glint
+      ctx.fillStyle = pal.glowCyan || "#38BDF8";
+      ctx.beginPath();
+      ctx.arc(bx + 1.2 * s, bellY - 0.5 * s, rBell * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#FFFFFF";
+      ctx.globalAlpha = 0.72;
+      ctx.beginPath();
+      ctx.arc(bx + 2.1 * s, bellY - 1.4 * s, rBell * 0.14, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -3010,20 +3067,23 @@ const WorldDeepBlue = {
       }
     }
 
-    // 14. Habitat-Surrounding Manta Ray Cleaning Station Carousel (Continuous Evenly-Spaced Orbits!)
+    // 14. Habitat-Surrounding Manta Ray Cleaning Station Carousel (Wide Non-Clipping Superellipse Orbits Outside Station Base!)
     if (this.cleaningMantas.length === 0 && L.cleaningStation) {
       const cs = L.cleaningStation;
       const totalMantas = isNarrow ? 2 : 4;
-      const orbitCenterY = L.seabedY - 26 * cs.scale;
-      const baseRx = isNarrow ? (w * 0.40) : Math.min(w * 0.42, 495 * s);
-      const baseRy = (isNarrow ? 30 : 42) * cs.scale;
+      const frontY = Math.min(h - 38, L.seabedY + (isNarrow ? 64 : 62) * cs.scale);
+      const backY = L.hubY - 46 * cs.scale;
+      const orbitCenterY = (frontY + backY) * 0.5;
+      const baseRx = isNarrow ? (w * 0.45) : Math.min(w * 0.475, 655 * s);
+      const baseRy = Math.max(36, (frontY - backY) * 0.5);
       const orbitSpeed = isNarrow ? 0.14 : 0.135;
 
       for (let i = 0; i < totalMantas; i++) {
-        // Locked evenly-spaced ring phasing so mantas continuously sweep front & back in a clean parade
+        // Locked evenly-spaced ring phasing on C1 superellipse so mantas orbit OUTSIDE wingtips & stay below plinth across full station width!
         const startAng = (i / totalMantas) * Math.PI * 2 + 0.35;
         const sinA = Math.sin(startAng);
         const cosA = Math.cos(startAng);
+        const rNorm = Math.pow(Math.pow(Math.abs(cosA), 3.5) + Math.pow(Math.abs(sinA), 3.5), -1 / 3.5);
         const vx = -sinA * orbitSpeed;
         this.cleaningMantas.push({
           layer: sinA < 0 ? "back" : "front",
@@ -3036,8 +3096,8 @@ const WorldDeepBlue = {
           span: (isNarrow ? (33 - i * 2) : (45 - (i % 2) * 3)) * cs.scale,
           wingPhase: i * 1.65 + 0.4,
           state: "circling",
-          x: L.hubX + cosA * baseRx,
-          y: orbitCenterY + sinA * baseRy,
+          x: L.hubX + cosA * rNorm * baseRx,
+          y: orbitCenterY + sinA * rNorm * baseRy,
           facingLeft: vx < 0,
           turnProjX: Math.min(1, 0.30 + Math.abs(sinA) * 0.78),
           bank: 0,
@@ -3143,14 +3203,28 @@ const WorldDeepBlue = {
       roarEmitted: 0,
       preyShark: chosenStunt === "hunt_shark"
         ? {
-            x: dir > 0 ? w * 0.58 : w * 0.42,
-            y: startY + 8,
-            vx: dir * (isNarrow ? 18 : 26),
-            size: isNarrow ? 30 : 42,
+            x: dir > 0 ? w * 0.48 : w * 0.52,
+            y: startY + 12,
+            baseY: startY + 12,
+            vx: dir * (isNarrow ? 12 : 16),
+            size: isNarrow ? 32 : 44,
             phase: 0,
-            eaten: false
+            pitch: 0,
+            eaten: false,
+            chompX: 0,
+            chompY: 0,
+            baitfish: Array.from({ length: 6 }, (_, bi) => ({
+              dx: (bi - 2.5) * 14,
+              dy: ((bi % 3) - 1) * 16,
+              vx: 0,
+              vy: 0,
+              scattered: false,
+              size: 4.5 + (bi % 2) * 1.5
+            }))
           }
         : null,
+      chompTimer: 0,
+      victoryRollProgress: 0,
       partner: chosenStunt === "two_playing"
         ? {
             lagX: dir * (isNarrow ? 75 : 130),
@@ -5949,9 +6023,10 @@ const WorldDeepBlue = {
     const dScale = cfg.depthScale || 1.0;
     const pitch = cfg.pitch || 0;
     const depthFog = cfg.depthFog || 0;
+    const biolumBoost = cfg.biolumBoost || 0;
 
     const blendHex = (c1, c2, amt) => {
-      if (!amt || amt <= 0.01 || typeof c1 !== "string" || typeof c2 !== "string" || !c1.startsWith("#") || !c2.startsWith("#")) return c1;
+      if (!amt || amt <= 0.005 || typeof c1 !== "string" || typeof c2 !== "string" || !c1.startsWith("#") || !c2.startsWith("#")) return c1;
       const p = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
       const a = p(c1), b = p(c2);
       if (a.some(isNaN) || b.some(isNaN)) return c1;
@@ -5962,7 +6037,8 @@ const WorldDeepBlue = {
     const ventralCol = blendHex(cfg.isPartner ? pal.subHullMid : pal.seabedLight, pal.waterMid, depthFog);
     const dorsalCol = blendHex(cfg.isPartner ? pal.reefFar : pal.reefMid, pal.waterMid, depthFog);
     const finCol = blendHex(cfg.isPartner ? pal.reefMid : pal.reefNear, pal.waterMid, depthFog);
-    const rimCol = depthFog > 0.12 ? pal.waterMid : pal.waterBounce;
+    // Smooth continuous rim interpolation instead of hard depthFog threshold step
+    const rimCol = blendHex(pal.waterBounce, pal.waterMid, Math.min(1, depthFog * 2.6));
 
     const wrap2Pi = a => ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     const nearBandEdge = a => {
@@ -6040,7 +6116,8 @@ const WorldDeepBlue = {
       const ctrlX = midPts[6].x - 24;
       const ctrlY = midPts[5].y + midPos.y;
 
-      ctx.fillStyle = isNear ? finCol : blendHex(finCol, dorsalCol, 0.45);
+      const zShade = this._clamp(0.5 - midPos.z / Math.max(8, segRads[5] * 2.4), 0, 1);
+      ctx.fillStyle = blendHex(finCol, dorsalCol, zShade * 0.50);
       ctx.beginPath();
       ctx.moveTo(rootX, rootY);
       ctx.quadraticCurveTo(ctrlX, ctrlY, tipX, tipY);
@@ -6058,7 +6135,8 @@ const WorldDeepBlue = {
       const isNear = midPos.z >= 0;
       if (isNear !== wantFront) return;
 
-      ctx.fillStyle = isNear ? finCol : blendHex(finCol, dorsalCol, 0.45);
+      const zShade = this._clamp(0.5 - midPos.z / Math.max(8, segRads[14] * 2.0), 0, 1);
+      ctx.fillStyle = blendHex(finCol, dorsalCol, zShade * 0.50);
       ctx.beginPath();
       ctx.moveTo(midPts[13].x, midPts[13].y);
       ctx.quadraticCurveTo(midPts[15].x - 10, midPts[14].y + midPos.y * 1.15, midPts[17].x - 14, midPts[15].y + midPos.y * 0.55);
@@ -6070,7 +6148,7 @@ const WorldDeepBlue = {
       ctx.stroke();
     };
 
-    // LAYER 1: Far-side appendages BEHIND cylindrical body (far pectoral & pelvic fins + far-rotated dorsal spines)
+    // LAYER 1: Far-side appendages BEHIND cylindrical body (smooth Z-shaded fins & soft spine fade)
     drawPectoralFinSide(-1, false);
     drawPectoralFinSide(1, false);
     drawPelvicFinSide(-1, false);
@@ -6078,15 +6156,19 @@ const WorldDeepBlue = {
 
     ctx.fillStyle = blendHex(dorsalCol, pal.waterMid, 0.25);
     for (let i = 2; i < segs - 2; i++) {
-      if (segSin[i] >= -0.22) continue;
+      if (segSin[i] >= 0.0) continue;
+      const spA = this._clamp((-segSin[i]) / 0.35, 0, 1);
       const spY = spinePts[i].y;
       const finH = ((1 - i / segs) * (maxRad * 0.85) + 4) * segCos[i];
+      ctx.save();
+      ctx.globalAlpha = spA;
       ctx.beginPath();
       ctx.moveTo(spinePts[i].x, spY);
       ctx.lineTo(spinePts[i].x - 14, spY - finH);
       ctx.lineTo(spinePts[i + 1].x, spinePts[i + 1].y);
       ctx.closePath();
       ctx.fill();
+      ctx.restore();
     }
 
     // Tall Forked Lunate Tail Fluke rotating gently with aft roll phase
@@ -6158,13 +6240,16 @@ const WorldDeepBlue = {
     topPts.forEach(p => ctx.lineTo(p.x, p.y));
     ctx.stroke();
 
-    // LAYER 3: Near-side appendages IN FRONT of cylindrical torso (smoothly rotating spines, jaws, eye cluster, flank nodes & near fins)
+    // LAYER 3: Near-side appendages IN FRONT of cylindrical torso (smoothly fading spines, glowing nodes, eyes & near fins)
     ctx.fillStyle = dorsalCol;
     for (let i = 2; i < segs - 2; i++) {
-      if (segSin[i] < -0.22) continue;
+      if (segSin[i] < -0.35) continue;
+      const spA = this._clamp((segSin[i] + 0.35) / 0.35, 0, 1);
       const p = spinePts[i];
       const next = spinePts[i + 1];
       const outwardY = -((1 - i / segs) * (maxRad * 0.85) + 4) * segCos[i];
+      ctx.save();
+      ctx.globalAlpha = spA;
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x - 14, p.y + outwardY);
@@ -6174,6 +6259,7 @@ const WorldDeepBlue = {
       ctx.strokeStyle = rimCol;
       ctx.lineWidth = 0.7;
       ctx.stroke();
+      ctx.restore();
     }
 
     // Bioluminescent lateral-line nodes wrapping smoothly across the near cylinder hemisphere!
@@ -6182,10 +6268,12 @@ const WorldDeepBlue = {
       const latZ = Math.sin(latAlpha);
       if (latZ < -0.15) continue;
       const latY = midPts[i].y - segRads[i] * 0.65 * Math.cos(latAlpha);
-      const wavePulse = 0.35 + 0.65 * Math.max(0, Math.sin(step * 4.2 - i * 0.48));
-      ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(wavePulse * 0.88 * Math.min(1, latZ + 0.35)).toFixed(3)})`;
+      const wavePulse = 0.35 + 0.65 * Math.max(0, Math.sin(step * (4.2 + biolumBoost * 6) - i * 0.48));
+      const nodeCol = biolumBoost > 0.35 ? "56, 232, 249" : pal.jellyRgb;
+      const nodeAlpha = Math.min(1, wavePulse * (0.88 + biolumBoost * 0.25) * Math.min(1, latZ + 0.35));
+      ctx.fillStyle = `rgba(${nodeCol}, ${nodeAlpha.toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(midPts[i].x, latY, (1 - i / segs) * 2.4 + 0.9, 0, Math.PI * 2);
+      ctx.arc(midPts[i].x, latY, (1 - i / segs) * (2.4 + biolumBoost * 1.4) + 0.9, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -6194,12 +6282,13 @@ const WorldDeepBlue = {
     const headSin = segSin[0];
     const jawDrop = jawOpen * 26;
     if (jawOpen > 0.04) {
-      const glowG = ctx.createRadialGradient(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 1, topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22);
-      glowG.addColorStop(0, `rgba(${pal.jellyRgb}, ${(0.88 * jawOpen).toFixed(3)})`);
-      glowG.addColorStop(1, `rgba(${pal.jellyRgb}, 0)`);
+      const glowCol = biolumBoost > 0.3 ? "103, 232, 249" : pal.jellyRgb;
+      const glowG = ctx.createRadialGradient(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 1, topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22 + biolumBoost * 12);
+      glowG.addColorStop(0, `rgba(${glowCol}, ${(Math.min(1, (0.88 + biolumBoost * 0.2) * jawOpen)).toFixed(3)})`);
+      glowG.addColorStop(1, `rgba(${glowCol}, 0)`);
       ctx.fillStyle = glowG;
       ctx.beginPath();
-      ctx.arc(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22, 0, Math.PI * 2);
+      ctx.arc(topPts[0].x + 12, midPts[0].y + jawDrop * 0.35, 22 + biolumBoost * 12, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -6229,17 +6318,17 @@ const WorldDeepBlue = {
       }
     }
 
-    // Multi-ocular glowing eye cluster on near head face
+    // Smoothly projecting multi-ocular glowing eye cluster on near head face
     if (headSin >= -0.65) {
-      const eyeSign = headCos >= 0 ? 1 : -1;
+      const eyeVis = this._clamp((headSin + 0.65) / 0.35, 0, 1);
       [
-        { dx: 8, dy: -6, r: 2.8 },
-        { dx: 1, dy: -8, r: 2.1 },
-        { dx: -5, dy: -6, r: 1.6 }
+        { dx: 8, dy: -6, r: 2.8 + biolumBoost * 0.9 },
+        { dx: 1, dy: -8, r: 2.1 + biolumBoost * 0.7 },
+        { dx: -5, dy: -6, r: 1.6 + biolumBoost * 0.5 }
       ].forEach((ey, ei) => {
-        ctx.fillStyle = `rgba(${pal.jellyRgb}, ${(0.92 - ei * 0.14).toFixed(2)})`;
+        ctx.fillStyle = `rgba(${biolumBoost > 0.35 ? "103, 232, 249" : pal.jellyRgb}, ${((0.92 - ei * 0.14) * eyeVis).toFixed(2)})`;
         ctx.beginPath();
-        ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy * eyeSign, ey.r, 0, Math.PI * 2);
+        ctx.arc(topPts[0].x + ey.dx, midPts[0].y + ey.dy * headCos, ey.r, 0, Math.PI * 2);
         ctx.fill();
       });
     }
@@ -6270,6 +6359,9 @@ const WorldDeepBlue = {
     let rollWave = false;
     let jawOpen = 0;
     let rollYOff = 0;
+    let pursuitPitch = 0;
+    let biolumBoost = 0;
+    let swimPhaseRate = lev.stunt === "body_roll" ? 1.85 : 1.55;
 
     if (lev.stunt === "roar") {
       const centerProx = 1 - Math.min(1, Math.abs(lev.x - w * 0.5) / Math.max(120, w * 0.24));
@@ -6309,36 +6401,100 @@ const WorldDeepBlue = {
       const prey = lev.preyShark;
       if (prey && !prey.eaten) {
         const distX = (prey.x - lev.x) * lev.dir;
-        if (distX < 280 && distX > -12) {
-          speedMult = 1.65;
-          jawOpen = this._clamp(1 - Math.abs(distX) / 240, 0.25, 0.75);
-          prey.vx = lev.dir * 62;
-        }
-        prey.phase += dt * 9;
+        const huntIntensity = distX > -20 ? smooth5(this._clamp(1 - Math.max(0, distX) / 380, 0, 1)) : 0;
+        speedMult = 1.08 + huntIntensity * 1.32; // Explosive up to 2.4x surge lunge!
+        swimPhaseRate = 1.65 + huntIntensity * 2.35;
+        biolumBoost = huntIntensity * 0.92;
+        jawOpen = 0.22 + huntIntensity * 0.74;
+
+        // Vertical ambush tracking toward zig-zagging prey shark
+        const dyPrey = prey.y - lev.baseY;
+        lev.baseY += this._clamp(dyPrey, -52 * dt, 52 * dt);
+        pursuitPitch = this._clamp(dyPrey * 0.0045, -0.26, 0.26) * Math.max(0.25, huntIntensity);
+
+        // Prey shark cruises calmly until ambush range, then panics with erratic zig-zag evasion
+        const isNarrowHunt = w < 720;
+        prey.phase += dt * (8 + huntIntensity * 10);
+        const evadeAmp = (8 + huntIntensity * 20) * (isNarrowHunt ? 0.72 : 1);
+        const nextPreyY = (prey.baseY || lev.baseY) + Math.sin(prey.phase * 0.72) * evadeAmp;
+        prey.pitch = this._clamp((nextPreyY - prey.y) * 0.04, -0.35, 0.35);
+        prey.y = nextPreyY;
+        prey.vx = lev.dir * ((isNarrowHunt ? 10 : 16) + huntIntensity * (isNarrowHunt ? 26 : 44));
         prey.x += prey.vx * dt;
-        prey.y = lev.baseY + Math.sin(prey.phase * 0.6) * 8;
-        if (Math.abs(prey.x - lev.x) < 28) {
+
+        // Panic bubble trail behind fleeing shark & predator surge
+        if (Math.random() < 0.35 + huntIntensity * 0.45) {
+          this.bubbles.push({
+            x: prey.x - lev.dir * prey.size * 0.4,
+            y: prey.y + (Math.random() - 0.5) * 10,
+            r: 1.2 + Math.random() * 1.6,
+            vy: -(0.8 + Math.random() * 0.7),
+            wobble: Math.random() * 6,
+            alpha: 0.48
+          });
+        }
+
+        // Draw fleeing shark + scattering baitfish school ahead
+        if (prey.baitfish) {
+          ctx.save();
+          ctx.fillStyle = pal.waterBounce;
+          prey.baitfish.forEach((bf, bi) => {
+            if (!bf.scattered && huntIntensity > 0.35) {
+              bf.scattered = true;
+              bf.vx = (Math.random() - 0.3) * lev.dir * 95;
+              bf.vy = (bf.dy >= 0 ? 1 : -1) * (45 + Math.random() * 55);
+            }
+            if (bf.scattered) {
+              bf.dx += bf.vx * dt;
+              bf.dy += bf.vy * dt;
+            }
+            const fx = prey.x + lev.dir * 26 + bf.dx;
+            const fy = prey.y + bf.dy + Math.sin(step * 12 + bi) * 2.5;
+            ctx.beginPath();
+            ctx.ellipse(fx, fy, bf.size, bf.size * 0.42, 0, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.restore();
+        }
+
+        if (Math.hypot(prey.x - lev.x, (prey.y - lev.y) * 0.55) < 42 || (lev.dir > 0 ? lev.x >= prey.x : lev.x <= prey.x)) {
+          // Dramatic Chomp Snap + Multi-Ring Hydro Shockwaves + Bubble Burst + Victory Roll!
           prey.eaten = true;
-          lev.roarRings.push({ x: prey.x, y: prey.y, r: 6, maxR: 92, life: 0, maxLife: 1.0 });
-          for (let b = 0; b < 10; b++) {
+          prey.chompX = prey.x;
+          prey.chompY = prey.y;
+          lev.chompTimer = 1.75;
+          jawOpen = 0.05;
+          [75, 115, 155].forEach((mR, ri) => {
+            lev.roarRings.push({
+              x: prey.x + lev.dir * 12,
+              y: prey.y,
+              r: 6 + ri * 6,
+              maxR: mR,
+              life: -ri * 0.10,
+              maxLife: 1.15
+            });
+          });
+          for (let b = 0; b < 28; b++) {
+            const ang = (b / 28) * Math.PI * 2;
             this.bubbles.push({
-              x: prey.x + (Math.random() - 0.5) * 24,
-              y: prey.y + (Math.random() - 0.5) * 18,
-              r: 1.6 + Math.random() * 2.4,
-              vy: -(0.9 + Math.random() * 1.1),
+              x: prey.x + Math.cos(ang) * 14,
+              y: prey.y + Math.sin(ang) * 12,
+              r: 1.6 + Math.random() * 2.8,
+              vy: -(0.9 + Math.random() * 1.4),
               wobble: Math.random() * 6,
-              alpha: 0.60
+              alpha: 0.68
             });
           }
         } else {
-          // Draw solid fleeing shark ahead of the lunging Leviathan
+          // Draw solid panicked shark with zig-zag pitch ahead of lunging Leviathan
           ctx.save();
-          ctx.globalAlpha = 0.92;
+          ctx.globalAlpha = 0.94;
           ctx.fillStyle = pal.reefNear;
           ctx.translate(prey.x, prey.y);
           if (prey.vx < 0) ctx.scale(-1, 1);
+          ctx.rotate(prey.pitch || 0);
           const sz = prey.size;
-          const tail = Math.sin(prey.phase) * sz * 0.12;
+          const tail = Math.sin(prey.phase) * sz * 0.16;
           ctx.beginPath();
           ctx.moveTo(sz * 0.52, 0);
           ctx.quadraticCurveTo(sz * 0.15, -sz * 0.11, -sz * 0.05, -sz * 0.10);
@@ -6354,23 +6510,44 @@ const WorldDeepBlue = {
           ctx.fill();
           ctx.restore();
         }
+      } else if (prey && prey.eaten && lev.chompTimer > 0) {
+        lev.chompTimer = Math.max(0, lev.chompTimer - dt);
+        const postP = 1 - lev.chompTimer / 1.75;
+        rollWave = true;
+        rollAngle = smooth5(postP) * Math.PI * 2;
+        rollYOff = Math.sin(rollAngle) * 16;
+        jawOpen = Math.max(0, (1 - postP * 2.5) * 0.22);
+        speedMult = 1.45 - postP * 0.35;
+        biolumBoost = (1 - postP) * 0.85;
+        if (postP < 0.35 && prey.chompX) {
+          const flA = Math.sin((postP / 0.35) * Math.PI) * 0.45;
+          const flG = ctx.createRadialGradient(prey.chompX, prey.chompY, 2, prey.chompX, prey.chompY, 54);
+          flG.addColorStop(0, `rgba(186, 230, 253, ${flA.toFixed(3)})`);
+          flG.addColorStop(1, "rgba(186, 230, 253, 0)");
+          ctx.fillStyle = flG;
+          ctx.beginPath();
+          ctx.arc(prey.chompX, prey.chompY, 54, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
-    lev.swimPhase += dt * (lev.stunt === "body_roll" ? 1.85 : 1.55);
+    lev.swimPhase += dt * swimPhaseRate;
     lev.x += lev.dir * lev.speed * speedMult * dt;
     lev.y = lev.baseY + rollYOff;
     lev.jawOpen = jawOpen;
     lev.rollAngle = rollAngle;
 
     if (lev.stunt === "two_playing" && lev.partner) {
-      // Wide Zero-Clip 3D Double-Helix Circling Orbit: Z-depth swaps ONLY at max vertical aperture (2*ampY)!
+      // Wide Zero-Clip 3D Double-Helix Circling Orbit: C-infinity sinusoidal depth shading (no lighting kinks!)
       const helix = lev.t * 1.15;
       const ampY = w < 720 ? 46 : 74;
       const yMain = lev.baseY + Math.sin(helix) * ampY;
       const yPartner = lev.baseY - Math.sin(helix) * ampY;
       const zMain = Math.cos(helix);
       const zPartner = -zMain;
+      const zNormMain = (1 - zMain) * 0.5;
+      const zNormPart = (1 - zPartner) * 0.5;
       const xMain = lev.x + Math.sin(helix) * 22 * lev.dir;
       const xPartner = lev.x - lev.partner.lagX * 0.52 - Math.sin(helix) * 22 * lev.dir;
       lev.partner.swimPhase += dt * 1.65;
@@ -6382,7 +6559,7 @@ const WorldDeepBlue = {
         rollAngle: Math.sin(helix) * 0.50, rollWave: false,
         pitch: Math.cos(helix) * 0.20,
         depthScale: 1 + zMain * 0.13,
-        depthFog: Math.max(0, -zMain) * 0.34
+        depthFog: Math.pow(zNormMain, 1.35) * 0.34
       };
       const partCfg = {
         x: xPartner, y: yPartner, dir: lev.dir, bodyLen: lev.partner.length,
@@ -6390,7 +6567,7 @@ const WorldDeepBlue = {
         rollAngle: -Math.sin(helix) * 0.50, rollWave: false,
         pitch: -Math.cos(helix) * 0.20,
         depthScale: 1 + zPartner * 0.13,
-        depthFog: Math.max(0, -zPartner) * 0.34,
+        depthFog: Math.pow(zNormPart, 1.35) * 0.34,
         isPartner: true
       };
       if (zMain >= zPartner) {
@@ -6411,7 +6588,7 @@ const WorldDeepBlue = {
         });
       }
     } else {
-      this._drawLeviathanBody(ctx, { x: lev.x, y: lev.y, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen, rollAngle, rollWave }, pal, step);
+      this._drawLeviathanBody(ctx, { x: lev.x, y: lev.y, dir: lev.dir, bodyLen, swimPhase: lev.swimPhase, jawOpen, rollAngle, rollWave, pitch: pursuitPitch, biolumBoost }, pal, step);
     }
 
     // Expanding Sonic Roar / Lunge Shockwave Rings
@@ -6421,6 +6598,10 @@ const WorldDeepBlue = {
       for (let i = 0; i < lev.roarRings.length; i++) {
         const rr = lev.roarRings[i];
         rr.life += dt;
+        if (rr.life < 0) {
+          aliveRings.push(rr);
+          continue;
+        }
         if (rr.life >= rr.maxLife) continue;
         aliveRings.push(rr);
         const tf = rr.life / rr.maxLife;
@@ -6899,11 +7080,12 @@ const WorldDeepBlue = {
 
         const cosA = Math.cos(m.orbitAngle);
         const sinA = Math.sin(m.orbitAngle);
+        const rNorm = Math.pow(Math.pow(Math.abs(cosA), 3.5) + Math.pow(Math.abs(sinA), 3.5), -1 / 3.5);
         const vx = -sinA * m.orbitSpeed;
         const cxBase = m.centerX != null ? m.centerX : L.hubX;
         const cyBase = m.centerY != null ? m.centerY : (L.seabedY - 26 * sc);
-        m.x = cxBase + cosA * m.orbitRx;
-        m.y = cyBase + sinA * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 3.0 * sc;
+        m.x = cxBase + cosA * rNorm * m.orbitRx;
+        m.y = cyBase + sinA * rNorm * m.orbitRy + Math.sin(m.wingPhase * 0.5) * 3.0 * sc;
         m.facingLeft = vx < 0;
         // Foreshorten smoothly at East & West orbit apexes so back<->front turnaround never snaps
         m.turnProjX = Math.max(0.28, Math.min(1.0, 0.28 + Math.abs(sinA) * 0.85));

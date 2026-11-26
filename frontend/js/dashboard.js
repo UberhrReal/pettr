@@ -712,14 +712,20 @@ const Dashboard = {
         badgeEl.innerHTML = `<span class="holiday-badge-emblem">${this.escapeHtml(merged.icon || "🎉")}</span><span class="holiday-badge-copy"><span class="holiday-badge-kicker">Celebration</span><span class="holiday-badge-title">${this.escapeHtml(merged.name)}</span></span>`;
       }
       badgeEl.style.display = "inline-flex";
-      badgeEl.title = merged.tagline || `${merged.name} Celebrations Active`;
-      badgeEl.setAttribute("role", "status");
+      badgeEl.title = `${merged.name} — Click for a holiday fun fact & celebration!`;
+      badgeEl.setAttribute("role", "button");
+      badgeEl.setAttribute("tabindex", "0");
       badgeEl.onclick = () => {
-        if (typeof WaveCanvas !== "undefined" && WaveCanvas.triggerActivityRipple) {
-          WaveCanvas.triggerActivityRipple("complete");
-        }
-        if (typeof App !== "undefined" && App.showToast) {
+        if (typeof HolidayThemes !== "undefined" && HolidayThemes.triggerCelebration) {
+          HolidayThemes.triggerCelebration(merged);
+        } else if (typeof App !== "undefined" && App.showToast) {
           App.showToast(`${merged.icon || "✨"} ${merged.name}: ${merged.tagline || "Wishing you a wonderful holiday!"}`);
+        }
+      };
+      badgeEl.onkeydown = (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          badgeEl.onclick();
         }
       };
     }
