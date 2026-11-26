@@ -722,25 +722,25 @@ const WorldDeepBlue = {
     const csScale = isNarrow ? 0.54 : Math.min(1.04, Math.max(0.78, w / 1380));
     const backReefs = isNarrow
       ? [
-          { x: w * 0.25, y: this._seabedYAtX(w * 0.25, w, h, { seabedY }) - 14, scale: csScale * 0.92 },
-          { x: w * 0.75, y: this._seabedYAtX(w * 0.75, w, h, { seabedY }) - 14, scale: csScale * 0.92 }
+          { x: w * 0.25, y: this._seabedYAtX(w * 0.25, w, h, { seabedY }) - 14, scale: csScale * 0.90, variant: 2 },
+          { x: w * 0.75, y: this._seabedYAtX(w * 0.75, w, h, { seabedY }) - 14, scale: csScale * 0.94, variant: 3 }
         ]
       : [
-          { x: w * 0.220, y: this._seabedYAtX(w * 0.220, w, h, { seabedY }) - 16, scale: csScale * 0.90 },
-          { x: w * 0.365, y: this._seabedYAtX(w * 0.365, w, h, { seabedY }) - 20, scale: csScale * 0.96 },
-          { x: w * 0.635, y: this._seabedYAtX(w * 0.635, w, h, { seabedY }) - 20, scale: csScale * 0.96 },
-          { x: w * 0.725, y: this._seabedYAtX(w * 0.725, w, h, { seabedY }) - 16, scale: csScale * 0.88 }
+          { x: w * 0.220, y: this._seabedYAtX(w * 0.220, w, h, { seabedY }) - 16, scale: csScale * 0.90, variant: 2 },
+          { x: w * 0.365, y: this._seabedYAtX(w * 0.365, w, h, { seabedY }) - 20, scale: csScale * 0.98, variant: 0 },
+          { x: w * 0.635, y: this._seabedYAtX(w * 0.635, w, h, { seabedY }) - 20, scale: csScale * 1.02, variant: 3 },
+          { x: w * 0.725, y: this._seabedYAtX(w * 0.725, w, h, { seabedY }) - 16, scale: csScale * 0.88, variant: 1 }
         ];
     const frontReefs = isNarrow
       ? [
-          { x: w * 0.29, y: Math.min(h - 48, seabedY + 66), scale: csScale * 0.96 },
-          { x: w * 0.69, y: Math.min(h - 48, seabedY + 66), scale: csScale * 0.94 }
+          { x: w * 0.29, y: Math.min(h - 48, seabedY + 66), scale: csScale * 0.96, variant: 0 },
+          { x: w * 0.69, y: Math.min(h - 48, seabedY + 66), scale: csScale * 0.92, variant: 1 }
         ]
       : [
-          { x: w * 0.275, y: Math.min(h - 52, seabedY + 48), scale: csScale * 0.94 },
-          { x: w * 0.425, y: Math.min(h - 46, seabedY + 56), scale: csScale * 1.04 },
-          { x: w * 0.565, y: Math.min(h - 48, seabedY + 52), scale: csScale * 0.96 },
-          { x: w * 0.680, y: Math.min(h - 52, seabedY + 44), scale: csScale * 0.86 }
+          { x: w * 0.275, y: Math.min(h - 52, seabedY + 48), scale: csScale * 0.94, variant: 0 },
+          { x: w * 0.425, y: Math.min(h - 46, seabedY + 56), scale: csScale * 1.06, variant: 1 },
+          { x: w * 0.565, y: Math.min(h - 48, seabedY + 52), scale: csScale * 0.92, variant: 2 },
+          { x: w * 0.680, y: Math.min(h - 52, seabedY + 44), scale: csScale * 0.96, variant: 3 }
         ];
     const cleaningStation = {
       x: frontReefs[0].x,
@@ -1022,89 +1022,199 @@ const WorldDeepBlue = {
     ctx.restore();
   },
 
-  // Shared Ground-Anchored Coral Bommie Pinnacle Renderer (supports front foreground & water-hazed background reefs)
+  // 4 Distinct Coral Reef Bed Morphologies around Station (Table Shelf, Twin-Peak Brain/Tube Reef, Spreading Antler Thicket, Tall Barrel-Sponge Spire)
   _drawSingleCleaningPinnacle(ctx, rx, ry, sc, pal, isBg = false, variantIdx = 0) {
+    const v = ((variantIdx % 4) + 4) % 4;
     ctx.save();
     ctx.translate(rx, ry);
-    if (variantIdx % 2 === 1) ctx.scale(-1, 1);
+    if (variantIdx >= 4 && variantIdx % 2 === 1) ctx.scale(-1, 1);
 
-    // 1. Continuous Seabed Sand Apron & Basalt Carbonate Base (firmly grounded, zero floating!)
-    const moundG = ctx.createRadialGradient(0, 6 * sc, 8 * sc, 0, 10 * sc, 62 * sc);
+    // 1. Continuous Seabed Sand Apron & Basalt Carbonate Base (firmly grounded, zero floating)
+    const spreadW = v === 2 ? 70 * sc : (v === 3 ? 54 * sc : 62 * sc);
+    const moundG = ctx.createRadialGradient(0, 6 * sc, 8 * sc, 0, 10 * sc, spreadW);
     moundG.addColorStop(0, isBg ? pal.reefFar : pal.reefMid);
     moundG.addColorStop(0.65, pal.seabedDark);
     moundG.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx.fillStyle = moundG;
     ctx.beginPath();
-    ctx.ellipse(0, 10 * sc, 62 * sc, 15 * sc, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 10 * sc, spreadW, 15 * sc, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. Sculpted Multi-Tiered Coral Bommie Pinnacle Silhouette with dark shelter crevices for cleaner wrasse
-    ctx.fillStyle = isBg ? pal.reefMid : pal.reefNear;
-    ctx.beginPath();
-    ctx.moveTo(-44 * sc, 10 * sc);
-    ctx.quadraticCurveTo(-38 * sc, -10 * sc, -24 * sc, -16 * sc);
-    ctx.quadraticCurveTo(-18 * sc, -30 * sc, -4 * sc, -34 * sc);
-    ctx.quadraticCurveTo(14 * sc, -32 * sc, 20 * sc, -18 * sc);
-    ctx.quadraticCurveTo(36 * sc, -12 * sc, 44 * sc, 10 * sc);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = isBg ? pal.reefFar : pal.reefMid;
-    ctx.beginPath();
-    ctx.ellipse(-18 * sc, 2 * sc, 16 * sc, 8 * sc, 0.1, 0, Math.PI * 2);
-    ctx.ellipse(16 * sc, 3 * sc, 14 * sc, 7 * sc, -0.1, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Dark recessed reef cleaning arches/crevices
-    ctx.fillStyle = pal.hullDeep;
-    ctx.beginPath();
-    ctx.ellipse(-9 * sc, -3 * sc, 7.5 * sc, 4.5 * sc, 0, Math.PI, 0);
-    ctx.ellipse(12 * sc, -1 * sc, 6.2 * sc, 3.8 * sc, 0, Math.PI, 0);
-    ctx.fill();
-
-    // 3. Layered Acropora Table Coral Ledges + Brain Corals + Vibrant Staghorn Branches
     const hFade = isBg ? 0.65 : 1.0;
     const tableTeal = pal.isDark ? `rgba(45, 212, 191, ${(0.42 * hFade).toFixed(2)})` : `rgba(20, 184, 166, ${(0.56 * hFade).toFixed(2)})`;
-    const brainCoral = pal.isDark ? `rgba(244, 114, 182, ${(0.34 * hFade).toFixed(2)})` : `rgba(244, 114, 182, ${(0.48 * hFade).toFixed(2)})`;
+    const brainCoral = pal.isDark ? `rgba(244, 114, 182, ${(0.34 * hFade).toFixed(2)})` : `rgba(244, 114, 182, ${(0.52 * hFade).toFixed(2)})`;
+    const antlerOrange = pal.isDark ? `rgba(251, 146, 60, ${(0.44 * hFade).toFixed(2)})` : `rgba(249, 115, 22, ${(0.64 * hFade).toFixed(2)})`;
+    const spongeViolet = pal.isDark ? `rgba(167, 139, 250, ${(0.42 * hFade).toFixed(2)})` : `rgba(139, 92, 246, ${(0.56 * hFade).toFixed(2)})`;
     const amberPolyp = pal.isDark ? `rgba(56, 189, 248, ${(0.50 * hFade).toFixed(2)})` : `rgba(245, 158, 11, ${(0.54 * hFade).toFixed(2)})`;
 
-    ctx.fillStyle = tableTeal;
-    ctx.beginPath();
-    ctx.ellipse(-20 * sc, -16 * sc, 16 * sc, 4.2 * sc, -0.10, 0, Math.PI * 2);
-    ctx.ellipse(18 * sc, -15 * sc, 14 * sc, 3.6 * sc, 0.08, 0, Math.PI * 2);
-    ctx.ellipse(0, -31 * sc, 15 * sc, 3.8 * sc, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = brainCoral;
-    ctx.beginPath();
-    ctx.arc(-11 * sc, -19 * sc, 7.5 * sc, Math.PI, 0);
-    ctx.fill();
-
-    ctx.strokeStyle = pal.isDark ? `rgba(103, 232, 249, ${(0.46 * hFade).toFixed(2)})` : `rgba(251, 146, 180, ${(0.62 * hFade).toFixed(2)})`;
-    ctx.lineWidth = Math.max(1.2, 2.2 * sc);
-    ctx.lineCap = "round";
-    [-12, -2, 8, 22].forEach((bx, idx) => {
-      const hBr = (14 + (idx % 2) * 5) * sc;
-      const baseY = idx === 3 ? -12 * sc : -26 * sc;
+    if (v === 0) {
+      // Variant 0: Wide terraced Acropora tabletop coral shelf + shelter arch + rose gorgonians
+      ctx.fillStyle = isBg ? pal.reefMid : pal.reefNear;
       ctx.beginPath();
-      ctx.moveTo(bx * sc, baseY);
-      ctx.quadraticCurveTo((bx - 3) * sc, baseY - hBr * 0.5, (bx - 5) * sc, baseY - hBr);
-      ctx.moveTo(bx * sc, baseY - hBr * 0.45);
-      ctx.quadraticCurveTo((bx + 4) * sc, baseY - hBr * 0.72, (bx + 6) * sc, baseY - hBr * 0.92);
-      ctx.stroke();
-    });
+      ctx.moveTo(-46 * sc, 10 * sc);
+      ctx.quadraticCurveTo(-40 * sc, -10 * sc, -24 * sc, -16 * sc);
+      ctx.quadraticCurveTo(-18 * sc, -30 * sc, -4 * sc, -34 * sc);
+      ctx.quadraticCurveTo(14 * sc, -32 * sc, 20 * sc, -18 * sc);
+      ctx.quadraticCurveTo(38 * sc, -12 * sc, 46 * sc, 10 * sc);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = pal.hullDeep;
+      ctx.beginPath();
+      ctx.ellipse(-9 * sc, -2 * sc, 8.0 * sc, 4.6 * sc, 0, Math.PI, 0);
+      ctx.ellipse(13 * sc, -1 * sc, 6.2 * sc, 3.8 * sc, 0, Math.PI, 0);
+      ctx.fill();
+
+      ctx.fillStyle = tableTeal;
+      ctx.beginPath();
+      ctx.ellipse(-21 * sc, -16 * sc, 17 * sc, 4.4 * sc, -0.10, 0, Math.PI * 2);
+      ctx.ellipse(19 * sc, -15 * sc, 15 * sc, 3.8 * sc, 0.08, 0, Math.PI * 2);
+      ctx.ellipse(0, -32 * sc, 16 * sc, 4.0 * sc, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = brainCoral;
+      ctx.beginPath();
+      ctx.arc(-11 * sc, -20 * sc, 7.2 * sc, Math.PI, 0);
+      ctx.fill();
+
+      ctx.strokeStyle = pal.isDark ? `rgba(103, 232, 249, ${(0.46 * hFade).toFixed(2)})` : `rgba(251, 146, 180, ${(0.62 * hFade).toFixed(2)})`;
+      ctx.lineWidth = Math.max(1.2, 2.1 * sc);
+      ctx.lineCap = "round";
+      [-10, 4, 20].forEach((bx, idx) => {
+        const hBr = (13 + (idx % 2) * 5) * sc;
+        const baseY = idx === 2 ? -12 * sc : -27 * sc;
+        ctx.beginPath();
+        ctx.moveTo(bx * sc, baseY);
+        ctx.quadraticCurveTo((bx - 3) * sc, baseY - hBr * 0.5, (bx - 5) * sc, baseY - hBr);
+        ctx.stroke();
+      });
+    } else if (v === 1) {
+      // Variant 1: Asymmetric twin-peak basalt ridge + grooved brain domes + upright tube sponges
+      ctx.fillStyle = isBg ? pal.reefMid : pal.reefNear;
+      ctx.beginPath();
+      ctx.moveTo(-48 * sc, 10 * sc);
+      ctx.quadraticCurveTo(-34 * sc, -26 * sc, -16 * sc, -28 * sc);
+      ctx.quadraticCurveTo(-2 * sc, -12 * sc, 8 * sc, -22 * sc);
+      ctx.quadraticCurveTo(28 * sc, -28 * sc, 46 * sc, 10 * sc);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = pal.hullDeep;
+      ctx.beginPath();
+      ctx.ellipse(0, 1 * sc, 9.5 * sc, 5.2 * sc, 0, Math.PI, 0);
+      ctx.fill();
+
+      // Twin sculpted brain coral hemispheres with ridge highlights
+      [{ cx: -19, cy: -22, r: 9.5, col: brainCoral }, { cx: 17, cy: -18, r: 8.2, col: antlerOrange }].forEach(b => {
+        ctx.fillStyle = b.col;
+        ctx.beginPath();
+        ctx.arc(b.cx * sc, b.cy * sc, b.r * sc, Math.PI * 1.02, Math.PI * -0.02);
+        ctx.fill();
+      });
+
+      // Cluster of vertical organ-pipe / tube sponges along east & center saddle
+      [-4, 2, 7, 29, 34].forEach((tx, ti) => {
+        const th = (14 + (ti % 3) * 5) * sc;
+        const by = (ti < 3 ? -12 : -8) * sc;
+        ctx.fillStyle = spongeViolet;
+        ctx.beginPath();
+        ctx.roundRect((tx - 2.3) * sc, by - th, 4.6 * sc, th + 2 * sc, 2.2 * sc);
+        ctx.fill();
+        ctx.fillStyle = pal.hullDeep;
+        ctx.beginPath();
+        ctx.ellipse(tx * sc, by - th + 1.2 * sc, 1.5 * sc, 0.9 * sc, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (v === 2) {
+      // Variant 2: Low spreading staghorn & elkhorn antler coral thicket with sea anemones
+      ctx.fillStyle = isBg ? pal.reefMid : pal.reefNear;
+      ctx.beginPath();
+      ctx.moveTo(-54 * sc, 10 * sc);
+      ctx.quadraticCurveTo(-30 * sc, -12 * sc, 0, -14 * sc);
+      ctx.quadraticCurveTo(30 * sc, -12 * sc, 54 * sc, 10 * sc);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = isBg ? pal.reefFar : pal.reefMid;
+      ctx.beginPath();
+      ctx.ellipse(-20 * sc, 1 * sc, 18 * sc, 6.5 * sc, 0.06, 0, Math.PI * 2);
+      ctx.ellipse(18 * sc, 2 * sc, 17 * sc, 6.0 * sc, -0.06, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Broad branching elkhorn/staghorn antlers spanning wide & low
+      const branches = [
+        { x: -30, baseY: -6, h: 24, spread: -12, col: antlerOrange },
+        { x: -12, baseY: -10, h: 28, spread: -6, col: tableTeal },
+        { x: 6, baseY: -11, h: 26, spread: 8, col: antlerOrange },
+        { x: 26, baseY: -7, h: 22, spread: 13, col: brainCoral }
+      ];
+      branches.forEach(br => {
+        ctx.strokeStyle = br.col;
+        ctx.lineWidth = Math.max(1.6, 3.0 * sc);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(br.x * sc, br.baseY * sc);
+        ctx.quadraticCurveTo((br.x + br.spread * 0.4) * sc, (br.baseY - br.h * 0.55) * sc, (br.x + br.spread) * sc, (br.baseY - br.h) * sc);
+        ctx.moveTo((br.x + br.spread * 0.35) * sc, (br.baseY - br.h * 0.48) * sc);
+        ctx.quadraticCurveTo((br.x - br.spread * 0.3) * sc, (br.baseY - br.h * 0.72) * sc, (br.x - br.spread * 0.55) * sc, (br.baseY - br.h * 0.88) * sc);
+        ctx.stroke();
+      });
+
+      // Symbiotic anemone polyp crowns nestled at base
+      [-20, 0, 18].forEach((ax, ai) => {
+        ctx.fillStyle = ai === 1 ? amberPolyp : tableTeal;
+        ctx.beginPath();
+        ctx.ellipse(ax * sc, (-7 - (ai % 2) * 3) * sc, 6.5 * sc, 3.2 * sc, 0, Math.PI, 0);
+        ctx.fill();
+      });
+    } else {
+      // Variant 3: Tall sculpted limestone monolith spire + ribbed barrel sponges + stepped reef shelves
+      ctx.fillStyle = isBg ? pal.reefMid : pal.reefNear;
+      ctx.beginPath();
+      ctx.moveTo(-40 * sc, 10 * sc);
+      ctx.quadraticCurveTo(-26 * sc, -18 * sc, -14 * sc, -42 * sc);
+      ctx.quadraticCurveTo(-2 * sc, -50 * sc, 10 * sc, -38 * sc);
+      ctx.quadraticCurveTo(24 * sc, -16 * sc, 42 * sc, 10 * sc);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = isBg ? pal.reefFar : pal.reefMid;
+      ctx.beginPath();
+      ctx.ellipse(16 * sc, -12 * sc, 12 * sc, 3.6 * sc, 0.14, 0, Math.PI * 2);
+      ctx.ellipse(-18 * sc, -20 * sc, 13 * sc, 3.8 * sc, -0.14, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ribbed barrel sponges perched cleanly on flank terraces
+      [{ bx: -14, by: -12, bw: 9, bh: 15, col: spongeViolet }, { bx: 14, by: -6, bw: 11, bh: 17, col: antlerOrange }].forEach(sp => {
+        ctx.fillStyle = sp.col;
+        ctx.beginPath();
+        ctx.ellipse(sp.bx * sc, (sp.by - sp.bh * 0.5) * sc, sp.bw * sc, sp.bh * 0.65 * sc, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = pal.hullDeep;
+        ctx.beginPath();
+        ctx.ellipse(sp.bx * sc, (sp.by - sp.bh * 0.92) * sc, sp.bw * 0.62 * sc, 2.2 * sc, 0, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Seafoam crown shelf near top of limestone pinnacle
+      ctx.fillStyle = tableTeal;
+      ctx.beginPath();
+      ctx.ellipse(-2 * sc, -42 * sc, 11 * sc, 3.2 * sc, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.fillStyle = amberPolyp;
-    [-26, -15, -6, 3, 12, 24].forEach((px, idx) => {
+    [-26, -14, -4, 6, 16, 26].forEach((px, idx) => {
+      const py = v === 3 ? (-18 - (idx % 3) * 8) : (v === 2 ? (-9 - (idx % 2) * 5) : (-15 - (idx % 3) * 6));
       ctx.beginPath();
-      ctx.arc(px * sc, (-15 - (idx % 3) * 6) * sc, (1.4 + (idx % 2) * 0.5) * sc, 0, Math.PI * 2);
+      ctx.arc(px * sc, py * sc, (1.3 + ((idx + v) % 2) * 0.5) * sc, 0, Math.PI * 2);
       ctx.fill();
     });
 
     if (isBg) {
       ctx.fillStyle = `rgba(${pal.waterHazeRgb}, 0.24)`;
       ctx.beginPath();
-      ctx.ellipse(0, -10 * sc, 54 * sc, 32 * sc, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, -14 * sc, spreadW * 0.9, 36 * sc, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -1114,7 +1224,7 @@ const WorldDeepBlue = {
     const cs = L.cleaningStation;
     if (!cs || !cs.backReefs) return;
     cs.backReefs.forEach((rf, idx) => {
-      this._drawSingleCleaningPinnacle(ctx, rf.x, rf.y, rf.scale, pal, true, idx);
+      this._drawSingleCleaningPinnacle(ctx, rf.x, rf.y, rf.scale, pal, true, rf.variant != null ? rf.variant : idx);
     });
   },
 
@@ -1124,7 +1234,7 @@ const WorldDeepBlue = {
     if (!cs) return;
     const list = cs.frontReefs || [cs];
     list.forEach((rf, idx) => {
-      this._drawSingleCleaningPinnacle(ctx, rf.x, rf.y, rf.scale, pal, false, idx);
+      this._drawSingleCleaningPinnacle(ctx, rf.x, rf.y, rf.scale, pal, false, rf.variant != null ? rf.variant : idx);
     });
   },
 
@@ -3137,17 +3247,16 @@ const WorldDeepBlue = {
       const frontY = Math.min(h - 36, L.seabedY + (isNarrow ? 54 : 62) * cs.scale);
       const backY = L.hubY - 46 * cs.scale;
       const orbitCenterY = (frontY + backY) * 0.5;
-      const baseRx = isNarrow ? Math.min(w * 0.38, 148) : Math.min(w * 0.435, 608 * s);
+      const baseRx = isNarrow ? Math.min(w * 0.42, 162) : Math.min(w * 0.455, 650 * s);
       const baseRy = Math.max(36, (frontY - backY) * 0.5);
       const orbitSpeed = isNarrow ? 0.14 : 0.135;
 
       for (let i = 0; i < totalMantas; i++) {
-        // Locked evenly-spaced ring phasing on C1 superellipse so mantas orbit OUTSIDE wingtips & stay below plinth across full station width!
+        // Locked evenly-spaced ring phasing on C1 superellipse so mantas orbit OUTSIDE wingtips & stay behind station during East/West turns!
         const startAng = (i / totalMantas) * Math.PI * 2 + 0.35;
         const sinA = Math.sin(startAng);
         const cosA = Math.cos(startAng);
         const rNorm = Math.pow(Math.pow(Math.abs(cosA), 3.5) + Math.pow(Math.abs(sinA), 3.5), -1 / 3.5);
-        const vx = -sinA * orbitSpeed;
         const a2 = startAng + 0.025;
         const c2 = Math.cos(a2);
         const s2 = Math.sin(a2);
@@ -3158,14 +3267,14 @@ const WorldDeepBlue = {
         const fx0 = tx / tLen;
         const fz0 = tz / tLen;
         this.cleaningMantas.push({
-          layer: sinA < 0 ? "back" : "front",
+          layer: sinA < 0.24 ? "back" : "front",
           orbitAngle: startAng,
           orbitSpeed,
           centerX: L.hubX,
           centerY: orbitCenterY,
           orbitRx: baseRx,
           orbitRy: baseRy,
-          span: (isNarrow ? (30 - i * 2) : (45 - (i % 2) * 3)) * cs.scale,
+          span: (isNarrow ? (26 - i * 2) : (38 - (i % 2) * 3)) * cs.scale,
           wingPhase: i * 1.65 + 0.4,
           state: "circling",
           x: L.hubX + cosA * rNorm * baseRx,
@@ -3177,7 +3286,7 @@ const WorldDeepBlue = {
           turnProjX: Math.max(0.28, Math.min(1.0, Math.abs(fx0))),
           bank: -0.24,
           pitch3D: 0,
-          isFront: sinA >= 0
+          isFront: sinA >= 0.24
         });
       }
     }
@@ -3270,19 +3379,31 @@ const WorldDeepBlue = {
       x: startX,
       y: startY,
       baseY: startY,
+      vy: 0,
       speed,
       length,
       swimPhase: 0,
       jawOpen: 0,
       rollPhase: 0,
+      huntPhase: "stalk",
+      smoothPitch: 0,
+      smoothJaw: 0,
+      smoothSpeedMult: 0.95,
+      smoothRoll: 0,
       roarRings: [],
       roarEmitted: 0,
       preyShark: chosenStunt === "hunt_shark"
         ? {
-            x: dir > 0 ? w * 0.48 : w * 0.52,
-            y: startY + 12,
-            baseY: startY + 12,
-            vx: dir * (isNarrow ? 12 : 16),
+            x: dir > 0 ? w * 0.42 : w * 0.58,
+            y: startY - 46,
+            baseY: startY - 46,
+            vx: dir * (isNarrow ? 14 : 20),
+            vy: 0,
+            evadeTime: 0,
+            evadeDir: Math.random() < 0.5 ? -1 : 1,
+            engulfT: 0,
+            scale: 1,
+            alpha: 1,
             size: isNarrow ? 32 : 44,
             phase: 0,
             pitch: 0,
@@ -6509,57 +6630,150 @@ const WorldDeepBlue = {
       }
     } else if (lev.stunt === "hunt_shark") {
       const prey = lev.preyShark;
-      if (prey && !prey.eaten) {
+      if (lev.smoothSpeedMult == null) lev.smoothSpeedMult = 0.95;
+      if (lev.smoothPitch == null) lev.smoothPitch = 0;
+      if (lev.smoothJaw == null) lev.smoothJaw = 0;
+      if (lev.smoothRoll == null) lev.smoothRoll = 0;
+      if (lev.vy == null) lev.vy = 0;
+
+      if (prey && lev.huntPhase !== "exit") {
         const distX = (prey.x - lev.x) * lev.dir;
-        const huntIntensity = distX > -20 ? smooth5(this._clamp(1 - Math.max(0, distX) / 380, 0, 1)) : 0;
-        speedMult = 1.08 + huntIntensity * 1.32; // Explosive up to 2.4x surge lunge!
-        swimPhaseRate = 1.65 + huntIntensity * 2.35;
-        biolumBoost = huntIntensity * 0.92;
-        jawOpen = 0.22 + huntIntensity * 0.74;
+        const huntIntensity = distX > -30 ? smooth5(this._clamp(1 - Math.max(0, distX) / 420, 0, 1)) : 0;
+        const dampPrey = 1 - Math.exp(-5.5 * dt);
+        const dampLev = 1 - Math.exp(-3.0 * dt);
+        const dampSlow = 1 - Math.exp(-4.2 * dt);
 
-        // Vertical ambush tracking toward zig-zagging prey shark
-        const dyPrey = prey.y - lev.baseY;
-        lev.baseY += this._clamp(dyPrey, -52 * dt, 52 * dt);
-        pursuitPitch = this._clamp(dyPrey * 0.0045, -0.26, 0.26) * Math.max(0.25, huntIntensity);
+        if (lev.huntPhase !== "strike") {
+          const isNarrowHunt = w < 720;
+          if (huntIntensity > 0.22) {
+            lev.huntPhase = "lunge";
+            prey.evadeTime = (prey.evadeTime || 0) + dt * (1.2 + huntIntensity * 0.8);
+          }
+          // Single smooth sweeping evasive arc rather than rapid zig-zag jitter
+          const targetPreyVx = lev.dir * ((isNarrowHunt ? 14 : 20) + huntIntensity * (isNarrowHunt ? 20 : 34));
+          const targetPreyVy = huntIntensity > 0.22
+            ? Math.sin((prey.evadeTime || 0) * 1.45) * (prey.evadeDir || 1) * (14 + huntIntensity * 28)
+            : Math.sin(step * 1.4) * 3.5;
+          prey.vx = this._lerp(prey.vx || targetPreyVx, targetPreyVx, dampPrey);
+          prey.vy = this._lerp(prey.vy || 0, targetPreyVy, dampPrey);
+          prey.x += prey.vx * dt;
+          prey.y += prey.vy * dt;
+          prey.phase = (prey.phase || 0) + dt * (5.2 + huntIntensity * 3.8);
+          const targetPreyPitch = this._clamp(Math.atan2(prey.vy, Math.max(12, Math.abs(prey.vx))), -0.34, 0.34);
+          prey.pitch = this._lerp(prey.pitch || 0, targetPreyPitch, dampPrey);
 
-        // Prey shark cruises calmly until ambush range, then panics with erratic zig-zag evasion
-        const isNarrowHunt = w < 720;
-        prey.phase += dt * (8 + huntIntensity * 10);
-        const evadeAmp = (8 + huntIntensity * 20) * (isNarrowHunt ? 0.72 : 1);
-        const nextPreyY = (prey.baseY || lev.baseY) + Math.sin(prey.phase * 0.72) * evadeAmp;
-        prey.pitch = this._clamp((nextPreyY - prey.y) * 0.04, -0.35, 0.35);
-        prey.y = nextPreyY;
-        prey.vx = lev.dir * ((isNarrowHunt ? 10 : 16) + huntIntensity * (isNarrowHunt ? 26 : 44));
-        prey.x += prey.vx * dt;
+          // Fluid C2-smooth vertical & speed tracking by Leviathan
+          const targetLevVy = this._clamp((prey.y - lev.baseY) * 1.65, -72, 72);
+          lev.vy = this._lerp(lev.vy, targetLevVy, dampLev);
+          lev.baseY += lev.vy * dt;
 
-        // Panic bubble trail behind fleeing shark & predator surge
-        if (Math.random() < 0.35 + huntIntensity * 0.45) {
-          this.bubbles.push({
-            x: prey.x - lev.dir * prey.size * 0.4,
-            y: prey.y + (Math.random() - 0.5) * 10,
-            r: 1.2 + Math.random() * 1.6,
-            vy: -(0.8 + Math.random() * 0.7),
-            wobble: Math.random() * 6,
-            alpha: 0.48
-          });
+          const targetSpdMult = 0.95 + huntIntensity * 0.90;
+          lev.smoothSpeedMult = this._lerp(lev.smoothSpeedMult, targetSpdMult, dampSlow);
+          const targetJaw = 0.08 + huntIntensity * 0.78;
+          lev.smoothJaw = this._lerp(lev.smoothJaw, targetJaw, dampSlow);
+          const targetLevPitch = this._clamp(
+            Math.atan2(lev.vy, Math.max(40, lev.speed * lev.smoothSpeedMult)),
+            -0.26, 0.26
+          );
+          lev.smoothPitch = this._lerp(lev.smoothPitch, targetLevPitch, dampLev);
+
+          speedMult = lev.smoothSpeedMult;
+          swimPhaseRate = 1.50 + huntIntensity * 1.85;
+          biolumBoost = huntIntensity * 0.90;
+          jawOpen = lev.smoothJaw;
+          pursuitPitch = lev.smoothPitch;
+
+          // Subtle wake bubbles off accelerated ambush tail
+          if (huntIntensity > 0.25 && Math.random() < 0.25 + huntIntensity * 0.35) {
+            this.bubbles.push({
+              x: prey.x - lev.dir * prey.size * 0.45,
+              y: prey.y + (Math.random() - 0.5) * 8,
+              r: 1.2 + Math.random() * 1.5,
+              vy: -(0.7 + Math.random() * 0.6),
+              wobble: Math.random() * 6,
+              alpha: 0.45
+            });
+          }
+
+          if (Math.hypot(prey.x - lev.x, (prey.y - lev.y) * 0.65) < 52 || (lev.dir > 0 ? lev.x >= prey.x - 10 : lev.x <= prey.x + 10)) {
+            lev.huntPhase = "strike";
+            lev.chompTimer = 0.65;
+            prey.engulfT = 0;
+            prey.chompX = prey.x;
+            prey.chompY = prey.y;
+          }
+        } else {
+          // Stage 3: Strike & Smooth Engulfment over 0.30s while jaws clamp shut smoothly
+          prey.engulfT = Math.min(1, (prey.engulfT || 0) + dt / 0.30);
+          const ef = smooth5(prey.engulfT);
+          const mouthX = lev.x + lev.dir * 18;
+          const mouthY = lev.y;
+          prey.x = this._lerp(prey.chompX, mouthX, ef);
+          prey.y = this._lerp(prey.chompY, mouthY, ef);
+          prey.scale = 1 - ef * 0.75;
+          prey.alpha = 1 - ef;
+          prey.phase = (prey.phase || 0) + dt * 7.0;
+
+          lev.vy = this._lerp(lev.vy, 0, dampSlow);
+          lev.baseY += lev.vy * dt;
+          lev.smoothJaw = this._lerp(lev.smoothJaw, 0.04, 1 - Math.exp(-6.0 * dt));
+          lev.smoothPitch = this._lerp(lev.smoothPitch, 0, dampSlow);
+          lev.smoothSpeedMult = this._lerp(lev.smoothSpeedMult, 1.48, dampSlow);
+
+          speedMult = lev.smoothSpeedMult;
+          swimPhaseRate = 2.4;
+          biolumBoost = 0.85 * (1 - ef * 0.35);
+          jawOpen = lev.smoothJaw;
+          pursuitPitch = lev.smoothPitch;
+
+          if (!prey.eaten && prey.engulfT >= 0.85) {
+            prey.eaten = true;
+            prey.chompX = mouthX;
+            prey.chompY = mouthY;
+            [68, 108, 146].forEach((mR, ri) => {
+              lev.roarRings.push({
+                x: mouthX + lev.dir * 8,
+                y: mouthY,
+                r: 6 + ri * 5,
+                maxR: mR,
+                life: -ri * 0.09,
+                maxLife: 1.1
+              });
+            });
+            for (let b = 0; b < 22; b++) {
+              const ang = (b / 22) * Math.PI * 2;
+              this.bubbles.push({
+                x: mouthX + Math.cos(ang) * 12,
+                y: mouthY + Math.sin(ang) * 10,
+                r: 1.5 + Math.random() * 2.4,
+                vy: -(0.8 + Math.random() * 1.2),
+                wobble: Math.random() * 6,
+                alpha: 0.62
+              });
+            }
+          }
+          if (prey.eaten && prey.engulfT >= 1) {
+            lev.huntPhase = "exit";
+            lev.chompTimer = 1.4;
+          }
         }
 
-        // Draw fleeing shark + scattering baitfish school ahead
+        // Draw fleeing / engulfing shark + scattering baitfish school ahead
         if (prey.baitfish) {
           ctx.save();
           ctx.fillStyle = pal.waterBounce;
           prey.baitfish.forEach((bf, bi) => {
-            if (!bf.scattered && huntIntensity > 0.35) {
+            if (!bf.scattered && (huntIntensity > 0.32 || lev.huntPhase === "strike")) {
               bf.scattered = true;
-              bf.vx = (Math.random() - 0.3) * lev.dir * 95;
-              bf.vy = (bf.dy >= 0 ? 1 : -1) * (45 + Math.random() * 55);
+              bf.vx = (0.3 + Math.random() * 0.7) * lev.dir * 85;
+              bf.vy = (bf.dy >= 0 ? 1 : -1) * (40 + Math.random() * 48);
             }
             if (bf.scattered) {
               bf.dx += bf.vx * dt;
               bf.dy += bf.vy * dt;
             }
             const fx = prey.x + lev.dir * 26 + bf.dx;
-            const fy = prey.y + bf.dy + Math.sin(step * 12 + bi) * 2.5;
+            const fy = prey.y + bf.dy + Math.sin(step * 10 + bi) * 2.2;
             ctx.beginPath();
             ctx.ellipse(fx, fy, bf.size, bf.size * 0.42, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -6567,44 +6781,17 @@ const WorldDeepBlue = {
           ctx.restore();
         }
 
-        if (Math.hypot(prey.x - lev.x, (prey.y - lev.y) * 0.55) < 42 || (lev.dir > 0 ? lev.x >= prey.x : lev.x <= prey.x)) {
-          // Dramatic Chomp Snap + Multi-Ring Hydro Shockwaves + Bubble Burst + Victory Roll!
-          prey.eaten = true;
-          prey.chompX = prey.x;
-          prey.chompY = prey.y;
-          lev.chompTimer = 1.75;
-          jawOpen = 0.05;
-          [75, 115, 155].forEach((mR, ri) => {
-            lev.roarRings.push({
-              x: prey.x + lev.dir * 12,
-              y: prey.y,
-              r: 6 + ri * 6,
-              maxR: mR,
-              life: -ri * 0.10,
-              maxLife: 1.15
-            });
-          });
-          for (let b = 0; b < 28; b++) {
-            const ang = (b / 28) * Math.PI * 2;
-            this.bubbles.push({
-              x: prey.x + Math.cos(ang) * 14,
-              y: prey.y + Math.sin(ang) * 12,
-              r: 1.6 + Math.random() * 2.8,
-              vy: -(0.9 + Math.random() * 1.4),
-              wobble: Math.random() * 6,
-              alpha: 0.68
-            });
-          }
-        } else {
-          // Draw solid panicked shark with zig-zag pitch ahead of lunging Leviathan
+        if ((prey.alpha == null ? 1 : prey.alpha) > 0.03) {
           ctx.save();
-          ctx.globalAlpha = 0.94;
+          ctx.globalAlpha = 0.94 * (prey.alpha == null ? 1 : prey.alpha);
           ctx.fillStyle = pal.reefNear;
           ctx.translate(prey.x, prey.y);
           if (prey.vx < 0) ctx.scale(-1, 1);
           ctx.rotate(prey.pitch || 0);
+          const scP = prey.scale == null ? 1 : prey.scale;
+          ctx.scale(scP, scP);
           const sz = prey.size;
-          const tail = Math.sin(prey.phase) * sz * 0.16;
+          const tail = Math.sin(prey.phase) * sz * 0.14;
           ctx.beginPath();
           ctx.moveTo(sz * 0.52, 0);
           ctx.quadraticCurveTo(sz * 0.15, -sz * 0.11, -sz * 0.05, -sz * 0.10);
@@ -6620,25 +6807,20 @@ const WorldDeepBlue = {
           ctx.fill();
           ctx.restore();
         }
-      } else if (prey && prey.eaten && lev.chompTimer > 0) {
-        lev.chompTimer = Math.max(0, lev.chompTimer - dt);
-        const postP = 1 - lev.chompTimer / 1.75;
-        rollWave = true;
-        rollAngle = smooth5(postP) * Math.PI * 2;
-        rollYOff = Math.sin(rollAngle) * 16;
-        jawOpen = Math.max(0, (1 - postP * 2.5) * 0.22);
-        speedMult = 1.45 - postP * 0.35;
-        biolumBoost = (1 - postP) * 0.85;
-        if (postP < 0.35 && prey.chompX) {
-          const flA = Math.sin((postP / 0.35) * Math.PI) * 0.45;
-          const flG = ctx.createRadialGradient(prey.chompX, prey.chompY, 2, prey.chompX, prey.chompY, 54);
-          flG.addColorStop(0, `rgba(186, 230, 253, ${flA.toFixed(3)})`);
-          flG.addColorStop(1, "rgba(186, 230, 253, 0)");
-          ctx.fillStyle = flG;
-          ctx.beginPath();
-          ctx.arc(prey.chompX, prey.chompY, 54, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      } else {
+        // Stage 4: Sated Exit Glide (gentle 0.26 rad satisfied bank back to 0 — no abrupt 360° barrel roll)
+        lev.chompTimer = Math.max(0, (lev.chompTimer || 0) - dt);
+        const exitP = this._clamp(1 - lev.chompTimer / 1.4, 0, 1);
+        const dampExit = 1 - Math.exp(-3.2 * dt);
+        lev.smoothSpeedMult = this._lerp(lev.smoothSpeedMult, 0.92, dampExit);
+        lev.smoothPitch = this._lerp(lev.smoothPitch, 0, dampExit);
+        lev.smoothJaw = this._lerp(lev.smoothJaw, 0, dampExit);
+        lev.smoothRoll = Math.sin(smooth5(exitP) * Math.PI) * 0.26;
+        speedMult = lev.smoothSpeedMult;
+        pursuitPitch = lev.smoothPitch;
+        jawOpen = lev.smoothJaw;
+        rollAngle = lev.smoothRoll;
+        biolumBoost = (1 - exitP) * 0.45;
       }
     }
 
@@ -7320,8 +7502,8 @@ const WorldDeepBlue = {
         m.turnProjX = Math.max(0.28, Math.min(1.0, Math.abs(m.fx)));
         m.bank = -0.34 * Math.pow(Math.abs(cosA), 1.25) + Math.cos(m.wingPhase) * 0.035;
         m.pitch3D = Math.sin(m.wingPhase * 0.5 + 0.4) * 0.055;
-        m.layer = sinA < 0 ? "back" : "front";
-        m.isFront = sinA >= 0;
+        m.layer = sinA < 0.24 ? "back" : "front";
+        m.isFront = sinA >= 0.24;
       }
       void allReefs;
     }
@@ -7344,28 +7526,81 @@ const WorldDeepBlue = {
       if (!reefs) return;
       reefs.forEach((rf, rIdx) => {
         const rSc = rf.scale || sc;
+        const rv = ((rf.variant != null ? rf.variant : rIdx) % 4 + 4) % 4;
         ctx.save();
         ctx.translate(rf.x, rf.y);
-        ctx.strokeStyle = pal.isDark
-          ? `rgba(45, 212, 191, ${isBg ? "0.34" : "0.56"})`
-          : `rgba(251, 146, 180, ${isBg ? "0.42" : "0.72"})`;
-        ctx.lineWidth = Math.max(1.2, 2.0 * rSc);
-        ctx.lineCap = "round";
-        [-16, -5, 6, 17].forEach((wx, idx) => {
-          const sway = Math.sin(step * 1.9 + idx * 1.3 + rIdx) * 4.5 * rSc;
-          const wh = (14 + (idx % 2) * 5) * rSc;
-          const baseY = -22 * rSc;
-          ctx.beginPath();
-          ctx.moveTo(wx * rSc, baseY + 4 * rSc);
-          ctx.quadraticCurveTo((wx + 1) * rSc + sway * 0.5, baseY - wh * 0.5, wx * rSc + sway, baseY - wh);
-          ctx.stroke();
-        });
+        if (rv === 1) {
+          // Variant 1: swaying sea plumes framing brain coral domes
+          ctx.strokeStyle = pal.isDark
+            ? `rgba(167, 139, 250, ${isBg ? "0.32" : "0.54"})`
+            : `rgba(249, 115, 22, ${isBg ? "0.40" : "0.66"})`;
+          ctx.lineWidth = Math.max(1.2, 2.0 * rSc);
+          ctx.lineCap = "round";
+          [-26, -10, 12, 24].forEach((wx, idx) => {
+            const sway = Math.sin(step * 1.7 + idx * 1.1 + rIdx) * 4.0 * rSc;
+            const wh = (12 + (idx % 2) * 5) * rSc;
+            const baseY = -16 * rSc;
+            ctx.beginPath();
+            ctx.moveTo(wx * rSc, baseY + 3 * rSc);
+            ctx.quadraticCurveTo(wx * rSc + sway * 0.5, baseY - wh * 0.5, wx * rSc + sway, baseY - wh);
+            ctx.stroke();
+          });
+        } else if (rv === 2) {
+          // Variant 2: amber gorgonian sea-whip filaments on low staghorn thicket
+          ctx.strokeStyle = pal.isDark
+            ? `rgba(251, 146, 60, ${isBg ? "0.34" : "0.58"})`
+            : `rgba(245, 158, 11, ${isBg ? "0.44" : "0.70"})`;
+          ctx.lineWidth = Math.max(1.1, 1.8 * rSc);
+          ctx.lineCap = "round";
+          [-22, -6, 8, 22].forEach((wx, idx) => {
+            const sway = Math.sin(step * 2.2 + idx * 1.4 + rIdx) * 5.0 * rSc;
+            const wh = (15 + (idx % 3) * 4) * rSc;
+            const baseY = -12 * rSc;
+            ctx.beginPath();
+            ctx.moveTo(wx * rSc, baseY + 2 * rSc);
+            ctx.quadraticCurveTo((wx + 1) * rSc + sway * 0.4, baseY - wh * 0.5, wx * rSc + sway, baseY - wh);
+            ctx.stroke();
+          });
+        } else if (rv === 3) {
+          // Variant 3: bioluminescent cyan sea-fans perched along tall spire flank
+          ctx.strokeStyle = pal.isDark
+            ? `rgba(56, 189, 248, ${isBg ? "0.36" : "0.62"})`
+            : `rgba(20, 184, 166, ${isBg ? "0.42" : "0.68"})`;
+          ctx.lineWidth = Math.max(1.2, 2.0 * rSc);
+          ctx.lineCap = "round";
+          [-16, -2, 12].forEach((wx, idx) => {
+            const sway = Math.sin(step * 1.6 + idx * 1.5 + rIdx) * 4.2 * rSc;
+            const wh = (16 + (idx % 2) * 5) * rSc;
+            const baseY = (idx === 1 ? -40 : -20) * rSc;
+            ctx.beginPath();
+            ctx.moveTo(wx * rSc, baseY + 3 * rSc);
+            ctx.quadraticCurveTo(wx * rSc + sway * 0.5, baseY - wh * 0.5, wx * rSc + sway, baseY - wh);
+            ctx.stroke();
+          });
+        } else {
+          // Variant 0: rose sea whips along Acropora shelf
+          ctx.strokeStyle = pal.isDark
+            ? `rgba(45, 212, 191, ${isBg ? "0.34" : "0.56"})`
+            : `rgba(251, 146, 180, ${isBg ? "0.42" : "0.72"})`;
+          ctx.lineWidth = Math.max(1.2, 2.0 * rSc);
+          ctx.lineCap = "round";
+          [-16, -5, 6, 17].forEach((wx, idx) => {
+            const sway = Math.sin(step * 1.9 + idx * 1.3 + rIdx) * 4.5 * rSc;
+            const wh = (14 + (idx % 2) * 5) * rSc;
+            const baseY = -22 * rSc;
+            ctx.beginPath();
+            ctx.moveTo(wx * rSc, baseY + 4 * rSc);
+            ctx.quadraticCurveTo((wx + 1) * rSc + sway * 0.5, baseY - wh * 0.5, wx * rSc + sway, baseY - wh);
+            ctx.stroke();
+          });
+        }
         if (pal.isDark) {
           const pGlow = (0.35 + 0.25 * Math.sin(step * 2.4 + rIdx)) * (isBg ? 0.65 : 1);
           ctx.fillStyle = `rgba(56, 224, 232, ${pGlow.toFixed(3)})`;
           [-14, 0, 14].forEach((px, idx) => {
+            const pyOff = rv === 3 ? (-32 - (idx % 2) * 6) : (rv === 2 ? (-18 - (idx % 2) * 3) : (-28 - (idx % 2) * 4));
             ctx.beginPath();
-            ctx.arc(px * rSc, (-28 - (idx % 2) * 4) * rSc, 1.5 * rSc, 0, Math.PI * 2);
+            ctx.arc(px * rSc, pyOff * rSc, 1.5 * rSc, 0, Math.PI * 2);
             ctx.fill();
           });
         }

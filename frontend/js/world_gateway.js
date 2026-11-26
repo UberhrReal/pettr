@@ -1445,18 +1445,12 @@ const WorldGateway = {
     ctx.save();
     const pA = L.portWallA || { x: w * 0.075, y: L.islandTopY + 58 };
     const pB = L.portWallB || { x: w * 0.215, y: L.islandBotY - 14 };
+    const {
+      tx, ty, inX, inY, outX, outY,
+      craneInX, craneInY, slope, dxW, dyW
+    } = this._getQuayBasis(pA, pB);
     const xA = pA.x, yA = pA.y;
     const xB = pB.x, yB = pB.y;
-    const dxW = xB - xA;
-    const dyW = yB - yA;
-    const wallLen = Math.max(1, Math.hypot(dxW, dyW));
-    const tx = dxW / wallLen; // Along quay wall SE
-    const ty = dyW / wallLen;
-    const inX = ty;           // Inland perpendicular (ENE)
-    const inY = -tx;
-    const outX = -ty;         // Waterside outboard (WSW)
-    const outY = tx;
-    const slope = dyW / Math.max(1, dxW);
 
     const wallPt = (f) => ({ x: xA + dxW * f, y: yA + dyW * f });
     const q0 = wallPt(0.06);
@@ -1571,79 +1565,136 @@ const WorldGateway = {
       void roadExit;
     }
 
-    // 3. Dense Multi-Tier 2.5D Intermodal Container Storage Yard (16 Stacks across 2 Rows + Twin RTG Gantry Cranes!)
+    // 3. Perspective-Consistent 2.5D Intermodal Container Storage Yard (16 Stacks across 2 Rows + 4-Leg RTG Gantry Cranes!)
     const containerPalette = [pal.chuteColor, pal.liveryAccent, pal.shipHull, pal.archDark, "#0EA5E9", "#D97706", "#0D9488"];
     const stackSites = L.isNarrow
-      ? [{ f: 0.34, off: 20, tiers: 2 }, { f: 0.64, off: 22, tiers: 2 }]
+      ? [{ f: 0.34, off: 16, tiers: 2 }, { f: 0.64, off: 18, tiers: 2 }]
       : [
-          { f: 0.14, off: 17, tiers: 3 },
-          { f: 0.21, off: 18, tiers: 4 },
-          { f: 0.29, off: 19, tiers: 3 },
-          { f: 0.36, off: 19, tiers: 4 },
-          { f: 0.44, off: 20, tiers: 3 },
-          { f: 0.52, off: 20, tiers: 4 },
-          { f: 0.60, off: 20, tiers: 3 },
-          { f: 0.68, off: 20, tiers: 4 },
-          { f: 0.76, off: 19, tiers: 3 },
-          { f: 0.84, off: 18, tiers: 2 },
-          { f: 0.24, off: 28, tiers: 3 },
-          { f: 0.33, off: 29, tiers: 4 },
-          { f: 0.41, off: 29, tiers: 3 },
-          { f: 0.50, off: 30, tiers: 4 },
-          { f: 0.59, off: 30, tiers: 3 },
-          { f: 0.71, off: 29, tiers: 3 }
+          { f: 0.14, off: 14, tiers: 3 },
+          { f: 0.21, off: 15, tiers: 4 },
+          { f: 0.29, off: 16, tiers: 3 },
+          { f: 0.36, off: 16, tiers: 4 },
+          { f: 0.44, off: 16, tiers: 3 },
+          { f: 0.52, off: 16, tiers: 4 },
+          { f: 0.60, off: 16, tiers: 3 },
+          { f: 0.68, off: 16, tiers: 4 },
+          { f: 0.76, off: 15, tiers: 3 },
+          { f: 0.84, off: 14, tiers: 2 },
+          { f: 0.24, off: 24, tiers: 3 },
+          { f: 0.33, off: 25, tiers: 4 },
+          { f: 0.41, off: 25, tiers: 3 },
+          { f: 0.50, off: 26, tiers: 4 },
+          { f: 0.59, off: 26, tiers: 3 },
+          { f: 0.71, off: 25, tiers: 3 }
         ];
     stackSites.forEach((st, idx) => {
       const bp = wallPt(st.f);
-      const cx = bp.x + inX * st.off;
-      const cy = bp.y + inY * st.off;
-      // Grounded yard contact shadow (Improvement #1)
+      const cx = bp.x + craneInX * st.off;
+      const cy = bp.y + craneInY * st.off;
+      const cLen = 11.5;
+      const cDep = 4.6;
+      const fx = tx * cLen;
+      const fy = ty * cLen;
+      const dx = craneInX * cDep;
+      const dy = craneInY * cDep;
+
+      // Grounded yard contact shadow aligned with 2.5D axes
       ctx.fillStyle = pal.shadowColor;
-      ctx.fillRect(cx - 0.5, cy - 0.5, 13.5, 3.2);
+      ctx.beginPath();
+      ctx.moveTo(cx - 1, cy + 1);
+      ctx.lineTo(cx + fx + 1, cy + fy + 1);
+      ctx.lineTo(cx + fx + dx + 1, cy + fy + dy + 1);
+      ctx.lineTo(cx + dx - 1, cy + dy + 1);
+      ctx.closePath();
+      ctx.fill();
+
       for (let tier = 0; tier < st.tiers; tier++) {
-        const tyPos = cy - tier * 3.7;
+        const tyPos = cy - tier * 3.5;
+        const hBox = 3.2;
         const col = containerPalette[(idx * 3 + tier * 2) % containerPalette.length];
+        // Front wall (facing channel along tx, ty)
         ctx.fillStyle = col;
         ctx.beginPath();
         ctx.moveTo(cx, tyPos);
-        ctx.lineTo(cx + 12, tyPos + 12 * slope * 0.42);
-        ctx.lineTo(cx + 12, tyPos + 12 * slope * 0.42 - 3.4);
-        ctx.lineTo(cx, tyPos - 3.4);
+        ctx.lineTo(cx + fx, tyPos + fy);
+        ctx.lineTo(cx + fx, tyPos + fy - hBox);
+        ctx.lineTo(cx, tyPos - hBox);
         ctx.closePath();
         ctx.fill();
+        // Right/East shaded end wall (along craneInX, craneInY)
+        ctx.fillStyle = pal.archDark;
+        ctx.beginPath();
+        ctx.moveTo(cx + fx, tyPos + fy);
+        ctx.lineTo(cx + fx + dx, tyPos + fy + dy);
+        ctx.lineTo(cx + fx + dx, tyPos + fy + dy - hBox);
+        ctx.lineTo(cx + fx, tyPos + fy - hBox);
+        ctx.closePath();
+        ctx.fill();
+        // Crisp illuminated top lid
         ctx.fillStyle = pal.archLight;
-        ctx.globalAlpha = 0.30;
-        ctx.fillRect(cx + 1, tyPos - 3.8, 10, 0.85);
-        ctx.globalAlpha = 0.22;
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(cx + 4, tyPos - 3.3, 0.7, 3.1);
-        ctx.fillRect(cx + 8, tyPos - 3.0, 0.7, 3.1);
+        ctx.globalAlpha = 0.42;
+        ctx.beginPath();
+        ctx.moveTo(cx, tyPos - hBox);
+        ctx.lineTo(cx + fx, tyPos + fy - hBox);
+        ctx.lineTo(cx + fx + dx, tyPos + fy + dy - hBox);
+        ctx.lineTo(cx + dx, tyPos + dy - hBox);
+        ctx.closePath();
+        ctx.fill();
         ctx.globalAlpha = 1;
       }
     });
 
-    // Inland Twin Rubber-Tyred Gantry (RTG) Yard Cranes straddling container yard blocks!
+    // Inland Twin 4-Leg 2.5D Rubber-Tyred Gantry (RTG) Yard Cranes aligned strictly with sinE=0.44 ground basis!
     if (!L.isNarrow) {
       [0.33, 0.55].forEach((rf, rIdx) => {
         const rtgP = wallPt(rf);
-        const rx = rtgP.x + inX * (rIdx === 0 ? 28 : 29);
-        const ry = rtgP.y + inY * (rIdx === 0 ? 28 : 29);
-        ctx.strokeStyle = "#D97706";
+        const rx = rtgP.x + craneInX * (rIdx === 0 ? 18 : 19);
+        const ry = rtgP.y + craneInY * (rIdx === 0 ? 18 : 19);
+        const hG = 15.5;
+        const fL = { x: rx - tx * 4, y: ry - ty * 4 };
+        const fR = { x: rx + tx * 8, y: ry + ty * 8 };
+        const bL = { x: fL.x + craneInX * 14, y: fL.y + craneInY * 14 };
+        const bR = { x: fR.x + craneInX * 14, y: fR.y + craneInY * 14 };
+
+        // Yard contact shadow
+        ctx.strokeStyle = pal.shadowColor;
         ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(rx - 7, ry); ctx.lineTo(rx - 7, ry - 16);
-        ctx.moveTo(rx + 9, ry + 3); ctx.lineTo(rx + 9, ry - 13);
-        ctx.moveTo(rx - 8, ry - 16); ctx.lineTo(rx + 10, ry - 13);
+        ctx.moveTo(fL.x, fL.y + 1); ctx.lineTo(bL.x, bL.y + 1);
+        ctx.moveTo(fR.x, fR.y + 1); ctx.lineTo(bR.x, bR.y + 1);
         ctx.stroke();
+
+        // Rear portal legs & side tie beams
+        ctx.strokeStyle = "#B45309";
+        ctx.lineWidth = 1.35;
+        ctx.beginPath();
+        ctx.moveTo(bL.x, bL.y); ctx.lineTo(bL.x, bL.y - hG);
+        ctx.moveTo(bR.x, bR.y); ctx.lineTo(bR.x, bR.y - hG);
+        ctx.moveTo(bL.x, bL.y - hG); ctx.lineTo(bR.x, bR.y - hG);
+        ctx.moveTo(fL.x, fL.y - hG); ctx.lineTo(bL.x, bL.y - hG);
+        ctx.moveTo(fR.x, fR.y - hG); ctx.lineTo(bR.x, bR.y - hG);
+        ctx.stroke();
+
+        // Yellow trolley & lifted spreader box cleanly slung from mid-span overhead girder
+        const midF = { x: (fL.x + fR.x) * 0.5 + craneInX * 7, y: (fL.y + fR.y) * 0.5 + craneInY * 7 - hG };
         ctx.fillStyle = rIdx === 0 ? pal.chuteColor : pal.liveryAccent;
-        ctx.fillRect(rx - 1, ry - 14, 5, 3);
+        ctx.fillRect(midF.x - 2.5, midF.y + 2, 5.2, 2.8);
+
+        // Foreground quay-side RTG legs & cross girder
+        ctx.strokeStyle = "#D97706";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(fL.x, fL.y); ctx.lineTo(fL.x, fL.y - hG);
+        ctx.moveTo(fR.x, fR.y); ctx.lineTo(fR.x, fR.y - hG);
+        ctx.moveTo(fL.x, fL.y - hG); ctx.lineTo(fR.x, fR.y - hG);
+        ctx.stroke();
       });
 
       // Parked container drayage chassis trucks queued under STS apron lane
       [0.32, 0.74].forEach(tf => {
         const tp = wallPt(tf);
-        const vx = tp.x + inX * 15;
-        const vy = tp.y + inY * 15;
+        const vx = tp.x + craneInX * 11;
+        const vy = tp.y + craneInY * 11;
         ctx.fillStyle = pal.archLight;
         ctx.fillRect(vx - 3, vy - 2, 5.5, 2.2);
         ctx.fillStyle = pal.liveryAccent;
@@ -3945,8 +3996,8 @@ const WorldGateway = {
             idx: 1,
             wallFrac: 0.80,
             phase: "approaching",
-            t: 56.0,
-            phaseDuration: 120.0,
+            t: 95.0,
+            phaseDuration: 190.0,
             opMode: "load",
             cranePhase: 0.05,
             craneCyclesDone: 0,
@@ -3955,7 +4006,7 @@ const WorldGateway = {
             carriedColor: "#2A7EB0",
             ship: {
               heading: -2.05,
-              speed: 1.5,
+              speed: 0.85,
               x: w * 0.34,
               y: h + 125,
               scale: 0.96,
@@ -4008,7 +4059,7 @@ const WorldGateway = {
       }
     }
 
-    // Populated Maritime Fleet in Upper Archipelago Bay & Lower Channel (Unhurried Calm Oceanic Speeds)
+    // Populated Maritime Fleet in Upper Archipelago Bay & Lower Channel (Slow, Deliberate Oceanic Speeds)
     if (this.ships.length === 0) {
       const upperSpan = Math.max(18, L.islandTopY - L.horizonY);
       const lowerClearY1 = Math.max(L.islandBotY + 56, h * 0.82);
@@ -4016,21 +4067,21 @@ const WorldGateway = {
       const lowerClearY3 = Math.max(L.islandBotY + 90, h * 0.93);
       if (isNarrow) {
         this.ships = [
-          { kind: "recovery_ship", zone: "lower", x: w * 0.36, y: lowerClearY2, vx: 0.65, vy: 0.16, minX: -95, maxX: w * 0.54, minY: h * 0.72, maxY: h + 95, channelLoop: true, scale: 0.78 },
-          { kind: "container_ship", zone: "upper", x: w * 0.42, y: L.horizonY + upperSpan * 0.34, vx: 0.48, minX: -95, maxX: w + 95, scale: 0.34 }
+          { kind: "recovery_ship", zone: "lower", x: w * 0.36, y: lowerClearY2, vx: 0.38, vy: 0.10, minX: -95, maxX: w * 0.54, minY: h * 0.72, maxY: h + 95, channelLoop: true, scale: 0.78 },
+          { kind: "container_ship", zone: "upper", x: w * 0.42, y: L.horizonY + upperSpan * 0.34, vx: 0.24, minX: -95, maxX: w + 95, scale: 0.34 }
         ];
       } else {
         this.ships = [
-          { kind: "recovery_ship", zone: "lower", x: w * 0.24, y: lowerClearY1, vx: 0.72, vy: 0.20, minX: -105, maxX: w * 0.52, minY: h * 0.68, maxY: h + 95, channelLoop: true, scale: 0.94 },
-          { kind: "ferry", zone: "lower", x: w * 0.36, y: lowerClearY2, vx: -0.78, vy: -0.22, minX: -105, maxX: w * 0.54, minY: h * 0.69, maxY: h + 95, channelLoop: true, scale: 0.82 },
-          { kind: "container_ship", zone: "lower", x: w * 0.14, y: h * 0.80, vx: 0.58, vy: 0.18, minX: -115, maxX: w * 0.48, minY: h * 0.69, maxY: h + 95, channelLoop: true, scale: 0.80 },
-          { kind: "container_ship", zone: "upper", x: w * 0.32, y: L.horizonY + upperSpan * 0.34, vx: 0.48, minX: -95, maxX: w + 95, scale: 0.40 },
-          { kind: "container_ship", zone: "upper", x: w * 0.64, y: L.horizonY + upperSpan * 0.22, vx: -0.44, minX: -95, maxX: w + 95, scale: 0.34 },
-          { kind: "cargo_far", zone: "upper", x: w * 0.48, y: L.horizonY + upperSpan * 0.44, vx: 0.46, minX: -95, maxX: w + 95, scale: 0.42 },
-          { kind: "container_ship", zone: "upper", x: w * 0.84, y: L.horizonY + upperSpan * 0.28, vx: -0.48, minX: -95, maxX: w + 95, scale: 0.38 },
-          { kind: "ferry", zone: "upper", x: w * 0.28, y: L.horizonY + upperSpan * 0.36, vx: 0.52, minX: -95, maxX: w + 95, scale: 0.44 },
-          { kind: "cargo_far", zone: "upper", x: w * 0.11, y: L.horizonY + upperSpan * 0.30, vx: 0.42, minX: -95, maxX: w + 95, scale: 0.39 },
-          { kind: "recovery_ship", zone: "lower", x: w * 0.31, y: lowerClearY3, vx: 0.66, vy: 0.16, minX: -105, maxX: w * 0.52, minY: h * 0.73, maxY: h + 95, channelLoop: true, scale: 0.76 }
+          { kind: "recovery_ship", zone: "lower", x: w * 0.24, y: lowerClearY1, vx: 0.46, vy: 0.13, minX: -105, maxX: w * 0.52, minY: h * 0.68, maxY: h + 95, channelLoop: true, scale: 0.94 },
+          { kind: "ferry", zone: "lower", x: w * 0.36, y: lowerClearY2, vx: -0.52, vy: -0.15, minX: -105, maxX: w * 0.54, minY: h * 0.69, maxY: h + 95, channelLoop: true, scale: 0.82 },
+          { kind: "container_ship", zone: "lower", x: w * 0.14, y: h * 0.80, vx: 0.32, vy: 0.10, minX: -115, maxX: w * 0.48, minY: h * 0.69, maxY: h + 95, channelLoop: true, scale: 0.80 },
+          { kind: "container_ship", zone: "upper", x: w * 0.32, y: L.horizonY + upperSpan * 0.34, vx: 0.24, minX: -95, maxX: w + 95, scale: 0.40 },
+          { kind: "container_ship", zone: "upper", x: w * 0.64, y: L.horizonY + upperSpan * 0.22, vx: -0.22, minX: -95, maxX: w + 95, scale: 0.34 },
+          { kind: "cargo_far", zone: "upper", x: w * 0.48, y: L.horizonY + upperSpan * 0.44, vx: 0.26, minX: -95, maxX: w + 95, scale: 0.42 },
+          { kind: "container_ship", zone: "upper", x: w * 0.84, y: L.horizonY + upperSpan * 0.28, vx: -0.25, minX: -95, maxX: w + 95, scale: 0.38 },
+          { kind: "ferry", zone: "upper", x: w * 0.28, y: L.horizonY + upperSpan * 0.36, vx: 0.34, minX: -95, maxX: w + 95, scale: 0.44 },
+          { kind: "cargo_far", zone: "upper", x: w * 0.11, y: L.horizonY + upperSpan * 0.30, vx: 0.21, minX: -95, maxX: w + 95, scale: 0.39 },
+          { kind: "recovery_ship", zone: "lower", x: w * 0.31, y: lowerClearY3, vx: 0.42, vy: 0.11, minX: -105, maxX: w * 0.52, minY: h * 0.73, maxY: h + 95, channelLoop: true, scale: 0.76 }
         ];
       }
       this.boats = this.ships;
@@ -5127,6 +5178,87 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // Shared Multi-Layered Kelvin V-Wake, Bow Spray Collar & Prop-Wash Foam Renderer
+  _drawDetailedShipWake(ctx, sternX, sternY, bowX, bowY, wakeAng, wakeLen, beamW, intensity, pal, step, scale) {
+    if (intensity <= 0.02 || wakeLen <= 2) return;
+    const baseCol = pal.isNightLights ? "186, 230, 253" : "255, 255, 255";
+    const wx = Math.cos(wakeAng);
+    const wy = Math.sin(wakeAng);
+    const px = -wy;
+    const py = wx;
+
+    ctx.save();
+    // 1. Curved foaming bow wave collar breaking at prow
+    const bowA = Math.min(0.70, 0.36 + intensity * 0.28);
+    ctx.strokeStyle = `rgba(${baseCol}, ${bowA.toFixed(3)})`;
+    ctx.lineWidth = Math.max(0.9, 1.35 * scale);
+    ctx.lineCap = "round";
+    [-1, 1].forEach(side => {
+      ctx.beginPath();
+      ctx.moveTo(bowX, bowY);
+      ctx.quadraticCurveTo(
+        bowX + wx * 5.5 * scale + px * side * beamW * 0.52,
+        bowY + wy * 5.5 * scale + py * side * beamW * 0.52,
+        bowX + wx * 13 * scale + px * side * beamW * 1.05,
+        bowY + wy * 13 * scale + py * side * beamW * 1.05
+      );
+      ctx.stroke();
+    });
+
+    // 2. Diverging Kelvin V-wake dual outer & inner wave arms with subtle crest shimmer
+    const endX = sternX + wx * wakeLen;
+    const endY = sternY + wy * wakeLen;
+    [
+      { spread: 0.28, wMult: 1.4, aMult: 0.52 },
+      { spread: 0.16, wMult: 0.95, aMult: 0.36 }
+    ].forEach(arm => {
+      const armGrad = ctx.createLinearGradient(sternX, sternY, endX, endY);
+      armGrad.addColorStop(0, `rgba(${baseCol}, ${(arm.aMult * (0.55 + intensity * 0.45)).toFixed(3)})`);
+      armGrad.addColorStop(0.55, `rgba(${baseCol}, ${(arm.aMult * 0.42).toFixed(3)})`);
+      armGrad.addColorStop(1, `rgba(${baseCol}, 0)`);
+      ctx.strokeStyle = armGrad;
+      ctx.lineWidth = Math.max(0.75, arm.wMult * scale);
+      [-1, 1].forEach(side => {
+        const halfSpread = wakeLen * arm.spread;
+        ctx.beginPath();
+        ctx.moveTo(sternX + px * side * beamW * 0.24, sternY + py * side * beamW * 0.24);
+        ctx.lineTo(endX + px * side * halfSpread, endY + py * side * halfSpread);
+        ctx.stroke();
+      });
+    });
+
+    // 3. Frothy central propeller wash ribbon & dissipating transverse wake chevrons
+    const washGrad = ctx.createLinearGradient(sternX, sternY, endX, endY);
+    washGrad.addColorStop(0, `rgba(${baseCol}, ${(0.44 * Math.min(1, 0.45 + intensity)).toFixed(3)})`);
+    washGrad.addColorStop(0.45, `rgba(${baseCol}, ${(0.20 * Math.min(1, 0.45 + intensity)).toFixed(3)})`);
+    washGrad.addColorStop(1, `rgba(${baseCol}, 0)`);
+    ctx.fillStyle = washGrad;
+    ctx.beginPath();
+    ctx.moveTo(sternX + px * beamW * 0.30, sternY + py * beamW * 0.30);
+    ctx.lineTo(endX + px * beamW * 1.15, endY + py * beamW * 1.15);
+    ctx.lineTo(endX - px * beamW * 1.15, endY - py * beamW * 1.15);
+    ctx.lineTo(sternX - px * beamW * 0.30, sternY - py * beamW * 0.30);
+    ctx.closePath();
+    ctx.fill();
+
+    const chevCount = 5;
+    for (let ci = 1; ci <= chevCount; ci++) {
+      const cf = ((ci / chevCount) + (step * 0.14) % (1 / chevCount)) % 1;
+      const d = cf * wakeLen * 0.85;
+      const cx = sternX + wx * d;
+      const cy = sternY + wy * d;
+      const cw = beamW * (0.4 + cf * 1.5);
+      const ca = (1 - cf) * 0.34 * Math.min(1, 0.4 + intensity);
+      ctx.strokeStyle = `rgba(${baseCol}, ${ca.toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.6, 0.9 * scale);
+      ctx.beginPath();
+      ctx.moveTo(cx - px * cw, cy - py * cw);
+      ctx.quadraticCurveTo(cx - wx * 2.5 * scale, cy - wy * 2.5 * scale, cx + px * cw, cy + py * cw);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+
   _updateAndDrawShips(ctx, w, h, L, pal, dt, step) {
     ctx.save();
     for (let i = 0; i < this.ships.length; i++) {
@@ -5162,22 +5294,24 @@ const WorldGateway = {
       ctx.globalAlpha = hazeAlpha;
       ctx.translate(s.x, s.y);
 
-      const wakeLen = s.kind === "container_ship" ? 48 * sc : (s.kind === "recovery_ship" ? 44 * sc : 24 * sc);
+      const wakeLen = s.kind === "container_ship" ? 56 * sc : (s.kind === "recovery_ship" ? 48 * sc : 32 * sc);
       const courseAng = Math.atan2(s.vy || 0, s.vx || dir);
-      ctx.save();
-      ctx.rotate(courseAng);
-      const wakeGrad = ctx.createLinearGradient(0, 0, -wakeLen, 0);
-      wakeGrad.addColorStop(0, pal.isNightLights ? "rgba(186, 230, 253, 0.28)" : "rgba(255, 255, 255, 0.42)");
-      wakeGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
-      ctx.strokeStyle = wakeGrad;
-      ctx.lineWidth = 1.1 * sc;
-      ctx.beginPath();
-      ctx.moveTo(-12 * sc, 1);
-      ctx.lineTo(-(12 * sc + wakeLen), -4.5 * sc);
-      ctx.moveTo(-12 * sc, 1);
-      ctx.lineTo(-(12 * sc + wakeLen), 4.5 * sc);
-      ctx.stroke();
-      ctx.restore();
+      const wakeBackAng = courseAng + Math.PI;
+      const halfHull = (s.kind === "container_ship" ? 24 : 16) * sc;
+      this._drawDetailedShipWake(
+        ctx,
+        -Math.cos(courseAng) * halfHull,
+        -Math.sin(courseAng) * halfHull,
+        Math.cos(courseAng) * halfHull,
+        Math.sin(courseAng) * halfHull,
+        wakeBackAng,
+        wakeLen,
+        (s.kind === "container_ship" ? 4.2 : 3.2) * sc,
+        s.zone === "upper" ? 0.55 : 0.85,
+        pal,
+        step,
+        sc
+      );
 
       if (dir < 0) ctx.scale(-1, 1);
       ctx.scale(sc, sc);
@@ -5391,27 +5525,25 @@ const WorldGateway = {
     ctx.save();
     ctx.translate(ship.x, ship.y);
 
-    // Speed-scaled V-wake streaming behind ship stern
-    if (ship.speed > 1.2) {
-      const wakeLen = Math.min(48, 12 + ship.speed * 2.1) * scale;
-      const sternP = proj(-25 * scale, 0, 0);
-      const backP = proj((-25 - wakeLen) * scale, 0, 0);
-      const wAng = Math.atan2(backP.y - sternP.y, backP.x - sternP.x);
-      const wx = Math.cos(wAng);
-      const wy = Math.sin(wAng);
-      const px = -wy;
-      const py = wx;
-      const wg = ctx.createLinearGradient(sternP.x, sternP.y, backP.x, backP.y);
-      wg.addColorStop(0, pal.isNightLights ? "rgba(186, 230, 253, 0.34)" : "rgba(255, 255, 255, 0.52)");
-      wg.addColorStop(1, "rgba(255, 255, 255, 0)");
-      ctx.strokeStyle = wg;
-      ctx.lineWidth = 1.3 * scale;
-      ctx.beginPath();
-      ctx.moveTo(sternP.x, sternP.y);
-      ctx.lineTo(backP.x + px * 5.2 * scale, backP.y + py * 5.2 * scale);
-      ctx.moveTo(sternP.x, sternP.y);
-      ctx.lineTo(backP.x - px * 5.2 * scale, backP.y - py * 5.2 * scale);
-      ctx.stroke();
+    // Detailed Kelvin V-wake, bow spray & prop wash even during slow harbor maneuvering (speed > 0.14)
+    if (ship.speed > 0.14) {
+      const wakeLen = Math.min(64, 24 + ship.speed * 22.0) * scale;
+      const bowP = proj(27 * scale, 0, 0.2);
+      const sternP = proj(-24 * scale, 0, 0);
+      const farP = proj(-58 * scale, 0, 0);
+      const wAng = Math.atan2(farP.y - sternP.y, farP.x - sternP.x);
+      this._drawDetailedShipWake(
+        ctx,
+        sternP.x, sternP.y + 1,
+        bowP.x, bowP.y + 1,
+        wAng,
+        wakeLen,
+        6.2 * scale,
+        Math.min(1.0, 0.45 + ship.speed * 0.55),
+        pal,
+        step,
+        scale
+      );
     }
 
     ctx.scale(scale, scale);
@@ -5542,12 +5674,50 @@ const WorldGateway = {
     ctx.restore();
   },
 
+  // Exact 2.5D sinE=0.44 ground-plane orthogonal basis along seawall quay vector
+  _getQuayBasis(pA, pB) {
+    const sinE = 0.44;
+    const xA = pA.x, yA = pA.y;
+    const xB = pB.x, yB = pB.y;
+    const dxW = xB - xA;
+    const dyW = yB - yA;
+    const wallLen = Math.max(1, Math.hypot(dxW, dyW));
+    const tx = dxW / wallLen;
+    const ty = dyW / wallLen;
+    const inX = ty;
+    const inY = -tx;
+    const outX = -ty;
+    const outY = tx;
+
+    // Project true ground-plane perpendicular into 2.5D sinE=0.44 camera space
+    const gx = dxW;
+    const gy = dyW / sinE;
+    const gLen = Math.max(1, Math.hypot(gx, gy));
+    const gTx = gx / gLen;
+    const gTy = gy / gLen;
+    const ixRaw = gTy;
+    const iyRaw = -gTx * sinE;
+    const iLen = Math.max(1, Math.hypot(ixRaw, iyRaw));
+    const craneInX = ixRaw / iLen;
+    const craneInY = iyRaw / iLen;
+    return {
+      tx, ty, inX, inY, outX, outY,
+      craneInX, craneInY, craneOutX: -craneInX, craneOutY: -craneInY,
+      wallLen, dxW, dyW, slope: dyW / Math.max(1, dxW)
+    };
+  },
+
   _drawSTSGantryCrane(ctx, berth, geom, pal, step) {
-    const { bp, tx, ty, inX, inY, shipPt } = berth._geom;
-    const legsA = { x: bp.x + inX * 6 - tx * 7, y: bp.y + inY * 6 - ty * 7 };
-    const legsB = { x: bp.x + inX * 6 + tx * 7, y: bp.y + inY * 6 + ty * 7 };
-    const backA = { x: bp.x + inX * 16 - tx * 7, y: bp.y + inY * 16 - ty * 7 };
-    const backB = { x: bp.x + inX * 16 + tx * 7, y: bp.y + inY * 16 + ty * 7 };
+    const { bp, tx, ty, craneInX, craneInY, craneOutX, craneOutY, shipPt } = berth._geom;
+    const cIx = craneInX != null ? craneInX : geom.inX;
+    const cIy = craneInY != null ? craneInY : geom.inY;
+    const cOx = craneOutX != null ? craneOutX : -cIx;
+    const cOy = craneOutY != null ? craneOutY : -cIy;
+
+    const legsA = { x: bp.x + cIx * 4 - tx * 7, y: bp.y + cIy * 4 - ty * 7 };
+    const legsB = { x: bp.x + cIx * 4 + tx * 7, y: bp.y + cIy * 4 + ty * 7 };
+    const backA = { x: bp.x + cIx * 17 - tx * 7, y: bp.y + cIy * 17 - ty * 7 };
+    const backB = { x: bp.x + cIx * 17 + tx * 7, y: bp.y + cIy * 17 + ty * 7 };
     const boomH = 29;
     const apexH = 38;
 
@@ -5556,25 +5726,26 @@ const WorldGateway = {
     const topBackA = { x: backA.x, y: backA.y - boomH };
     const topBackB = { x: backB.x, y: backB.y - boomH };
 
-    // Boom extends from land stack yard (inward 22px) -> out past moored vessel (shipPt outboard)
-    const yardAnchor = { x: bp.x + inX * 22, y: bp.y + inY * 22 - boomH };
-    const waterTip = { x: shipPt.x + (shipPt.x - bp.x) * 0.48, y: shipPt.y + (shipPt.y - bp.y) * 0.48 - boomH };
-    const apexPt = { x: (topA.x + topB.x) * 0.5 + inX * 4, y: (topA.y + topB.y) * 0.5 - (apexH - boomH) };
+    // Boom extends strictly along (craneIn <-> craneOut) over yard stacks -> ship center beam!
+    const yardAnchor = { x: bp.x + cIx * 22, y: bp.y + cIy * 22 - boomH };
+    const overShip = Math.hypot(shipPt.x - bp.x, shipPt.y - bp.y) + 12;
+    const waterTip = { x: bp.x + cOx * overShip, y: bp.y + cOy * overShip - boomH };
+    const apexA = { x: topA.x + cIx * 3, y: topA.y + cIy * 3 - (apexH - boomH) };
+    const apexB = { x: topB.x + cIx * 3, y: topB.y + cIy * 3 - (apexH - boomH) };
+    const apexPt = { x: (apexA.x + apexB.x) * 0.5, y: (apexA.y + apexB.y) * 0.5 };
 
     ctx.save();
-    // Soft crane shadow across quay apron
+    // 2.5D Portal contact shadow across quay apron
     ctx.strokeStyle = pal.shadowColor;
-    ctx.lineWidth = 3.2;
+    ctx.lineWidth = 2.8;
     ctx.beginPath();
-    ctx.moveTo(backA.x + 3, backA.y + 3);
-    ctx.lineTo(legsA.x + 3, legsA.y + 3);
-    ctx.moveTo(backB.x + 3, backB.y + 3);
-    ctx.lineTo(legsB.x + 3, legsB.y + 3);
+    ctx.moveTo(backA.x + 2, backA.y + 2); ctx.lineTo(legsA.x + 2, legsA.y + 2);
+    ctx.moveTo(backB.x + 2, backB.y + 2); ctx.lineTo(legsB.x + 2, legsB.y + 2);
     ctx.stroke();
 
-    // Crane steel leg portal frames (rear pair first)
+    // Rear portal legs, top frame & diagonal side truss cross-bracing
     ctx.strokeStyle = pal.liveryAccent;
-    ctx.lineWidth = 2.0;
+    ctx.lineWidth = 1.9;
     ctx.lineCap = "round";
     ctx.beginPath();
     ctx.moveTo(backA.x, backA.y); ctx.lineTo(topBackA.x, topBackA.y);
@@ -5582,27 +5753,42 @@ const WorldGateway = {
     ctx.moveTo(topBackA.x, topBackA.y); ctx.lineTo(topBackB.x, topBackB.y);
     ctx.moveTo(topBackA.x, topBackA.y); ctx.lineTo(topA.x, topA.y);
     ctx.moveTo(topBackB.x, topBackB.y); ctx.lineTo(topB.x, topB.y);
+    ctx.moveTo(backA.x, backA.y - boomH * 0.45); ctx.lineTo(legsA.x, legsA.y - boomH * 0.45);
+    ctx.moveTo(backB.x, backB.y - boomH * 0.45); ctx.lineTo(legsB.x, legsB.y - boomH * 0.45);
     ctx.stroke();
 
-    // Horizontal overhead girder boom & forestay suspension cables
-    ctx.strokeStyle = pal.liveryAccent;
-    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = pal.towerSteel;
+    ctx.lineWidth = 0.85;
     ctx.beginPath();
-    ctx.moveTo(yardAnchor.x, yardAnchor.y);
-    ctx.lineTo(waterTip.x, waterTip.y);
+    ctx.moveTo(backA.x, backA.y - 3); ctx.lineTo(legsA.x, legsA.y - boomH * 0.45);
+    ctx.moveTo(legsA.x, legsA.y - 3); ctx.lineTo(backA.x, backA.y - boomH * 0.45);
+    ctx.moveTo(backB.x, backB.y - 3); ctx.lineTo(legsB.x, legsB.y - boomH * 0.45);
+    ctx.moveTo(legsB.x, legsB.y - 3); ctx.lineTo(backB.x, backB.y - boomH * 0.45);
+    ctx.stroke();
+
+    // Parallel twin overhead boom girders + apex A-frame masts & forestays
+    ctx.strokeStyle = pal.liveryAccent;
+    ctx.lineWidth = 2.3;
+    ctx.beginPath();
+    ctx.moveTo(yardAnchor.x - tx * 3, yardAnchor.y - ty * 3);
+    ctx.lineTo(waterTip.x - tx * 3, waterTip.y - ty * 3);
+    ctx.moveTo(yardAnchor.x + tx * 3, yardAnchor.y + ty * 3);
+    ctx.lineTo(waterTip.x + tx * 3, waterTip.y + ty * 3);
     ctx.stroke();
 
     ctx.strokeStyle = pal.towerSteel;
     ctx.lineWidth = 1.0;
     ctx.beginPath();
-    ctx.moveTo((topA.x + topB.x) * 0.5, (topA.y + topB.y) * 0.5);
-    ctx.lineTo(apexPt.x, apexPt.y);
-    ctx.lineTo(waterTip.x, waterTip.y);
-    ctx.moveTo(apexPt.x, apexPt.y);
-    ctx.lineTo(yardAnchor.x, yardAnchor.y);
+    ctx.moveTo(topA.x, topA.y); ctx.lineTo(apexA.x, apexA.y);
+    ctx.moveTo(topB.x, topB.y); ctx.lineTo(apexB.x, apexB.y);
+    ctx.moveTo(apexA.x, apexA.y); ctx.lineTo(apexB.x, apexB.y);
+    ctx.moveTo(apexA.x, apexA.y); ctx.lineTo(waterTip.x - tx * 3, waterTip.y - ty * 3);
+    ctx.moveTo(apexB.x, apexB.y); ctx.lineTo(waterTip.x + tx * 3, waterTip.y + ty * 3);
+    ctx.moveTo(apexA.x, apexA.y); ctx.lineTo(yardAnchor.x - tx * 3, yardAnchor.y - ty * 3);
+    ctx.moveTo(apexB.x, apexB.y); ctx.lineTo(yardAnchor.x + tx * 3, yardAnchor.y + ty * 3);
     ctx.stroke();
 
-    // Animated sliding trolley + twin hoist cables + yellow spreader bar + lifted 3D container!
+    // Animated sliding trolley + twin hoist cables + yellow spreader + hoisted container aligned along quay (tx, ty)
     const tFrac = berth._trolleyFrac != null ? berth._trolleyFrac : 0.45;
     const hFrac = berth._hoistDrop != null ? berth._hoistDrop : 0.2;
     const trollX = this._lerp(yardAnchor.x, waterTip.x, tFrac);
@@ -5610,35 +5796,37 @@ const WorldGateway = {
     const cableLen = 6 + hFrac * 18;
     const spY = trollY + cableLen;
 
-    // White/glass crane operator cabin beneath trolley
     ctx.fillStyle = pal.shipSuper;
     ctx.fillRect(trollX - 2.6, trollY - 1.5, 5.2, 3.0);
 
-    // Twin taut hoist cables down to spreader bar
     ctx.strokeStyle = pal.archLight;
     ctx.lineWidth = 0.75;
     ctx.beginPath();
-    ctx.moveTo(trollX - 2.2, trollY + 1.5); ctx.lineTo(trollX - 2.2, spY);
-    ctx.moveTo(trollX + 2.2, trollY + 1.5); ctx.lineTo(trollX + 2.2, spY);
+    ctx.moveTo(trollX - tx * 2.4, trollY - ty * 2.4 + 1.5); ctx.lineTo(trollX - tx * 2.4, spY - ty * 2.4);
+    ctx.moveTo(trollX + tx * 2.4, trollY + ty * 2.4 + 1.5); ctx.lineTo(trollX + tx * 2.4, spY + ty * 2.4);
     ctx.stroke();
 
-    // Yellow STS container spreader frame
-    ctx.fillStyle = "#FACC15";
-    ctx.fillRect(trollX - 4.5, spY - 0.8, 9.0, 1.8);
+    ctx.strokeStyle = "#FACC15";
+    ctx.lineWidth = 1.9;
+    ctx.beginPath();
+    ctx.moveTo(trollX - tx * 4.5, spY - ty * 4.5);
+    ctx.lineTo(trollX + tx * 4.5, spY + ty * 4.5);
+    ctx.stroke();
 
-    // Hoisted intermodal shipping container during loaded transfer legs!
     if (berth._carryingBox) {
       ctx.fillStyle = berth.carriedColor || pal.chuteColor;
-      ctx.fillRect(trollX - 4.4, spY + 1.0, 8.8, 3.8);
-      ctx.fillStyle = pal.archLight;
-      ctx.globalAlpha = 0.45;
-      ctx.fillRect(trollX - 4.4, spY + 1.0, 8.8, 0.9);
-      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.moveTo(trollX - tx * 4.4, spY - ty * 4.4 + 0.8);
+      ctx.lineTo(trollX + tx * 4.4, spY + ty * 4.4 + 0.8);
+      ctx.lineTo(trollX + tx * 4.4, spY + ty * 4.4 + 4.4);
+      ctx.lineTo(trollX - tx * 4.4, spY - ty * 4.4 + 4.4);
+      ctx.closePath();
+      ctx.fill();
     }
 
     // Foreground quay-edge portal legs drawn cleanly in front of trolley
     ctx.strokeStyle = pal.liveryAccent;
-    ctx.lineWidth = 2.1;
+    ctx.lineWidth = 2.0;
     ctx.beginPath();
     ctx.moveTo(legsA.x, legsA.y); ctx.lineTo(topA.x, topA.y);
     ctx.moveTo(legsB.x, legsB.y); ctx.lineTo(topB.x, topB.y);
@@ -5678,16 +5866,11 @@ const WorldGateway = {
 
   _updateAndDrawPortOps(ctx, w, h, L, pal, dt, step) {
     if (!this.portOps || L.isNarrow) return;
+    const {
+      tx, ty, outX, outY, craneInX, craneInY, craneOutX, craneOutY, dxW, dyW
+    } = this._getQuayBasis(L.portWallA, L.portWallB);
     const xA = L.portWallA.x, yA = L.portWallA.y;
-    const xB = L.portWallB.x, yB = L.portWallB.y;
-    const dxW = xB - xA;
-    const dyW = yB - yA;
-    const wallLen = Math.max(1, Math.hypot(dxW, dyW));
-    const tx = dxW / wallLen;
-    const ty = dyW / wallLen;
-    const inX = ty, inY = -tx;
-    const outX = -ty, outY = tx;
-    const dockHeading = Math.atan2(dyW, dxW); // ~ +0.88 rad along seawall ("front_quarter")
+    const dockHeading = Math.atan2(dyW, dxW);
 
     const smooth5 = t => {
       const c = this._clamp(t, 0, 1);
@@ -5707,7 +5890,7 @@ const WorldGateway = {
       const bayEntry = sh.fromWest ? westOff : southOff;
       const bayExit = sh.fromWest ? southOff : westOff;
 
-      b._geom = { bp, tx, ty, inX, inY, outX, outY, shipPt: berthPt };
+      b._geom = { bp, tx, ty, craneInX, craneInY, craneOutX, craneOutY, shipPt: berthPt };
       b.t += dt;
 
       // Update live ship arrival / berthing / crane-servicing / unberthing / 5-angle channel departure
@@ -5735,7 +5918,7 @@ const WorldGateway = {
           if (b.craneCyclesDone >= b.craneCyclesTarget) {
             b.phase = "unberthing";
             b.t = 0;
-            b.phaseDuration = 9.5;
+            b.phaseDuration = 30.0;
           } else {
             const findNextSlot = (wantActive) => {
               for (let k = 7; k >= 0; k--) {
@@ -5795,20 +5978,20 @@ const WorldGateway = {
         const pt = this._sampleArcPath(appPath, appPath.totalLen * pEase);
         sh.x = pt.x;
         sh.y = pt.y;
-        sh.speed = (1 - f * 0.78) * 1.85;
+        sh.speed = (1 - f * 0.80) * 1.15;
         targetHeading = pt.angle;
         sh.heading = this._lerpAngle(sh.heading, targetHeading, 1 - Math.exp(-3.2 * dt));
         if (f >= 1) {
           b.phase = "berthing";
           b.t = 0;
-          b.phaseDuration = 26.0;
+          b.phaseDuration = 34.0;
         }
       } else if (b.phase === "berthing") {
         const rawP = Math.min(1, b.t / Math.max(1, b.phaseDuration));
         const p = smooth5(rawP);
         sh.x = this._lerp(holdPt.x, berthPt.x, p);
         sh.y = this._lerp(holdPt.y, berthPt.y, p);
-        sh.speed = 0.55 * (1 - p);
+        sh.speed = 0.35 * (1 - p);
         sh.heading = this._lerpAngle(sh.heading, dockHeading, 1 - Math.exp(-2.4 * dt));
         thrusterIntensity = Math.sin(rawP * Math.PI);
         if (b.t >= b.phaseDuration) {
@@ -5823,13 +6006,13 @@ const WorldGateway = {
         const p = smooth5(rawP);
         sh.x = this._lerp(berthPt.x, holdPt.x, p);
         sh.y = this._lerp(berthPt.y, holdPt.y, p);
-        sh.speed = 0.55 * p;
+        sh.speed = 0.35 * p;
         sh.heading = dockHeading;
         thrusterIntensity = Math.sin(rawP * Math.PI);
         if (b.t >= b.phaseDuration) {
           b.phase = "departing";
           b.t = 0;
-          b.phaseDuration = this._rand(118.0, 148.0);
+          b.phaseDuration = this._rand(185.0, 225.0);
         }
       } else if (b.phase === "departing") {
         const ctrl1 = { x: holdPt.x + tx * 34 + outX * 14, y: holdPt.y + ty * 34 + outY * 14 };
@@ -5842,20 +6025,20 @@ const WorldGateway = {
         const pt = this._sampleArcPath(depPath, depPath.totalLen * pEase);
         sh.x = pt.x;
         sh.y = pt.y;
-        sh.speed = 0.5 + f * 1.45;
+        sh.speed = 0.35 + f * 0.90;
         targetHeading = pt.angle;
         sh.heading = this._lerpAngle(sh.heading, targetHeading, 1 - Math.exp(-3.0 * dt));
         if (f >= 1) {
           b.phase = "offscreen_wait";
           b.t = 0;
-          b.phaseDuration = this._rand(5.0, 9.0);
+          b.phaseDuration = this._rand(6.0, 10.0);
         }
       } else {
         shipVisible = false;
         if (b.t >= b.phaseDuration) {
           b.phase = "approaching";
           b.t = 0;
-          b.phaseDuration = this._rand(110.0, 138.0);
+          b.phaseDuration = this._rand(175.0, 215.0);
           sh.fromWest = !sh.fromWest;
           b.opMode = b.opMode === "unload" ? "load" : "unload";
           const startFilled = b.opMode === "unload" ? 8 : 3;
@@ -6988,7 +7171,13 @@ const WorldGateway = {
       { x: L.towerLeftX, y: L.padY - L.towerH - 14 },
       { x: L.towerRightX, y: L.padY - L.towerH - 14 },
       { x: L.atcX - 5 * (L.isNarrow ? 0.72 : 1.05), y: L.atcY - atcTopOff },
-      ...(!L.isNarrow ? [{ x: L.vabX + L.vabW * 0.34, y: L.vabY - L.vabH - 14 }] : [])
+      ...(!L.isNarrow ? [
+        { x: L.vabX + L.vabW * 0.34, y: L.vabY - L.vabH - 14 },
+        { x: L.hangarX, y: L.hangarY - L.hangarH * 0.65 },
+        { x: L.hifX, y: L.hifY - L.hifH * 0.9 },
+        { x: L.offshorePadX - 18 * L.offshoreScale, y: L.offshorePadY - 38 * L.offshoreScale },
+        { x: L.offshorePadX + 18 * L.offshoreScale, y: L.offshorePadY - 38 * L.offshoreScale }
+      ] : [])
     ];
     beacons.forEach(b => {
       const r = pal.isNightLights ? 9 : 4.5;
@@ -7002,7 +7191,30 @@ const WorldGateway = {
     });
 
     if (pal.lightIntensity > 0.28) {
-      // Western Extended Pier Approach Lighting System (ALS) strobing rabbit & threshold bar
+      // Rotating Civilian Airport/Spaceport Dual Green & Warm-White Aerodrome Beacon atop ATC Tower!
+      const rotAng = step * 2.4;
+      const bcnX = L.atcX - 5 * (L.isNarrow ? 0.72 : 1.05);
+      const bcnY = L.atcY - atcTopOff - 3;
+      const beamLen = L.isNarrow ? 42 : 76;
+      [
+        { ang: rotAng, rgb: "52, 211, 153" },
+        { ang: rotAng + Math.PI, rgb: "255, 250, 235" }
+      ].forEach(arm => {
+        const bx2 = bcnX + Math.cos(arm.ang) * beamLen;
+        const by2 = bcnY + Math.sin(arm.ang) * (beamLen * 0.28);
+        const bg = ctx.createLinearGradient(bcnX, bcnY, bx2, by2);
+        bg.addColorStop(0, `rgba(${arm.rgb}, ${(0.46 * pal.lightIntensity).toFixed(3)})`);
+        bg.addColorStop(1, `rgba(${arm.rgb}, 0)`);
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.moveTo(bcnX, bcnY);
+        ctx.lineTo(bx2 - Math.sin(arm.ang) * 7, by2 + Math.cos(arm.ang) * 3.5);
+        ctx.lineTo(bx2 + Math.sin(arm.ang) * 7, by2 - Math.cos(arm.ang) * 3.5);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Western Extended Pier Approach Lighting System (ALS) strobing rabbit & REIL threshold strobes
       if (!L.isNarrow) {
         const alsSeq = Math.floor(step * 14) % 5;
         for (let ai = 1; ai <= 5; ai++) {
@@ -7018,6 +7230,102 @@ const WorldGateway = {
           ctx.arc(p.x, p.y - 3.5, r, 0, Math.PI * 2);
           ctx.fill();
         }
+
+        // REIL (Runway End Identifier Lights) synchronized threshold white flashers + Green Threshold Bar + Red End Bar
+        const rwStart = L.rwPt(0.0);
+        const rwEnd = L.rwPt(1.0);
+        const reilPulse = (Math.floor(step * 3.6) % 2 === 0) ? 0.95 : 0.28;
+        [-L.rwLeftHalf - 4, L.rwLeftHalf + 4].forEach(oy => {
+          const rg = ctx.createRadialGradient(rwStart.x, rwStart.y + oy, 0, rwStart.x, rwStart.y + oy, 5.5);
+          rg.addColorStop(0, `rgba(255, 255, 255, ${(reilPulse * pal.lightIntensity).toFixed(3)})`);
+          rg.addColorStop(1, "rgba(255, 255, 255, 0)");
+          ctx.fillStyle = rg;
+          ctx.beginPath();
+          ctx.arc(rwStart.x, rwStart.y + oy, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        for (let gi = -2; gi <= 2; gi++) {
+          const gPosY = rwStart.y + (gi / 2.2) * L.rwLeftHalf * 0.78;
+          ctx.fillStyle = `rgba(52, 211, 153, ${(0.88 * pal.lightIntensity).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(rwStart.x + 2, gPosY, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          const rPosY = rwEnd.y + (gi / 2.2) * L.rwRightHalf * 0.78;
+          ctx.fillStyle = `rgba(248, 113, 113, ${(0.88 * pal.lightIntensity).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(rwEnd.x - 2, rPosY, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // PAPI (Precision Approach Path Indicator): 4-light glideslope indicator box beside touchdown (2 white + 2 red!)
+        const papiPt = L.rwPt(0.14);
+        const papiY = papiPt.y - L.rwLeftHalf - 11;
+        [-7.5, -2.5, 2.5, 7.5].forEach((ox, pi) => {
+          const isWhitePapi = pi >= 2;
+          const rgb = isWhitePapi ? "255, 252, 240" : "248, 113, 113";
+          const pg = ctx.createRadialGradient(papiPt.x + ox, papiY, 0, papiPt.x + ox, papiY, 3.8);
+          pg.addColorStop(0, `rgba(${rgb}, ${(0.92 * pal.lightIntensity).toFixed(3)})`);
+          pg.addColorStop(1, `rgba(${rgb}, 0)`);
+          ctx.fillStyle = pg;
+          ctx.beginPath();
+          ctx.arc(papiPt.x + ox, papiY, 3.8, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // ICAO Runway Centerline Inset Lights (Crisp White -> Alternating Red/White past 68% -> Solid Red past 88%)
+        for (let ci = 1; ci <= 15; ci++) {
+          const cf = 0.05 + (ci / 16) * 0.90;
+          const cp = L.rwPt(cf);
+          const clRgb = cf > 0.88
+            ? "248, 113, 113"
+            : (cf > 0.68 && ci % 2 === 1 ? "248, 113, 113" : "255, 252, 240");
+          ctx.fillStyle = `rgba(${clRgb}, ${(0.76 * pal.lightIntensity).toFixed(3)})`;
+          ctx.beginPath();
+          ctx.arc(cp.x, cp.y, 1.25 + cf * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Apron High-Mast Floodlight Wash Pools across Star Terminal, Hangar & VAB Apron + VDGS Stand Lead-In Lights
+        [
+          { x: L.termX - 110 * L.termScale, y: L.termY + 34 * L.termScale, rx: 48 * L.termScale },
+          { x: L.termX, y: L.termY + 48 * L.termScale, rx: 56 * L.termScale },
+          { x: L.termX + 115 * L.termScale, y: L.termY + 34 * L.termScale, rx: 48 * L.termScale },
+          { x: L.hangarDoorX - 24, y: L.hangarDoorY + 12, rx: 42 },
+          { x: L.padX, y: L.padY + 10, rx: 38 }
+        ].forEach(fp => {
+          const fg = ctx.createRadialGradient(fp.x, fp.y, 2, fp.x, fp.y, fp.rx);
+          fg.addColorStop(0, `rgba(254, 240, 195, ${(0.18 * pal.lightIntensity).toFixed(3)})`);
+          fg.addColorStop(0.55, `rgba(254, 226, 150, ${(0.08 * pal.lightIntensity).toFixed(3)})`);
+          fg.addColorStop(1, "rgba(254, 226, 150, 0)");
+          ctx.fillStyle = fg;
+          ctx.beginPath();
+          ctx.ellipse(fp.x, fp.y, fp.rx, fp.rx * 0.38, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        if (L.gates) {
+          L.gates.forEach(gt => {
+            ctx.fillStyle = `rgba(52, 211, 153, ${(0.82 * pal.lightIntensity).toFixed(3)})`;
+            ctx.fillRect(gt.x - 2.5, gt.y - 4 * L.termScale, 5.0, 1.4);
+          });
+        }
+
+        // Coastal Viaduct Bridge & Peninsula Road Streetlamps
+        if (L.bridgeStart && L.bridgeCp && L.bridgeEnd) {
+          for (let bi = 1; bi <= 6; bi++) {
+            const bt = bi / 7;
+            const iv = 1 - bt;
+            const lx = iv * iv * L.bridgeStart.x + 2 * iv * bt * L.bridgeCp.x + bt * bt * L.bridgeEnd.x;
+            const ly = iv * iv * L.bridgeStart.y + 2 * iv * bt * L.bridgeCp.y + bt * bt * L.bridgeEnd.y;
+            const sg = ctx.createRadialGradient(lx, ly - 2, 0, lx, ly - 2, 7.5);
+            sg.addColorStop(0, `rgba(254, 234, 175, ${(0.62 * pal.lightIntensity).toFixed(3)})`);
+            sg.addColorStop(1, "rgba(254, 234, 175, 0)");
+            ctx.fillStyle = sg;
+            ctx.beginPath();
+            ctx.arc(lx, ly - 2, 7.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
         // Spaceport Taxiway Edge Blue Lights, Centerline Green Inset Lights & Amber Hold-Short Wig-Wags!
         const entryPt = L.rwPt(L.rwEntryT);
         const exitPt = L.rwPt(L.rwExitT);

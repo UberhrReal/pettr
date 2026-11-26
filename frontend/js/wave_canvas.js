@@ -1338,61 +1338,65 @@ const WaveCanvas = {
     const mode = opts.mode || this.getThemeMode();
     const dir = Math.random() < 0.62 ? 1 : -1;
     const baseY = h * (0.28 + Math.random() * 0.14);
-    const scaleBias = isNarrow ? 0.76 : 1.0;
+    const scaleBias = isNarrow ? 0.70 : 1.0;
 
     const specs = {
       swallow: {
-        count: isNarrow ? 9 : 13, baseSize: 15.5, duration: 7.4, flapSpeed: 7.8,
-        glideBias: 0.42, vSpreadX: 30, vSpreadY: 16, formation: "echelon"
+        count: isNarrow ? 11 : 18, baseSize: 22.0, duration: 7.6, flapSpeed: 7.4,
+        glideBias: 0.46, vSpreadX: 38, vSpreadY: 20, formation: "echelon"
       },
       crane: {
-        count: isNarrow ? 7 : 11, baseSize: 22.0, duration: 8.8, flapSpeed: 4.1,
-        glideBias: 0.25, vSpreadX: 44, vSpreadY: 22, formation: "v_form"
+        count: isNarrow ? 9 : 16, baseSize: 33.0, duration: 9.0, flapSpeed: 3.9,
+        glideBias: 0.28, vSpreadX: 56, vSpreadY: 28, formation: "v_form"
       },
       falcon: {
-        count: isNarrow ? 6 : 9, baseSize: 18.0, duration: 6.8, flapSpeed: 6.6,
-        glideBias: 0.68, vSpreadX: 36, vSpreadY: 18, formation: "echelon"
+        count: isNarrow ? 8 : 13, baseSize: 27.0, duration: 7.0, flapSpeed: 6.2,
+        glideBias: 0.72, vSpreadX: 46, vSpreadY: 23, formation: "echelon"
       },
       heron: {
-        count: isNarrow ? 5 : 8, baseSize: 24.0, duration: 9.2, flapSpeed: 3.3,
-        glideBias: 0.18, vSpreadX: 46, vSpreadY: 20, formation: "stagger"
+        count: isNarrow ? 7 : 12, baseSize: 35.0, duration: 9.4, flapSpeed: 3.1,
+        glideBias: 0.22, vSpreadX: 58, vSpreadY: 26, formation: "stagger"
       },
       albatross: {
-        count: isNarrow ? 4 : 7, baseSize: 23.0, duration: 9.4, flapSpeed: 2.6,
-        glideBias: 0.90, vSpreadX: 52, vSpreadY: 26, formation: "soar"
+        count: isNarrow ? 6 : 11, baseSize: 34.0, duration: 9.6, flapSpeed: 2.5,
+        glideBias: 0.92, vSpreadX: 68, vSpreadY: 32, formation: "soar"
       },
       starling: {
-        count: isNarrow ? 12 : 22, baseSize: 11.2, duration: 7.8, flapSpeed: 9.4,
-        glideBias: 0.20, vSpreadX: 18, vSpreadY: 16, formation: "murmuration"
+        count: isNarrow ? 18 : 38, baseSize: 15.5, duration: 8.2, flapSpeed: 9.0,
+        glideBias: 0.24, vSpreadX: 24, vSpreadY: 21, formation: "murmuration"
       }
     };
     const cfg = specs[species] || specs.crane;
 
     const birds = Array.from({ length: cfg.count }, (_, idx) => {
-      const layer = idx % 3;
-      const depth = 0.58 + layer * 0.23;
+      const layer = idx % 4;
+      const depth = 0.50 + layer * 0.21 + (Math.random() - 0.5) * 0.08;
       const arm = idx % 2 === 0 ? -1 : 1;
       const rank = Math.ceil(idx / 2);
+      const jitX = (Math.random() - 0.5) * 18;
+      const jitY = (Math.random() - 0.5) * 14;
       let offX = 0;
       let offY = 0;
       if (cfg.formation === "v_form") {
-        offX = -dir * rank * cfg.vSpreadX * (isNarrow ? 0.68 : 1);
-        offY = arm * rank * cfg.vSpreadY * (isNarrow ? 0.72 : 1);
+        // Slightly asymmetric natural V-echelon formation (one V-arm often longer than the other!)
+        const asym = arm > 0 ? 1.0 : 0.86;
+        offX = -dir * rank * cfg.vSpreadX * asym * (isNarrow ? 0.64 : 1) + jitX * 0.65;
+        offY = arm * rank * cfg.vSpreadY * asym * (isNarrow ? 0.68 : 1) + jitY * 0.55;
       } else if (cfg.formation === "echelon") {
-        offX = -dir * idx * (cfg.vSpreadX * 0.76) * (isNarrow ? 0.68 : 1);
-        offY = (idx * 13 - cfg.count * 5.5) * (isNarrow ? 0.75 : 1);
+        offX = -dir * idx * (cfg.vSpreadX * 0.72) * (isNarrow ? 0.64 : 1) + jitX;
+        offY = (idx * 15 - cfg.count * 6.5) * (isNarrow ? 0.70 : 1) + jitY;
       } else if (cfg.formation === "stagger") {
-        offX = -dir * idx * (cfg.vSpreadX * 0.85) * (isNarrow ? 0.65 : 1);
-        offY = arm * (10 + rank * 14) * (isNarrow ? 0.70 : 1);
+        offX = -dir * idx * (cfg.vSpreadX * 0.80) * (isNarrow ? 0.62 : 1) + jitX;
+        offY = arm * (12 + rank * 16) * (isNarrow ? 0.68 : 1) + jitY;
       } else if (cfg.formation === "soar") {
-        offX = -dir * rank * cfg.vSpreadX * (isNarrow ? 0.72 : 1) + (Math.random() - 0.5) * 26;
-        offY = arm * (18 + rank * 24) * (isNarrow ? 0.72 : 1);
+        offX = -dir * rank * cfg.vSpreadX * (isNarrow ? 0.66 : 1) + (Math.random() - 0.5) * 38;
+        offY = arm * (20 + rank * 28) * (isNarrow ? 0.68 : 1) + jitY;
       } else {
-        // Murmuration cluster
-        const col = idx % 6;
-        const row = Math.floor(idx / 6);
-        offX = -dir * (col - 2.5) * (cfg.vSpreadX * 1.45) + (Math.random() - 0.5) * 18;
-        offY = (row - 1.5) * (cfg.vSpreadY * 1.65) + (Math.random() - 0.5) * 20;
+        // Dense organic swirling starling murmuration cloud
+        const col = idx % 8;
+        const row = Math.floor(idx / 8);
+        offX = -dir * (col - 3.5) * (cfg.vSpreadX * 1.48) + (Math.random() - 0.5) * 26;
+        offY = (row - 2.0) * (cfg.vSpreadY * 1.65) + (Math.random() - 0.5) * 24;
       }
 
       return {
@@ -1401,11 +1405,13 @@ const WaveCanvas = {
         size: cfg.baseSize * scaleBias * depth,
         offX,
         offY,
-        flapPhase: idx * (species === "starling" ? 0.48 : 0.72) + Math.random() * 0.6,
-        flapSpeed: cfg.flapSpeed * (0.92 + Math.random() * 0.16),
+        flapPhase: idx * (species === "starling" ? 0.44 : 0.76) + Math.random() * 0.8,
+        flapSpeed: cfg.flapSpeed * (0.90 + Math.random() * 0.20),
         gliderBias: cfg.glideBias,
         indivPhase: Math.random() * Math.PI * 2,
-        murmFreq: 2.2 + (idx % 5) * 0.45
+        murmFreq: 2.1 + (idx % 6) * 0.42,
+        burstRate: 0.75 + (idx % 4) * 0.22,
+        burstOffset: idx * 1.37
       };
     });
 
@@ -1550,67 +1556,94 @@ const WaveCanvas = {
       ctx.restore();
     }
 
-    // Depth-sorted rendering (far -> near) with 2-segment articulated wings & detailed anatomical markings
+    // Depth-sorted rendering (far -> near) with local tangent banking, intermittent flap-glide cadence & layered feather anatomy
     const sorted = ph.birds.slice().sort((a, b) => a.depth - b.depth);
     sorted.forEach((b) => {
-      let mx = 0;
-      let my = Math.sin(ph.elapsed * 0.9 + b.indivPhase) * 4.5 * b.depth;
-      if (species === "starling") {
-        mx = Math.sin(p * Math.PI * b.murmFreq + b.indivPhase) * (isNarrow ? 26 : 46);
-        my = Math.cos(p * Math.PI * (b.murmFreq * 0.85) + b.indivPhase) * (isNarrow ? 22 : 38);
-      }
+      const evalBirdPos = (u) => {
+        const fc = evalFlockCenter(u);
+        const pv = (u > 0.30 && u < 0.72) ? Math.sin(this._smooth5((u - 0.30) / 0.42) * Math.PI) : 0;
+        const stp = (species === "falcon" && u > 0.36 && u < 0.66) ? Math.sin(this._smooth5((u - 0.36) / 0.30) * Math.PI) : 0;
+        const el = u * ph.duration;
+        let mx = 0;
+        let my = Math.sin(el * 0.9 + b.indivPhase) * 5.0 * b.depth;
+        if (species === "starling") {
+          mx = Math.sin(u * Math.PI * b.murmFreq + b.indivPhase) * (isNarrow ? 34 : 62);
+          my = Math.cos(u * Math.PI * (b.murmFreq * 0.85) + b.indivPhase) * (isNarrow ? 26 : 48);
+        }
+        return {
+          x: fc.x + b.offX * (1 - pv * 0.18) + mx,
+          y: fc.y + b.offY + my - pv * 26 * b.depth + stp * 40 * b.depth,
+          pv,
+          stp
+        };
+      };
 
-      const bx = cNow.x + b.offX * (1 - pivotT * 0.22) + mx;
-      const by = cNow.y + b.offY + my - pivotT * 24 * b.depth + falconStoop * 36 * b.depth;
-      const glideFactor = 1 - Math.max(pivotT * b.gliderBias, falconStoop * 0.92);
+      const posNow = evalBirdPos(p);
+      const posNext = evalBirdPos(Math.min(1, p + 0.005));
+      const posPrev = evalBirdPos(Math.max(0, p - 0.005));
+      const localAngle = Math.atan2(posNext.y - posPrev.y, posNext.x - posPrev.x);
+      const bx = posNow.x;
+      const by = posNow.y;
+      const localPivot = posNow.pv;
+      const localStoop = posNow.stp;
+
+      // Natural intermittent flap-burst vs soaring glide cadence per bird
+      const burstWave = 0.5 + 0.5 * Math.sin(ph.elapsed * (b.burstRate || 0.85) + (b.burstOffset || 0));
+      const flapBurst = species === "albatross"
+        ? (0.18 + 0.82 * Math.pow(burstWave, 2.2))
+        : (0.42 + 0.58 * burstWave);
+      const glideFactor = (1 - Math.max(localPivot * b.gliderBias, localStoop * 0.90)) * flapBurst;
       const wingPhase = b.flapPhase + ph.elapsed * b.flapSpeed;
       const flapInner = Math.sin(wingPhase) * glideFactor;
-      const flapOuter = Math.sin(wingPhase - 0.56) * glideFactor; // Realistic wrist-to-primary feather phase lag!
+      const flapOuter = Math.sin(wingPhase - 0.58) * glideFactor; // Realistic wrist-to-primary feather phase lag!
 
       const sz = b.size;
-      const pitchShift = falconStoop * 0.24 - pivotT * 0.14;
-      const facingAngle = (dir > 0 ? baseFlightAngle : (Math.PI - baseFlightAngle)) + pitchShift;
+      const rotLocal = dir > 0 ? localAngle : (-localAngle + Math.PI);
 
       ctx.save();
-      ctx.globalAlpha = env * (0.56 + b.depth * 0.42);
+      ctx.globalAlpha = env * (0.54 + b.depth * 0.44);
       ctx.translate(bx, by);
       if (dir < 0) ctx.scale(-1, 1);
-      ctx.rotate(dir > 0 ? facingAngle : (baseFlightAngle - Math.PI) * -1 - pitchShift);
+      ctx.rotate(Math.max(-0.58, Math.min(0.58, rotLocal)));
 
       // Subtle trailing wingtip thermal vortex whisper (desktop near-layer birds)
-      if (!isNarrow && b.depth > 0.78 && (species === "albatross" || species === "crane" || species === "falcon")) {
-        ctx.strokeStyle = `rgba(${pal.ribbon}, ${(env * 0.16).toFixed(3)})`;
-        ctx.lineWidth = 0.8;
+      if (!isNarrow && b.depth > 0.78 && (species === "albatross" || species === "crane" || species === "falcon" || species === "heron")) {
+        ctx.strokeStyle = `rgba(${pal.ribbon}, ${(env * 0.17).toFixed(3)})`;
+        ctx.lineWidth = 0.85;
         ctx.beginPath();
         ctx.moveTo(-sz * 0.9, -sz * (0.45 * flapOuter + 0.1));
-        ctx.quadraticCurveTo(-sz * 1.6, -sz * 0.12, -sz * 2.1, -sz * 0.04);
+        ctx.quadraticCurveTo(-sz * 1.6, -sz * 0.12, -sz * 2.2, -sz * 0.04);
         ctx.stroke();
       }
 
-      const spanMult = species === "albatross" ? 1.48 : (species === "crane" || species === "heron" ? 1.24 : (species === "falcon" ? 1.12 : 1.0));
-      const tucked = species === "falcon" ? (1 - falconStoop * 0.55) : 1;
+      const spanMult = species === "albatross" ? 1.54 : (species === "crane" || species === "heron" ? 1.28 : (species === "falcon" ? 1.14 : 1.04));
+      const tucked = species === "falcon" ? (1 - localStoop * 0.52) : 1;
       const farElbX = -sz * 0.16 * tucked;
-      const farElbY = -sz * (0.28 * flapInner + 0.22);
-      const farTipX = -sz * (0.78 * spanMult) * tucked;
-      const farTipY = farElbY - sz * (0.20 * flapOuter + 0.06);
+      const farElbY = -sz * (0.30 * flapInner + 0.22);
+      const farTipX = -sz * (0.80 * spanMult) * tucked;
+      const farTipY = farElbY - sz * (0.22 * flapOuter + 0.06);
 
       const nearElbX = -sz * 0.12 * tucked;
-      const nearElbY = -sz * (0.42 * flapInner + 0.16);
-      const nearTipX = -sz * (0.94 * spanMult) * tucked;
-      const nearTipY = nearElbY - sz * (0.34 * flapOuter + 0.08);
+      const nearElbY = -sz * (0.44 * flapInner + 0.16);
+      const nearTipX = -sz * (0.98 * spanMult) * tucked;
+      const nearTipY = nearElbY - sz * (0.36 * flapOuter + 0.08);
 
-      // 1. Far Articulated Wing (shaded interior depth)
+      // 1. Far Articulated Wing (shaded interior depth + secondary trailing covert contour)
       ctx.fillStyle = pal.tip;
       ctx.beginPath();
-      ctx.moveTo(sz * 0.14, -sz * 0.04);
+      ctx.moveTo(sz * 0.15, -sz * 0.04);
       ctx.quadraticCurveTo(sz * 0.02, farElbY * 0.72, farElbX, farElbY);
       ctx.lineTo(farTipX, farTipY);
-      ctx.quadraticCurveTo(farElbX * 0.9, farElbY * 0.42, -sz * 0.12, sz * 0.02);
+      ctx.quadraticCurveTo(farElbX * 0.88, farElbY * 0.40, -sz * 0.13, sz * 0.02);
       ctx.closePath();
       ctx.fill();
 
-      // 2. Anatomical Body, Neck/Head & Tail per Bird Species
-      ctx.fillStyle = pal.dorsal;
+      // 2. Anatomical Body with Sunlit Dorsal-to-Ventral Shading, Head/Eye/Beak & Tail Feathers
+      const bodyGrad = ctx.createLinearGradient(0, -sz * 0.18, 0, sz * 0.18);
+      bodyGrad.addColorStop(0, pal.dorsal);
+      bodyGrad.addColorStop(0.65, pal.dorsal);
+      bodyGrad.addColorStop(1, pal.ventral);
+      ctx.fillStyle = bodyGrad;
       ctx.strokeStyle = pal.rim;
       ctx.lineWidth = Math.max(0.65, 0.95 * b.depth);
 
@@ -1621,8 +1654,8 @@ const WaveCanvas = {
         ctx.lineTo(sz * 0.76, -sz * 0.08);
         ctx.quadraticCurveTo(sz * 0.42, -sz * 0.11, sz * 0.24, -sz * 0.13);
         ctx.quadraticCurveTo(0, -sz * 0.15, -sz * 0.34, -sz * 0.06);
-        ctx.lineTo(-sz * 0.48, -sz * 0.09);
-        ctx.lineTo(-sz * 0.42, sz * 0.08);
+        ctx.lineTo(-sz * 0.50, -sz * 0.10);
+        ctx.lineTo(-sz * 0.43, sz * 0.08);
         ctx.quadraticCurveTo(0, sz * 0.14, sz * 0.26, sz * 0.06);
         ctx.quadraticCurveTo(sz * 0.56, -sz * 0.02, sz * 0.76, -sz * 0.03);
         ctx.closePath();
@@ -1634,26 +1667,30 @@ const WaveCanvas = {
         ctx.lineWidth = Math.max(0.7, 0.9 * b.depth);
         ctx.beginPath();
         ctx.moveTo(-sz * 0.28, sz * 0.05);
-        ctx.lineTo(-sz * 0.84, sz * 0.12);
+        ctx.lineTo(-sz * 0.86, sz * 0.12);
         ctx.moveTo(-sz * 0.28, sz * 0.08);
-        ctx.lineTo(-sz * 0.80, sz * 0.18);
+        ctx.lineTo(-sz * 0.82, sz * 0.18);
         ctx.stroke();
 
-        // Characteristic ruby crane crown spot
+        // Characteristic ruby crane crown spot & eye
         ctx.fillStyle = pal.crest;
         ctx.beginPath();
-        ctx.arc(sz * 0.76, -sz * 0.065, Math.max(0.8, sz * 0.034), 0, Math.PI * 2);
+        ctx.arc(sz * 0.76, -sz * 0.065, Math.max(0.9, sz * 0.034), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#0F172A";
+        ctx.beginPath();
+        ctx.arc(sz * 0.78, -sz * 0.05, Math.max(0.65, sz * 0.020), 0, Math.PI * 2);
         ctx.fill();
       } else if (species === "heron") {
         // S-curved retracted heron neck + long dagger bill + trailing stilts!
         ctx.beginPath();
-        ctx.moveTo(sz * 0.64, -sz * 0.08); // Bill tip
+        ctx.moveTo(sz * 0.66, -sz * 0.08); // Bill tip
         ctx.lineTo(sz * 0.36, -sz * 0.14);
         ctx.bezierCurveTo(sz * 0.14, -sz * 0.02, sz * 0.30, -sz * 0.20, sz * 0.04, -sz * 0.16);
         ctx.quadraticCurveTo(-sz * 0.20, -sz * 0.14, -sz * 0.42, -sz * 0.04);
-        ctx.lineTo(-sz * 0.46, sz * 0.08);
+        ctx.lineTo(-sz * 0.48, sz * 0.08);
         ctx.quadraticCurveTo(0, sz * 0.16, sz * 0.26, sz * 0.04);
-        ctx.quadraticCurveTo(sz * 0.34, -sz * 0.04, sz * 0.64, -sz * 0.08);
+        ctx.quadraticCurveTo(sz * 0.34, -sz * 0.04, sz * 0.66, -sz * 0.08);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -1662,23 +1699,29 @@ const WaveCanvas = {
         ctx.lineWidth = Math.max(0.75, 0.95 * b.depth);
         ctx.beginPath();
         ctx.moveTo(-sz * 0.30, sz * 0.04);
-        ctx.lineTo(-sz * 0.88, sz * 0.10);
+        ctx.lineTo(-sz * 0.90, sz * 0.10);
+        ctx.stroke();
+
+        // Sweeping heron occipital plume feather & dark eye
+        ctx.strokeStyle = pal.tip;
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.26, -sz * 0.14);
+        ctx.lineTo(sz * 0.10, -sz * 0.19);
         ctx.stroke();
       } else if (species === "swallow") {
         // Glossy dorsal torso + deeply forked swallow streamers + warm chestnut throat!
         ctx.beginPath();
         ctx.moveTo(sz * 0.48, -sz * 0.01);
         ctx.quadraticCurveTo(sz * 0.18, -sz * 0.15, -sz * 0.26, -sz * 0.05);
-        ctx.lineTo(-sz * 0.78, -sz * 0.21); // Long upper fork streamer
+        ctx.lineTo(-sz * 0.80, -sz * 0.22); // Long upper fork streamer
         ctx.lineTo(-sz * 0.46, 0);
-        ctx.lineTo(-sz * 0.78, sz * 0.20);  // Long lower fork streamer
+        ctx.lineTo(-sz * 0.80, sz * 0.21);  // Long lower fork streamer
         ctx.lineTo(-sz * 0.26, sz * 0.06);
         ctx.quadraticCurveTo(sz * 0.18, sz * 0.13, sz * 0.48, -sz * 0.01);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // Warm chestnut-rust gorget & pale chest wash
         ctx.fillStyle = pal.ventral;
         ctx.beginPath();
         ctx.ellipse(sz * 0.04, sz * 0.05, sz * 0.22, sz * 0.065, 0, 0, Math.PI * 2);
@@ -1693,8 +1736,8 @@ const WaveCanvas = {
         ctx.moveTo(sz * 0.50, -sz * 0.02);
         ctx.quadraticCurveTo(sz * 0.38, -sz * 0.14, sz * 0.12, -sz * 0.15);
         ctx.quadraticCurveTo(-sz * 0.16, -sz * 0.11, -sz * 0.38, -sz * 0.05);
-        ctx.lineTo(-sz * 0.68, -sz * 0.11);
-        ctx.lineTo(-sz * 0.68, sz * 0.11);
+        ctx.lineTo(-sz * 0.70, -sz * 0.12);
+        ctx.lineTo(-sz * 0.68, sz * 0.12);
         ctx.lineTo(-sz * 0.38, sz * 0.06);
         ctx.quadraticCurveTo(sz * 0.12, sz * 0.15, sz * 0.50, -sz * 0.02);
         ctx.closePath();
@@ -1705,15 +1748,20 @@ const WaveCanvas = {
         ctx.beginPath();
         ctx.ellipse(sz * 0.04, sz * 0.06, sz * 0.24, sz * 0.065, 0, 0, Math.PI * 2);
         ctx.fill();
-      } else {
-        // Streamlined Albatross / Starling body with distinct pale underbelly
+        // Falcon malar mustache bar
+        ctx.fillStyle = pal.tip;
         ctx.beginPath();
-        ctx.moveTo(sz * 0.54, 0);
+        ctx.arc(sz * 0.34, 0, Math.max(0.8, sz * 0.038), 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Streamlined Albatross / Starling body with distinct pale underbelly & clean sculpted tail fan
+        ctx.beginPath();
+        ctx.moveTo(sz * 0.56, 0);
         ctx.quadraticCurveTo(sz * 0.16, -sz * 0.14, -sz * 0.34, -sz * 0.05);
-        ctx.lineTo(-sz * 0.56, -sz * 0.09);
-        ctx.lineTo(-sz * 0.54, sz * 0.09);
+        ctx.lineTo(-sz * 0.58, -sz * 0.10);
+        ctx.lineTo(-sz * 0.56, sz * 0.10);
         ctx.lineTo(-sz * 0.34, sz * 0.06);
-        ctx.quadraticCurveTo(sz * 0.16, sz * 0.13, sz * 0.54, 0);
+        ctx.quadraticCurveTo(sz * 0.16, sz * 0.13, sz * 0.56, 0);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -1726,32 +1774,47 @@ const WaveCanvas = {
         }
       }
 
-      // 3. Near Articulated Two-Segment Wing (inner shoulder wing + flexed primary feather tip!)
-      ctx.fillStyle = species === "albatross" ? pal.ventral : pal.dorsal;
+      // 3. Near Articulated Two-Segment Wing + Inner Covert Feather Layer + 4-5 Slotted Primaries!
+      const wingGrad = ctx.createLinearGradient(0, nearElbY, 0, nearTipY);
+      wingGrad.addColorStop(0, species === "albatross" ? pal.ventral : pal.dorsal);
+      wingGrad.addColorStop(1, species === "starling" ? pal.dorsal : pal.accent);
+      ctx.fillStyle = wingGrad;
       ctx.beginPath();
-      ctx.moveTo(sz * 0.18, 0);
+      ctx.moveTo(sz * 0.19, 0);
       ctx.quadraticCurveTo(sz * 0.05, nearElbY * 0.72, nearElbX, nearElbY);
       ctx.quadraticCurveTo((nearElbX + nearTipX) * 0.5, (nearElbY + nearTipY) * 0.55 - sz * 0.04, nearTipX, nearTipY);
-      // Slotted primary feather tips for Cranes & Falcons
-      if (species === "crane" || species === "falcon") {
-        ctx.lineTo(nearTipX + sz * 0.09, nearTipY + sz * 0.10);
-        ctx.lineTo(nearTipX + sz * 0.02, nearTipY + sz * 0.13);
-        ctx.lineTo(nearTipX + sz * 0.12, nearTipY + sz * 0.18);
+      if (species === "crane" || species === "falcon" || species === "heron" || species === "albatross") {
+        // 4 distinctly fingered primary wingtip feathers!
+        for (let pf = 0; pf < 4; pf++) {
+          const stepT = (pf + 1) / 4.2;
+          ctx.lineTo(nearTipX + sz * (0.04 + stepT * 0.10), nearTipY + sz * (0.04 + pf * 0.045));
+          ctx.lineTo(nearTipX + sz * (0.01 + stepT * 0.04), nearTipY + sz * (0.065 + pf * 0.042));
+        }
       }
-      ctx.quadraticCurveTo(nearElbX * 0.92, nearElbY * 0.36 + sz * 0.08, -sz * 0.16, sz * 0.07);
+      ctx.quadraticCurveTo(nearElbX * 0.90, nearElbY * 0.36 + sz * 0.08, -sz * 0.17, sz * 0.07);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = pal.rim;
       ctx.lineWidth = Math.max(0.65, 0.95 * b.depth);
       ctx.stroke();
 
-      // Dark outer primary wingtip trim on Crane / Albatross
-      if (species === "crane" || species === "albatross") {
+      // Secondary covert feather ridge shading along upper wing cambered arc
+      ctx.strokeStyle = pal.tip;
+      ctx.globalAlpha = env * 0.28;
+      ctx.lineWidth = Math.max(0.6, 0.85 * b.depth);
+      ctx.beginPath();
+      ctx.moveTo(sz * 0.08, nearElbY * 0.35);
+      ctx.quadraticCurveTo(nearElbX * 0.8, nearElbY * 0.75, nearTipX * 0.55 + nearElbX * 0.45, nearTipY * 0.48 + nearElbY * 0.52 + sz * 0.05);
+      ctx.stroke();
+      ctx.globalAlpha = env * (0.54 + b.depth * 0.44);
+
+      // Dark outer primary wingtip trim on Crane / Albatross / Heron
+      if (species === "crane" || species === "albatross" || species === "heron") {
         ctx.fillStyle = pal.tip;
         ctx.beginPath();
         ctx.moveTo(nearElbX * 0.6 + nearTipX * 0.4, nearElbY * 0.6 + nearTipY * 0.4);
         ctx.lineTo(nearTipX, nearTipY);
-        ctx.lineTo(nearTipX + sz * 0.11, nearTipY + sz * 0.16);
+        ctx.lineTo(nearTipX + sz * 0.12, nearTipY + sz * 0.17);
         ctx.lineTo(nearElbX * 0.55 + nearTipX * 0.45, nearElbY * 0.4 + nearTipY * 0.45 + sz * 0.10);
         ctx.closePath();
         ctx.fill();
