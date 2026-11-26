@@ -484,6 +484,13 @@ const App = {
       HoraceChat.close();
     }
     document.body.classList.add("scenic-hidden-mode");
+    if (typeof HolidayThemes !== "undefined") {
+      try {
+        HolidayThemes.clearDashboardLayer?.();
+        HolidayThemes.dismissHolidayFactPopup?.();
+        HolidayThemes.clearCelebrationCanvas?.();
+      } catch (_) {}
+    }
     const restoreBar = document.getElementById("scenicRestoreBar");
     if (restoreBar) restoreBar.style.display = "flex";
     this.syncWorldSelectorUI();
@@ -518,6 +525,9 @@ const App = {
         }
       }
       FocusCockpit.updateMiniDisplays();
+    }
+    if (typeof WaveCanvas !== "undefined" && WaveCanvas.ctx) {
+      try { WaveCanvas.draw(0.016); } catch (_) {}
     }
     this.haptic("light");
   },

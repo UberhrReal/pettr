@@ -219,6 +219,8 @@ const HolidayThemes = {
   _surfaceBurstTimer: 0.6,
   _factIndexByHoliday: {},
   _factDismissTimer: null,
+  _dashboardCanvas: null,
+  _dashStep: 0,
   _celebrationCanvas: null,
   _celebrationRaf: null,
   _celebrationState: null,
@@ -262,6 +264,7 @@ const HolidayThemes = {
     this._surfaceBursts = [];
     const active = this.getActiveHoliday();
     if (!active) {
+      this.clearDashboardLayer();
       this.dismissHolidayFactPopup();
       this.clearCelebrationCanvas();
     }
@@ -271,6 +274,8 @@ const HolidayThemes = {
     }
     if (typeof WaveCanvas !== "undefined" && WaveCanvas.ctx) {
       try { WaveCanvas.draw(0.016); } catch (_) {}
+    } else if (active) {
+      this.renderDashboardLayer(0.016, "light", this._dashStep || 0);
     }
   },
 
@@ -1722,6 +1727,121 @@ const HolidayThemes = {
       }
     };
     this._celebrationRaf = requestAnimationFrame(tick);
+  },
+
+  clearDashboardLayer() {
+    const canvas = this._dashboardCanvas || document.getElementById("dashboardHolidayCanvas");
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = "none";
+    }
+  },
+
+  renderDashboardLayer(dt = 0.016, mode = "light", step = 0) {
+    this._dashStep = step || (this._dashStep + dt);
+    const body = document.body;
+    const isHidden = Boolean(
+      (body && (body.classList.contains("scenic-hidden-mode") || body.classList.contains("cockpit-active"))) ||
+      (typeof App !== "undefined" && App.isScenicMode)
+    );
+    const hol = this.getActiveHoliday();
+    if (isHidden || !hol || !hol.id) {
+      this.clearDashboardLayer();
+      return false;
+    }
+
+    let canvas = this._dashboardCanvas || document.getElementById("dashboardHolidayCanvas");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+      canvas.id = "dashboardHolidayCanvas";
+      canvas.className = "dashboard-holiday-canvas";
+      canvas.setAttribute("aria-hidden", "true");
+      const frost = document.getElementById("universalBackdropFrost");
+      if (frost && frost.parentNode) {
+        frost.parentNode.insertBefore(canvas, frost.nextSibling);
+      } else if (body) {
+        body.appendChild(canvas);
+      }
+    }
+    this._dashboardCanvas = canvas;
+
+    const w = window.innerWidth || 1440;
+    const h = window.innerHeight || 900;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const targetW = Math.max(1, Math.round(w * dpr));
+    const targetH = Math.max(1, Math.round(h * dpr));
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+    canvas.style.display = "block";
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const isDark = mode === "dark" || mode === "evening";
+    const fam = hol.family;
+    ctx.save();
+    this._drawSeasonalAtmosphere(ctx, w, h, hol, isDark);
+
+    // Dashboard-framed holiday lights, lanterns, sleigh/bats/diyas & gentle ambient particles
+    if (fam === "thanksgiving") {
+      const harvestCols = ["234, 88, 12", "245, 158, 11", "220, 38, 38", "253, 224, 71"];
+      this._drawLightGarland(ctx, w * 0.02, 4, w * 0.30, 8, 13, 8, step, harvestCols);
+      this._drawLightGarland(ctx, w * 0.70, 8, w * 0.98, 4, 13, 8, step + 1.2, harvestCols);
+      this._drawDiyaRow(ctx, [0.06, 0.94].map(f => ({ x: w * f, y: h - 10 })), step, 0.86);
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+    } else if (fam === "christmas") {
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._drawLightGarland(ctx, w * 0.03, 4, w * 0.97, 4, 11, w < 720 ? 10 : 18, step, ["239, 68, 68", "52, 211, 153", "250, 204, 21"]);
+      this._drawSantaSleighSilhouette(ctx, w, Math.min(h, 460), dt, step);
+    } else if (fam === "lantern") {
+      this._drawLightGarland(ctx, w * 0.03, 4, w * 0.97, 4, 11, w < 720 ? 8 : 14, step, ["239, 68, 68", "250, 204, 21"], { lanterns: true });
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._updateFireworks(ctx, w, h * 0.52, hol, dt, null);
+    } else if (fam === "diwali") {
+      const diyaSpots = [0.08, 0.22, 0.78, 0.92].map(f => ({ x: w * f, y: h - 10 }));
+      this._drawDiyaRow(ctx, diyaSpots, step, w < 720 ? 0.85 : 1.05);
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+      this._updateFireworks(ctx, w, h * 0.52, hol, dt, null);
+    } else if (fam === "new_year" || fam === "national_day") {
+      this._updateFireworks(ctx, w, h * 0.52, hol, dt, null);
+    } else if (fam === "halloween" || fam === "mid_autumn") {
+      this._drawMoonAndBats(ctx, w, h, hol, dt, step, w * 0.92, h * 0.14, w < 720 ? 18 : 26);
+      if (fam === "halloween") {
+        this._drawJackOLanterns(ctx, [{ x: w * 0.05, y: h - 14 }, { x: w * 0.95, y: h - 14 }], step, 1.10);
+      }
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+    } else {
+      if (fam === "st_patricks") {
+        ctx.save();
+        ctx.globalAlpha = isDark ? 0.14 : 0.10;
+        const arcR = Math.min(w * 0.34, 300);
+        const arcCols = ["#EF4444", "#F59E0B", "#10B981", "#38BDF8", "#8B5CF6"];
+        arcCols.forEach((c, idx) => {
+          ctx.strokeStyle = c;
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.arc(w * 0.84, h * 0.32, arcR - idx * 4.2, Math.PI * 1.08, Math.PI * 1.92);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+      this._ensureParticles(hol, w, h, dt);
+      this._drawSnowflakesAndParticles(ctx, hol, isDark);
+    }
+    ctx.restore();
+    return true;
   },
 
   triggerCelebration(holiday) {

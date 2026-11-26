@@ -573,6 +573,34 @@ const WorldGateway = {
       return rwLeftHalf + (rwRightHalf - rwLeftHalf) * t;
     };
 
+    // Exact Canonical Northern & Southern Peninsula Shorelines (optimised smooth NE cape above ATC/Hangar!)
+    const northShorePts = isNarrow
+      ? [
+          { x: -12, y: islandTopY + 18 },
+          { x: w * 0.38, y: islandTopY + 4 },
+          { x: w + 16, y: islandTopY + 22 }
+        ]
+      : [
+          { x: w * 0.072, y: islandTopY + 44 },
+          { x: w * 0.145, y: islandTopY + 6 },
+          { x: w * 0.695, y: islandTopY + 5 },
+          { x: w * 0.865, y: islandTopY + 8 },
+          { x: w * 0.942, y: islandTopY + 28 },
+          { x: w + 20, y: islandTopY + 66 }
+        ];
+    const northShoreYAtX = (x) => {
+      if (x <= northShorePts[0].x) return northShorePts[0].y;
+      for (let i = 0; i < northShorePts.length - 1; i++) {
+        const a = northShorePts[i];
+        const b = northShorePts[i + 1];
+        if (x <= b.x) {
+          const f = (x - a.x) / Math.max(1, b.x - a.x);
+          return a.y + (b.y - a.y) * f;
+        }
+      }
+      return northShorePts[northShorePts.length - 1].y;
+    };
+
     // Exact Piecewise Southern Peninsula Shoreline (Seaport wharf shifted strictly South-West of Extended Runway!)
     const shorePts = isNarrow
       ? [
@@ -674,7 +702,7 @@ const WorldGateway = {
 
     return {
       isNarrow, horizonY, islandTopY, islandBotY, spanY,
-      shorePts, portWallA, portWallB, shoreYAtX, abutX, abutY, bridgeStart, bridgeCp, bridgeEnd, bridgeUx, bridgeUy, interchangeSplit,
+      northShorePts, northShoreYAtX, shorePts, portWallA, portWallB, shoreYAtX, abutX, abutY, bridgeStart, bridgeCp, bridgeEnd, bridgeUx, bridgeUy, interchangeSplit,
       padX, padY, towerH, towerW, towerLeftX, towerRightX,
       vabX, vabY, vabW, vabH,
       hifX, hifY, hifW, hifH, hifDoorX, hifDoorY,
@@ -996,37 +1024,33 @@ const WorldGateway = {
 
     // 4. Compact Sleeker Spaceport Peninsula Headland + Clean Continuous Coastal Seawall (Generous Water Left & South!)
     ctx.save();
-    ctx.beginPath();
-    if (L.isNarrow) {
-      ctx.moveTo(-12, L.islandTopY + 18);
-      ctx.lineTo(w * 0.35, L.islandTopY + 4);
-      ctx.lineTo(w + 16, L.islandTopY + 22);
-    } else {
-      ctx.moveTo(w * 0.072, L.islandTopY + 44);
-      ctx.lineTo(w * 0.16, L.islandTopY + 4);
-      ctx.lineTo(w * 0.72, L.islandTopY + 5);
-      ctx.lineTo(w + 20, L.islandTopY + 36);
-    }
-    for (let si = L.shorePts.length - 1; si >= 0; si--) {
-      ctx.lineTo(L.shorePts[si].x, L.shorePts[si].y);
-    }
-    ctx.closePath();
+    this._tracePeninsulaPath(ctx, L, 0);
     const landG = ctx.createLinearGradient(0, L.islandTopY, 0, L.islandBotY + 54);
     landG.addColorStop(0, pal.landBase);
     landG.addColorStop(1, pal.landShade);
     ctx.fillStyle = landG;
     ctx.fill();
 
-    // Subtle paved tarmac apron zones covering terminal, satellites & hangar stands (trimmed cleanly to compact peninsula)
+    // Subtle crisp northern coastal bulkhead rim along northShorePts
+    ctx.strokeStyle = pal.archMid;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    L.northShorePts.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // Subtle paved tarmac apron zones clipped STRICTLY inside peninsula coastline!
+    ctx.save();
+    this._tracePeninsulaPath(ctx, L, 5);
+    ctx.clip();
     ctx.beginPath();
     if (L.isNarrow) {
-      ctx.moveTo(w * 0.10, L.islandTopY + 18);
-      ctx.lineTo(w * 0.96, L.islandTopY + 18);
+      ctx.moveTo(w * 0.10, L.northShoreYAtX(w * 0.10) + 12);
+      ctx.lineTo(w * 0.96, L.northShoreYAtX(w * 0.96) + 12);
       ctx.lineTo(w * 0.96, L.rwYAtX(w * 0.90) - L.rwHalfAtX(w * 0.90) - 6);
       ctx.lineTo(w * 0.10, L.rwYAtX(w * 0.12) - L.rwHalfAtX(w * 0.12) - 6);
     } else {
-      ctx.moveTo(w * 0.24, L.islandTopY + 14);
-      ctx.lineTo(w * 0.89, L.islandTopY + 16);
+      ctx.moveTo(w * 0.24, L.northShoreYAtX(w * 0.24) + 10);
+      ctx.lineTo(w * 0.89, L.northShoreYAtX(w * 0.89) + 10);
       ctx.lineTo(w * 0.92, L.termY + 68 * L.termScale);
       ctx.lineTo(w * 0.21, L.termY + 56 * L.termScale);
     }
@@ -1034,6 +1058,7 @@ const WorldGateway = {
     ctx.fillStyle = pal.apronFill;
     ctx.globalAlpha = 0.56;
     ctx.fill();
+    ctx.restore();
     ctx.globalAlpha = 1;
 
     // Continuous stepped concrete harbor seawall bulkhead & subtle waterline foam around headland & coast
@@ -2062,16 +2087,47 @@ const WorldGateway = {
     ctx.restore();
   },
 
-  // Rich Multi-Zone Tarmac Apron, Expansion Joints, Service Roads & Stand Markings
+  _tracePeninsulaPath(ctx, L, inset = 0) {
+    const nPts = L.northShorePts || [];
+    const sPts = L.shorePts || [];
+    if (nPts.length === 0 || sPts.length === 0) return;
+    ctx.beginPath();
+    nPts.forEach((p, idx) => {
+      const px = (idx === 0 && !L.isNarrow) ? (p.x + inset * 0.8) : p.x;
+      const py = p.y + inset;
+      if (idx === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    for (let si = sPts.length - 1; si >= 0; si--) {
+      const p = sPts[si];
+      const px = (si === 0 && !L.isNarrow) ? (p.x + inset * 0.8) : p.x;
+      const py = p.y - inset;
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  },
+
+  // Rich Multi-Zone Tarmac Apron, Expansion Joints, Service Roads & Stand Markings (clipped strictly to peninsula bounds)
   _drawTarmacDetails(ctx, w, h, L, pal) {
     ctx.save();
+    this._tracePeninsulaPath(ctx, L, 5);
+    ctx.clip();
 
-    // 1. Primary Terminal & Apron Paved Concrete Envelope
+    // 1. Primary Terminal & Apron Paved Concrete Envelope aligned smoothly inside northern seawall
     ctx.beginPath();
-    ctx.moveTo(w * 0.18, L.islandTopY + 18);
-    ctx.lineTo(w * 0.89, L.islandTopY + 14);
-    ctx.lineTo(w * 0.94, L.rwYAtX(w * 0.90) - L.rwHalfAtX(w * 0.90) - 8);
-    ctx.lineTo(w * 0.14, L.rwYAtX(w * 0.16) - L.rwHalfAtX(w * 0.16) - 6);
+    if (L.isNarrow) {
+      ctx.moveTo(w * 0.08, L.northShoreYAtX(w * 0.08) + 12);
+      ctx.lineTo(w * 0.95, L.northShoreYAtX(w * 0.95) + 12);
+      ctx.lineTo(w * 0.95, L.rwYAtX(w * 0.90) - L.rwHalfAtX(w * 0.90) - 6);
+      ctx.lineTo(w * 0.08, L.rwYAtX(w * 0.12) - L.rwHalfAtX(w * 0.12) - 6);
+    } else {
+      ctx.moveTo(w * 0.18, L.northShoreYAtX(w * 0.18) + 11);
+      ctx.lineTo(w * 0.695, L.northShoreYAtX(w * 0.695) + 10);
+      ctx.lineTo(w * 0.865, L.northShoreYAtX(w * 0.865) + 11);
+      ctx.lineTo(w * 0.935, L.northShoreYAtX(w * 0.935) + 14);
+      ctx.lineTo(w * 0.94, L.rwYAtX(w * 0.90) - L.rwHalfAtX(w * 0.90) - 8);
+      ctx.lineTo(w * 0.14, L.rwYAtX(w * 0.16) - L.rwHalfAtX(w * 0.16) - 6);
+    }
     ctx.closePath();
     ctx.fillStyle = pal.apronFill;
     ctx.globalAlpha = 0.62;
@@ -2110,7 +2166,7 @@ const WorldGateway = {
     for (let i = 0; i <= 14; i++) {
       const f = i / 14;
       const gx0 = w * (0.20 + f * 0.66);
-      const gy0 = L.islandTopY + 20;
+      const gy0 = L.northShoreYAtX(gx0) + 13;
       const gx1 = gx0 + (f - 0.5) * 44;
       const gy1 = L.rwYAtX(gx0) - L.rwHalfAtX(gx0) - 10;
       if (gy1 > gy0 + 20) {
@@ -3536,36 +3592,36 @@ const WorldGateway = {
     return this._getGateToHangarPath(L, srcGate);
   },
 
-  // Fast, super-smooth C1-tangent climb directly out of runway liftoff!
+  // Fast, super-smooth C1-tangent climb straight ahead along runway heading + aerodynamic ~20° pitch-up!
   _getTakeoffClimbPath(L, w, h, sp) {
-    const liftPt = L.rwPt(0.72);
+    const liftPt = L.rwPt(0.68);
     const dirX = Math.cos(L.rwAng);
     const dirY = Math.sin(L.rwAng);
-    const endY = h * (0.06 + (sp.id === "sp_flight_2" ? 0.04 : 0));
+    const climbGain = (h < 720 ? 135 : 185) + (sp.id === "sp_flight_2" ? 22 : 0);
+    const endY = Math.max(h * 0.18, liftPt.y - climbGain);
     return this._buildArcPath([
       [
         liftPt,
-        // Strictly collinear ahead along runway vector for seamless zero-kink rotation!
-        { x: liftPt.x + dirX * 155, y: liftPt.y + dirY * 155 },
-        { x: w * 0.88, y: liftPt.y * 0.50 },
-        { x: w + 120, y: endY }
+        { x: liftPt.x + dirX * 115, y: liftPt.y + dirY * 115 - 12 },
+        { x: liftPt.x + 280, y: liftPt.y - climbGain * 0.44 },
+        { x: w + 140, y: endY }
       ]
     ], 58);
   },
 
-  // Shallow ~3.2° approach slope with gentle flare right before touchdown!
+  // Elevated realistic ~12° 2.5D glideslope clearing western seaport cranes smoothly and flaring onto tdPt!
   _getApproachPath(L) {
     const tdPt = L.rwPt(0.14);
-    const glideSlopeAng = L.rwAng - 0.048; // ~2.75 deg shallower than flat runway perspective = gentle descent above runway
+    const glideSlopeAng = L.rwAng + 0.22;
     const dx = tdPt.x - (-110);
-    const startPt = { x: -110, y: Math.max(24, tdPt.y - Math.tan(glideSlopeAng) * dx - 28) };
+    const startPt = { x: -110, y: Math.max(L.horizonY - 12, tdPt.y - Math.tan(glideSlopeAng) * dx) };
     const dirX = Math.cos(L.rwAng);
     const dirY = Math.sin(L.rwAng);
     return this._buildArcPath([
       [
         startPt,
-        { x: startPt.x + dx * 0.35, y: startPt.y + (tdPt.y - startPt.y) * 0.38 },
-        { x: tdPt.x - dirX * 120, y: tdPt.y - dirY * 120 - 4 },
+        { x: startPt.x + dx * 0.36, y: startPt.y + (tdPt.y - startPt.y) * 0.34 },
+        { x: tdPt.x - dirX * 135, y: tdPt.y - dirY * 135 - 24 },
         tdPt
       ]
     ], 56);
@@ -4667,11 +4723,6 @@ const WorldGateway = {
 
     // 13. Exhaust Smoke, Deluge Steam & Cryo Vent Particle System
     this._updateAndDrawParticles(ctx, pal, dt);
-
-    // 13b. Automatic Festive Holiday Additions (snow/garlands, fireworks, lanterns, moon & bats)
-    if (typeof HolidayThemes !== "undefined" && HolidayThemes.drawGatewayOverlay) {
-      HolidayThemes.drawGatewayOverlay(ctx, w, h, L, pal, mode, dt, step);
-    }
 
     // 14. Dynamic Rolling Dawn Fog (morning mode)
     this._updateAndDrawDawnFog(ctx, w, h, L, mode, dt, now);
@@ -8553,14 +8604,15 @@ const WorldGateway = {
     } else if (ml.phase === "approach") {
       visible = true;
       const p = Math.min(1, ml.t / ml.phaseDuration);
-      const startX = -75;
-      const startY = rwStart.y - 44;
+      const startX = -110;
+      const startY = Math.max(L.horizonY + 8, rwStart.y - 148);
       const ease = 1 - Math.pow(1 - p, 1.5);
       x = this._lerp(startX, rwStart.x, p);
       y = this._lerp(startY, rwStart.y, ease);
-      altitude = (1 - ease) * 38;
-      scale = (0.44 + ease * 0.28) * L.termScale * this._depthScale(L, y);
-      heading = L.rwAng + (1 - ease) * 0.06;
+      const groundY = Math.max(L.islandTopY + 10, L.rwYAtX(x));
+      altitude = Math.max(0, L.rwYAtX(x) - y);
+      scale = (0.60 + ease * 0.12) * L.termScale * this._depthScale(L, groundY);
+      heading = L.rwAng + (1 - ease) * 0.11;
       afterburner = 0.22;
       if (p >= 1) {
         ml.phase = "rollout";
@@ -8878,6 +8930,7 @@ const WorldGateway = {
     let visible = false;
     let x = sp.x || 0;
     let y = sp.y || 0;
+    let groundY = null;
     let scale = 0.48 * L.termScale;
     let targetHeading = sp.heading;
     let altitude = 0;
@@ -9025,9 +9078,9 @@ const WorldGateway = {
         sp._airborne = false;
       }
     } else if (sp.phase === "runway_takeoff") {
-      // Brisk progressive acceleration 0 -> V_VR (114 px/s) down runway, transitioning C1-smoothly into 148 px/s climb!
+      // Brisk progressive acceleration 0 -> V_VR (148 px/s) down runway, transitioning C1-smoothly into straight-ahead climb!
       visible = true;
-      const liftPt = L.rwPt(0.72);
+      const liftPt = L.rwPt(0.68);
       const rollLen = Math.hypot(liftPt.x - entryPt.x, liftPt.y - entryPt.y);
 
       if (!sp._airborne) {
@@ -9037,6 +9090,7 @@ const WorldGateway = {
         const frac = Math.min(1, sp.dist / rollLen);
         x = entryPt.x + (liftPt.x - entryPt.x) * frac;
         y = entryPt.y + (liftPt.y - entryPt.y) * frac;
+        groundY = y;
         afterburner = Math.min(1, 0.35 + frac * 0.75);
         const rotPitch = Math.max(0, (frac - 0.80) / 0.20);
         targetHeading = L.rwAng - rotPitch * 0.08;
@@ -9056,10 +9110,12 @@ const WorldGateway = {
         const pt = this._sampleArcPath(climbPath, sp.dist);
         x = pt.x;
         y = pt.y;
+        // Flying straight ahead (not receding back!): anchor perspective depth along forward ground track instead of sky y!
+        groundY = liftPt.y + (Math.min(L.islandBotY + 8, L.rwYAtX(x)) - liftPt.y) * 0.30;
         targetHeading = pt.angle;
-        altitude = 2.2 + Math.pow(cp, 1.35) * 95;
+        altitude = Math.max(2.2, L.rwYAtX(x) - y);
         afterburner = cp < 0.78 ? 1.0 : Math.max(0, (1 - cp) * 4.5);
-        scale = Math.max(0.24, (0.60 - cp * 0.36)) * L.termScale;
+        scale = 0.60 * L.termScale;
 
         if (Math.random() < 0.75) {
           this.plumeParticles.push({
@@ -9097,7 +9153,7 @@ const WorldGateway = {
         sp.chuteDetached = false;
       }
     } else if (sp.phase === "approach") {
-      // Shallow ~3° glide slope flaring smoothly onto the runway at V_TD (142 px/s)
+      // Elevated ~12° glideslope cleanly clearing western bay & seaport cranes, flaring onto tdPt at V_TD
       visible = true;
       const appPath = this._getApproachPath(L);
       const frac = Math.min(1, sp.dist / appPath.totalLen);
@@ -9106,10 +9162,11 @@ const WorldGateway = {
       const pt = this._sampleArcPath(appPath, sp.dist);
       x = pt.x;
       y = pt.y;
-      const flare = frac > 0.78 ? ((frac - 0.78) / 0.22) * 0.055 : 0;
+      const flare = frac > 0.76 ? ((frac - 0.76) / 0.24) * 0.08 : 0;
       targetHeading = pt.angle - flare;
-      altitude = Math.pow(1 - frac, 1.55) * 24;
-      scale = (0.34 + frac * 0.16) * L.termScale;
+      groundY = Math.max(L.islandTopY + 10, L.rwYAtX(x));
+      altitude = Math.max(0, L.rwYAtX(x) - y);
+      scale = (0.44 + frac * 0.06) * L.termScale;
 
       if (sp.dist >= appPath.totalLen) {
         const tdPt = L.rwPt(0.14);
@@ -9199,7 +9256,7 @@ const WorldGateway = {
     sp.y = y;
     sp.heading = this._lerpAngle(sp.heading, targetHeading, 1 - Math.exp(-5.8 * dt));
     sp.altitude = altitude;
-    const depth = this._depthScale(L, y);
+    const depth = this._depthScale(L, groundY != null ? groundY : y);
     const drawScale = scale * depth;
 
     if (sp.chuteDetached && sp.detachedChuteAlpha > 0.01) {

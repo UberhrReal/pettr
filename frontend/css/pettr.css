@@ -754,11 +754,15 @@ body {
 }
 
 /* --- Holiday Festive Decorations & Stylised Crest Plaques --- */
-html[data-holiday] .quick-input-section {
+html[data-holiday] body:not(.scenic-hidden-mode) .app-header {
+  border-top: 2px solid rgba(var(--holiday-accent, 234, 88, 12), 0.55);
+}
+
+html[data-holiday] body:not(.scenic-hidden-mode) .quick-input-section {
   border-bottom-color: rgba(var(--holiday-accent, 234, 88, 12), 0.28);
 }
 
-html[data-holiday] .mission-beacon-dot {
+html[data-holiday] body:not(.scenic-hidden-mode) .mission-beacon-dot {
   background: rgb(var(--holiday-accent, 234, 88, 12));
   box-shadow: 0 0 8px rgba(var(--holiday-accent, 234, 88, 12), 0.72);
 }
@@ -1124,6 +1128,18 @@ html[data-holiday] .mission-beacon-dot {
   gap: 12px;
   pointer-events: none;
   z-index: 5;
+}
+
+.dashboard-holiday-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  pointer-events: none;
+  z-index: 1005;
+  display: none;
+  transition: opacity 360ms cubic-bezier(0.22, 1, 0.36, 1), transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .holiday-celebration-canvas {
@@ -13175,8 +13191,13 @@ body.scenic-hidden-mode {
 }
 
 body.scenic-hidden-mode .app-header,
-body.scenic-hidden-mode .main-content {
+body.scenic-hidden-mode .main-content,
+body.scenic-hidden-mode .dashboard-holiday-canvas,
+body.scenic-hidden-mode .holiday-fact-popup,
+body.scenic-hidden-mode .holiday-celebration-canvas,
+body.cockpit-active .dashboard-holiday-canvas {
   opacity: 0 !important;
+  visibility: hidden !important;
   pointer-events: none !important;
   transform: translateY(-10px) scale(0.99);
 }

@@ -3840,10 +3840,10 @@ def test_v10_0_snapshot_lock_in_briefing_and_mobile_ergonomics(temp_db, monkeypa
     assert 'it.tier === "trivial" ? "Trivial"' in dash_js
 
     # Static cache-busters bumped to v13.0
-    assert "pettr.css?v=13.6" in index_html
-    assert "dashboard.js?v=13.6" in index_html
-    assert "entity_modal.js?v=13.6" in index_html
-    assert "app.js?v=13.6" in index_html
+    assert "pettr.css?v=13.7" in index_html
+    assert "dashboard.js?v=13.7" in index_html
+    assert "entity_modal.js?v=13.7" in index_html
+    assert "app.js?v=13.7" in index_html
 
 
 def test_v10_5_refinements():
@@ -3898,8 +3898,8 @@ def test_v10_5_refinements():
     assert "getAccessibleAccentColor(" in exploded_js
     assert "getAccessibleAccentColor(" in cockpit_js
     assert "color-mix(in srgb, var(--tag-color" in css
-    assert "history.js?v=13.6" in index_html
-    assert "timeline.js?v=13.6" in index_html
+    assert "history.js?v=13.7" in index_html
+    assert "timeline.js?v=13.7" in index_html
 
     # 8. Restored v10.3 glass shading, removed snapshot light splotches, mobile-only + Queue, bold numeric ranks, 'Items' count, Unorganised spacing & safe Unorganised Queue buttons
     assert "rgba(255, 255, 255, 0.44)" in css
@@ -4030,9 +4030,9 @@ def test_v11_notes_folders_and_ui_refinements(tmp_path):
     exploded_js = (root_dir / "frontend" / "js" / "exploded.js").read_text(encoding="utf-8")
 
     # Cache busters bumped to v13.0
-    assert "pettr.css?v=13.6" in index_html
-    assert "dashboard.js?v=13.6" in index_html
-    assert "notes.js?v=13.6" in index_html
+    assert "pettr.css?v=13.7" in index_html
+    assert "dashboard.js?v=13.7" in index_html
+    assert "notes.js?v=13.7" in index_html
 
     # Item 1: Safe data-* drag handler & container dropzone on #dailyOrderContainer
     assert "onBriefingRowDragStart(" in dash_js
@@ -4203,7 +4203,7 @@ def test_v11_2_tactile_motes_reactive_canvas_and_flow_glow():
     dnd_js = (root_dir / "frontend" / "js" / "drag_drop.js").read_text(encoding="utf-8")
 
     # 1. Script inclusion & Snapshot bottom flow progress + lock shimmer markup (micro-soundscape cleanly removed)
-    assert '<script src="/static/js/tactile.js?v=13.6"></script>' in index_html
+    assert '<script src="/static/js/tactile.js?v=13.7"></script>' in index_html
     assert 'id="soundFxToggleBtn"' not in index_html
     assert "AudioContext" not in tactile_js
     assert 'id="snapshotFlowProgressTrack"' in index_html
@@ -4268,8 +4268,8 @@ def test_v12_theme_worlds_gateway_and_deep_blue():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Scripts & World Selector UI in index.html
-    assert '<script src="/static/js/world_gateway.js?v=13.6"></script>' in index_html
-    assert '<script src="/static/js/world_deepblue.js?v=13.6"></script>' in index_html
+    assert '<script src="/static/js/world_gateway.js?v=13.7"></script>' in index_html
+    assert '<script src="/static/js/world_deepblue.js?v=13.7"></script>' in index_html
     assert 'id="worldSelectorGrid"' in index_html
     assert 'data-world-option="nature"' in index_html
     assert 'data-world-option="gateway"' in index_html
@@ -4383,8 +4383,8 @@ def test_v12_2_worlds_realism_scenic_time_and_cockpit_backdrop():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6 across CSS & JS assets
-    assert '/static/css/pettr.css?v=13.6' in index_html
-    for asset in ["app.js?v=13.6", "focus_cockpit.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert '/static/css/pettr.css?v=13.7' in index_html
+    for asset in ["app.js?v=13.7", "focus_cockpit.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. Focus Cockpit: duplicate Return to Dashboard button removed + Universal Backdrop Frost moved to Theme Configuration Panel
@@ -4504,8 +4504,8 @@ def test_v12_4_scenic_worlds_overhaul_theme_harmony_and_mobile():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6 across CSS & all world/app assets
-    assert '/static/css/pettr.css?v=13.6' in index_html
-    for asset in ["app.js?v=13.6", "wave_canvas.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert '/static/css/pettr.css?v=13.7' in index_html
+    for asset in ["app.js?v=13.7", "wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. Gateway v12.4 scenic realism, infrastructure, scale, military/liner craft & offshore F9 pad
@@ -4577,8 +4577,8 @@ def test_v12_5_gateway_infrastructure_container_ships_and_deepblue_design():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6
-    assert '/static/css/pettr.css?v=13.6' in index_html
-    for asset in ["world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert '/static/css/pettr.css?v=13.7' in index_html
+    for asset in ["world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. Gateway v12.5 upgrades
@@ -4617,8 +4617,8 @@ def test_v12_6_gateway_fh_megaliner_deepblue_hex_leviathan_and_ui_streamlining()
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.6 across all assets
-    assert '/static/css/pettr.css?v=13.6' in index_html
-    for asset in ["app.js?v=13.6", "focus_cockpit.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert '/static/css/pettr.css?v=13.7' in index_html
+    for asset in ["app.js?v=13.7", "focus_cockpit.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v12.6 cache-buster for {asset}"
 
     # 2. UI streamlining: Theme, Dawn, Blur (20%) & Dim (0%) split, heavier drawer blur, draggable Cockpit & recentre
@@ -4678,8 +4678,8 @@ def test_v12_7_gateway_perspectives_deluge_rail_megaliner_and_deepblue_wildlife_
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v12.7 across index.html
-    assert '/static/css/pettr.css?v=13.6' in index_html
-    for asset in ["app.js?v=13.6", "focus_cockpit.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert '/static/css/pettr.css?v=13.7' in index_html
+    for asset in ["app.js?v=13.7", "focus_cockpit.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v12.7 cache-buster for {asset}"
 
     # 2. Gateway v12.7 Tokens
@@ -4726,8 +4726,8 @@ def test_v12_8_gateway_polish_heavy_heli_and_deepblue_shipwreck_expansion():
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    assert '/static/css/pettr.css?v=13.6' in index_html
-    for asset in ["app.js?v=13.6", "focus_cockpit.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert '/static/css/pettr.css?v=13.7' in index_html
+    for asset in ["app.js?v=13.7", "focus_cockpit.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v12.8 cache-buster for {asset}"
 
     for token in [
@@ -4762,8 +4762,8 @@ def test_v12_9_gateway_flyover_bridge_chinook_deepblue_director_wreck_subs_mobil
     gateway_js = (root_dir / "frontend" / "js" / "world_gateway.js").read_text(encoding="utf-8")
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["app.js?v=13.6", "focus_cockpit.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["app.js?v=13.7", "focus_cockpit.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.0 cache-buster for {asset}"
 
     # Focus Cockpit triggers world pulse on completeCurrentTask
@@ -4825,8 +4825,8 @@ def test_v13_0_defaults_cockpit_unhide_triggers_stunts_skycrane_megagate_wildlif
     wave_js = (root_dir / "frontend" / "js" / "wave_canvas.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.0 + holidays.js inclusion
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["holidays.js?v=13.6", "app.js?v=13.6", "focus_cockpit.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6", "wave_canvas.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["holidays.js?v=13.7", "app.js?v=13.7", "focus_cockpit.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7", "wave_canvas.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.0 cache-buster for {asset}"
 
     # 2. Per-theme backdrop defaults
@@ -4852,7 +4852,7 @@ def test_v13_0_defaults_cockpit_unhide_triggers_stunts_skycrane_megagate_wildlif
     assert "TactileFX.onItemToggle" in modal_js and "WaveCanvas.pulseActivity" in modal_js
     assert "TactileFX.onItemToggle" in notes_js and "WaveCanvas.pulseActivity" in notes_js
 
-    # 5. Gateway: 3s 5-stunt jets, S-64 Skycrane, connected Mega-Liner gate road, holiday hook
+    # 5. Gateway: jets, S-64 Skycrane, connected Mega-Liner gate road
     for token in [
         "JET_STUNT_TYPES",
         '"bomb_burst"',
@@ -4861,12 +4861,11 @@ def test_v13_0_defaults_cockpit_unhide_triggers_stunts_skycrane_megagate_wildlif
         '"upside_down"',
         '"echelon_roll"',
         "Sikorsky S-64 Skycrane",
-        "drawGatewayOverlay",
     ]:
         assert token in gateway_js, f"Missing Gateway v13.0 token: {token}"
     assert "Banana-hull" not in gateway_js
 
-    # 6. Deep Blue: task-complete-only 4-stunt Leviathan & relaxed screen budget & holiday hook
+    # 6. Deep Blue: task-complete-only 4-stunt Leviathan & relaxed screen budget
     for token in [
         "LEVIATHAN_STUNTS",
         '"roar"',
@@ -4876,24 +4875,21 @@ def test_v13_0_defaults_cockpit_unhide_triggers_stunts_skycrane_megagate_wildlif
         "spawnLeviathan(",
         "_drawLeviathanBody(",
         "maxMegafauna: 3",
-        "drawDeepBlueOverlay",
     ]:
         assert token in deepblue_js, f"Missing Deep Blue v13.0 token: {token}"
 
-    # 7. Nature: 6 playful crossing wildlife species & holiday hook
+    # 7. Nature: diurnal reactive atmospheric phenomena + dashboard holiday hook
     for token in [
-        "NATURE_ANIMALS",
-        '"rabbit"',
-        '"deer"',
-        '"pangolin"',
-        '"panda"',
-        '"crocodile"',
-        '"okapi"',
-        "spawnNatureAnimal(",
-        "_updateAndDrawWildlife(",
-        "drawNatureOverlay",
+        "NATURE_PHENOMENA",
+        '"thermal_flock"',
+        '"botanical_gust"',
+        '"sky_phenomenon"',
+        '"horizon_drift"',
+        "spawnNaturePhenomenon(",
+        "_updateAndDrawNaturePhenomena(",
+        "renderDashboardLayer",
     ]:
-        assert token in wave_js, f"Missing Nature v13.0 token: {token}"
+        assert token in wave_js, f"Missing Nature v13.0/v13.7 token: {token}"
 
     # 8. Shared Festive Holiday System (frontend calendar + backend non-work phrases & prompts)
     for token in ["HolidayThemes", "drawNatureOverlay", "drawGatewayOverlay", "drawDeepBlueOverlay", "setPreviewHoliday("]:
@@ -4925,8 +4921,8 @@ def test_v13_1_bwb_megaliner_drogues_cleaning_station_los_angeles_ssn():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.1
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.1 cache-buster for {asset}"
 
     # 2. Gateway: Blended-wing Mega-Liner + preserved double-deck + larger triple-canopy drogue chutes
@@ -4972,8 +4968,8 @@ def test_v13_2_gateway_8s_liveries_nature_large_2d_deepblue_surrounding_reef_opa
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.2
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["wave_canvas.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.2 cache-buster for {asset}"
 
     # 2. Gateway: 6 randomised liveries, ~8s formation timing, C2 smooth5 maneuvering & ribbon trails
@@ -4991,21 +4987,16 @@ def test_v13_2_gateway_8s_liveries_nature_large_2d_deepblue_surrounding_reef_opa
     ]:
         assert token in gateway_js, f"Missing Gateway v13.2 token: {token}"
 
-    # 3. Nature: Large screen-spanning pure 2D horizontal crossings across all 6 detailed species
+    # 3. Nature: Replaced ground wildlife with 4 diurnal atmospheric reactive phenomena
     for token in [
-        "Math.min(w / 460, h / 290)",
-        "const baseY = h *",
-        "drawTaperedLimb",
-        '"rabbit"',
-        '"deer"',
-        '"pangolin"',
-        '"panda"',
-        '"crocodile"',
-        '"okapi"',
+        "NATURE_PHENOMENA",
+        "_drawThermalFlock(",
+        "_drawBotanicalGust(",
+        "_drawSkyPhenomenon(",
+        "_drawHorizonDrift(",
     ]:
-        assert token in wave_js, f"Missing Nature v13.2 token: {token}"
-    wildlife_draw = wave_js[wave_js.index("_drawNatureAnimal("):wave_js.index("_updateAndDrawWildlife(")]
-    assert "Subtle ground contact shadow" not in wildlife_draw
+        assert token in wave_js, f"Missing Nature v13.7 phenomenon token: {token}"
+    assert "NATURE_ANIMALS" not in wave_js
 
     # 4. Deep Blue: Habitat-surrounding cleaning station reefs (behind + front via stationCacheCanvas) + solid opaque Leviathans
     for token in [
@@ -5039,20 +5030,18 @@ def test_v13_3_nature_diurnal_shaded_gateway_night_port_deepblue_manta_leviathan
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.3
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["wave_canvas.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.3 cache-buster for {asset}"
 
-    # 2. Nature: Diurnal shading palette + C2 transitions + species kinematics
+    # 2. Nature: C2 smooth5 transitions across atmospheric reactive phenomena
     for token in [
-        "_getNatureWildlifePalette(",
         "_smooth5(",
-        "pauseBlend",
-        "moveSpeedNorm",
-        "makeVolGrad",
-        "nightEyeGlow",
+        "_updateAndDrawNaturePhenomena(",
+        "auroraBoost",
+        "burnerGlow",
     ]:
-        assert token in wave_js, f"Missing Nature v13.3 token: {token}"
+        assert token in wave_js, f"Missing Nature v13.3/v13.7 token: {token}"
 
     # 3. Gateway: Night cosmos + diurnal formations + smooth spline trails + fast runway + 5-angle port ops
     for token in [
@@ -5099,8 +5088,8 @@ def test_v13_4_holiday_crest_theming_and_diurnal_celestial_lighting():
     deepblue_js = (root_dir / "frontend" / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.4
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["holidays.js?v=13.6", "dashboard.js?v=13.6", "app.js?v=13.6", "wave_canvas.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["holidays.js?v=13.7", "dashboard.js?v=13.7", "app.js?v=13.7", "wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.4 cache-buster for {asset}"
 
     # 2. Stylised Holiday Crest Badge & Deep Festive World Overlays
@@ -5163,8 +5152,8 @@ def test_v13_5_fixed_crest_wildlife_rework_compact_gateway_port_and_manta_cycle(
     deepblue_js = (frontend_dir / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.5
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["holidays.js?v=13.6", "dashboard.js?v=13.6", "app.js?v=13.6", "wave_canvas.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["holidays.js?v=13.7", "dashboard.js?v=13.7", "app.js?v=13.7", "wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.5 cache-buster for {asset}"
 
     # 2. Fixed crest plaque layout (does not slide with typewriter text)
@@ -5173,19 +5162,15 @@ def test_v13_5_fixed_crest_wildlife_rework_compact_gateway_port_and_manta_cycle(
     assert "align-self: flex-start;" in css_text
     assert "flex-direction: column !important;" in css_text
 
-    # 3. Nature wildlife cute-realistic rework
+    # 3. Nature reactive replacement: atmospheric phenomena instead of ground animals
     for token in [
-        "evalQuad",
-        "drawGroundShadow",
-        "drawCheekBlush",
-        "drawExpressiveEye",
-        "drawTaperedLimb",
-        "happySquint",
-        "-228",
-        "binkyHop",
+        "_drawThermalFlock(",
+        "_drawBotanicalGust(",
+        "_drawSkyPhenomenon(",
+        "_drawHorizonDrift(",
     ]:
-        assert token in wave_js, f"Missing Nature v13.5 wildlife token: {token}"
-    assert "definePandaTorso" not in wave_js
+        assert token in wave_js, f"Missing Nature v13.7 phenomenon token: {token}"
+    assert "_drawNatureAnimal" not in wave_js
 
     # 4. Gateway compact peninsula, rich connected port, offscreen calm ships & calmer taxi
     for token in [
@@ -5229,8 +5214,8 @@ def test_v13_6_holiday_funfacts_gateway_6angle_port_mobile_deepblue_manta_leviat
     deepblue_js = (frontend_dir / "js" / "world_deepblue.js").read_text(encoding="utf-8")
 
     # 1. Cache-buster v13.6
-    assert "/static/css/pettr.css?v=13.6" in index_html
-    for asset in ["holidays.js?v=13.6", "dashboard.js?v=13.6", "app.js?v=13.6", "wave_canvas.js?v=13.6", "world_gateway.js?v=13.6", "world_deepblue.js?v=13.6"]:
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    for asset in ["holidays.js?v=13.7", "dashboard.js?v=13.7", "app.js?v=13.7", "wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
         assert asset in index_html, f"Missing v13.6 cache-buster for {asset}"
 
     # 2. General: Holiday fun-fact popup & full-screen celebration canvas
@@ -5279,6 +5264,72 @@ def test_v13_6_holiday_funfacts_gateway_6angle_port_mobile_deepblue_manta_leviat
         "chompTimer",
     ]:
         assert token in deepblue_js, f"Missing Deep Blue v13.6 token: {token}"
+
+
+def test_v13_7_dashboard_holiday_layer_nature_phenomena_gateway_peninsula_flight():
+    """Verify v13.7 upgrades:
+    - General: Holiday theming moved strictly onto dashboard-scoped overlay canvas (#dashboardHolidayCanvas) and hidden whenever Dashboard is hidden (scenic-hidden-mode / cockpit-active)
+    - Nature: Implemented all 4 diurnal atmospheric reactive animations (thermal_flock, botanical_gust, sky_phenomenon, horizon_drift) replacing ground animals
+    - Gateway: Optimised top-right & northern peninsula cape (northShorePts, _tracePeninsulaPath) + strict tarmac clipping inside peninsula boundaries
+    - Gateway: Fixed spaceplane takeoff perspective scale (anchored groundY + constant forward scale instead of shrinking while flying ahead) and raised landing glideslope
+    """
+    root_dir = Path(__file__).resolve().parent.parent
+    frontend_dir = root_dir / "frontend"
+    index_html = (frontend_dir / "index.html").read_text(encoding="utf-8")
+    css_text = (frontend_dir / "css" / "pettr.css").read_text(encoding="utf-8")
+    holidays_js = (frontend_dir / "js" / "holidays.js").read_text(encoding="utf-8")
+    app_js = (frontend_dir / "js" / "app.js").read_text(encoding="utf-8")
+    wave_js = (frontend_dir / "js" / "wave_canvas.js").read_text(encoding="utf-8")
+    gateway_js = (frontend_dir / "js" / "world_gateway.js").read_text(encoding="utf-8")
+    deepblue_js = (frontend_dir / "js" / "world_deepblue.js").read_text(encoding="utf-8")
+
+    # 1. Cache-buster v13.7 + dashboard holiday canvas DOM element
+    assert "/static/css/pettr.css?v=13.7" in index_html
+    assert 'id="dashboardHolidayCanvas"' in index_html
+    for asset in ["holidays.js?v=13.7", "dashboard.js?v=13.7", "app.js?v=13.7", "wave_canvas.js?v=13.7", "world_gateway.js?v=13.7", "world_deepblue.js?v=13.7"]:
+        assert asset in index_html, f"Missing v13.7 cache-buster for {asset}"
+
+    # 2. General: Dashboard-scoped Holiday Layer hidden when Dashboard is hidden
+    assert ".dashboard-holiday-canvas" in css_text
+    assert "body.scenic-hidden-mode .dashboard-holiday-canvas" in css_text
+    assert "clearDashboardLayer(" in holidays_js
+    assert "renderDashboardLayer(" in holidays_js
+    assert "clearDashboardLayer" in app_js
+    assert "renderDashboardLayer" in wave_js
+    assert "HolidayThemes.drawGatewayOverlay" not in gateway_js
+    assert "HolidayThemes.drawDeepBlueOverlay" not in deepblue_js
+    assert "HolidayThemes.drawNatureOverlay" not in wave_js
+
+    # 3. Nature: 4 atmospheric diurnal reactive phenomena
+    for token in [
+        "NATURE_PHENOMENA",
+        '"thermal_flock"',
+        '"botanical_gust"',
+        '"sky_phenomenon"',
+        '"horizon_drift"',
+        "spawnNaturePhenomenon(",
+        "_drawThermalFlock(",
+        "_drawBotanicalGust(",
+        "_drawSkyPhenomenon(",
+        "_drawHorizonDrift(",
+        "_updateAndDrawNaturePhenomena(",
+        "burnerGlow",
+    ]:
+        assert token in wave_js, f"Missing Nature v13.7 token: {token}"
+
+    # 4. Gateway: Optimised NE peninsula, clipped tarmac, non-shrinking takeoff & higher glideslope
+    for token in [
+        "northShorePts",
+        "northShoreYAtX",
+        "_tracePeninsulaPath(",
+        "this._tracePeninsulaPath(ctx, L, 5);",
+        "const glideSlopeAng = L.rwAng + 0.22;",
+        "rwStart.y - 148",
+        "scale = 0.60 * L.termScale;",
+        "groundY = liftPt.y +",
+    ]:
+        assert token in gateway_js, f"Missing Gateway v13.7 token: {token}"
+    assert "scale = Math.max(0.24, (0.60 - cp * 0.36))" not in gateway_js
 
 
 

@@ -38,10 +38,10 @@ const WaveCanvas = {
   // v11.2 Activity-Reactive Atmospheric Ripples & Glow Boost
   ripples: [],
   auroraBoost: 0,
-  // v13.0 Playful Nature Wildlife Crossings (on task completion)
-  NATURE_ANIMALS: ["rabbit", "deer", "pangolin", "panda", "crocodile", "okapi"],
-  wildlifeCrossings: [],
-  _lastNatureAnimal: "",
+  // v13.7 Diurnal Nature Reactive Atmospheric Phenomena (on task completion)
+  NATURE_PHENOMENA: ["thermal_flock", "botanical_gust", "sky_phenomenon", "horizon_drift"],
+  naturePhenomena: [],
+  _lastNaturePhenomenon: "",
 
   _modeForHour(hour) {
     const h = ((Number(hour) % 24) + 24) % 24;
@@ -207,16 +207,20 @@ const WaveCanvas = {
     const mode = this.getThemeMode();
     const diurnalHour = this.getDiurnalHour(mode);
     const world = this.getWorldMode();
+    if (this._lastWorldMode && this._lastWorldMode !== world) {
+      this.ripples = [];
+    }
+    this._lastWorldMode = world;
 
     // Delegate cleanly to alternate World renderers when selected
     if (world === "gateway" && typeof WorldGateway !== "undefined") {
       WorldGateway.draw(ctx, w, h, mode, dt, this.step, diurnalHour);
-      this.updateAndDrawActivityRipples(ctx, w, h, mode);
+      this._renderSharedPostDraw(ctx, w, h, mode, dt);
       return;
     }
     if (world === "deep-blue" && typeof WorldDeepBlue !== "undefined") {
       WorldDeepBlue.draw(ctx, w, h, mode, dt, this.step, diurnalHour);
-      this.updateAndDrawActivityRipples(ctx, w, h, mode);
+      this._renderSharedPostDraw(ctx, w, h, mode, dt);
       return;
     }
 
@@ -696,14 +700,18 @@ const WaveCanvas = {
       this.updateAndDrawDayBirds(ctx, w, h);
     }
 
-    // 5b. Playful Nature Task-Complete Wildlife Crossings & Festive Holiday Additions
-    this._updateAndDrawWildlife(ctx, w, h, mode, dt);
-    if (typeof HolidayThemes !== "undefined" && HolidayThemes.drawNatureOverlay) {
-      HolidayThemes.drawNatureOverlay(ctx, w, h, mode, dt, this.step);
-    }
+    // 5b. Diurnal Nature Task-Complete Atmospheric Phenomena
+    this._updateAndDrawNaturePhenomena(ctx, w, h, mode, dt);
 
-    // 6. Activity-Reactive Atmospheric Light Ripples (all themes)
+    // 6. Activity-Reactive Atmospheric Light Ripples + Dashboard-Scoped Holiday Layer
+    this._renderSharedPostDraw(ctx, w, h, mode, dt);
+  },
+
+  _renderSharedPostDraw(ctx, w, h, mode, dt) {
     this.updateAndDrawActivityRipples(ctx, w, h, mode);
+    if (typeof HolidayThemes !== "undefined" && HolidayThemes.renderDashboardLayer) {
+      HolidayThemes.renderDashboardLayer(dt, mode, this.step);
+    }
   },
 
   triggerLeafGust(now, w, h) {
@@ -1203,9 +1211,9 @@ const WaveCanvas = {
       return;
     }
 
-    // 1b. Playful Nature Wildlife Crossing
+    // 1b. Diurnal Nature Atmospheric Phenomenon (Thermal Flock, Botanical Gust, Sky Rainbow/Aurora, Balloon/Glider)
     if (kind === "complete" || isMajor) {
-      this.spawnNatureAnimal(w, h);
+      this.spawnNaturePhenomenon(w, h, { mode });
     }
 
     // 2. Theme-authentic reactive atmospheric phenomenon (Nature)
@@ -1308,1729 +1316,736 @@ const WaveCanvas = {
     return c * c * c * (c * (c * 6 - 15) + 10);
   },
 
-  _getNatureWildlifePalette(mode) {
-    if (mode === "morning") {
-      return {
-        lightVec: { x: 0.65, y: -0.75 },
-        rimHi: "rgba(255, 224, 178, 0.72)",
-        rim: "rgba(42, 24, 34, 0.34)",
-        shadowTint: "rgba(92, 48, 66, 0.24)",
-        nightEyeGlow: false,
-        rabbitHi: "#D6C9C4",
-        rabbitBody: "#AF9CA0",
-        rabbitDark: "#7D6A73",
-        deerHi: "#E59852",
-        deerBody: "#C27238",
-        deerDark: "#874322",
-        pangolinHi: "#C78B46",
-        pangolinBody: "#915B2E",
-        pangolinDark: "#5A331C",
-        pangolinScale: "#E3AB5C",
-        pandaDarkHi: "#2B2836",
-        pandaDarkLo: "#12101B",
-        darkFur: "#1A1724",
-        crocHi: "#3F8E4C",
-        crocBody: "#276639",
-        crocDark: "#143D23",
-        okapiHi: "#A6492D",
-        okapiBody: "#752A1D",
-        okapiDark: "#451513",
-        creamHi: "#FFF4E8",
-        creamMid: "#F3DEC9",
-        creamLow: "#CFAF9E",
-        pink: "#FB8DA0",
-        bamboo: "#34A853",
-        bambooDark: "#1E6F36",
-        flower: "#FDBA74",
-        flowerCenter: "#B45309",
-        antler: "#E8C39E",
-        antlerTip: "#FFF2DF",
-        eye: "#160F19"
-      };
-    }
-    if (mode === "evening") {
-      return {
-        lightVec: { x: -0.75, y: -0.65 },
-        rimHi: "rgba(253, 186, 116, 0.86)",
-        rim: "rgba(22, 12, 34, 0.44)",
-        shadowTint: "rgba(49, 20, 62, 0.36)",
-        nightEyeGlow: false,
-        rabbitHi: "#C4B1BD",
-        rabbitBody: "#8F7C92",
-        rabbitDark: "#5B4B66",
-        deerHi: "#D97F3E",
-        deerBody: "#A34F2B",
-        deerDark: "#632724",
-        pangolinHi: "#C0793B",
-        pangolinBody: "#7F4423",
-        pangolinDark: "#462019",
-        pangolinScale: "#DA8E48",
-        pandaDarkHi: "#241E35",
-        pandaDarkLo: "#0E0A19",
-        darkFur: "#151022",
-        crocHi: "#2D784B",
-        crocBody: "#1B5237",
-        crocDark: "#0D2D24",
-        okapiHi: "#8F392A",
-        okapiBody: "#5D1E1E",
-        okapiDark: "#320D16",
-        creamHi: "#FDE7CE",
-        creamMid: "#DEC0B6",
-        creamLow: "#A68696",
-        pink: "#F472B6",
-        bamboo: "#229A52",
-        bambooDark: "#125C32",
-        flower: "#FB923C",
-        flowerCenter: "#7C2D12",
-        antler: "#D6AE88",
-        antlerTip: "#FCE3C2",
-        eye: "#0C0714"
-      };
-    }
-    if (mode === "dark") {
-      return {
-        lightVec: { x: -0.45, y: -0.88 },
-        rimHi: "rgba(186, 230, 253, 0.64)",
-        rim: "rgba(148, 197, 248, 0.36)",
-        shadowTint: "rgba(4, 10, 28, 0.48)",
-        nightEyeGlow: true,
-        rabbitHi: "#94ABC4",
-        rabbitBody: "#647C99",
-        rabbitDark: "#3D4F69",
-        deerHi: "#9F6E56",
-        deerBody: "#6E453B",
-        deerDark: "#3E2326",
-        pangolinHi: "#8E6B52",
-        pangolinBody: "#593E30",
-        pangolinDark: "#2E1F1B",
-        pangolinScale: "#AD825E",
-        pandaDarkHi: "#182338",
-        pandaDarkLo: "#070C18",
-        darkFur: "#0D1526",
-        crocHi: "#246652",
-        crocBody: "#16463D",
-        crocDark: "#0A2424",
-        okapiHi: "#6A3B40",
-        okapiBody: "#452129",
-        okapiDark: "#220F18",
-        creamHi: "#C7DAF0",
-        creamMid: "#94AFCF",
-        creamLow: "#5E7799",
-        pink: "#C084FC",
-        bamboo: "#1E825E",
-        bambooDark: "#0F4D3A",
-        flower: "#BAE6FD",
-        flowerCenter: "#38BDF8",
-        antler: "#B4C6D8",
-        antlerTip: "#E0F2FE",
-        eye: "#030712"
-      };
-    }
-    // Afternoon / Light — crisp daylight sunlit fur & warm natural shadows
-    return {
-      lightVec: { x: 0.42, y: -0.90 },
-      rimHi: "rgba(255, 255, 255, 0.78)",
-      rim: "rgba(15, 23, 42, 0.32)",
-      shadowTint: "rgba(30, 41, 59, 0.22)",
-      nightEyeGlow: false,
-      rabbitHi: "#D6CEC6",
-      rabbitBody: "#B2A59B",
-      rabbitDark: "#83756C",
-      deerHi: "#DE893E",
-      deerBody: "#B65B23",
-      deerDark: "#7C3714",
-      pangolinHi: "#BD8042",
-      pangolinBody: "#854B22",
-      pangolinDark: "#4E2712",
-      pangolinScale: "#D99B4E",
-      pandaDarkHi: "#273145",
-      pandaDarkLo: "#0C1220",
-      darkFur: "#111827",
-      crocHi: "#358A49",
-      crocBody: "#1E6636",
-      crocDark: "#0D3A1F",
-      okapiHi: "#943E29",
-      okapiBody: "#61211B",
-      okapiDark: "#360E10",
-      creamHi: "#FCF9F2",
-      creamMid: "#EDE7DB",
-      creamLow: "#C9BFB2",
-      pink: "#F472B6",
-      bamboo: "#22C55E",
-      bambooDark: "#15803D",
-      flower: "#FBBF24",
-      flowerCenter: "#B45309",
-      antler: "#A16236",
-      antlerTip: "#F6E3C6",
-      eye: "#020617"
-    };
-  },
-
-  spawnNatureAnimal(w, h, opts = {}) {
+  spawnNaturePhenomenon(w, h, opts = {}) {
     if (!w || !h) return;
-    if (this.wildlifeCrossings.length >= 2) {
-      this.wildlifeCrossings.shift();
+    if (this.naturePhenomena.length >= 2) {
+      this.naturePhenomena.shift();
     }
     const isNarrow = w < 720;
-    const pool = this.NATURE_ANIMALS.filter(a => a !== this._lastNatureAnimal);
-    const species = (opts.animal && this.NATURE_ANIMALS.includes(opts.animal))
-      ? opts.animal
-      : (pool[Math.floor(Math.random() * pool.length)] || "rabbit");
-    this._lastNatureAnimal = species;
+    const pool = this.NATURE_PHENOMENA.filter(t => t !== this._lastNaturePhenomenon);
+    const type = (opts.type && this.NATURE_PHENOMENA.includes(opts.type))
+      ? opts.type
+      : (pool[Math.floor(Math.random() * pool.length)] || "thermal_flock");
+    this._lastNaturePhenomenon = type;
 
-    const dir = Math.random() < 0.65 ? 1 : -1;
-    // Far larger pure-2D hero scaling consuming ~65-75% of the viewport horizontally & vertically
-    const scale = isNarrow
-      ? Math.min(w / 295, h / 430)
-      : Math.min(w / 460, h / 290);
-    const baseSpeed = isNarrow ? 132 : 245;
-    const speed = species === "rabbit" ? baseSpeed * 1.15 : (species === "deer" ? baseSpeed * 1.22 : (species === "crocodile" ? baseSpeed * 0.85 : baseSpeed));
-    const baseY = h * (isNarrow ? 0.54 : 0.56);
-    const pauseX = w * (0.47 + Math.random() * 0.06);
-    const margin = Math.round(240 * scale);
-
-    this.wildlifeCrossings.push({
-      species,
+    const mode = opts.mode || this.getThemeMode();
+    const dir = Math.random() < 0.62 ? 1 : -1;
+    const ph = {
+      type,
       dir,
-      x: dir > 0 ? -margin : (w + margin),
-      y: baseY,
-      baseY,
-      pauseX,
-      pauseDuration: 3.3,
-      pauseTimer: 0,
-      pauseBlend: 0,
-      moveSpeedNorm: 1,
-      decelDist: Math.round(145 * scale),
-      exitAccelTimer: 0,
-      breathePhase: Math.random() * Math.PI * 2,
-      phase: "enter",
-      gaitPhase: 0,
-      scale,
-      speed
-    });
+      elapsed: 0,
+      duration: type === "horizon_drift" ? (isNarrow ? 8.5 : 10.0) : (type === "sky_phenomenon" ? 8.2 : 7.6),
+      w,
+      h,
+      mode
+    };
+
+    if (type === "thermal_flock") {
+      const count = isNarrow ? 9 : 14;
+      const baseY = h * (0.28 + Math.random() * 0.14);
+      ph.centerY = baseY;
+      ph.birds = Array.from({ length: count }, (_, idx) => {
+        const layer = idx % 3; // 0=far, 1=mid, 2=near
+        const depth = 0.56 + layer * 0.24;
+        const arm = idx % 2 === 0 ? -1 : 1;
+        const rank = Math.ceil(idx / 2);
+        return {
+          depth,
+          size: (isNarrow ? 11.5 : 16.5) * depth,
+          offX: -dir * rank * (isNarrow ? 22 : 32) * (0.85 + Math.random() * 0.3),
+          offY: arm * rank * (isNarrow ? 11 : 15) + (Math.random() - 0.5) * 14,
+          flapPhase: idx * 0.62 + Math.random() * 0.8,
+          flapSpeed: 5.4 + Math.random() * 1.6,
+          gliderBias: 0.3 + Math.random() * 0.5
+        };
+      });
+    } else if (type === "botanical_gust") {
+      ph.centerY = h * (0.40 + Math.random() * 0.16);
+      ph.amp = h * (isNarrow ? 0.06 : 0.085);
+      const itemCount = isNarrow ? 24 : 36;
+      ph.particles = Array.from({ length: itemCount }, (_, i) => ({
+        offsetT: (i / itemCount) * 0.42 + Math.random() * 0.10,
+        laneY: (Math.random() - 0.5) * h * 0.28,
+        waveFreq: 2.2 + Math.random() * 2.0,
+        waveAmp: 12 + Math.random() * 22,
+        size: (isNarrow ? 4.2 : 5.6) + Math.random() * 4.4,
+        rot: Math.random() * Math.PI * 2,
+        rotSpd: (Math.random() - 0.5) * 4.2,
+        phase: Math.random() * Math.PI * 2,
+        variant: i % 4
+      }));
+      const bCount = isNarrow ? 3 : 4;
+      ph.butterflies = Array.from({ length: bCount }, (_, bi) => ({
+        offsetT: 0.04 + bi * 0.11 + Math.random() * 0.04,
+        laneY: (bi - 1.5) * (isNarrow ? 36 : 48),
+        wingPhase: bi * 1.4,
+        scale: (isNarrow ? 0.85 : 1.15) + (bi % 2) * 0.2
+      }));
+    } else if (type === "sky_phenomenon") {
+      ph.cloudX = dir > 0 ? w * 0.28 : w * 0.72;
+      ph.cloudY = h * (isNarrow ? 0.19 : 0.21);
+      ph.arcCenterX = w * (dir > 0 ? 0.54 : 0.46);
+      ph.arcCenterY = h * (isNarrow ? 0.56 : 0.62);
+      ph.arcR = Math.min(w * (isNarrow ? 0.44 : 0.36), h * 0.52);
+      ph.drops = Array.from({ length: isNarrow ? 28 : 46 }, () => ({
+        rx: (Math.random() - 0.5) * (isNarrow ? 150 : 250),
+        ry: Math.random() * (h * 0.44),
+        len: 12 + Math.random() * 16,
+        spd: 340 + Math.random() * 140
+      }));
+      ph.splashes = Array.from({ length: isNarrow ? 7 : 12 }, (_, si) => ({
+        rx: (Math.random() - 0.5) * (isNarrow ? 140 : 240),
+        ry: h * (0.48 + (si % 4) * 0.06),
+        phase: Math.random()
+      }));
+      ph.meteorMilestones = [0.06, 0.20, 0.35, 0.50, 0.66];
+      ph.meteorsFired = 0;
+      if (mode === "dark") {
+        this.auroraBoost = Math.min(1.5, this.auroraBoost + 0.95);
+      }
+    } else {
+      ph.subType = (opts.subType === "balloon" || opts.subType === "glider")
+        ? opts.subType
+        : (Math.random() < 0.65 ? "balloon" : "glider");
+      ph.startY = h * (ph.subType === "balloon" ? 0.48 : 0.34);
+      ph.scale = isNarrow ? 1.02 : 1.38;
+      ph.trail = [];
+    }
+
+    this.naturePhenomena.push(ph);
   },
 
-  _drawNatureAnimal(ctx, cr, pal, mode) {
-    const s = cr.species;
-    const isPause = cr.phase === "pause_action";
-    const pauseFrac = isPause ? (cr.pauseTimer / Math.max(0.1, cr.pauseDuration)) : 0;
-    const pauseBlend = cr.pauseBlend != null ? cr.pauseBlend : (isPause ? 1 : 0);
-    const moveBlend = 1 - pauseBlend * 0.88;
-    const breatheP = cr.breathePhase || 0;
-    const breathe = Math.sin(breatheP) * 1.4;
-    const blinkCycle = (breatheP * 0.58) % (Math.PI * 2);
-    const naturalBlink = blinkCycle > 5.98 ? Math.sin(((blinkCycle - 5.98) / 0.30) * Math.PI) : 0;
-    const isNight = mode === "dark";
-    const rim = pal.rim;
-    const lv = pal.lightVec || { x: 0.4, y: -0.9 };
-
-    const makeVolGrad = (x0, y0, x1, y1, cHi, cMid, cLow) => {
-      const dx = lv.x * 16;
-      const dy = lv.y * 16;
-      const g = ctx.createLinearGradient(x0 + dx, y0 + dy, x1 - dx * 0.5, y1 - dy * 0.5);
-      g.addColorStop(0, cHi);
-      g.addColorStop(0.54, cMid);
-      g.addColorStop(1, cLow);
-      return g;
-    };
-
-    const evalQuad = (p0, p1, p2, t) => {
-      const inv = 1 - t;
-      return {
-        x: inv * inv * p0.x + 2 * inv * t * p1.x + t * t * p2.x,
-        y: inv * inv * p0.y + 2 * inv * t * p1.y + t * t * p2.y,
-        tx: 2 * inv * (p1.x - p0.x) + 2 * t * (p2.x - p1.x),
-        ty: 2 * inv * (p1.y - p0.y) + 2 * t * (p2.y - p1.y)
-      };
-    };
-
-    const strokeRim = (lw = 1.4) => {
-      ctx.save();
-      ctx.globalAlpha *= 0.65;
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = lw;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    const strokeSunRim = (x0, y0, cx, cy, x1, y1, lw = 2.0) => {
-      ctx.save();
-      ctx.globalAlpha = 0.44;
-      ctx.strokeStyle = pal.rimHi;
-      ctx.lineWidth = Math.min(1.4, lw * 0.72);
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.quadraticCurveTo(cx, cy, x1, y1);
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    const drawGroundShadow = (cx, rx, ry = 7.5, alphaMul = 1.0) => {
-      ctx.save();
-      ctx.globalAlpha = alphaMul;
-      const g = ctx.createRadialGradient(cx, 86, rx * 0.15, cx, 86, rx);
-      g.addColorStop(0, pal.shadowTint || "rgba(15, 23, 42, 0.28)");
-      g.addColorStop(0.7, pal.shadowTint || "rgba(15, 23, 42, 0.14)");
-      g.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.ellipse(cx, 86, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
-
-    const drawCheekBlush = (cx, cy, rx = 8, ry = 5, alpha = 0.34) => {
-      ctx.save();
-      ctx.fillStyle = pal.pink;
-      ctx.globalAlpha = isNight ? alpha * 0.45 : alpha;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, 0.08, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
-
-    const drawExpressiveEye = (ex, ey, r = 4.6, opts = {}) => {
-      const happy = opts.happySquint || 0;
-      const blink = Math.max(naturalBlink, opts.blink || 0);
-      if (happy > 0.65) {
-        ctx.save();
-        ctx.strokeStyle = opts.lineCol || pal.eye;
-        ctx.lineWidth = Math.max(2.0, r * 0.45);
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.arc(ex, ey + r * 0.35, r * 0.85, Math.PI * 1.15, Math.PI * 1.85);
-        ctx.stroke();
-        ctx.restore();
-        return;
-      }
-      if (blink > 0.62) {
-        ctx.save();
-        ctx.strokeStyle = opts.lineCol || pal.eye;
-        ctx.lineWidth = Math.max(1.8, r * 0.38);
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.arc(ex, ey + r * 0.15, r * 0.82, 0.25, Math.PI - 0.25);
-        ctx.stroke();
-        ctx.restore();
-        return;
-      }
-      if (pal.nightEyeGlow) {
-        ctx.save();
-        const eg = ctx.createRadialGradient(ex, ey, r * 0.3, ex, ey, r * 2.5);
-        eg.addColorStop(0, "rgba(253, 224, 71, 0.36)");
-        eg.addColorStop(1, "rgba(253, 224, 71, 0)");
-        ctx.fillStyle = eg;
-        ctx.beginPath();
-        ctx.arc(ex, ey, r * 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-      const sclera = opts.scleraCol || pal.creamHi;
-      const iris = opts.pupilCol || pal.eye;
-      ctx.fillStyle = sclera;
-      ctx.beginPath();
-      ctx.ellipse(ex, ey, r * 1.16, r * (1.16 - blink * 0.55), 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = opts.rimCol || rim;
-      ctx.lineWidth = 0.95;
-      ctx.stroke();
-      ctx.fillStyle = iris;
-      ctx.beginPath();
-      ctx.arc(ex + r * 0.14, ey, r * 0.86, 0, Math.PI * 2);
-      ctx.fill();
-      // Glossy primary + pinpoint secondary catchlights
-      ctx.fillStyle = "#FFFFFF";
-      ctx.beginPath();
-      ctx.arc(ex + r * 0.34, ey - r * 0.34, r * 0.34, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(ex - r * 0.16, ey + r * 0.24, r * 0.15, 0, Math.PI * 2);
-      ctx.fill();
-    };
-
-    const drawTaperedLimb = (hipX, hipY, kneeX, kneeY, footX, footY, wHip, wKnee, wFoot, upperCol, lowerCol, opts = {}) => {
-      const segPoly = (x0, y0, x1, y1, r0, r1, fillCol, outline) => {
-        const dx = x1 - x0;
-        const dy = y1 - y0;
-        const len = Math.hypot(dx, dy);
-        ctx.fillStyle = fillCol;
-        ctx.beginPath();
-        if (len < 0.5) {
-          ctx.arc(x0, y0, Math.max(r0, r1), 0, Math.PI * 2);
-        } else {
-          const ang = Math.atan2(dy, dx);
-          const sinDiff = Math.max(-0.92, Math.min(0.92, (r0 - r1) / len));
-          const halfSpan = Math.acos(sinDiff);
-          ctx.arc(x0, y0, r0, ang + halfSpan, ang + Math.PI * 2 - halfSpan, false);
-          ctx.arc(x1, y1, r1, ang - halfSpan, ang + halfSpan, false);
-          ctx.closePath();
-        }
-        ctx.fill();
-        if (outline) {
-          ctx.save();
-          ctx.globalAlpha *= 0.65;
-          ctx.strokeStyle = rim;
-          ctx.lineWidth = opts.rimW || 1.0;
-          ctx.lineJoin = "round";
-          ctx.stroke();
-          ctx.restore();
-        }
-      };
-
-      ctx.save();
-      const outlineLight = Boolean(opts.isLightLower || lowerCol === pal.creamMid || lowerCol === pal.creamHi);
-      segPoly(hipX, hipY, kneeX, kneeY, wHip * 0.5, wKnee * 0.5, upperCol, Boolean(opts.outlineUpper));
-      segPoly(kneeX, kneeY, footX, footY, wKnee * 0.5, wFoot * 0.5, lowerCol, outlineLight || Boolean(opts.outlineLower));
-
-      // Subtle directional sheen along front limb edge
-      ctx.strokeStyle = pal.rimHi;
-      ctx.globalAlpha = 0.12;
-      ctx.lineWidth = Math.min(1.5, wHip * 0.08);
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(hipX + lv.x * 2.0, hipY + lv.y * 2.0);
-      ctx.lineTo(kneeX + lv.x * 2.0, kneeY + lv.y * 2.0);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      if (opts.hoofCol) {
-        ctx.fillStyle = opts.hoofCol;
-        ctx.beginPath();
-        ctx.roundRect(footX - wFoot * 0.55, footY - 4.2, wFoot * 1.48, 8.8, 2.8);
-        ctx.fill();
-        ctx.strokeStyle = rim;
-        ctx.lineWidth = 0.85;
-        ctx.stroke();
-      } else if (opts.pawCol) {
-        const pr = Math.max(4.5, wFoot * 0.68);
-        ctx.fillStyle = opts.pawCol;
-        ctx.beginPath();
-        ctx.ellipse(footX + pr * 0.28, footY, pr * 1.15, pr * 0.72, 0, 0, Math.PI * 2);
-        ctx.fill();
-        if (opts.outlineLower || outlineLight) strokeRim(0.95);
-      }
-      ctx.restore();
-    };
-
+  _drawNatureRibbon(ctx, x0, y0, cx, cy, x1, y1, rgb, alpha, maxW = 2.4) {
     ctx.save();
-    // Pure flat 2D horizontal side-profile coordinate system anchored at baseline y = +85
-    ctx.translate(cr.x, cr.y);
-    if (cr.dir < 0) ctx.scale(-1, 1);
-    ctx.scale(cr.scale, cr.scale);
-
-    if (s === "rabbit") {
-      // 3-Phase Elastic Squash-and-Stretch Hop Cycle + Grounded Upright Periscope Double-Paw Grooming Sit + Binky Hop!
-      const hp = cr.gaitPhase * 3.1;
-      const cyc = ((hp % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
-      const isAir = cyc > 0.26 && cyc < 0.76;
-      const airU = isAir ? (cyc - 0.26) / 0.50 : 0;
-      const walkAir = isAir ? Math.sin(airU * Math.PI) : 0;
-      const gatherFrac = !isAir ? (cyc <= 0.26 ? (cyc / 0.26) : (1 - (cyc - 0.76) / 0.24)) : 0;
-
-      const sit = this._smooth5(pauseBlend);
-      const sitEase = sit;
-      const binkyU = (isPause && pauseFrac > 0.74 && pauseFrac < 0.90) ? (pauseFrac - 0.74) / 0.16 : 0;
-      const binkyHop = binkyU > 0 ? Math.sin(binkyU * Math.PI) * 34 : 0;
-
-      const hopArc = (Math.pow(walkAir, 0.82) * 52) * (1 - sitEase) + binkyHop;
-      const sxSquash = 1 + gatherFrac * 0.08 * (1 - sitEase) - walkAir * 0.05 * (1 - sitEase);
-      const sySquash = 1 - gatherFrac * 0.09 * (1 - sitEase) + walkAir * 0.06 * (1 - sitEase);
-      const elasticPitch = (isAir ? Math.cos(airU * Math.PI) * -0.17 : (cyc <= 0.26 ? 0.06 : -0.05)) * (1 - sitEase);
-      const legStretch = (isAir ? Math.sin(airU * Math.PI) * 1.15 : -0.42 * gatherFrac) * (1 - sitEase);
-
-      drawGroundShadow(-6 * (1 - hopArc * 0.002), 54 * Math.max(0.65, 1 - hopArc * 0.0055), 7, 1 - hopArc * 0.007);
-
-      // Grounded Flat Hind Feet when Upright Periscope-Sitting (feet stay firmly anchored at y = 84 except during mini binky!)
-      const footBaseY = 82 - binkyHop;
-      if (sitEase > 0.10) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, sitEase * 1.2);
-        const hFootG = makeVolGrad(-18, footBaseY - 8, 22, footBaseY + 4, pal.creamHi, pal.creamMid, pal.creamLow);
-        [-14, 14].forEach((hx, hIdx) => {
-          ctx.fillStyle = hIdx === 0 ? pal.rabbitDark : hFootG;
-          ctx.beginPath();
-          ctx.ellipse(hx, footBaseY - 1, 20, 6.8, hIdx === 0 ? -0.04 : 0.04, 0, Math.PI * 2);
-          ctx.fill();
-          strokeRim(1.1);
-        });
-        ctx.restore();
-      }
-
-      // Bunny Torso Smoothly Transforming: Horizontal Bound Posture <-> Tall Cute Pear-Drop Upright Sit!
-      const torsoOffX = -2 * sitEase;
-      const torsoOffY = (14 - hopArc + gatherFrac * 4 * (1 - sitEase)) * (1 - sitEase) + (18 - binkyHop + breathe * 0.35) * sitEase;
-
-      ctx.save();
-      ctx.translate(torsoOffX, torsoOffY);
-      ctx.scale(sxSquash, sySquash);
-      ctx.rotate(elasticPitch);
-
-      // Unified soft fluffy cottontail silhouette (single clean outer stroke)
-      const tailX = -68 * (1 - sitEase) + (-42) * sitEase;
-      const tailY = 24 * (1 - sitEase) + 46 * sitEase;
-      const tailG = makeVolGrad(tailX - 10, tailY - 10, tailX + 10, tailY + 10, pal.creamHi, pal.creamMid, pal.creamLow);
-      ctx.fillStyle = tailG;
-      ctx.beginPath();
-      ctx.moveTo(tailX + 8, tailY - 12);
-      ctx.bezierCurveTo(tailX - 4, tailY - 22, tailX - 22, tailY - 18, tailX - 20, tailY - 4);
-      ctx.bezierCurveTo(tailX - 24, tailY + 12, tailX - 8, tailY + 20, tailX + 6, tailY + 16);
-      ctx.bezierCurveTo(tailX + 16, tailY + 12, tailX + 18, tailY - 4, tailX + 8, tailY - 12);
-      ctx.closePath();
-      ctx.fill();
-      strokeRim(1.0);
-
-      // Far hind & fore legs (walking only, crossfade smoothly into upright torso haunches)
-      const hopLegVis = Math.max(0, 1 - sitEase * 1.15);
-      if (hopLegVis > 0.02) {
-        ctx.save();
-        ctx.globalAlpha = hopLegVis;
-        drawTaperedLimb(-46, 36, -24 - legStretch * 16, 54, -58 - legStretch * 28, 69, 20, 12, 8.5, pal.rabbitDark, pal.rabbitDark);
-        drawTaperedLimb(26, 34, 34 + legStretch * 16, 52, 48 + legStretch * 24, 68, 13, 9.5, 7, pal.rabbitDark, pal.rabbitDark);
-        ctx.restore();
-      }
-
-      // Continuous Torso Morph: sleek streamlined rabbit body <-> round upright pear-shaped bunny torso!
-      const rabG = makeVolGrad(-34, -22, 30, 58, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
-      ctx.fillStyle = rabG;
-      ctx.beginPath();
-      const bx0 = -64 * (1 - sitEase) + (-38) * sitEase;
-      const by0 = 24 * (1 - sitEase) + 32 * sitEase;
-      const topX = -8 * (1 - sitEase) + (-2) * sitEase;
-      const topY = -20 * (1 - sitEase) + (-32) * sitEase;
-      const frX = 44 * (1 - sitEase) + 38 * sitEase;
-      const frY = 20 * (1 - sitEase) + 28 * sitEase;
-      ctx.moveTo(bx0, by0);
-      ctx.bezierCurveTo(bx0 - 4, topY - 4, topX - 18, topY, 16, -14 * (1 - sitEase) + (-30) * sitEase);
-      ctx.bezierCurveTo(46, -6 * (1 - sitEase) + (-14) * sitEase, frX + 8, frY - 10, frX, frY + 18);
-      ctx.bezierCurveTo(10, 62 * (1 - sitEase) + 66 * sitEase, -42, 60 * (1 - sitEase) + 64 * sitEase, bx0, by0);
-      ctx.closePath();
-      ctx.fill();
-      strokeRim(1.5);
-      strokeSunRim(bx0 + 10, by0 - 20, topX, topY, 28, -10, 1.8);
-
-      // Warm cream chest apron & belly bib
-      const bibG = makeVolGrad(4, 14, 16, 56, pal.creamHi, pal.creamMid, pal.creamLow);
-      ctx.fillStyle = bibG;
-      ctx.beginPath();
-      ctx.ellipse(12 * (1 - sitEase) + 10 * sitEase, 36 * (1 - sitEase) + 26 * sitEase, 36 * (1 - sitEase) + 22 * sitEase, 17 * (1 - sitEase) + 28 * sitEase, -0.06, 0, Math.PI * (1 + sitEase));
-      ctx.fill();
-
-      // Shaded Muscular Haunch & Long Spring Hind Foot (during hop)
-      if (hopLegVis > 0.02) {
-        ctx.save();
-        ctx.globalAlpha = hopLegVis;
-        const haunchG = makeVolGrad(-56, 22, -26, 62, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
-        ctx.fillStyle = haunchG;
-        ctx.beginPath();
-        ctx.ellipse(-38, 38, 25, 19, -0.22, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = pal.creamMid;
-        ctx.beginPath();
-        ctx.ellipse(-28 - legStretch * 22, 65, 25, 7.8, legStretch * 0.25, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.1);
-        ctx.restore();
-      } else {
-        // Seated tucked haunch cushion
-        const sitHaunchG = makeVolGrad(-34, 24, 6, 58, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
-        ctx.fillStyle = sitHaunchG;
-        ctx.beginPath();
-        ctx.ellipse(-18, 42, 22, 18, -0.15, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.1);
-      }
-
-      // Bunny Head (translates cleanly from forward bound head -> upright centered perch above pear torso!)
-      const hX = 44 * (1 - sitEase) + 8 * sitEase;
-      const hY = -12 * (1 - sitEase) + (-44) * sitEase;
-      const rabHeadG = makeVolGrad(hX - 22, hY - 22, hX + 24, hY + 22, pal.rabbitHi, pal.rabbitBody, pal.rabbitDark);
-
-      // Cute Veined Long Bunny Ears (sweep gracefully with air drag mid-hop; one flops playfully during sit!)
-      const earDrag = Math.max(0, walkAir) * 0.42 * (1 - sitEase);
-      const sitWig = sitEase * Math.sin(pauseFrac * 18) * 0.16;
-      const binkyEarOut = binkyU > 0 ? Math.sin(binkyU * Math.PI) * 0.35 : 0;
-      [
-        { bx: hX - 14, by: hY - 20, ang: -0.34 - earDrag + sitWig - binkyEarOut, flop: sitEase * 0.55, col: pal.rabbitDark, isFront: false },
-        { bx: hX - 4, by: hY - 19, ang: -0.10 - earDrag * 0.7 - sitWig * 0.5 + binkyEarOut * 0.5, flop: 0, col: rabHeadG, isFront: true }
-      ].forEach(e => {
-        ctx.save();
-        ctx.translate(e.bx, e.by);
-        ctx.rotate(e.ang);
-        ctx.fillStyle = e.col;
-        ctx.beginPath();
-        if (e.flop > 0.2) {
-          ctx.moveTo(-7, 0);
-          ctx.quadraticCurveTo(-12, -38, -2, -52);
-          ctx.quadraticCurveTo(14 * e.flop, -56 + 16 * e.flop, 18 * e.flop + 4, -36 + 22 * e.flop);
-          ctx.quadraticCurveTo(8, -20, 7, 0);
-        } else {
-          ctx.ellipse(0, -34, 9.8, 36, 0, 0, Math.PI * 2);
-        }
-        ctx.closePath();
-        ctx.fill();
-        strokeRim(1.2);
-        if (e.isFront) {
-          ctx.fillStyle = pal.pink;
-          ctx.globalAlpha = isNight ? 0.52 : 0.85;
-          ctx.beginPath();
-          ctx.ellipse(1, -33, 4.8, 25, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-        ctx.restore();
-      });
-
-      // Plush Head & Fluffy Cream Cheek Muff
-      ctx.fillStyle = rabHeadG;
-      ctx.beginPath();
-      ctx.ellipse(hX, hY, 31, 25.5, 0.10 * (1 - sitEase), 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.5);
-      ctx.fillStyle = pal.creamHi;
-      ctx.beginPath();
-      ctx.ellipse(hX + 10, hY + 11, 20, 12.5, 0.08, 0, Math.PI * 2);
-      ctx.fill();
-      drawCheekBlush(hX + 3, hY + 6, 8, 5, 0.36);
-
-      // Cute Nose, Twitch, Whiskers & Blinking Bunny Eye
-      const noseTwitch = sitEase * Math.sin(pauseFrac * 30) * 1.6;
-      drawExpressiveEye(hX + 9, hY - 5, 5.2, { happySquint: binkyU > 0.1 ? 0.8 : 0 });
-      ctx.fillStyle = pal.pink;
-      ctx.beginPath();
-      ctx.ellipse(hX + 29, hY + 3 + noseTwitch, 5.2, 3.8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Cleft bunny mouth
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = 1.3;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(hX + 29, hY + 7 + noseTwitch);
-      ctx.lineTo(hX + 29, hY + 10 + noseTwitch);
-      ctx.quadraticCurveTo(hX + 25, hY + 13 + noseTwitch, hX + 21, hY + 11 + noseTwitch);
-      ctx.stroke();
-      ctx.strokeStyle = isNight ? "rgba(186, 230, 253, 0.55)" : rim;
-      ctx.lineWidth = 1.15;
-      ctx.beginPath();
-      [[-4, 4], [0, 7], [4, 10]].forEach(([wy, wy2]) => {
-        ctx.moveTo(hX + 22, hY + 4 + wy * 0.45);
-        ctx.quadraticCurveTo(hX + 36, hY + 5 + wy, hX + 47, hY + 7 + wy2);
-      });
-      ctx.stroke();
-
-      // Cute Forelegs -> Dual-Paw Whisker Grooming during Seated Pause!
-      const groomMix = sitEase * (pauseFrac < 0.72 ? 1 : Math.max(0, 1 - (pauseFrac - 0.72) / 0.14));
-      const groomRubL = Math.sin(pauseFrac * 26) * 5.0;
-      const groomRubR = Math.cos(pauseFrac * 26) * 5.0;
-      if (groomMix > 0.15) {
-        // Far paw also washes opposite cheek cleanly!
-        drawTaperedLimb(12, 10, 26, 2, 30, -14 + groomRubL, 12, 9, 6.5, pal.rabbitDark, pal.creamMid, { isLightLower: true, pawCol: pal.creamHi });
-      }
-      const nHipX = 28 * (1 - sitEase) + 18 * sitEase;
-      const nHipY = 30 * (1 - sitEase) + 8 * sitEase;
-      const nKneeX = (40 + legStretch * 14) * (1 - groomMix) + (hX + 22) * groomMix;
-      const nKneeY = 53 * (1 - groomMix) + (hY + 24) * groomMix;
-      const nFootX = (52 + legStretch * 20) * (1 - groomMix) + (hX + 24) * groomMix;
-      const nFootY = 69 * (1 - groomMix) + (hY + 8 + groomRubR) * groomMix;
-      drawTaperedLimb(nHipX, nHipY, nKneeX, nKneeY, nFootX, nFootY, 13.5, 9.8, 7.2, pal.rabbitBody, pal.creamMid, { isLightLower: true, pawCol: pal.creamHi });
-
-      ctx.restore();
-    } else if (s === "deer") {
-      // Graceful Sculpted Cervid 4-Beat Trot + Smooth Wildflower Grazing Arc
-      const trotP = cr.gaitPhase * 3.1;
-      const strideA = Math.sin(trotP) * moveBlend;
-      const strideB = -strideA;
-      const liftA = Math.max(0, Math.cos(trotP)) * 16 * moveBlend;
-      const liftB = Math.max(0, -Math.cos(trotP)) * 16 * moveBlend;
-      const boundY = Math.abs(Math.sin(trotP)) * 14 * moveBlend;
-      const sit = this._smooth5(pauseBlend);
-      const grazeWave = 0.25 + 0.75 * Math.sin(Math.min(1, pauseFrac * 1.15) * Math.PI);
-      const grazeBend = sit * grazeWave * 0.78;
-
-      drawGroundShadow(0, 62, 8, 1 - boundY * 0.012);
-
-      // Golden wildflower sprouting gently at nose target during graze
-      if (sit > 0.03) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, sit * 1.35);
-        ctx.translate(114, 85);
-        ctx.strokeStyle = pal.bamboo;
-        ctx.lineWidth = 4.0;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(-4, -26, 2, -52);
-        ctx.stroke();
-        ctx.fillStyle = pal.bambooDark;
-        ctx.beginPath();
-        ctx.ellipse(-10, -24, 11, 4.5, -0.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = pal.bamboo;
-        ctx.beginPath();
-        ctx.ellipse(12, -32, 10, 4.2, 0.45, 0, Math.PI * 2);
-        ctx.fill();
-        for (let pt = 0; pt < 6; pt++) {
-          const a = (pt * Math.PI) / 3 + pauseFrac * 0.4;
-          ctx.fillStyle = pal.flower;
-          ctx.beginPath();
-          ctx.ellipse(2 + Math.cos(a) * 9, -54 + Math.sin(a) * 9, 6.5, 4.2, a, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = pal.flowerCenter;
-        ctx.beginPath();
-        ctx.arc(2, -54, 4.4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      ctx.save();
-      ctx.translate(0, -boundY + breathe * 0.25);
-
-      // Far tapered legs with cloven hooves
-      drawTaperedLimb(-48, 8, -54 + strideB * 16, 44 - liftB * 0.8, -62 + strideB * 24, 84 - liftB, 15, 8.5, 6.5, pal.deerDark, pal.deerDark, { hoofCol: pal.eye });
-      drawTaperedLimb(36, 8, 42 + strideA * 18, 44 - liftA * 0.9, 50 + strideA * 25, 84 - liftA, 13.5, 8.5, 6.5, pal.deerDark, pal.deerDark, { hoofCol: pal.eye });
-
-      // Upturned fluffy white-underside stag tail
-      ctx.fillStyle = pal.deerBody;
-      ctx.beginPath();
-      ctx.ellipse(-70, -14, 15, 7.5, -0.55, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = pal.creamHi;
-      ctx.beginPath();
-      ctx.ellipse(-67, -10, 11, 5.5, -0.55, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Seamless sculpted shaded neck
-      ctx.save();
-      ctx.translate(44, -14);
-      ctx.rotate(grazeBend + Math.sin(trotP) * 0.05 * moveBlend);
-
-      const dNeckG = makeVolGrad(2, -54, 24, 16, pal.deerHi, pal.deerBody, pal.deerDark);
-      ctx.fillStyle = dNeckG;
-      ctx.beginPath();
-      ctx.moveTo(-18, 14);
-      ctx.quadraticCurveTo(-2, -26, 8, -56);
-      ctx.lineTo(28, -50);
-      ctx.quadraticCurveTo(22, -12, 12, 14);
-      ctx.closePath();
-      ctx.fill();
-      // Stroke outer nape & throat edges only so no seam cuts across the shoulder
-      ctx.save();
-      ctx.globalAlpha *= 0.65;
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = 1.1;
-      ctx.beginPath();
-      ctx.moveTo(-18, 14);
-      ctx.quadraticCurveTo(-2, -26, 8, -56);
-      ctx.moveTo(28, -50);
-      ctx.quadraticCurveTo(22, -12, 12, 14);
-      ctx.stroke();
-      ctx.restore();
-
-      const ruffG = makeVolGrad(10, -34, 22, 0, pal.creamHi, pal.creamMid, pal.creamLow);
-      ctx.fillStyle = ruffG;
-      ctx.beginPath();
-      ctx.ellipse(15, -18, 7.8, 22, 0.25, 0, Math.PI * 2);
-      ctx.fill();
-
-      const earTwitch = Math.sin(pauseFrac * 18) * 0.10 * sit;
-      [[-2, -0.55 - earTwitch, pal.deerDark], [4, -0.25 + earTwitch * 0.5, pal.deerBody]].forEach(([ex, eang, ecol]) => {
-        ctx.save();
-        ctx.translate(6 + ex, -54);
-        ctx.rotate(eang);
-        ctx.fillStyle = ecol;
-        ctx.beginPath();
-        ctx.ellipse(0, -14, 6.2, 16, 0, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.0);
-        ctx.fillStyle = pal.pink;
-        ctx.globalAlpha = isNight ? 0.52 : 0.85;
-        ctx.beginPath();
-        ctx.ellipse(0, -13, 3.0, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-      });
-
-      const dHeadG = makeVolGrad(8, -64, 42, -40, pal.deerHi, pal.deerBody, pal.deerDark);
-      ctx.fillStyle = dHeadG;
-      ctx.beginPath();
-      ctx.ellipse(24, -52, 23, 12.2, 0.18, 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.2);
-      ctx.fillStyle = pal.creamHi;
-      ctx.beginPath();
-      ctx.ellipse(38, -46, 9, 5.2, 0.15, 0, Math.PI * 2);
-      ctx.fill();
-      drawCheekBlush(25, -47, 5.5, 3.4, 0.32);
-
-      // Majestic 5-point branching shaded antlers with ivory tines
-      const antG = ctx.createLinearGradient(0, -60, 0, -112);
-      antG.addColorStop(0, pal.antler);
-      antG.addColorStop(1, pal.antlerTip);
-      ctx.strokeStyle = antG;
-      ctx.lineCap = "round";
-      ctx.lineWidth = 4.8;
-      ctx.beginPath();
-      ctx.moveTo(12, -62);
-      ctx.quadraticCurveTo(4, -84, -8, -104);
-      ctx.moveTo(8, -76);
-      ctx.quadraticCurveTo(22, -88, 28, -102);
-      ctx.moveTo(2, -88);
-      ctx.quadraticCurveTo(14, -98, 12, -112);
-      ctx.moveTo(-2, -96);
-      ctx.lineTo(-14, -110);
-      ctx.stroke();
-
-      drawExpressiveEye(26, -55, 4.3, { happySquint: grazeBend > 0.55 ? 0.72 : 0 });
-      ctx.fillStyle = pal.eye;
-      ctx.beginPath();
-      ctx.arc(46, -50, 3.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // Muscular volumetric stag torso
-      const deerG = makeVolGrad(-20, -28, 12, 28, pal.deerHi, pal.deerBody, pal.deerDark);
-      ctx.fillStyle = deerG;
-      ctx.beginPath();
-      ctx.moveTo(-64, 4);
-      ctx.quadraticCurveTo(-56, -24, -18, -21);
-      ctx.quadraticCurveTo(22, -19, 46, -24);
-      ctx.quadraticCurveTo(64, -8, 52, 16);
-      ctx.quadraticCurveTo(10, 26, -42, 22);
-      ctx.quadraticCurveTo(-64, 18, -64, 4);
-      ctx.closePath();
-      ctx.fill();
-      strokeRim(1.3);
-      strokeSunRim(-52, -16, -6, -24, 42, -21, 1.8);
-
-      ctx.fillStyle = pal.creamMid;
-      ctx.beginPath();
-      ctx.ellipse(2, 18, 40, 9.5, 0, 0, Math.PI);
-      ctx.fill();
-
-      ctx.fillStyle = pal.creamHi;
-      ctx.globalAlpha = 0.78;
-      [[-32, -8, 3.6], [-20, -12, 3.0], [-14, -3, 3.4], [-38, 1, 2.8], [-2, -10, 3.2], [12, -5, 2.8]].forEach(([sx, sy, sr]) => {
-        ctx.beginPath();
-        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-
-      const legRGrad = makeVolGrad(-46, 13, -54, 80, pal.deerHi, pal.deerBody, pal.deerDark);
-      const legFGrad = makeVolGrad(40, 13, 48, 80, pal.deerHi, pal.deerBody, pal.deerDark);
-      drawTaperedLimb(-42, 13, -48 + strideA * 18, 45 - liftA * 0.85, -56 + strideA * 26, 84 - liftA, 16.5, 9.0, 6.8, legRGrad, pal.deerBody, { hoofCol: pal.eye });
-      drawTaperedLimb(40, 13, 46 + strideB * 18, 45 - liftB * 0.90, 54 + strideB * 26, 84 - liftB, 14.5, 8.8, 6.8, legFGrad, pal.deerBody, { hoofCol: pal.eye });
-      ctx.restore();
-    } else if (s === "pangolin") {
-      // Cute Scaled Tripod Waddle + Continuous Morph into Pine-Cone Armored Sphere!
-      const walkP = cr.gaitPhase * 2.8;
-      const walkStride = Math.sin(walkP) * moveBlend;
-      const tailSway = Math.sin(walkP * 1.1) * 8 * moveBlend;
-      const curl = pauseBlend;
-      const curlEase = this._smooth5(curl);
-      const rock = curlEase > 0.35 ? Math.sin(pauseFrac * Math.PI * 3.0) * (curlEase - 0.35) * 1.54 : 0;
-
-      drawGroundShadow(rock * 24, 62 * (1 - curlEase * 0.25), 8, 1);
-
-      ctx.save();
-      ctx.translate(rock * 24, curlEase * -24);
-      ctx.rotate(rock * 0.36);
-
-      const legVis = Math.max(0, 1 - curlEase * 1.25);
-      if (legVis > 0.02) {
-        ctx.save();
-        ctx.globalAlpha = legVis;
-        drawTaperedLimb(-28, 36 + curlEase * 12, -32 - walkStride * 11, 59, -34 - walkStride * 16, 82, 18, 13, 10.5, pal.pangolinDark, pal.pangolinBody);
-        drawTaperedLimb(10, 34 + curlEase * 10, 12 + walkStride * 11, 59, 14 + walkStride * 16, 82, 18, 13, 10.5, pal.pangolinBody, pal.pangolinBody);
-        [-34 - walkStride * 16, 14 + walkStride * 16].forEach(fx => {
-          ctx.strokeStyle = pal.antler;
-          ctx.lineWidth = 3.2;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(fx, 81); ctx.lineTo(fx + 10, 84);
-          ctx.moveTo(fx - 3, 82); ctx.lineTo(fx + 7, 85);
-          ctx.stroke();
-        });
-        const armY = 26 + Math.sin(walkP * 2) * 3.5;
-        drawTaperedLimb(48, 12, 62, armY + 12, 54, armY + 22, 13.5, 9.8, 7.5, pal.pangolinBody, pal.pangolinBody);
-        ctx.lineCap = "round";
-        ctx.strokeStyle = rim;
-        ctx.lineWidth = 4.6;
-        ctx.beginPath();
-        ctx.moveTo(54, armY + 22); ctx.quadraticCurveTo(64, armY + 26, 61, armY + 34);
-        ctx.moveTo(51, armY + 23); ctx.quadraticCurveTo(59, armY + 27, 56, armY + 35);
-        ctx.stroke();
-        ctx.strokeStyle = pal.antler;
-        ctx.lineWidth = 3.0;
-        ctx.beginPath();
-        ctx.moveTo(54, armY + 22); ctx.quadraticCurveTo(64, armY + 26, 61, armY + 34);
-        ctx.moveTo(51, armY + 23); ctx.quadraticCurveTo(59, armY + 27, 56, armY + 35);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      const tailX = (-142 * (1 - curlEase)) + (-26 * curlEase);
-      const tailY = ((42 + tailSway) * (1 - curlEase)) + (44 * curlEase);
-      const midRumpX = (-68 * (1 - curlEase)) + (-56 * curlEase);
-      const midRumpY = ((14 + tailSway * 0.4) * (1 - curlEase)) + (-24 * curlEase);
-      const apexX = (4 * (1 - curlEase)) + (2 * curlEase);
-      const apexY = (-20 * (1 - curlEase)) + (-56 * curlEase);
-      const snoutX = (114 * (1 - curlEase)) + (-12 * curlEase);
-      const snoutY = (36 * (1 - curlEase)) + (16 * curlEase);
-
-      const pathPangolinBody = () => {
-        ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.bezierCurveTo(midRumpX - 10, midRumpY + 4, apexX - 28, apexY, apexX, apexY);
-        ctx.bezierCurveTo(apexX + 26, apexY, 64 * (1 - curlEase), -10 * (1 - curlEase) + curlEase * -34, snoutX, snoutY);
-        ctx.quadraticCurveTo(54 * (1 - curlEase) + curlEase * 24, 52, -26, 48);
-        ctx.quadraticCurveTo(-84 * (1 - curlEase), 54 + tailSway * 0.4, tailX, tailY);
-        ctx.closePath();
-      };
-
-      if (curlEase > 0.08) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, curlEase * 1.15);
-        const sphereG = makeVolGrad(-22, -40, 26, 48, pal.pangolinHi, pal.pangolinBody, pal.pangolinDark);
-        ctx.fillStyle = sphereG;
-        ctx.beginPath();
-        ctx.arc(0, 6, 58 * Math.min(1, 0.72 + curlEase * 0.28), 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.6);
-        ctx.restore();
-      }
-
-      if (curlEase < 0.96) {
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, 1 - Math.max(0, curlEase - 0.55) / 0.41);
-        const pangoG = makeVolGrad(-16, -24, 18, 56, pal.pangolinHi, pal.pangolinBody, pal.pangolinDark);
-        ctx.fillStyle = pangoG;
-        pathPangolinBody();
-        ctx.fill();
-        strokeRim(1.5);
-        strokeSunRim(tailX + 20, tailY - 8, apexX, apexY - 2, snoutX - 18, snoutY - 8, 1.8);
-        ctx.restore();
-      }
-
-      if (curlEase < 0.65) {
-        ctx.save();
-        ctx.globalAlpha = 1 - curlEase / 0.65;
-        pathPangolinBody();
-        ctx.clip();
-        for (let row = 0; row < 4; row++) {
-          const yOff = row * 12;
-          for (let sx = -126 + row * 14; sx <= 52; sx += 17) {
-            const archY = Math.pow(sx / 74, 2) * 18 - 10 + yOff;
-            if (archY > 46) continue;
-            const scG = ctx.createLinearGradient(sx, archY - 8, sx, archY + 9);
-            const cTop = (Math.round(sx / 17) + row) % 2 === 0 ? pal.pangolinScale : pal.pangolinHi;
-            const cBot = (Math.round(sx / 17) + row) % 2 === 0 ? pal.pangolinBody : pal.pangolinDark;
-            scG.addColorStop(0, cTop);
-            scG.addColorStop(1, cBot);
-            ctx.fillStyle = scG;
-            ctx.beginPath();
-            ctx.moveTo(sx - 12, archY - 2);
-            ctx.quadraticCurveTo(sx, archY - 9, sx + 12, archY - 2);
-            ctx.quadraticCurveTo(sx + 8, archY + 9, sx, archY + 10);
-            ctx.quadraticCurveTo(sx - 8, archY + 9, sx - 12, archY - 2);
-            ctx.closePath();
-            ctx.fill();
-            ctx.strokeStyle = rim;
-            ctx.lineWidth = 0.85;
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
-      }
-
-      if (curlEase > 0.25) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, (curlEase - 0.25) / 0.45);
-        const r = 60;
-        const numScales = 28;
-        for (let k = numScales - 1; k >= 0; k--) {
-          const t = k / numScales;
-          const ang = t * Math.PI * 5.2;
-          const dist = t * (r * 0.70);
-          const sx = Math.cos(ang) * dist;
-          const sy = 6 + Math.sin(ang) * dist;
-          const sR = 11 + t * 8.5;
-          ctx.save();
-          ctx.translate(sx, sy);
-          ctx.rotate(ang + 1.3);
-          ctx.fillStyle = k % 2 === 0 ? pal.pangolinScale : pal.pangolinBody;
-          ctx.beginPath();
-          ctx.moveTo(sR, 0);
-          ctx.quadraticCurveTo(0, -sR * 0.72, -sR * 0.85, 0);
-          ctx.quadraticCurveTo(0, sR * 0.72, sR, 0);
-          ctx.closePath();
-          ctx.fill();
-          ctx.strokeStyle = rim;
-          ctx.lineWidth = 1.1;
-          ctx.stroke();
-          ctx.restore();
-        }
-        ctx.fillStyle = pal.creamMid;
-        ctx.beginPath();
-        ctx.ellipse(-8, 16, 14, 8, -0.4, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.1);
-        drawExpressiveEye(-4, 14, 4.0, { happySquint: 0.9 });
-        ctx.restore();
-      }
-
-      if (curlEase < 0.55) {
-        ctx.save();
-        ctx.globalAlpha = 1 - curlEase / 0.55;
-        ctx.fillStyle = pal.eye;
-        ctx.beginPath();
-        ctx.arc(snoutX - 1, snoutY - 1, 3.0, 0, Math.PI * 2);
-        ctx.fill();
-        drawCheekBlush(76, 30, 5.2, 3.2, 0.30);
-        drawExpressiveEye(84, 24, 3.8);
-        if (isPause && pauseFrac > 0.76) {
-          ctx.strokeStyle = pal.pink;
-          ctx.lineWidth = 3.2;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(112, 37);
-          ctx.quadraticCurveTo(126, 40, 136, 32);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-      ctx.restore();
-    } else if (s === "panda") {
-      // Complete Rework: Authentic Cute Giant Panda Side Profile + Seated Dual-Paw Bamboo Feast!
-      const ambleP = cr.gaitPhase * 2.4;
-      const sit = this._smooth5(pauseBlend);
-      const walk = 1 - sit;
-      const strideA = Math.sin(ambleP) * walk;
-      const strideB = -strideA;
-      const ambleLiftA = Math.max(0, Math.cos(ambleP)) * 9 * walk;
-      const ambleLiftB = Math.max(0, -Math.cos(ambleP)) * 9 * walk;
-      const ambleBob = Math.abs(Math.sin(ambleP)) * 6 * walk;
-      const shoulderRoll = Math.sin(ambleP) * 0.04 * walk;
-
-      const munchCycle = pauseFrac * 18;
-      const munch = sit * Math.sin(munchCycle);
-      const isMunching = sit > 0.55 && pauseFrac > 0.14 && pauseFrac < 0.88;
-      const happyChew = isMunching ? (0.5 + 0.5 * Math.sin(pauseFrac * 12)) : 0;
-
-      const creamFurG = makeVolGrad(-26, -34, 36, 64, pal.creamHi, pal.creamMid, pal.creamLow);
-      const darkFurG = makeVolGrad(-24, -40, 32, 64, pal.pandaDarkHi, pal.darkFur, pal.pandaDarkLo);
-
-      drawGroundShadow(-2, 64 * walk + 58 * sit, 8.5, 1);
-
-      ctx.save();
-      ctx.translate(0, -ambleBob + breathe * 0.28 * sit);
-      ctx.rotate(shoulderRoll);
-
-      // Continuous morph between Walking Bear Silhouette -> Plump Seated Pear Torso!
-      const pathTorso = () => {
-        const backX = -68 * walk + (-48) * sit;
-        const backY = 6 * walk + 32 * sit;
-        const shldX = 16 * walk + 6 * sit;
-        const shldY = -30 * walk + (-28) * sit;
-        const chestX = 56 * walk + 46 * sit;
-        const chestY = 12 * walk + 14 * sit;
-        const botX = 0;
-        const botY = 44 * walk + 74 * sit;
-        ctx.beginPath();
-        ctx.moveTo(backX, backY);
-        ctx.bezierCurveTo(backX - 2, backY - 30, -22, shldY - 2, shldX, shldY);
-        ctx.bezierCurveTo(shldX + 26, shldY + 2, chestX + 4, chestY - 18, chestX, chestY);
-        ctx.bezierCurveTo(chestX - 2, botY - 8, botX + 38, botY, botX, botY);
-        ctx.bezierCurveTo(botX - 42, botY, backX + 4, botY - 12, backX, backY);
-        ctx.closePath();
-      };
-
-      // Fluffy White Pom-Pom Panda Tail (behind left rump)
-      ctx.fillStyle = pal.creamHi;
-      ctx.beginPath();
-      ctx.arc(-68 * walk + (-48) * sit, 6 * walk + 42 * sit, 11.5, 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.1);
-
-      // Far Walk Limbs (dark back limbs subtly shadowed behind cream belly during walking phase)
-      if (walk > 0.04) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, walk * 1.3);
-        drawTaperedLimb(-44, 24, -48 + strideA * 14, 54 - ambleLiftA * 0.5, -52 + strideA * 22, 82 - ambleLiftA, 22, 16, 13, pal.pandaDarkLo, pal.pandaDarkLo, { pawCol: pal.darkFur });
-        drawTaperedLimb(24, 20, 28 + strideB * 14, 52 - ambleLiftB * 0.5, 32 + strideB * 22, 82 - ambleLiftB, 22, 16, 13, pal.pandaDarkLo, pal.pandaDarkLo, { pawCol: pal.darkFur });
-        ctx.restore();
-      }
-
-      // Main Cream Panda Torso + Clipped Black Shoulder Saddle & Hind Hip Markings!
-      pathTorso();
-      ctx.fillStyle = creamFurG;
-      ctx.fill();
-
-      ctx.save();
-      pathTorso();
-      ctx.clip();
-      // Iconic black shoulder saddle strap wrapping cleanly over shoulders (zero floating box!)
-      ctx.fillStyle = darkFurG;
-      ctx.beginPath();
-      const sCenterX = 24 * walk + 10 * sit;
-      const sCenterY = -4 * walk + (-10) * sit;
-      ctx.ellipse(sCenterX, sCenterY, 20 * walk + 50 * sit, 42 * walk + 19 * sit, 0.14 * walk, 0, Math.PI * 2);
-      ctx.fill();
-      // Black hind trouser cuff blending cleanly into hind hip
-      ctx.beginPath();
-      ctx.ellipse(-42 * walk + (-28) * sit, 24 * walk + 52 * sit, 22, 22, 0.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      pathTorso();
-      strokeRim(1.7);
-      strokeSunRim(-52 * walk - 32 * sit, -20, 6, -32, 34, -18, 1.8);
-
-      // Near Walking Limbs (when walking) OR Seated Chunky Hind Paws with Pink Toe-Beans (when sitting!)
-      if (walk > 0.04) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, walk * 1.3);
-        drawTaperedLimb(-40, 24, -42 + strideB * 15, 55 - ambleLiftB * 0.5, -46 + strideB * 22, 83 - ambleLiftB, 24, 17, 14, darkFurG, darkFurG, { pawCol: pal.darkFur });
-        drawTaperedLimb(28, 18, 30 + strideA * 15, 52 - ambleLiftA * 0.5, 34 + strideA * 22, 83 - ambleLiftA, 24, 17, 14, darkFurG, darkFurG, { pawCol: pal.darkFur });
-        ctx.restore();
-      }
-      if (sit > 0.06) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, sit * 1.25);
-        // Far seated hind paw + near seated hind paw with adorable pink central pad + 3 toe beans!
-        [[-36, 70, -0.18], [32, 70, 0.18]].forEach(([px, py, pang]) => {
-          ctx.fillStyle = darkFurG;
-          ctx.beginPath();
-          ctx.ellipse(px, py, 20, 14.5, pang, 0, Math.PI * 2);
-          ctx.fill();
-          strokeRim(1.2);
-          ctx.fillStyle = pal.pink;
-          ctx.globalAlpha = Math.min(1, sit * 1.25) * 0.85;
-          ctx.beginPath();
-          ctx.ellipse(px + (px < 0 ? -4 : 4), py + 2, 7.5, 5.2, pang, 0, Math.PI * 2);
-          ctx.fill();
-          [-5.5, 0, 5.5].forEach((tx, ti) => {
-            ctx.beginPath();
-            ctx.arc(px + (px < 0 ? -4 : 4) + tx, py - 5 - (ti === 1 ? 1.5 : 0), 2.3, 0, Math.PI * 2);
-            ctx.fill();
-          });
-          ctx.globalAlpha = Math.min(1, sit * 1.25);
-        });
-        ctx.restore();
-      }
-
-      // Far Seated Arm + Luscious Leafy Bamboo Held BETWEEN Both Paws (drawn in true depth order!)
-      const bamDip = isMunching ? munch * 4.5 : 0;
-      if (sit > 0.08) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, (sit - 0.08) / 0.45);
-        // Far black arm bracing upper-mid bamboo shaft
-        drawTaperedLimb(-18, 2, 4, 16 + bamDip * 0.6, 22, 6 + bamDip, 17, 13, 11, pal.pandaDarkLo, pal.pandaDarkLo, { pawCol: pal.darkFur });
-
-        // Diagonal segmented green bamboo stem extending neatly to mouth level + fluttering nibble bits!
-        ctx.save();
-        ctx.translate(28, 12 + bamDip);
-        ctx.rotate(-0.36);
-        ctx.strokeStyle = pal.bamboo;
-        ctx.lineCap = "round";
-        ctx.lineWidth = 8.5;
-        ctx.beginPath();
-        ctx.moveTo(-4, 62);
-        ctx.lineTo(4, -56);
-        ctx.stroke();
-        ctx.strokeStyle = pal.bambooDark;
-        ctx.lineWidth = 2.0;
-        [-38, -12, 14, 40].forEach(ny => {
-          ctx.beginPath();
-          ctx.moveTo(-5.5, ny);
-          ctx.lineTo(5.5, ny);
-          ctx.stroke();
-        });
-        ctx.fillStyle = pal.bamboo;
-        [[14, -44, 0.45], [-12, -24, -0.55], [13, 2, 0.4]].forEach(([lx, ly, la]) => {
-          ctx.beginPath();
-          ctx.ellipse(lx, ly, 14, 5.2, la, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = rim;
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-        });
-        ctx.restore();
-
-        if (isMunching) {
-          for (let lf = 0; lf < 3; lf++) {
-            const lt = ((pauseFrac * 3 + lf * 0.33) % 1);
-            const lx = 20 + Math.sin(lt * 7 + lf) * 14 + lt * 12;
-            const ly = -22 + lt * 58;
-            ctx.fillStyle = pal.bamboo;
-            ctx.globalAlpha = Math.sin(lt * Math.PI) * 0.88;
-            ctx.beginPath();
-            ctx.ellipse(lx, ly, 4.5, 2.2, lt * 4, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          ctx.globalAlpha = Math.min(1, (sit - 0.08) / 0.45);
-        }
-        ctx.restore();
-      }
-
-      // Continuous Giant Panda Head (Authentic Cute Bear Profile <-> Satisfied 3/4 Munch View!)
-      const hX = 62 * walk + 2 * sit;
-      const hY = -4 * walk + (-40 + Math.abs(munch) * 2.5) * sit;
-      const hRx = 33 * walk + 39 * sit;
-      const hRy = 29 * walk + 34 * sit;
-
-      // Iconic Round Velvet Black Panda Ears (perked & wiggling softly while chewing)
-      const earBob = isMunching ? munch * 2.2 : 0;
-      ctx.fillStyle = darkFurG;
-      ctx.beginPath();
-      ctx.arc(hX - 18 * walk - 28 * sit, hY - 26 + earBob, 13.5 + sit * 3, 0, Math.PI * 2);
-      ctx.arc(hX + 10 * walk + 28 * sit, hY - 27 - earBob * 0.6, 13 + sit * 3, 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.1);
-
-      // Plush Cream Cranium + Fluffy Cheek Jowl
-      const pHeadG = makeVolGrad(hX - 18, hY - 26, hX + 20, hY + 26, pal.creamHi, pal.creamMid, pal.creamLow);
-      ctx.fillStyle = pHeadG;
-      ctx.beginPath();
-      ctx.ellipse(hX, hY, hRx, hRy, 0.08 * walk, 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.7);
-
-      // Protruding Bear Muzzle in Walking Side Profile (gives unmistakable real panda silhouette!)
-      if (walk > 0.05) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, walk * 1.4);
-        ctx.fillStyle = pal.creamHi;
-        ctx.beginPath();
-        ctx.ellipse(hX + 28 * walk, hY + 6, 17 * walk, 12.5, 0.12, 0, Math.PI * 2);
-        ctx.fill();
-        strokeRim(1.4);
-        ctx.restore();
-      }
-
-      // Rosy Cheeks (puffed cutely while chewing!)
-      drawCheekBlush(hX + 2 * walk - 16 * sit, hY + 9, 7.5 + isMunching * 2, 4.8 + isMunching * 1.2, 0.36);
-      if (sit > 0.35) {
-        drawCheekBlush(hX + 22, hY + 9, 7.5 + isMunching * 2, 4.8 + isMunching * 1.2, 0.36 * Math.min(1, (sit - 0.35) / 0.4));
-      }
-
-      // Characteristic Slanted Teardrop Dark Eye Patches + Expressive Eyes
-      ctx.fillStyle = darkFurG;
-      if (sit > 0.28) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, (sit - 0.28) / 0.42);
-        ctx.beginPath();
-        ctx.ellipse(hX - 14, hY - 4, 11.4, 8.6, 0.24, 0, Math.PI * 2);
-        ctx.ellipse(hX + 16, hY - 4, 11.4, 8.6, -0.24, 0, Math.PI * 2);
-        ctx.fill();
-        drawExpressiveEye(hX - 12, hY - 5, 4.0, { scleraCol: pal.creamHi, rimCol: pal.creamMid, lineCol: pal.creamHi, happySquint: happyChew });
-        drawExpressiveEye(hX + 16, hY - 5, 4.0, { scleraCol: pal.creamHi, rimCol: pal.creamMid, lineCol: pal.creamHi, happySquint: happyChew });
-        ctx.restore();
-      }
-      if (walk > 0.25) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, (walk - 0.25) / 0.45);
-        ctx.beginPath();
-        ctx.ellipse(hX + 14, hY - 4, 10.6, 7.8, -0.24, 0, Math.PI * 2);
-        ctx.fill();
-        drawExpressiveEye(hX + 15, hY - 5, 3.8, { scleraCol: pal.creamHi, rimCol: pal.creamMid, lineCol: pal.creamHi });
-        ctx.restore();
-      }
-
-      // Glossy Button Nose + Authentic Cute ':3' Bear Smile
-      const nX = hX + 38 * walk + 2 * sit;
-      const nY = hY + 2 * walk + 7 * sit;
-      ctx.fillStyle = pal.darkFur;
-      ctx.beginPath();
-      ctx.ellipse(nX, nY, 6.2 + sit * 1.2, 4.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.42)";
-      ctx.beginPath();
-      ctx.ellipse(nX - 1.5, nY - 1.4, 2.2, 1.1, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = pal.darkFur;
-      ctx.lineWidth = 2.0;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      if (sit > 0.35) {
-        ctx.moveTo(nX, nY + 3.5);
-        ctx.lineTo(nX, nY + 7.2);
-        ctx.moveTo(nX - 7.5, nY + 7.2);
-        ctx.quadraticCurveTo(nX - 3.8, nY + 11.2, nX, nY + 7.2);
-        ctx.quadraticCurveTo(nX + 3.8, nY + 11.2, nX + 7.5, nY + 7.2);
-      } else {
-        ctx.moveTo(nX - 2, nY + 4);
-        ctx.quadraticCurveTo(nX - 8, nY + 9, nX - 15, nY + 6);
-      }
-      ctx.stroke();
-
-      // Near Articulated Black Forearm wrapping OVER foreground side of bamboo stalk!
-      if (sit > 0.10) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, (sit - 0.10) / 0.45);
-        drawTaperedLimb(-18, 6, -4, 24 + bamDip * 0.5, 22, 18 + bamDip, 19, 14, 11.5, darkFurG, darkFurG, { pawCol: pal.darkFur });
-        ctx.restore();
-      }
-      ctx.restore();
-    } else if (s === "crocodile") {
-      // Long Sweeping Tail (-228!) + Spine-Locked Dorsal Scutes (Zero Floating!) + Cute Toothy Yawn!
-      const sw = cr.gaitPhase * 2.7;
-      const bask = this._smooth5(pauseBlend);
-      const sway = Math.sin(sw) * 14 * (1 - bask);
-      const tw1 = Math.sin(sw - 1.0) * 18 * (1 - bask);
-      const tw2 = Math.sin(sw - 2.1) * 26 * (1 - bask);
-      const settleY = bask * 7;
-      const cStride = Math.sin(sw) * (1 - bask);
-      const cOpp = -cStride;
-      const cLiftN = Math.max(0, Math.cos(sw)) * 7 * (1 - bask);
-      const cLiftF = Math.max(0, -Math.cos(sw)) * 7 * (1 - bask);
-      const yawn = 0.04 + Math.max(0, Math.sin(pauseFrac * Math.PI * 1.45)) * 0.56 * bask;
-
-      drawGroundShadow(-28, 128, 9, 1);
-
-      ctx.save();
-      ctx.translate(0, settleY);
-
-      // Far sprawling reptilian legs with claw toes
-      drawTaperedLimb(-44, 46, -50 + cOpp * 14, 65 - cLiftF * 0.7, -42 + cOpp * 16, 81 - settleY - cLiftF, 17, 13, 10, pal.crocDark, pal.crocDark);
-      drawTaperedLimb(28, 46, 35 + cStride * 14, 65 - cLiftN * 0.7, 44 + cStride * 16, 81 - settleY - cLiftN, 17, 13, 10, pal.crocDark, pal.crocDark);
-
-      // Exact Spine Quadratic Bézier Curves shared seamlessly between Body Outline & Dorsal Scutes!
-      const pTail = { x: -228, y: 54 + tw2 };
-      const cTail = { x: -146, y: 34 + tw1 * 0.65 + sway * 0.45 };
-      const pRump = { x: -64, y: 21 + sway * 0.22 };
-      const cBack = { x: -8, y: 12 };
-      const pNeck = { x: 48, y: 24 };
-
-      const crocG = makeVolGrad(-60, 12, 24, 68, pal.crocHi, pal.crocBody, pal.crocDark);
-      ctx.fillStyle = crocG;
-      ctx.beginPath();
-      ctx.moveTo(pTail.x, pTail.y);
-      ctx.quadraticCurveTo(cTail.x, cTail.y, pRump.x, pRump.y);
-      ctx.quadraticCurveTo(cBack.x, cBack.y, pNeck.x, pNeck.y);
-      ctx.lineTo(54, 59);
-      ctx.quadraticCurveTo(-18, 68, -86, 62 + sway * 0.35);
-      ctx.quadraticCurveTo(-154, 64 + tw1 * 0.55, pTail.x, pTail.y);
-      ctx.closePath();
-      ctx.fill();
-
-      // Mottled darker camouflage flank bands clipped cleanly inside crocodile silhouette!
-      ctx.save();
-      ctx.clip();
-      ctx.fillStyle = pal.crocDark;
-      ctx.globalAlpha = 0.28;
-      [-186, -154, -120, -86, -50, -18, 12].forEach((bx, bi) => {
-        ctx.beginPath();
-        ctx.ellipse(bx, 42 + (bi < 4 ? tw1 * 0.3 : 0), 7.5, 24, 0.16, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = isNight ? 0.28 : 0.48;
-      ctx.fillStyle = pal.creamLow;
-      ctx.beginPath();
-      ctx.ellipse(-10, 58, 56, 10, 0, 0, Math.PI);
-      ctx.fill();
-      ctx.restore();
-
-      // Re-stroke crisp torso outline & dorsal sun rim
-      ctx.beginPath();
-      ctx.moveTo(pTail.x, pTail.y);
-      ctx.quadraticCurveTo(cTail.x, cTail.y, pRump.x, pRump.y);
-      ctx.quadraticCurveTo(cBack.x, cBack.y, pNeck.x, pNeck.y);
-      ctx.lineTo(54, 59);
-      ctx.quadraticCurveTo(-18, 68, -86, 62 + sway * 0.35);
-      ctx.quadraticCurveTo(-154, 64 + tw1 * 0.55, pTail.x, pTail.y);
-      ctx.closePath();
-      strokeRim(1.5);
-      strokeSunRim(-180, 48 + tw1 * 0.5, -18, 13, 44, 22, 1.7);
-
-      // Mathematically Curve-Evaluated Dorsal Osteoderm Scutes (base embedded +4.5px INSIDE spine -> ZERO Floating!)
-      const drawEmbeddedScute = (pt, hSc, wSc) => {
-        const slope = Math.max(-0.45, Math.min(0.45, Math.atan2(pt.ty, pt.tx)));
-        ctx.save();
-        ctx.translate(pt.x, pt.y + 4.5);
-        ctx.rotate(slope);
-        ctx.fillStyle = pal.crocDark;
-        ctx.beginPath();
-        ctx.moveTo(-wSc, 2.5);
-        ctx.quadraticCurveTo(-wSc * 0.3, -hSc * 0.65, 0, -hSc);
-        ctx.quadraticCurveTo(wSc * 0.4, -hSc * 0.45, wSc, 2.5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = pal.rimHi;
-        ctx.globalAlpha = 0.36;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(-wSc * 0.55, 0);
-        ctx.lineTo(0, -hSc);
-        ctx.stroke();
-        ctx.restore();
-      };
-      for (let ti = 0.10; ti <= 0.94; ti += 0.11) {
-        const pt = evalQuad(pTail, cTail, pRump, ti);
-        drawEmbeddedScute(pt, 9 + ti * 6, 5.5 + ti * 1.5);
-      }
-      for (let bi = 0.10; bi <= 0.88; bi += 0.13) {
-        const pt = evalQuad(pRump, cBack, pNeck, bi);
-        drawEmbeddedScute(pt, 12.5, 6.8);
-      }
-
-      // Near muscular clawed bent legs + splayed toes (natural clean joint blend)
-      const cLegG = makeVolGrad(-36, 48, 44, 80, pal.crocHi, pal.crocBody, pal.crocDark);
-      drawTaperedLimb(-36, 50, -42 + cStride * 16, 67 - cLiftN * 0.7, -32 + cStride * 18, 82 - settleY - cLiftN, 19, 14, 10.5, cLegG, pal.crocBody);
-      drawTaperedLimb(34, 50, 42 + cOpp * 16, 67 - cLiftF * 0.7, 52 + cOpp * 18, 82 - settleY - cLiftF, 19, 14, 10.5, cLegG, pal.crocBody);
-      [-32 + cStride * 18, 52 + cOpp * 18].forEach((fx, fi) => {
-        const fy = 82 - settleY - (fi === 0 ? cLiftN : cLiftF);
-        ctx.fillStyle = pal.creamMid;
-        [0, 5, 10].forEach(dx => {
-          ctx.beginPath();
-          ctx.ellipse(fx + dx, fy + 2, 3.0, 1.7, 0.1, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      });
-
-      // Massive Articulated Cute-Toothy Crocodile Head & Basking Yawn (organic neck overlap)
-      ctx.save();
-      ctx.translate(42, 44);
-      if (yawn > 0.10) {
-        ctx.fillStyle = pal.pink;
-        ctx.globalAlpha = Math.min(0.76, yawn * 1.4);
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(66, -Math.sin(yawn) * 44);
-        ctx.lineTo(74, 8);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-
-      ctx.fillStyle = crocG;
-      ctx.beginPath();
-      ctx.moveTo(-4, -2);
-      ctx.lineTo(76, 4);
-      ctx.quadraticCurveTo(80, 15, 62, 16);
-      ctx.lineTo(0, 14);
-      ctx.closePath();
-      ctx.fill();
-      strokeRim(1.3);
-
-      ctx.save();
-      ctx.rotate(-yawn);
-      ctx.fillStyle = crocG;
-      ctx.beginPath();
-      ctx.moveTo(-6, 0);
-      ctx.quadraticCurveTo(10, -24, 28, -14);
-      ctx.lineTo(76, -9);
-      ctx.quadraticCurveTo(90, -4, 78, 4);
-      ctx.lineTo(-2, 4);
-      ctx.closePath();
-      ctx.fill();
-      strokeRim(1.4);
-
-      // Cute bulbous nostril bump at snout tip
-      ctx.fillStyle = pal.crocHi;
-      ctx.beginPath();
-      ctx.ellipse(78, -9, 5.5, 3.6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = pal.crocDark;
-      ctx.beginPath();
-      ctx.arc(80, -9.5, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Cute rounded conical teeth along smile
-      ctx.fillStyle = pal.creamHi;
-      for (let tx = 24; tx <= 74; tx += 10) {
-        ctx.beginPath();
-        ctx.moveTo(tx - 3.0, 3);
-        ctx.quadraticCurveTo(tx, 13, tx + 3.0, 3);
-        ctx.closePath();
-        ctx.fill();
-        strokeRim(0.85);
-      }
-
-      drawCheekBlush(28, -4, 6, 3.6, 0.25);
-      drawExpressiveEye(18, -13, 4.8, { scleraCol: "#FEF08A", pupilCol: "#CA8A04", happySquint: yawn > 0.36 ? 0.72 : 0 });
-      if (yawn <= 0.36 && naturalBlink <= 0.62) {
-        ctx.fillStyle = pal.eye;
-        ctx.beginPath();
-        ctx.ellipse(18.6, -13, 1.15, 3.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.restore();
-      ctx.restore();
-      ctx.restore();
-    } else if (s === "okapi") {
-      // Authentic Giraffid Ipsilateral Pacing Gait + Sculpted White Stockings & Prehensile Leaf Nibble
-      const paceP = cr.gaitPhase * 2.9;
-      const reach = this._smooth5(pauseBlend);
-      const walkMask = 1 - reach;
-      const paceNear = Math.sin(paceP) * walkMask;
-      const paceFar = -paceNear;
-      const liftNear = Math.max(0, Math.cos(paceP)) * 9 * walkMask;
-      const liftFar = Math.max(0, -Math.cos(paceP)) * 9 * walkMask;
-      const boundY = Math.abs(Math.sin(paceP)) * 9 * walkMask;
-      const reachAng = reach * Math.sin(Math.min(1, pauseFrac * 1.1) * Math.PI) * 0.25;
-
-      drawGroundShadow(-2, 64, 8, 1 - boundY * 0.01);
-
-      if (reach > 0.04) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, reach * 1.35);
-        ctx.strokeStyle = pal.antler;
-        ctx.lineWidth = 4.2;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(156, -78);
-        ctx.quadraticCurveTo(126, -66, 98, -56);
-        ctx.stroke();
-        ctx.fillStyle = pal.bamboo;
-        [[112, -56, -0.4], [126, -72, 0.3], [96, -54, -0.2]].forEach(([lx, ly, la]) => {
-          ctx.beginPath();
-          ctx.ellipse(lx, ly, 16, 6.5, la, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = rim;
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-        });
-        ctx.restore();
-      }
-
-      ctx.save();
-      ctx.translate(0, -boundY + breathe * 0.25);
-
-      drawTaperedLimb(-48, 8, -54 + paceFar * 16, 46 - liftFar * 0.6, -62 + paceFar * 24, 84 - liftFar, 16, 9.5, 7, pal.okapiDark, pal.creamLow, { hoofCol: pal.eye, isLightLower: true });
-      drawTaperedLimb(36, 8, 42 + paceFar * 16, 46 - liftFar * 0.6, 50 + paceFar * 24, 84 - liftFar, 15, 9.2, 7, pal.okapiDark, pal.creamLow, { hoofCol: pal.eye, isLightLower: true });
-
-      ctx.strokeStyle = pal.okapiDark;
-      ctx.lineWidth = 4.2;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-66, -10);
-      ctx.quadraticCurveTo(-82, 8, -76, 30);
-      ctx.stroke();
-
-      ctx.save();
-      ctx.translate(42, -14);
-      ctx.rotate(-reachAng + Math.sin(paceP) * 0.04 * walkMask);
-
-      const okNeckG = makeVolGrad(-4, -56, 28, 12, pal.okapiHi, pal.okapiBody, pal.okapiDark);
-      ctx.fillStyle = okNeckG;
-      ctx.beginPath();
-      ctx.moveTo(-18, 16);
-      ctx.lineTo(12, -58);
-      ctx.lineTo(32, -52);
-      ctx.lineTo(11, 14);
-      ctx.closePath();
-      ctx.fill();
-      ctx.save();
-      ctx.globalAlpha *= 0.65;
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = 1.1;
-      ctx.beginPath();
-      ctx.moveTo(-18, 16);
-      ctx.lineTo(12, -58);
-      ctx.moveTo(32, -52);
-      ctx.lineTo(11, 14);
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      ctx.translate(10, -56);
-      ctx.rotate(-0.42 + reach * Math.sin(pauseFrac * 18) * 0.08);
-      ctx.fillStyle = okNeckG;
-      ctx.beginPath();
-      ctx.ellipse(0, -14, 7.5, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.0);
-      ctx.fillStyle = pal.creamMid;
-      ctx.beginPath();
-      ctx.ellipse(0, -13, 3.6, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      ctx.strokeStyle = pal.okapiBody;
-      ctx.lineWidth = 4.2;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(18, -58);
-      ctx.lineTo(14, -74);
-      ctx.stroke();
-
-      ctx.fillStyle = okNeckG;
-      ctx.beginPath();
-      ctx.ellipse(26, -50, 24, 12.5, 0.20, 0, Math.PI * 2);
-      ctx.fill();
-      const cheekG = makeVolGrad(18, -54, 46, -38, pal.creamHi, pal.creamMid, pal.creamLow);
-      ctx.fillStyle = cheekG;
-      ctx.beginPath();
-      ctx.ellipse(32, -46, 19, 8.8, 0.18, 0, Math.PI * 2);
-      ctx.fill();
-      strokeRim(1.1);
-      drawCheekBlush(28, -44, 5.2, 3.2, 0.28);
-
-      if (isPause && pauseFrac > 0.16 && pauseFrac < 0.86 && reach > 0.25) {
-        const tLen = Math.sin(((pauseFrac - 0.16) / 0.70) * Math.PI) * 32 * reach;
-        ctx.strokeStyle = isNight ? "#38BDF8" : "#1D4ED8";
-        ctx.lineCap = "round";
-        ctx.lineWidth = 4.8;
-        ctx.beginPath();
-        ctx.moveTo(48, -42);
-        ctx.quadraticCurveTo(48 + tLen * 0.65, -48, 48 + tLen, -36);
-        ctx.stroke();
-      }
-
-      drawExpressiveEye(26, -53, 4.5);
-      ctx.fillStyle = pal.eye;
-      ctx.beginPath();
-      ctx.arc(50, -45, 3.6, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      const pathOkapiTorso = () => {
-        ctx.beginPath();
-        ctx.moveTo(-64, -4);
-        ctx.quadraticCurveTo(-48, -28, -10, -24);
-        ctx.quadraticCurveTo(28, -22, 48, -28);
-        ctx.quadraticCurveTo(64, -8, 52, 18);
-        ctx.quadraticCurveTo(12, 26, -46, 20);
-        ctx.quadraticCurveTo(-66, 14, -64, -4);
-        ctx.closePath();
-      };
-      const okTorsoG = makeVolGrad(-20, -28, 12, 24, pal.okapiHi, pal.okapiBody, pal.okapiDark);
-      ctx.fillStyle = okTorsoG;
-      pathOkapiTorso();
-      ctx.fill();
-      strokeRim(1.4);
-      strokeSunRim(-52, -20, 6, -24, 44, -24, 1.8);
-
-      ctx.save();
-      pathOkapiTorso();
-      ctx.clip();
-      ctx.strokeStyle = pal.creamHi;
-      ctx.lineCap = "round";
-      ctx.lineWidth = 5.0;
-      [-14, -3, 8, 19].forEach((sy, idx) => {
-        ctx.beginPath();
-        ctx.moveTo(-66 + idx * 2, sy);
-        ctx.quadraticCurveTo(-42, sy - 4, -22, sy + 4);
-        ctx.stroke();
-      });
-      ctx.restore();
-
-      const okKneeRx = -50 + paceNear * 16;
-      const okKneeRy = 46 - liftNear * 0.6;
-      const okFootRx = -58 + paceNear * 24;
-      const okFootRy = 84 - liftNear;
-      const okKneeFx = 46 + paceNear * 16;
-      const okKneeFy = 46 - liftNear * 0.6;
-      const okFootFx = 54 + paceNear * 24;
-      const okFootFy = 84 - liftNear;
-
-      drawTaperedLimb(-42, 13, okKneeRx, okKneeRy, okFootRx, okFootRy, 17, 10, 7.5, pal.okapiBody, pal.creamMid, { hoofCol: pal.eye, isLightLower: true });
-      drawTaperedLimb(40, 13, okKneeFx, okKneeFy, okFootFx, okFootFy, 15.5, 9.8, 7.5, pal.okapiBody, pal.creamMid, { hoofCol: pal.eye, isLightLower: true });
-
-      ctx.save();
-      ctx.strokeStyle = pal.creamHi;
-      ctx.lineCap = "round";
-      ctx.lineWidth = 3.8;
-      [0.44, 0.72].forEach(t => {
-        const tx = -42 + (okKneeRx + 42) * t;
-        const ty = 13 + (okKneeRy - 13) * t;
-        ctx.beginPath();
-        ctx.moveTo(tx - 6.5, ty);
-        ctx.lineTo(tx + 6.5, ty);
-        ctx.stroke();
-      });
-      ctx.restore();
-
-      ctx.fillStyle = pal.darkFur;
-      [
-        [okKneeRx, okKneeRy, okFootRx, okFootRy],
-        [okKneeFx, okKneeFy, okFootFx, okFootFy],
-      ].forEach(([x1, y1, x2, y2]) => {
-        const cx = x1 + (x2 - x1) * 0.45;
-        const cy = y1 + (y2 - y1) * 0.45;
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(Math.atan2(y2 - y1, x2 - x1) - Math.PI / 2);
-        ctx.fillRect(-4.6, -2.1, 9.2, 4.2);
-        ctx.restore();
-      });
-      ctx.restore();
-    }
+    ctx.strokeStyle = `rgba(${rgb}, ${alpha.toFixed(3)})`;
+    ctx.lineWidth = maxW;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo(cx, cy, x1, y1);
+    ctx.stroke();
     ctx.restore();
   },
 
-  _updateAndDrawWildlife(ctx, w, h, mode, dt) {
-    if (!this.wildlifeCrossings || this.wildlifeCrossings.length === 0) return;
-    const pal = this._getNatureWildlifePalette(mode);
-    const gaitRates = {
-      rabbit: 3.3,
-      deer: 3.1,
-      pangolin: 2.8,
-      panda: 2.6,
-      crocodile: 2.8,
-      okapi: 2.9
+  _drawThermalFlock(ctx, w, h, p, ph, mode) {
+    const dir = ph.dir;
+    const fadeIn = this._smooth5(Math.min(1, p / 0.14));
+    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.16));
+    const env = fadeIn * fadeOut;
+    if (env <= 0.01) return;
+
+    const progressX = dir > 0
+      ? (-130 + p * (w + 280))
+      : (w + 130 - p * (w + 280));
+    const liftY = Math.sin(p * Math.PI) * (-h * 0.09) + Math.sin(p * Math.PI * 2.2) * 14;
+    const pivotT = (p > 0.34 && p < 0.68)
+      ? Math.sin(this._smooth5((p - 0.34) / 0.34) * Math.PI)
+      : 0;
+
+    let bodyFill = "rgba(30, 41, 59, 0.82)";
+    let rimStroke = "rgba(255, 255, 255, 0.62)";
+    let ribbonRgb = "148, 163, 184";
+    if (mode === "morning") {
+      bodyFill = "rgba(88, 42, 54, 0.78)";
+      rimStroke = "rgba(253, 210, 145, 0.85)";
+      ribbonRgb = "251, 191, 36";
+    } else if (mode === "evening") {
+      bodyFill = "rgba(46, 26, 20, 0.84)";
+      rimStroke = "rgba(254, 215, 102, 0.90)";
+      ribbonRgb = "245, 158, 11";
+    } else if (mode === "dark") {
+      bodyFill = "rgba(186, 230, 253, 0.78)";
+      rimStroke = "rgba(241, 245, 249, 0.88)";
+      ribbonRgb = "125, 211, 252";
+    }
+
+    // Translucent rising thermal updraft streamlines behind flock
+    for (let s = 0; s < 3; s++) {
+      const sx0 = progressX - dir * (160 - s * 45);
+      const sy0 = ph.centerY + liftY + 46 + s * 18;
+      this._drawNatureRibbon(
+        ctx,
+        sx0,
+        sy0,
+        sx0 + dir * 110,
+        sy0 - 38 - pivotT * 24,
+        sx0 + dir * 235,
+        sy0 - 52 - pivotT * 18,
+        ribbonRgb,
+        env * (0.14 - s * 0.03),
+        2.0 - s * 0.35
+      );
+    }
+
+    // Render layered birds (far -> near)
+    const sorted = ph.birds.slice().sort((a, b) => a.depth - b.depth);
+    sorted.forEach((b) => {
+      const bx = progressX + b.offX * (1 - pivotT * 0.25);
+      const by = ph.centerY + liftY + b.offY - pivotT * 26 * b.depth;
+      const glideFactor = 1 - pivotT * b.gliderBias;
+      const flap = Math.sin(b.flapPhase + ph.elapsed * b.flapSpeed) * glideFactor;
+      const sz = b.size;
+      const bankRot = dir * (-0.10 - pivotT * 0.36);
+
+      ctx.save();
+      ctx.globalAlpha = env * (0.52 + b.depth * 0.44);
+      ctx.translate(bx, by);
+      if (dir < 0) ctx.scale(-1, 1);
+      ctx.rotate(dir < 0 ? -bankRot : bankRot);
+
+      // Sweeping Articulated Wing Silhouette + Forked Swallow Tail
+      ctx.fillStyle = bodyFill;
+      ctx.strokeStyle = rimStroke;
+      ctx.lineWidth = Math.max(0.7, 1.05 * b.depth);
+      const wingUpY = -sz * (0.58 * flap + 0.16);
+      const farWingY = -sz * (0.36 * flap + 0.24);
+
+      // Far wing
+      ctx.beginPath();
+      ctx.moveTo(sz * 0.12, -sz * 0.05);
+      ctx.quadraticCurveTo(-sz * 0.18, farWingY - sz * 0.22, -sz * 0.72, farWingY);
+      ctx.quadraticCurveTo(-sz * 0.28, farWingY * 0.42, -sz * 0.10, sz * 0.02);
+      ctx.closePath();
+      ctx.fill();
+
+      // Slender torso + pointed beak + forked tail
+      ctx.beginPath();
+      ctx.moveTo(sz * 0.56, 0);
+      ctx.quadraticCurveTo(sz * 0.18, -sz * 0.14, -sz * 0.32, -sz * 0.05);
+      ctx.lineTo(-sz * 0.68, -sz * 0.18);
+      ctx.lineTo(-sz * 0.48, 0);
+      ctx.lineTo(-sz * 0.68, sz * 0.18);
+      ctx.lineTo(-sz * 0.32, sz * 0.06);
+      ctx.quadraticCurveTo(sz * 0.18, sz * 0.12, sz * 0.56, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Near primary wing with rim catch-light
+      ctx.beginPath();
+      ctx.moveTo(sz * 0.16, 0);
+      ctx.quadraticCurveTo(-sz * 0.12, wingUpY * 1.18, -sz * 0.86, wingUpY);
+      ctx.quadraticCurveTo(-sz * 0.36, wingUpY * 0.35 + sz * 0.08, -sz * 0.14, sz * 0.06);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      if (mode === "dark") {
+        ctx.fillStyle = `rgba(186, 230, 253, ${(env * 0.35).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(-sz * 0.86, wingUpY, 1.3 * b.depth, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+  },
+
+  _drawBotanicalGust(ctx, w, h, p, ph, mode) {
+    const dir = ph.dir;
+    const fadeIn = this._smooth5(Math.min(1, p / 0.14));
+    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.18));
+    const env = fadeIn * fadeOut;
+    if (env <= 0.01) return;
+
+    let ribbonRgb = "16, 185, 129";
+    let palette = ["52, 211, 153", "110, 231, 183", "147, 197, 253", "253, 230, 138"];
+    if (mode === "morning") {
+      ribbonRgb = "251, 146, 60";
+      palette = ["251, 113, 133", "253, 164, 175", "254, 215, 170", "252, 211, 77"];
+    } else if (mode === "evening") {
+      ribbonRgb = "245, 158, 11";
+      palette = ["239, 68, 68", "234, 88, 12", "245, 158, 11", "253, 224, 71"];
+    } else if (mode === "dark") {
+      ribbonRgb = "45, 212, 191";
+      palette = ["52, 211, 153", "34, 211, 238", "192, 132, 252", "253, 224, 71"];
+    }
+
+    // 1. Graceful Wind Streamlines & Eddy Curls Sweeping Across Screen
+    for (let l = 0; l < 3; l++) {
+      const headX = dir > 0
+        ? (-160 + p * (w + 460) - l * 70)
+        : (w + 160 - p * (w + 460) + l * 70);
+      const tailX = headX - dir * (280 + l * 45);
+      const yMid = ph.centerY + (l - 1) * 58 + Math.sin(p * Math.PI * 2 + l) * ph.amp;
+      ctx.save();
+      ctx.strokeStyle = `rgba(${ribbonRgb}, ${(env * (0.20 - l * 0.04)).toFixed(3)})`;
+      ctx.lineWidth = 2.2 - l * 0.45;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(tailX, yMid + 18);
+      ctx.bezierCurveTo(
+        tailX + dir * 90, yMid - 28,
+        headX - dir * 90, yMid + 26,
+        headX, yMid - 6
+      );
+      // Graceful spiral gust curl near leading tip
+      const curlR = 14 + l * 3;
+      ctx.arc(headX, yMid - 6 - curlR, curlR, Math.PI * 0.5, Math.PI * (dir > 0 ? -0.9 : 1.9), dir > 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2. Diurnal-Matched Sweeping Blossoms / Leaves / Fireflies
+    ph.particles.forEach((pt, idx) => {
+      const localP = Math.max(0, Math.min(1, (p - pt.offsetT * 0.45) / (1 - pt.offsetT * 0.35)));
+      if (localP <= 0 || localP >= 1) return;
+      const pFade = Math.sin(localP * Math.PI);
+      const px = dir > 0
+        ? (-40 + localP * (w + 100))
+        : (w + 40 - localP * (w + 100));
+      const py = ph.centerY + pt.laneY + Math.sin(localP * Math.PI * pt.waveFreq + pt.phase) * pt.waveAmp;
+      const rgb = palette[idx % palette.length];
+      const a = env * pFade * (mode === "dark" ? 0.90 : 0.84);
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(pt.rot + ph.elapsed * pt.rotSpd);
+      const tilt = Math.max(0.30, Math.abs(Math.cos(ph.elapsed * 2.4 + pt.phase)));
+      ctx.scale(tilt, 1);
+
+      if (mode === "dark" && idx % 2 === 0) {
+        // Luminous glowing firefly / spore orb
+        const pulse = 0.6 + 0.4 * Math.sin(ph.elapsed * 5.2 + pt.phase);
+        const g = ctx.createRadialGradient(0, 0, 0.5, 0, 0, pt.size * 2.4);
+        g.addColorStop(0, `rgba(${rgb}, ${(a * pulse).toFixed(3)})`);
+        g.addColorStop(1, `rgba(${rgb}, 0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, pt.size * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (mode === "morning") {
+        // 5-petal sakura blossom or sunlit seed
+        ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
+        for (let k = 0; k < 5; k++) {
+          const ang = (k / 5) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.ellipse(Math.cos(ang) * pt.size * 0.42, Math.sin(ang) * pt.size * 0.42, pt.size * 0.48, pt.size * 0.28, ang, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = `rgba(254, 240, 138, ${a.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(0, 0, pt.size * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (mode === "evening") {
+        // Multi-lobed Maple Leaf
+        const sz = pt.size * 1.15;
+        ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.moveTo(0, -sz * 1.1);
+        ctx.lineTo(sz * 0.35, -sz * 0.4);
+        ctx.lineTo(sz * 1.0, -sz * 0.55);
+        ctx.lineTo(sz * 0.52, 0);
+        ctx.lineTo(sz * 0.85, sz * 0.45);
+        ctx.lineTo(0, sz * 0.9);
+        ctx.lineTo(-sz * 0.85, sz * 0.45);
+        ctx.lineTo(-sz * 0.52, 0);
+        ctx.lineTo(-sz * 1.0, -sz * 0.55);
+        ctx.lineTo(-sz * 0.35, -sz * 0.4);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Botanical willow/sage leaf
+        ctx.fillStyle = `rgba(${rgb}, ${a.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.moveTo(-pt.size, 0);
+        ctx.quadraticCurveTo(0, -pt.size * 0.72, pt.size, 0);
+        ctx.quadraticCurveTo(0, pt.size * 0.72, -pt.size, 0);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+
+    // 3. Fluttering Monarch Butterflies / Night Lunar Moths hitchhiking on the breeze
+    ph.butterflies.forEach((bf) => {
+      const localP = Math.max(0, Math.min(1, (p - bf.offsetT) / 0.78));
+      if (localP <= 0 || localP >= 1) return;
+      const bFade = Math.sin(localP * Math.PI);
+      const bx = dir > 0
+        ? (-30 + localP * (w + 70))
+        : (w + 30 - localP * (w + 70));
+      const by = ph.centerY + bf.laneY + Math.sin(localP * Math.PI * 3.4 + bf.wingPhase) * 28;
+      const flutter = Math.sin(ph.elapsed * 13.5 + bf.wingPhase);
+      const wingScaleX = 0.32 + Math.abs(flutter) * 0.68;
+
+      ctx.save();
+      ctx.globalAlpha = env * bFade * 0.92;
+      ctx.translate(bx, by);
+      if (dir < 0) ctx.scale(-1, 1);
+      ctx.scale(bf.scale, bf.scale);
+      ctx.rotate(Math.cos(localP * Math.PI * 3.4 + bf.wingPhase) * 0.22);
+
+      const wingCol = mode === "dark" ? "#5EEAD4" : (mode === "morning" ? "#FB7185" : "#F97316");
+      const trimCol = mode === "dark" ? "#0F172A" : "#1E1B18";
+      ctx.save();
+      ctx.scale(1, wingScaleX);
+      ctx.fillStyle = wingCol;
+      ctx.strokeStyle = trimCol;
+      ctx.lineWidth = 1.2;
+      // Forewing & hindwing silhouette
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(6, -15, 16, -14, 14, -2);
+      ctx.bezierCurveTo(15, 8, 5, 12, 0, 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // Slender thorax
+      ctx.fillStyle = trimCol;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 5.5, 1.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  },
+
+  _drawSkyPhenomenon(ctx, w, h, p, ph, mode, dt) {
+    const fadeIn = this._smooth5(Math.min(1, p / 0.16));
+    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.20));
+    const env = fadeIn * fadeOut;
+    if (env <= 0.01) return;
+
+    if (mode === "dark") {
+      // Night Sky Phenomenon: Sweeping Reactive Aurora Ribbon + Choreographed Meteor Cascade
+      const ms = ph.meteorMilestones || [];
+      while (ph.meteorsFired < ms.length && p >= ms[ph.meteorsFired]) {
+        const cols = ["56, 189, 248", "52, 211, 153", "167, 139, 250", "244, 114, 182", "253, 224, 71"];
+        this.spawnMeteor(w, h, cols[ph.meteorsFired % cols.length]);
+        ph.meteorsFired++;
+      }
+
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      const curtains = [
+        { rgb: "16, 185, 129", y: h * 0.24, amp: 36, a: 0.34 },
+        { rgb: "34, 211, 238", y: h * 0.29, amp: 30, a: 0.28 },
+        { rgb: "167, 139, 250", y: h * 0.20, amp: 42, a: 0.24 }
+      ];
+      curtains.forEach((c, ci) => {
+        ctx.beginPath();
+        for (let x = -20; x <= w + 20; x += 22) {
+          const wave = Math.sin(x * 0.004 + this.step * 1.1 + ci * 1.4) * c.amp +
+                       Math.cos(x * 0.008 - this.step * 0.7) * 14;
+          const yy = c.y + wave;
+          if (x === -20) ctx.moveTo(x, yy);
+          else ctx.lineTo(x, yy);
+        }
+        ctx.lineTo(w + 20, Math.max(0, c.y - 135));
+        ctx.lineTo(-20, Math.max(0, c.y - 135));
+        ctx.closePath();
+        const ag = ctx.createLinearGradient(0, c.y - 135, 0, c.y + c.amp);
+        ag.addColorStop(0, `rgba(${c.rgb}, 0)`);
+        ag.addColorStop(0.5, `rgba(${c.rgb}, ${(c.a * env).toFixed(3)})`);
+        ag.addColorStop(1, `rgba(${c.rgb}, 0)`);
+        ctx.fillStyle = ag;
+        ctx.fill();
+      });
+      ctx.restore();
+      return;
+    }
+
+    // Daytime Sun-Shower + Rainbow Arc + Gentle Surface Ripples
+    const dir = ph.dir;
+    const cx = ph.cloudX + dir * (p - 0.5) * w * 0.22;
+    const cy = ph.cloudY;
+    const rainPhase = p < 0.62 ? Math.sin(this._smooth5(p / 0.62) * Math.PI) : 0;
+    const bowPhase = p > 0.26 ? this._smooth5(Math.min(1, (p - 0.26) / 0.24)) * fadeOut : 0;
+
+    // 1. Translucent Primary & Secondary Rainbow Arcs (feathered vertically so ends dissolve smoothly!)
+    if (bowPhase > 0.02) {
+      const bands = ["239, 68, 68", "249, 115, 22", "250, 204, 21", "34, 197, 94", "56, 189, 248", "99, 102, 241", "168, 85, 247"];
+      const bowW = w < 720 ? 3.4 : 4.8;
+      const baseAlpha = (mode === "light" ? 0.25 : 0.30) * bowPhase;
+      const arcTopY = ph.arcCenterY - ph.arcR - 20;
+      const arcEndY = ph.arcCenterY - ph.arcR * Math.sin(Math.PI * 0.12);
+      ctx.save();
+      bands.forEach((rgb, bi) => {
+        const gArc = ctx.createLinearGradient(0, arcTopY, 0, arcEndY);
+        gArc.addColorStop(0, `rgba(${rgb}, ${baseAlpha.toFixed(3)})`);
+        gArc.addColorStop(0.72, `rgba(${rgb}, ${(baseAlpha * 0.78).toFixed(3)})`);
+        gArc.addColorStop(1, `rgba(${rgb}, 0)`);
+        ctx.strokeStyle = gArc;
+        ctx.lineWidth = bowW;
+        ctx.beginPath();
+        ctx.arc(ph.arcCenterX, ph.arcCenterY, ph.arcR - bi * (bowW - 0.55), Math.PI * 1.10, Math.PI * 1.90);
+        ctx.stroke();
+      });
+      // Soft secondary outer bow
+      bands.slice().reverse().forEach((rgb, bi) => {
+        const gSec = ctx.createLinearGradient(0, arcTopY - 30, 0, arcEndY - 12);
+        gSec.addColorStop(0, `rgba(${rgb}, ${(baseAlpha * 0.30).toFixed(3)})`);
+        gSec.addColorStop(0.75, `rgba(${rgb}, ${(baseAlpha * 0.20).toFixed(3)})`);
+        gSec.addColorStop(1, `rgba(${rgb}, 0)`);
+        ctx.strokeStyle = gSec;
+        ctx.lineWidth = bowW * 0.70;
+        ctx.beginPath();
+        ctx.arc(ph.arcCenterX, ph.arcCenterY, ph.arcR + 28 - bi * (bowW * 0.58), Math.PI * 1.14, Math.PI * 1.86);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // 2. Diagonal Sunlit Raindrops + Lower Ground Splash Ripples (high-legibility silver-slate in Light/Morning!)
+    if (rainPhase > 0.02) {
+      ctx.save();
+      ctx.strokeStyle = mode === "evening"
+        ? `rgba(253, 224, 178, ${(0.52 * rainPhase).toFixed(3)})`
+        : (mode === "morning"
+          ? `rgba(180, 120, 110, ${(0.42 * rainPhase).toFixed(3)})`
+          : `rgba(71, 130, 190, ${(0.44 * rainPhase).toFixed(3)})`);
+      ctx.lineWidth = 1.15;
+      ctx.lineCap = "round";
+      ph.drops.forEach((dr) => {
+        dr.ry += dr.spd * dt;
+        dr.rx += dir * 65 * dt;
+        if (dr.ry > h * 0.44) {
+          dr.ry = 0;
+          dr.rx = (Math.random() - 0.5) * (w < 720 ? 150 : 250);
+        }
+        const x0 = cx + dr.rx;
+        const y0 = cy + 16 + dr.ry;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + dir * dr.len * 0.25, y0 + dr.len);
+        ctx.stroke();
+      });
+
+      ph.splashes.forEach((sp) => {
+        sp.phase = (sp.phase + dt * 1.15) % 1;
+        const rr = 3.5 + sp.phase * 22;
+        ctx.strokeStyle = mode === "light"
+          ? `rgba(71, 130, 190, ${((1 - sp.phase) * 0.34 * rainPhase).toFixed(3)})`
+          : `rgba(255, 255, 255, ${((1 - sp.phase) * 0.38 * rainPhase).toFixed(3)})`;
+        ctx.lineWidth = 1.05;
+        ctx.beginPath();
+        ctx.ellipse(cx + sp.rx, cy + sp.ry, rr, rr * 0.34, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // 3. Soft Layered Flat-Bottom Sun-Shower Cumulus Cloud Silhouette (no harsh soap-bubble circles!)
+    ctx.save();
+    ctx.globalAlpha = env * 0.90;
+    const cloudUnder = mode === "evening" ? "rgba(180, 130, 105, 0.36)" : (mode === "morning" ? "rgba(195, 150, 145, 0.34)" : "rgba(148, 175, 208, 0.42)");
+    const cloudTop = mode === "evening" ? "rgba(255, 244, 224, 0.88)" : "rgba(255, 255, 255, 0.94)";
+    const baseG = ctx.createLinearGradient(cx, cy - 38, cx, cy + 20);
+    baseG.addColorStop(0, cloudTop);
+    baseG.addColorStop(0.68, cloudTop);
+    baseG.addColorStop(1, cloudUnder);
+    ctx.fillStyle = baseG;
+    ctx.beginPath();
+    ctx.moveTo(cx - 72, cy + 16);
+    ctx.bezierCurveTo(cx - 86, cy + 14, cx - 80, cy - 12, cx - 50, cy - 12);
+    ctx.bezierCurveTo(cx - 46, cy - 34, cx - 18, cy - 42, cx - 2, cy - 30);
+    ctx.bezierCurveTo(cx + 12, cy - 44, cx + 44, cy - 34, cx + 48, cy - 14);
+    ctx.bezierCurveTo(cx + 76, cy - 12, cx + 82, cy + 14, cx + 64, cy + 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = mode === "light" ? "rgba(148, 175, 208, 0.32)" : "rgba(255, 255, 255, 0.25)";
+    ctx.lineWidth = 1.0;
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  _drawHorizonDrift(ctx, w, h, p, ph, mode) {
+    const dir = ph.dir;
+    const fadeIn = this._smooth5(Math.min(1, p / 0.14));
+    const fadeOut = this._smooth5(Math.min(1, (1 - p) / 0.16));
+    const env = fadeIn * fadeOut;
+    if (env <= 0.01) return;
+
+    const x = dir > 0 ? (-110 + p * (w + 220)) : (w + 110 - p * (w + 220));
+    const sc = ph.scale || 1;
+
+    if (ph.subType === "glider") {
+      // Sleek High-Aspect Ridge-Soaring Sailplane
+      const y = ph.startY - Math.sin(p * Math.PI) * (h * 0.11) + Math.sin(p * Math.PI * 2.6) * 24;
+      const dy = -Math.cos(p * Math.PI) * 0.08 + Math.cos(p * Math.PI * 2.6) * 0.10;
+      const pitch = dir * dy;
+      ph.trail.push({ x, y });
+      if (ph.trail.length > 26) ph.trail.shift();
+
+      if (ph.trail.length > 2) {
+        ctx.save();
+        for (let i = 1; i < ph.trail.length; i++) {
+          const tf = i / ph.trail.length;
+          ctx.strokeStyle = mode === "dark"
+            ? `rgba(125, 211, 252, ${(tf * 0.28 * env).toFixed(3)})`
+            : `rgba(255, 255, 255, ${(tf * 0.34 * env).toFixed(3)})`;
+          ctx.lineWidth = tf * 1.8;
+          ctx.beginPath();
+          ctx.moveTo(ph.trail[i - 1].x, ph.trail[i - 1].y);
+          ctx.lineTo(ph.trail[i].x, ph.trail[i].y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.globalAlpha = env;
+      ctx.translate(x, y);
+      if (dir < 0) ctx.scale(-1, 1);
+      ctx.rotate(pitch);
+      ctx.scale(sc, sc);
+
+      const hull = mode === "dark" ? "#CBD5E1" : "#FFFFFF";
+      const shade = mode === "evening" ? "#F59E0B" : (mode === "morning" ? "#F43F5E" : "#38BDF8");
+      // Far high-aspect wing
+      ctx.fillStyle = "#94A3B8";
+      ctx.beginPath();
+      ctx.moveTo(2, -1);
+      ctx.lineTo(-10, -28);
+      ctx.lineTo(-16, -27);
+      ctx.lineTo(-5, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Fuselage + T-tail
+      ctx.fillStyle = hull;
+      ctx.beginPath();
+      ctx.moveTo(26, 0);
+      ctx.quadraticCurveTo(10, -4.5, -24, -1.5);
+      ctx.lineTo(-30, -11);
+      ctx.lineTo(-36, -11);
+      ctx.lineTo(-31, 0);
+      ctx.lineTo(8, 3.2);
+      ctx.quadraticCurveTo(22, 3, 26, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Glass cockpit canopy & accent wingtip
+      ctx.fillStyle = mode === "dark" ? "#38BDF8" : "#0F172A";
+      ctx.beginPath();
+      ctx.ellipse(11, -1.8, 7.5, 2.1, -0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = hull;
+      ctx.beginPath();
+      ctx.moveTo(3, 1);
+      ctx.lineTo(-12, 26);
+      ctx.lineTo(-18, 25);
+      ctx.lineTo(-6, 1.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = shade;
+      ctx.beginPath();
+      ctx.ellipse(-14.5, 25.2, 2.8, 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    // Buoyant Hot-Air Balloon with Multi-Gore Shading, Basket Rigging & Pulsing Burner Glow
+    const y = ph.startY - Math.sin(p * Math.PI) * (h * 0.16) + Math.sin(ph.elapsed * 0.9) * 8;
+    const sway = Math.sin(ph.elapsed * 1.15) * 0.05;
+    const burnerPulse = 0.55 + 0.45 * Math.sin(ph.elapsed * 6.5);
+    const burnerGlow = (p % 0.28 < 0.12) ? (0.75 + burnerPulse * 0.25) : 0.22;
+
+    ctx.save();
+    ctx.globalAlpha = env;
+    ctx.translate(x, y);
+    ctx.rotate(sway);
+    ctx.scale(sc, sc);
+
+    const goreA = mode === "dark" ? "#38BDF8" : (mode === "evening" ? "#F97316" : (mode === "morning" ? "#F43F5E" : "#0EA5E9"));
+    const goreB = mode === "dark" ? "#1E293B" : "#FFFBEB";
+    const bandCol = mode === "dark" ? "#FBBF24" : "#F59E0B";
+
+    // Envelope teardrop path (center 0, top -44, equator -18, throat +18)
+    const traceEnvelope = () => {
+      ctx.beginPath();
+      ctx.moveTo(0, -44);
+      ctx.bezierCurveTo(28, -44, 34, -14, 18, 8);
+      ctx.lineTo(8, 20);
+      ctx.lineTo(-8, 20);
+      ctx.lineTo(-18, 8);
+      ctx.bezierCurveTo(-34, -14, -28, -44, 0, -44);
+      ctx.closePath();
     };
 
-    const alive = [];
-    for (let i = 0; i < this.wildlifeCrossings.length; i++) {
-      const cr = this.wildlifeCrossings[i];
-      const baseSpeed = w < 720 ? 132 : 245;
-      const spd = cr.speed || (cr.species === "rabbit" ? baseSpeed * 1.15 : (cr.species === "deer" ? baseSpeed * 1.22 : (cr.species === "crocodile" ? baseSpeed * 0.85 : baseSpeed)));
-      const gaitRate = gaitRates[cr.species] || 3.0;
-      const decelDist = cr.decelDist || Math.round(145 * (cr.scale || 1));
-      cr.breathePhase = (cr.breathePhase || 0) + dt * 2.1;
+    ctx.save();
+    traceEnvelope();
+    ctx.fillStyle = goreA;
+    ctx.fill();
+    ctx.clip();
 
-      if (cr.phase === "enter") {
-        const distToPause = Math.max(0, cr.dir > 0 ? (cr.pauseX - cr.x) : (cr.x - cr.pauseX));
-        const f = Math.min(1, distToPause / Math.max(20, decelDist));
-        cr.moveSpeedNorm = f < 1 ? (0.14 + 0.86 * this._smooth5(f)) : 1.0;
-        if (f < 0.25) {
-          cr.pauseBlend = this._smooth5((0.25 - f) / 0.25) * 0.16;
-        }
-        cr.x += cr.dir * spd * cr.moveSpeedNorm * dt;
-        cr.gaitPhase += gaitRate * cr.moveSpeedNorm * dt;
-        if ((cr.dir > 0 && cr.x >= cr.pauseX) || (cr.dir < 0 && cr.x <= cr.pauseX)) {
-          cr.x = cr.pauseX;
-          cr.phase = "pause_action";
-          cr.pauseTimer = 0;
-        }
-      } else if (cr.phase === "pause_action") {
-        cr.pauseTimer += dt;
-        cr.moveSpeedNorm = 0;
-        const rampT = 0.60;
-        if (cr.pauseTimer < rampT) {
-          cr.pauseBlend = Math.max(cr.pauseBlend || 0, 0.16 + 0.84 * this._smooth5(cr.pauseTimer / rampT));
-        } else if (cr.pauseTimer > cr.pauseDuration - rampT) {
-          cr.pauseBlend = this._smooth5((cr.pauseDuration - cr.pauseTimer) / rampT);
-        } else {
-          cr.pauseBlend = 1.0;
-        }
-        if (cr.pauseTimer >= cr.pauseDuration) {
-          cr.phase = "exit";
-          cr.exitAccelTimer = 0;
-        }
-      } else {
-        cr.exitAccelTimer = (cr.exitAccelTimer || 0) + dt;
-        cr.moveSpeedNorm = 0.14 + 0.86 * this._smooth5(Math.min(1, cr.exitAccelTimer / 0.68));
-        cr.pauseBlend = Math.max(0, (cr.pauseBlend || 0) * (1 - Math.min(1, dt * 8)));
-        cr.x += cr.dir * spd * cr.moveSpeedNorm * dt;
-        cr.gaitPhase += gaitRate * cr.moveSpeedNorm * dt;
-      }
+    // Alternating sculpted gores
+    ctx.fillStyle = goreB;
+    [-16, 4].forEach((gx) => {
+      ctx.beginPath();
+      ctx.moveTo(0, -44);
+      ctx.quadraticCurveTo(gx + 6, -12, gx * 0.4, 20);
+      ctx.lineTo((gx + 10) * 0.4, 20);
+      ctx.quadraticCurveTo(gx + 16, -12, 0, -44);
+      ctx.fill();
+    });
 
-      const exitMargin = 270 * (cr.scale || 1);
-      if ((cr.dir > 0 && cr.x > w + exitMargin) || (cr.dir < 0 && cr.x < -exitMargin)) {
-        continue;
-      }
-      this._drawNatureAnimal(ctx, cr, pal, mode);
-      alive.push(cr);
+    // Equatorial decorative chevron stripe
+    ctx.fillStyle = bandCol;
+    ctx.fillRect(-34, -21, 68, 5);
+
+    // Internal warm burner glow illuminating the balloon throat
+    const bg = ctx.createRadialGradient(0, 18, 1, 0, 8, 28);
+    bg.addColorStop(0, `rgba(254, 240, 138, ${(0.88 * burnerGlow).toFixed(3)})`);
+    bg.addColorStop(0.55, `rgba(249, 115, 22, ${(0.45 * burnerGlow).toFixed(3)})`);
+    bg.addColorStop(1, "rgba(249, 115, 22, 0)");
+    ctx.fillStyle = bg;
+    ctx.fillRect(-32, -16, 64, 38);
+    ctx.restore();
+
+    traceEnvelope();
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.25)";
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+
+    // Burner Flame between envelope throat & basket
+    if (burnerGlow > 0.35) {
+      ctx.fillStyle = `rgba(251, 191, 36, ${burnerGlow.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(-2.5, 27);
+      ctx.quadraticCurveTo(0, 19 - burnerGlow * 3, 2.5, 27);
+      ctx.closePath();
+      ctx.fill();
     }
-    this.wildlifeCrossings = alive;
-  }
+
+    // Rigging cables & Wicker Gondola Basket
+    ctx.strokeStyle = mode === "dark" ? "rgba(203, 213, 225, 0.65)" : "rgba(71, 85, 105, 0.65)";
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(-7, 20);
+    ctx.lineTo(-6, 30);
+    ctx.moveTo(7, 20);
+    ctx.lineTo(6, 30);
+    ctx.stroke();
+
+    ctx.fillStyle = mode === "dark" ? "#92400E" : "#B45309";
+    ctx.beginPath();
+    ctx.roundRect(-7, 30, 14, 9, 2);
+    ctx.fill();
+    ctx.restore();
+  },
+
+  _updateAndDrawNaturePhenomena(ctx, w, h, mode, dt) {
+    if (!this.naturePhenomena || this.naturePhenomena.length === 0) return;
+    const alive = [];
+    for (let i = 0; i < this.naturePhenomena.length; i++) {
+      const ph = this.naturePhenomena[i];
+      ph.elapsed += dt;
+      const p = ph.elapsed / Math.max(0.5, ph.duration);
+      if (p >= 1) continue;
+
+      if (ph.type === "thermal_flock") {
+        this._drawThermalFlock(ctx, w, h, p, ph, mode);
+      } else if (ph.type === "botanical_gust") {
+        this._drawBotanicalGust(ctx, w, h, p, ph, mode);
+      } else if (ph.type === "sky_phenomenon") {
+        this._drawSkyPhenomenon(ctx, w, h, p, ph, mode, dt);
+      } else if (ph.type === "horizon_drift") {
+        this._drawHorizonDrift(ctx, w, h, p, ph, mode);
+      }
+      alive.push(ph);
+    }
+    this.naturePhenomena = alive;
+  },
 };
 
 window.WaveCanvas = WaveCanvas;

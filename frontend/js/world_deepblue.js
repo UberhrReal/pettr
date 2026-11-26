@@ -3350,11 +3350,6 @@ const WorldDeepBlue = {
     this._drawStationBeacons(ctx, L, pal, step);
     this._updateAndDrawSupplyElevator(ctx, L, pal, dt, step);
 
-    // 4b. Automatic Festive Holiday Additions (waterproof tube light strings, mini dome tree, lanterns, jack-o'-lanterns)
-    if (typeof HolidayThemes !== "undefined" && HolidayThemes.drawDeepBlueOverlay) {
-      HolidayThemes.drawDeepBlueOverlay(ctx, w, h, L, pal, mode, dt, step);
-    }
-
     // 5. To-Scale Human Maintenance & Shipwreck Research Divers Cycling In/Out of Airlocks!
     this._updateAndDrawDivers(ctx, L, pal, dt, step);
 
