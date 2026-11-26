@@ -161,8 +161,20 @@ const FocusCockpit = {
   updateSliderVisibility() {
     const wrap = document.getElementById("cockpitDurationSliderWrap") || document.querySelector(".cockpit-duration-slider-wrap");
     if (!wrap) return;
-    const shouldHide = Boolean(this.hasStarted || this.isRunning);
-    wrap.classList.toggle("is-hidden", shouldHide);
+    const isRunningOrStarted = Boolean(this.hasStarted || this.isRunning);
+    if (isRunningOrStarted) {
+      this._customDurationOpen = false;
+    }
+    const shouldShow = Boolean(this._customDurationOpen && !isRunningOrStarted);
+    wrap.classList.toggle("is-hidden", !shouldShow);
+    const customBtn = document.getElementById("cockpitCustomDurBtn");
+    if (customBtn) customBtn.classList.toggle("active", shouldShow);
+  },
+
+  toggleCustomDuration() {
+    if (this.hasStarted || this.isRunning) return;
+    this._customDurationOpen = !this._customDurationOpen;
+    this.updateSliderVisibility();
   },
 
   async open(task = null) {
@@ -699,7 +711,7 @@ const FocusCockpit = {
     } else if (this.hasStarted) {
       playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Resume`;
     } else {
-      playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Start Sprint`;
+      playBtn.innerHTML = `<i data-lucide="play" style="width:18px;height:18px;"></i> Start`;
     }
     App.renderIcons();
   },

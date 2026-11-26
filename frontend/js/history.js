@@ -4,9 +4,24 @@
  */
 const History = {
   auditLogVisible: false,
+  currentView: "stats",
 
   async init() {
+    this.switchView(this.currentView, false);
     await this.refresh();
+  },
+
+  switchView(view = "stats", renderIcons = true) {
+    this.currentView = view === "archive" ? "archive" : "stats";
+    const statsEl = document.getElementById("historyStatsView");
+    const archiveEl = document.getElementById("historyArchiveView");
+    const statsBtn = document.getElementById("historyViewStatsBtn");
+    const archiveBtn = document.getElementById("historyViewArchiveBtn");
+    if (statsEl) statsEl.style.display = this.currentView === "stats" ? "block" : "none";
+    if (archiveEl) archiveEl.style.display = this.currentView === "archive" ? "flex" : "none";
+    if (statsBtn) statsBtn.classList.toggle("active", this.currentView === "stats");
+    if (archiveBtn) archiveBtn.classList.toggle("active", this.currentView === "archive");
+    if (renderIcons && typeof App !== "undefined" && App.renderIcons) App.renderIcons();
   },
 
   async refresh(showFeedback = false) {

@@ -10,7 +10,7 @@
   <title>PETTR - Personal Errands, Task Tracker & Repository</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:ital,wght@0,100..700;1,100..700&family=Outfit:wght@100..700&family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Syne:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Instrument+Serif:ital@0;1&family=Inter:wght@200;300;400;500;600;700;800&family=Geist:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/pettr.css?v=13.9">
+  <link rel="stylesheet" href="/static/css/pettr.css?v=14.0">
   <!-- Lucide Icons & Three.js Libraries -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -26,11 +26,14 @@
   <!-- 4-Digit PIN Lock Screen Overlay -->
   <div id="pinLockOverlay" class="pin-overlay">
     <div class="pin-card">
-      <div class="pin-logo">PETTR</div>
-      <div class="pin-subtitle font-light">Self-Hosted Task Tracker & Repository</div>
-      
+      <div class="pin-splash-head">
+        <div class="pin-logo">PETTR</div>
+        <div class="pin-acronym-splash">Personal Errands, Task Tracker &amp; Repository</div>
+        <div class="pin-splash-rule" aria-hidden="true"></div>
+      </div>
+
       <div id="pinLockoutBanner" class="pin-lockout-banner">
-        Rate limited. Please wait <span id="lockoutTimer">60</span>s...
+        Try again in <span id="lockoutTimer">60</span>s
       </div>
 
       <div class="pin-dots">
@@ -65,13 +68,13 @@
       <span class="network-sync-icon" id="networkSyncIcon"><i data-lucide="wifi-off"></i></span>
       <div class="network-sync-text">
         <span class="network-sync-title" id="networkSyncTitle">Tailscale Disconnected</span>
-        <span class="network-sync-sub" id="networkSyncSub">Local node offline or un-synced. Changes may not reflect across other devices.</span>
+        <span class="network-sync-sub" id="networkSyncSub">Offline · Changes not synced</span>
       </div>
     </div>
     <div class="network-sync-actions">
-      <span class="network-sync-time" id="networkSyncLastSeen">Last synced: Just now</span>
+      <span class="network-sync-time" id="networkSyncLastSeen">Synced just now</span>
       <button class="network-sync-btn" onclick="App.retryNetworkSync()"><i data-lucide="refresh-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Reconnect</button>
-      <button type="button" class="action-icon-btn banner-dismiss-btn" onclick="App.dismissNetworkSyncBanner()" title="Dismiss banner" aria-label="Dismiss banner" style="padding: 4px 8px; font-size: 11px;">
+      <button type="button" class="action-icon-btn banner-dismiss-btn" onclick="App.dismissNetworkSyncBanner()" title="Dismiss" aria-label="Dismiss" style="padding: 4px 8px; font-size: 11px;">
         <i data-lucide="x" style="width:12px;height:12px;"></i>
       </button>
     </div>
@@ -82,7 +85,7 @@
     <!-- Top Brand Row: Centred title, left status, right controls -->
     <div class="header-top-row">
       <div class="header-left-pills">
-        <div class="status-pill" id="systemStatusPill">
+        <div class="status-pill is-healthy" id="systemStatusPill" title="Tailscale Ready">
           <span class="status-dot"></span>
           <span id="statusText">Tailscale Ready</span>
         </div>
@@ -90,37 +93,42 @@
           <span class="header-clock-pulse"></span>
           <span id="headerClockDigits" class="font-mono">--:--:--</span>
         </div>
-        <button class="status-pill cmd-palette-trigger-btn" onclick="CommandPalette.open()" title="PETTR Omni-Search & Actions (Shift+K, Ctrl+K, Alt+K, or \)">
-          <i data-lucide="search" style="width:11px;height:11px;opacity:0.9;"></i> <span>Search</span> <kbd class="cmd-kbd-badge" style="font-size:9.5px; opacity:0.75; margin-left:2px;">Shift+K</kbd>
+        <button class="status-pill cmd-palette-trigger-btn" onclick="CommandPalette.open()" title="Search & Actions (Shift+K, Alt+K, or \)">
+          <i data-lucide="search" style="width:11px;height:11px;opacity:0.9;"></i> <span>Search</span> <kbd class="cmd-kbd-badge" style="font-size:9.5px; opacity:0.75; margin-left:2px;">⇧K</kbd>
         </button>
       </div>
 
       <!-- Central Brand Block -->
       <div class="brand-centre">
         <div class="brand-title">PETTR</div>
-        <div class="brand-full-name">Personal Errands, Task Tracker &amp; Repository</div>
         <div class="brand-tagline-carousel" id="heroDynamicTagline">
           Stop reorganising the dashboard and go finish the damn task
         </div>
       </div>
 
       <div class="header-right-controls">
-        <button class="action-icon-btn horace-toggle-btn" id="horaceToggleBtn" onclick="HoraceChat.toggle()" title="Chat with Horace (Home Server LLM) [Alt+H]">
+        <button class="action-icon-btn horace-toggle-btn" id="horaceToggleBtn" onclick="HoraceChat.toggle()" title="Horace [Alt+H]">
           <i data-lucide="bot" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> <span class="horace-toggle-btn-text">Horace</span>
           <span class="horace-status-dot online" id="horaceStatusDot" title="Horace Status"></span>
         </button>
-        <!-- Theme Switcher (Auto Solar, Light, Dark & Time of Day Slider) -->
+        <!-- Unified Theme & Appearance Trigger + Popover -->
         <div class="theme-switcher-wrapper">
           <div class="theme-switcher-control" id="themeSwitcherControl">
-            <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Solar Cycle (Morning, Afternoon, Evening, Dark)" aria-label="Auto Theme"><i data-lucide="sun-moon"></i></button>
-            <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light / Afternoon Mode" aria-label="Light Theme"><i data-lucide="sun"></i></button>
-            <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode" aria-label="Dark Theme"><i data-lucide="moon"></i></button>
-            <button class="theme-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="Theme &amp; Time of Day" aria-label="Theme and Time of Day"><i data-lucide="sliders"></i></button>
+            <button class="theme-btn theme-trigger-btn" id="themeBtnSliderToggle" onclick="event.stopPropagation(); App.toggleThemeSlider()" title="Appearance &amp; Solar Time" aria-label="Appearance and Time of Day"><i id="themeTriggerIcon" data-lucide="sun-moon"></i></button>
           </div>
           <div id="themeSliderDrawer" class="theme-slider-drawer" style="display: none;">
             <div class="theme-slider-header">
-              <span class="theme-drawer-section-title">Theme</span>
-              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()" aria-label="Close theme drawer"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
+              <span class="theme-drawer-section-title">Appearance</span>
+              <button type="button" class="action-icon-btn close-mini-btn" onclick="App.toggleThemeSlider()" aria-label="Close appearance drawer"><i data-lucide="x" style="width:11px;height:11px;"></i></button>
+            </div>
+            <div class="theme-mode-segmented" role="group" aria-label="Color mode">
+              <button class="theme-btn active" id="themeBtnAuto" onclick="App.setTheme('auto')" title="Auto Solar Cycle" aria-label="Auto Theme"><i data-lucide="sun-moon"></i><span>Auto</span></button>
+              <button class="theme-btn" id="themeBtnLight" onclick="App.setTheme('light')" title="Light Mode" aria-label="Light Theme"><i data-lucide="sun"></i><span>Light</span></button>
+              <button class="theme-btn" id="themeBtnDark" onclick="App.setTheme('dark')" title="Dark Mode" aria-label="Dark Theme"><i data-lucide="moon"></i><span>Dark</span></button>
+            </div>
+            <div class="theme-drawer-divider"></div>
+            <div class="theme-slider-header">
+              <span class="theme-drawer-section-title">World</span>
             </div>
             <div class="world-selector-grid" id="worldSelectorGrid" role="group" aria-label="Select theme">
               <button type="button" class="world-selector-card active" data-world-option="nature" onclick="App.setWorld('nature')" aria-pressed="true">
@@ -152,10 +160,10 @@
             </div>
             <input type="range" id="themeHourSlider" min="0" max="23" step="1" value="12" class="theme-hour-slider" oninput="App.onThemeSliderInput(this.value)">
             <div class="theme-slider-ticks">
-              <span onclick="App.setThemeHourPreset(8)">08:00 Dawn</span>
-              <span onclick="App.setThemeHourPreset(13)">13:00 Noon</span>
-              <span onclick="App.setThemeHourPreset(18)">18:00 Golden Hour</span>
-              <span onclick="App.setThemeHourPreset(23)">23:00 Night</span>
+              <span onclick="App.setThemeHourPreset(8)">08:00</span>
+              <span onclick="App.setThemeHourPreset(13)">13:00</span>
+              <span onclick="App.setThemeHourPreset(18)">18:00</span>
+              <span onclick="App.setThemeHourPreset(23)">23:00</span>
             </div>
             <div class="theme-drawer-divider"></div>
             <div class="theme-frost-section">
@@ -176,12 +184,14 @@
             </div>
           </div>
         </div>
-        <button class="action-icon-btn scenic-hide-btn" id="scenicModeToggleBtn" onclick="App.enterScenicMode()" title="Hide Dashboard &amp; View Theme [Alt+Z]" aria-label="Hide Dashboard"><i data-lucide="eye-off" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
-        <button class="action-icon-btn lock-btn" onclick="App.logout()" title="Lock Session (Logout)" aria-label="Lock Session"><i data-lucide="lock" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
+        <button class="action-icon-btn header-utility-tab-btn" id="headerSettingsBtn" data-utility-tab="settings" onclick="App.switchTab('settings')" title="Settings" aria-label="Settings"><i data-lucide="settings" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
+        <button class="action-icon-btn header-utility-tab-btn" id="headerGuideBtn" data-utility-tab="guide" onclick="App.switchTab('guide')" title="Guide" aria-label="Guide"><i data-lucide="help-circle" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
+        <button class="action-icon-btn scenic-hide-btn" id="scenicModeToggleBtn" onclick="App.enterScenicMode()" title="Hide Dashboard [Alt+Z]" aria-label="Hide Dashboard"><i data-lucide="eye-off" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
+        <button class="action-icon-btn lock-btn" onclick="App.logout()" title="Lock" aria-label="Lock Session"><i data-lucide="lock" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i></button>
       </div>
     </div>
 
-    <!-- Nav Tab Row -->
+    <!-- Nav Tab Row (5 Primary Workspaces) -->
     <div class="header-nav-row">
       <nav class="nav-tabs" id="mainNavTabs">
         <div class="nav-tab-indicator" id="navTabIndicator" aria-hidden="true"></div>
@@ -199,12 +209,6 @@
         </button>
         <button class="tab-btn" data-tab="history">
           <i data-lucide="archive"></i> <span>History</span>
-        </button>
-        <button class="tab-btn" data-tab="settings">
-          <i data-lucide="settings"></i> <span>Settings</span>
-        </button>
-        <button class="tab-btn" data-tab="guide">
-          <i data-lucide="book-open"></i> <span>Guide</span>
         </button>
       </nav>
     </div>
@@ -238,18 +242,8 @@
               </div>
             </div>
 
-            <!-- Nicely Animated Live Mission Clock -->
+            <!-- Compact Live Mission Clock -->
             <div class="mission-clock-widget" id="missionClockWidget">
-              <div class="mission-clock-top">
-                <div class="mission-clock-status">
-                  <span class="mission-beacon-dot"></span>
-                  <span class="mission-clock-badge-title">MISSION CLOCK</span>
-                </div>
-                <button type="button" class="mission-clock-tz" id="missionClockTz" onclick="App.promptSetTimezone()" title="Click to manually adjust timezone (Travel Mode)">
-                  <i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i>
-                  <span id="missionClockTzText">UTC+8 · SGT</span>
-                </button>
-              </div>
               <div class="mission-clock-time-display">
                 <span class="mission-clock-digit" id="missionClockHours">--</span>
                 <span class="mission-clock-pulse-colon">:</span>
@@ -258,86 +252,66 @@
                 <span class="mission-clock-digit mission-clock-sec" id="missionClockSeconds">--</span>
                 <span class="mission-clock-meridiem" id="missionClockMeridiem">--</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Prominent Unorganised Alert Banner (Fallback) -->
-          <div id="unorgAlertBanner" class="unorg-alert-banner" style="display: none; max-width: 1200px; margin: 0 auto 16px auto;">
-            <div>
-              <div class="unorg-alert-title">
-                <i data-lucide="alert-triangle" style="width:16px;height:16px;color:var(--urgent-orange);"></i>
-                <span>Action Required: <span id="unorgBannerCount">0</span> Unorganised Items</span>
-              </div>
-              <div class="unorg-alert-desc">
-                Inputs need your manual confirmation to route into Tasks, Events, or Reminders.
+              <div class="mission-clock-tz-row">
+                <button type="button" class="mission-clock-tz" id="missionClockTz" onclick="App.promptSetTimezone()" title="Change timezone">
+                  <i data-lucide="globe" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i>
+                  <span id="missionClockTzText">UTC+8 · SGT</span>
+                </button>
               </div>
             </div>
-            <button type="button" class="quick-submit-btn" style="position: static; transform: none; background: #ea580c;" onclick="Dashboard.openUnorganizedModal()">
-              Triage Now →
-            </button>
           </div>
 
           <div class="quick-input-container">
             <div class="quick-input-wrapper">
+              <kbd class="quick-focus-kbd" aria-hidden="true">/</kbd>
               <input type="text" id="quickInput" class="quick-input-box" 
-                     placeholder="Log anything naturally... e.g. 'Work on design for IDEA-1 Concept. Tonight 2359'" 
+                     placeholder="Add task, event, or reminder... e.g. 'Design review tonight 2000'" 
                      autocomplete="off">
               <div class="quick-actions-cluster">
-                <button class="voice-input-btn" id="voiceInputBtn" onclick="App.toggleVoiceInput()" title="Voice Input (Speech-to-Text)" type="button">
+                <button class="voice-input-btn" id="voiceInputBtn" onclick="App.toggleVoiceInput()" title="Voice input" type="button">
                   <i data-lucide="mic"></i>
                 </button>
-                <button class="action-icon-btn direct-entry-btn manual-create-btn" id="directEntryBtn" onclick="Dashboard.openManualCreateModal()" title="Directly add a task, event, reminder, or project without natural language parsing" type="button">
-                  <i data-lucide="plus-circle" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;"></i> <span class="direct-entry-label">Direct</span>
+                <button class="action-icon-btn direct-entry-btn manual-create-btn" id="directEntryBtn" onclick="Dashboard.openManualCreateModal()" title="Add item manually" type="button">
+                  <i data-lucide="plus" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;"></i> <span class="direct-entry-label">New</span>
                 </button>
                 <button class="quick-submit-btn" id="quickSubmitBtn" onclick="App.submitLog()" type="button"><span id="quickSubmitBtnText">Log</span> <kbd class="log-key-hint">↵</kbd></button>
               </div>
-            </div>
-            <div class="input-hint">
-              <span><i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> <kbd style="background: var(--bg-tertiary); border: 1px solid var(--card-border); padding: 1px 5px; border-radius: 4px; font-family: var(--font-mono); font-size: 10.5px;">/</kbd> to focus · Natural language &amp; voice supported</span>
-              <span id="unorgBadge" style="display:none; color: var(--urgent-orange); font-weight: 700; cursor: pointer;" onclick="Dashboard.openUnorganizedModal()"><i data-lucide="alert-circle" style="width:12px;height:12px;display:inline-block;vertical-align:-2px;"></i> Unorganised Queue (<span id="unorgCount">0</span>)</span>
             </div>
           </div>
         </section>
 
         <!-- Active Category Filter Indicator -->
         <div id="filterActiveBar" class="filter-active-bar">
-          <span id="filterActiveLabel">Filtering by: Category</span>
-        <button class="filter-clear-btn" onclick="Dashboard.clearFilter()"><i data-lucide="x" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show All Items</button>
+          <span id="filterActiveLabel">Filter</span>
+        <button class="filter-clear-btn" onclick="Dashboard.clearFilter()"><i data-lucide="x" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show All</button>
       </div>
 
-      <!-- Dashboard Day Navigator (Future Preview & Historical Review) -->
+      <!-- Compact Dashboard Day Navigator -->
       <div class="dashboard-date-navigator" id="dashboardDateNav">
         <div class="date-nav-controls">
-          <button class="date-step-btn" onclick="Dashboard.navigateDay(-1)" title="Previous Day">
-            <i data-lucide="chevron-left" style="width:14px;height:14px;"></i> Prev
+          <button class="date-step-btn" onclick="Dashboard.navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
+            <i data-lucide="chevron-left" style="width:15px;height:15px;"></i>
           </button>
           <div class="date-current-badge" id="dashboardDateCurrentBadge">
-            <i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-cyan);"></i>
+            <i data-lucide="calendar" style="width:14px;height:14px;color:var(--accent-cyan);"></i>
             <span id="dashboardSelectedDateLabel">Today</span>
-            <span class="date-status-tag tag-today" id="dashboardDateStatusTag">LIVE TODAY</span>
+            <span class="date-status-tag tag-today" id="dashboardDateStatusTag" style="display:none;">LIVE TODAY</span>
           </div>
-          <button class="date-step-btn" onclick="Dashboard.navigateDay(1)" title="Next Day">
-            Next <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+          <button class="date-step-btn" onclick="Dashboard.navigateDay(1)" title="Next Day" aria-label="Next Day">
+            <i data-lucide="chevron-right" style="width:15px;height:15px;"></i>
           </button>
-          <button class="action-icon-btn jump-today-btn" id="dashboardJumpTodayBtn" onclick="Dashboard.jumpToToday()" style="display:none;" title="Return to Current Day">
+          <button class="action-icon-btn jump-today-btn" id="dashboardJumpTodayBtn" onclick="Dashboard.jumpToToday()" style="display:none;" title="Return to Today">
             <i data-lucide="rotate-ccw" style="width:12px;height:12px;"></i> Today
+          </button>
+          <button type="button" class="unorg-inline-pill" id="unorgBadge" style="display:none;" onclick="Dashboard.openUnorganizedModal()" title="Sort unorganised items">
+            <i data-lucide="inbox" style="width:12px;height:12px;"></i>
+            <span><span id="unorgCount">0</span> Unorganised →</span>
           </button>
         </div>
       </div>
 
       <!-- Day-Scoped Interactive Workspace Stage (Swipes Smoothly Across Days) -->
       <div id="dashboardDayStage" class="dashboard-day-stage">
-      <!-- Historical Locked Record Banner -->
-      <div id="dashboardLockedArchiveBanner" class="day-status-banner locked-banner" style="display:none;">
-        <i data-lucide="lock" style="width:15px;height:15px;"></i>
-        <span><strong>Locked:</strong> <span id="lockedArchiveDateText"></span> is archived and read-only.</span>
-      </div>
-
-      <!-- Future Scheduled Preview Banner -->
-      <div id="dashboardFuturePreviewBanner" class="day-status-banner future-banner" style="display:none;">
-        <i data-lucide="sparkles" style="width:15px;height:15px;"></i>
-        <span><strong>Preview:</strong> Planning ahead for <span id="futurePreviewDateText"></span>.</span>
-      </div>
 
       <!-- Full-Width Snapshot Window & Tasking Priority -->
       <div class="briefing-showcase-window" id="briefingShowcaseWindow">
@@ -355,19 +329,19 @@
             <span>Finalised</span>
           </span>
           <div class="snapshot-action-group briefing-showcase-actions" id="snapshotShowcaseActions">
-            <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" id="snapshotFocusBtn" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit" style="display:none;">
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" id="snapshotFocusBtn" onclick="FocusCockpit.launchTopTask()" title="Focus Cockpit" style="display:none;">
               <i data-lucide="zap" style="width:13px;height:13px;"></i> <span>Focus</span>
             </button>
-            <button class="action-icon-btn snapshot-action-btn snapshot-btn-debrief" id="eveningDebriefDashBtn" onclick="EveningDebrief.open()" title="Launch Evening Debrief (Available after 18:00)" style="display:none;">
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-debrief" id="eveningDebriefDashBtn" onclick="EveningDebrief.open()" title="Evening Debrief" style="display:none;">
               <i data-lucide="moon-star" style="width:13px;height:13px;"></i> <span>Debrief</span>
             </button>
-            <button class="action-icon-btn snapshot-action-btn snapshot-btn-copy" id="snapshotCopyBtn" onclick="Dashboard.copyBriefingMarkdown()" title="Copy Snapshot brief to clipboard">
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-copy" id="snapshotCopyBtn" onclick="Dashboard.copyBriefingMarkdown()" title="Copy brief">
               <i data-lucide="copy" style="width:13px;height:13px;"></i> <span>Copy</span>
             </button>
-            <button class="action-icon-btn snapshot-action-btn snapshot-btn-lockin" id="snapshotLockInBtn" onclick="Dashboard.lockInSnapshot()" title="Lock in dashboard &amp; transform Snapshot into a clean natural-language briefing">
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-lockin" id="snapshotLockInBtn" onclick="Dashboard.lockInSnapshot()" title="Lock in Snapshot">
               <i data-lucide="lock" style="width:13px;height:13px;"></i> <span>Lock in</span>
             </button>
-            <button class="action-icon-btn snapshot-action-btn snapshot-btn-unlock" id="snapshotUnlockBtn" onclick="Dashboard.unlockSnapshot()" title="Unlock Snapshot to edit dashboard &amp; Tasking Priority" style="display:none;">
+            <button class="action-icon-btn snapshot-action-btn snapshot-btn-unlock" id="snapshotUnlockBtn" onclick="Dashboard.unlockSnapshot()" title="Unlock Snapshot" style="display:none;">
               <i data-lucide="unlock" style="width:13px;height:13px;"></i> <span>Unlock</span>
             </button>
           </div>
@@ -376,8 +350,8 @@
         <div class="briefing-dual-layout" id="briefingDualLayout">
           <!-- Left: Rich Formatted Morning Snapshot -->
           <div class="briefing-formatted-pane" id="briefingFormattedPane">
-            <pre id="briefingRichContent" class="briefing-rich-content" style="display:none;">Loading executive brief...</pre>
-            <div id="briefingVisualContainer" class="briefing-visual-container">Loading executive brief...</div>
+            <pre id="briefingRichContent" class="briefing-rich-content" style="display:none;">Loading brief...</pre>
+            <div id="briefingVisualContainer" class="briefing-visual-container">Loading brief...</div>
           </div>
 
           <!-- Right: Segregated Tasking Priority Sequence List -->
@@ -388,10 +362,10 @@
                   <span style="display:flex; align-items:center; gap:8px;"><i data-lucide="list-ordered" style="width:16px;height:16px;color:var(--focus-indigo);"></i> Tasking Priority</span>
                   <span class="stat-pill" id="dailyOrderCountBadge">0 items</span>
                 </div>
-                <div class="daily-order-subtitle">Drag tasks here to lock execution order.</div>
+                <div class="daily-order-subtitle">Drag tasks here to prioritise.</div>
               </div>
               <div class="snapshot-action-group daily-order-actions">
-                <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" onclick="FocusCockpit.launchTopTask()" title="Launch Deep Work Focus Cockpit">
+                <button class="action-icon-btn snapshot-action-btn snapshot-btn-focus" onclick="FocusCockpit.launchTopTask()" title="Focus Cockpit">
                   <i data-lucide="zap" style="width:13px;height:13px;"></i> <span>Focus</span>
                 </button>
                 <button class="action-icon-btn snapshot-action-btn snapshot-btn-reset" onclick="Dashboard.clearDailyOrder()" title="Reset priority sequence">
@@ -410,21 +384,21 @@
         <div id="snapshotLockedBriefingView" class="snapshot-locked-view" style="display: none;"></div>
       </div>
 
-      <!-- Permanent Collapsible Unorganised Queue Panel -->
-      <div class="unorg-permanent-panel" id="unorgPermanentPanel">
+      <!-- Auto-Hidden Unorganised Queue Panel (shown only when items exist) -->
+      <div class="unorg-permanent-panel" id="unorgPermanentPanel" style="display: none;">
         <div class="unorg-panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <i data-lucide="alert-triangle" style="width:15px;height:15px;color:var(--urgent-orange);"></i>
-            <span style="font-weight: 700; font-size: 14px; color: var(--text-main);">Unorganised Queue</span>
+            <span style="font-weight: 700; font-size: 14px; color: var(--text-main);">Unorganised</span>
             <span class="stat-pill" style="padding: 2px 8px; font-size: 11px; background: var(--urgent-orange-bg); color: var(--urgent-orange); border-color: #fed7aa;">
               <span id="unorgPermanentCount">0</span> pending
             </span>
           </div>
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button type="button" class="action-icon-btn" onclick="Dashboard.openUnorganizedModal(true)" style="font-size: 11.5px; font-weight: 600; color: var(--urgent-orange);" title="Direct manual entry into unorganised queue">
-              <i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Manual
+            <button type="button" class="action-icon-btn" onclick="Dashboard.openUnorganizedModal(true)" style="font-size: 11.5px; font-weight: 600; color: var(--urgent-orange);" title="Add to queue">
+              <i data-lucide="plus" style="width:12px;height:12px;"></i>
             </button>
-            <button type="button" class="action-icon-btn" id="unorgCollapseBtn" onclick="Dashboard.toggleUnorgCollapse()" style="font-size: 11.5px; font-weight: 600;" title="Toggle panel position">
+            <button type="button" class="action-icon-btn" id="unorgCollapseBtn" onclick="Dashboard.toggleUnorgCollapse()" style="font-size: 11.5px; font-weight: 600;" title="Toggle panel">
               <i data-lucide="panel-right-close" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Hide
             </button>
           </div>
@@ -445,9 +419,9 @@
           <div class="summary-top-row">
             <div>
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <div style="font-size: 14px; font-weight: 700; color: var(--text-main);" id="overviewCardTitle">Productivity &amp; Tracking</div>
-                <button type="button" class="action-icon-btn your-stats-quicklink" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();" title="Jump to comprehensive analytics &amp; telemetry in Your Stats">
-                  <i data-lucide="bar-chart-2" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Your Stats &rarr;
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-main);" id="overviewCardTitle">Overview</div>
+                <button type="button" class="action-icon-btn your-stats-quicklink" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();" title="Open Stats">
+                  <i data-lucide="bar-chart-2" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Stats &rarr;
                 </button>
               </div>
             </div>
@@ -467,70 +441,70 @@
               </svg>
               <div>
                 <div class="progress-ring-text" id="progressRingText">0%</div>
-                <div class="progress-ring-subtext" id="progressRingSubtext">0 of 0 tasks completed today</div>
+                <div class="progress-ring-subtext" id="progressRingSubtext">0 of 0 done</div>
               </div>
             </div>
 
             <div class="summary-pills-row">
-              <div class="stat-pill" data-filter="focus" title="Click to view only Focus Tasks">
-                <i data-lucide="crosshair" style="width:13px;height:13px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus: <span class="stat-num" id="statFocus">0</span>
+              <div class="stat-pill" data-filter="focus" title="Filter Focus Tasks">
+                <i data-lucide="crosshair" style="width:13px;height:13px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus <span class="stat-num" id="statFocus">0</span>
               </div>
-              <div class="stat-pill" data-filter="trivial" title="Click to view only Trivial Tasks">
-                <i data-lucide="check-square" style="width:13px;height:13px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial: <span class="stat-num" id="statTrivial">0</span>
+              <div class="stat-pill" data-filter="trivial" title="Filter Trivial Tasks">
+                <i data-lucide="check-square" style="width:13px;height:13px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial <span class="stat-num" id="statTrivial">0</span>
               </div>
-              <div class="stat-pill" data-filter="events" title="Click to view today's events">
-                <i data-lucide="calendar" style="width:13px;height:13px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Events: <span class="stat-num" id="statEvents">0</span>
+              <div class="stat-pill" data-filter="events" title="Filter Events">
+                <i data-lucide="calendar" style="width:13px;height:13px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Events <span class="stat-num" id="statEvents">0</span>
               </div>
-              <div class="stat-pill" data-filter="projects" title="Click to view only Multi-Step Projects">
-                <i data-lucide="folder" style="width:13px;height:13px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Projects: <span class="stat-num" id="statProjects">0</span>
+              <div class="stat-pill" data-filter="projects" title="Filter Projects">
+                <i data-lucide="folder" style="width:13px;height:13px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Projects <span class="stat-num" id="statProjects">0</span>
               </div>
-              <div class="stat-pill" data-filter="reminders" title="Click to view reminders">
-                <i data-lucide="bell" style="width:13px;height:13px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders: <span class="stat-num" id="statReminders">0</span>
+              <div class="stat-pill" data-filter="reminders" title="Filter Reminders">
+                <i data-lucide="bell" style="width:13px;height:13px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders <span class="stat-num" id="statReminders">0</span>
               </div>
-              <div class="stat-pill focus-hours-pill" id="statPillFocusHours" title="Focus sprint time logged today (click to view Your Stats)" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();">
-                <i data-lucide="timer" style="width:13px;height:13px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus: <span class="stat-num" id="statTodayFocusHours">0.0h</span>
+              <div class="stat-pill focus-hours-pill" id="statPillFocusHours" title="Focus time today" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();">
+                <i data-lucide="timer" style="width:13px;height:13px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Logged <span class="stat-num" id="statTodayFocusHours">0.0h</span>
               </div>
-              <div class="stat-pill unorg-pill" id="statPillUnorg" data-filter="unorganized" style="display: none;" title="Click to triage unorganised queue">
-                <i data-lucide="alert-circle" style="width:13px;height:13px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Unorganised: <span class="stat-num" id="statUnorg">0</span>
+              <div class="stat-pill unorg-pill" id="statPillUnorg" data-filter="unorganized" style="display: none;" title="Open Unorganised Queue">
+                <i data-lucide="alert-circle" style="width:13px;height:13px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Unorganised <span class="stat-num" id="statUnorg">0</span>
               </div>
             </div>
 
-            <div class="tomorrow-blurb overview-sub-box" id="tomorrowBlurb" style="margin-top: 14px; font-size: 12px; color: var(--text-muted); padding: 10px 14px; border-radius: var(--radius-sm); line-height: 1.5;">
-              Tomorrow: Clear slate ahead.
+            <div class="tomorrow-blurb overview-sub-box" id="tomorrowBlurb" style="margin-top: 12px; font-size: 12px; color: var(--text-muted); padding: 9px 13px; border-radius: var(--radius-sm); line-height: 1.45;">
+              Tomorrow: Clear slate.
             </div>
           </div>
 
           <!-- 2. Weekly View: 7-Day Completion Bars & Focus Hours -->
           <div id="overviewWeekContainer" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Weekly Completion &amp; Focus</span>
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Weekly</span>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span id="weekProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% avg</span>
-                <span id="weekFocusHoursBadge" class="week-focus-badge" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();" title="Weekly focus hours logged (click to view Your Stats)"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 0.0h</span>
+                <span id="weekFocusHoursBadge" class="week-focus-badge" onclick="App.switchTab('history'); Dashboard.scrollToYourStats();" title="Weekly focus hours"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 0.0h</span>
               </div>
             </div>
             <div class="productivity-week-grid" id="productivityWeekGrid">
               <!-- Injected by Dashboard.renderProductivityWeek() -->
             </div>
             <div id="weekProductivitySummary" class="overview-sub-box" style="font-size: 11.5px; color: var(--text-muted); padding: 8px 12px; border-radius: var(--radius-sm);">
-              Loading weekly productivity...
+              Loading weekly summary...
             </div>
           </div>
 
           <!-- 3. Monthly View: Monthly Progress & Streak -->
           <div id="overviewMonthContainer" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
-              <span id="monthProductivityTitle" style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Monthly Performance</span>
+              <span id="monthProductivityTitle" style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Monthly</span>
               <div style="display: flex; gap: 8px; align-items: center;">
-                <span id="monthProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% completed</span>
-                <span id="monthFocusHoursBadge" class="month-focus-badge font-mono" title="Monthly focus hours logged"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 0.0h</span>
+                <span id="monthProductivityBadge" style="font-size: 11.5px; font-weight: 800; color: var(--normal-green); font-family: var(--font-mono);">0% done</span>
+                <span id="monthFocusHoursBadge" class="month-focus-badge font-mono" title="Monthly focus hours"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 0.0h</span>
               </div>
             </div>
             <div class="project-progress-bar" style="height: 7px; margin-bottom: 12px;">
               <div class="project-progress-fill" id="monthProgressFill" style="width: 0%;"></div>
             </div>
             <div id="monthProductivityDetails" class="overview-sub-box" style="font-size: 12px; color: var(--text-muted); line-height: 1.6; padding: 10px 14px; border-radius: var(--radius-sm);">
-              Loading monthly overview...
+              Loading monthly summary...
             </div>
           </div>
         </div>
@@ -538,10 +512,9 @@
         <!-- Scheduled Events Grid -->
         <div class="column-card" id="eventsCardSection">
           <div class="column-header">
-            <h3 class="column-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Scheduled Events</h3>
+            <h3 class="column-title"><i data-lucide="calendar" style="width:15px;height:15px;color:var(--accent-blue);display:inline-block;vertical-align:-1px;"></i> Events</h3>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <button class="action-icon-btn manual-create-btn" id="manualAddEventBtn" onclick="Dashboard.openManualCreateModal('event')" style="font-size: 11px; font-weight: 600;" title="Directly add scheduled event"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Event</button>
-              <span style="font-size: 11px; color: var(--text-muted);" title="24-hour military format"><i data-lucide="clock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> 24h</span>
+              <button class="action-icon-btn panel-icon-add-btn manual-create-btn" id="manualAddEventBtn" onclick="Dashboard.openManualCreateModal('event')" title="Add event" aria-label="Add event"><i data-lucide="plus" style="width:13px;height:13px;"></i></button>
             </div>
           </div>
           <div id="eventsList" style="display: flex; flex-direction: column; gap: 8px;">
@@ -557,12 +530,12 @@
         <div class="column-card dynamic-panel" id="projectsCardSection">
           <div class="column-header">
             <div style="display: flex; align-items: center; gap: 8px;">
-              <h3 class="column-title"><i data-lucide="folder" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Projects Today</h3>
+              <h3 class="column-title"><i data-lucide="folder" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Projects</h3>
               <span class="panel-count-badge" id="badgeCountProjects">0 projects</span>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <button class="action-icon-btn manual-create-btn" id="manualAddProjectBtn" onclick="Dashboard.openManualCreateModal('project')" style="font-size: 11px; font-weight: 600;" title="Create new project"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Project</button>
-              <button class="action-icon-btn" onclick="App.navigateToGlobalProjects()" style="font-size: 11px; font-weight: 600;" title="View all ongoing projects in Exploded View"><i data-lucide="orbit" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> All Projects</button>
+              <button class="action-icon-btn" onclick="App.navigateToGlobalProjects()" style="font-size: 11px; font-weight: 600;" title="All projects"><i data-lucide="orbit" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> All</button>
+              <button class="action-icon-btn panel-icon-add-btn manual-create-btn" id="manualAddProjectBtn" onclick="Dashboard.openManualCreateModal('project')" title="Add project" aria-label="Add project"><i data-lucide="plus" style="width:13px;height:13px;"></i></button>
             </div>
           </div>
           <div id="projectsList" class="dashboard-projects-section">
@@ -573,10 +546,12 @@
         <!-- Panel 2: Focus Tasks (Deep Work) -->
         <div class="column-card dynamic-panel" id="focusCardSection">
           <div class="column-header">
-            <h3 class="column-title focus-title"><i data-lucide="crosshair" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus Tasks</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn manual-create-btn" id="manualAddFocusBtn" onclick="Dashboard.openManualCreateModal('focus')" style="font-size: 11px; font-weight: 600;" title="Directly add deep work focus task"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Task</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 class="column-title focus-title"><i data-lucide="crosshair" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Focus Tasks</h3>
               <span class="panel-count-badge" id="badgeCountFocus">0 tasks</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-icon-btn panel-icon-add-btn manual-create-btn" id="manualAddFocusBtn" onclick="Dashboard.openManualCreateModal('focus')" title="Add focus task" aria-label="Add focus task"><i data-lucide="plus" style="width:13px;height:13px;"></i></button>
             </div>
           </div>
           <div class="task-list dynamic-grid-list" id="focusTasksList" data-tier="focus">
@@ -587,10 +562,12 @@
         <!-- Panel 3: Trivial Tasks -->
         <div class="column-card dynamic-panel" id="trivialCardSection">
           <div class="column-header">
-            <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Tasks</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn manual-create-btn" id="manualAddTrivialBtn" onclick="Dashboard.openManualCreateModal('trivial')" style="font-size: 11px; font-weight: 600;" title="Directly add quick trivial task"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Trivial</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 class="column-title trivial-title"><i data-lucide="check-square" style="width:15px;height:15px;color:var(--normal-green);display:inline-block;vertical-align:-1px;"></i> Trivial Tasks</h3>
               <span class="panel-count-badge" id="badgeCountTrivial">0 tasks</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-icon-btn panel-icon-add-btn manual-create-btn" id="manualAddTrivialBtn" onclick="Dashboard.openManualCreateModal('trivial')" title="Add trivial task" aria-label="Add trivial task"><i data-lucide="plus" style="width:13px;height:13px;"></i></button>
             </div>
           </div>
           <div class="task-list dynamic-grid-list" id="trivialTasksList" data-tier="trivial">
@@ -601,10 +578,12 @@
         <!-- Panel 4: Reminders for Today -->
         <div class="column-card dynamic-panel" id="remindersCardSection">
           <div class="column-header">
-            <h3 class="column-title"><i data-lucide="bell" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="action-icon-btn manual-create-btn" id="manualAddReminderBtn" onclick="Dashboard.openManualCreateModal('reminder')" style="font-size: 11px; font-weight: 600;" title="Directly add reminder"><i data-lucide="plus" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 class="column-title"><i data-lucide="bell" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Reminders</h3>
               <span class="panel-count-badge" id="badgeCountReminders">0 notes</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="action-icon-btn panel-icon-add-btn manual-create-btn" id="manualAddReminderBtn" onclick="Dashboard.openManualCreateModal('reminder')" title="Add reminder" aria-label="Add reminder"><i data-lucide="plus" style="width:13px;height:13px;"></i></button>
             </div>
           </div>
           <div id="remindersList" class="dynamic-grid-list" style="display: flex; flex-direction: column; gap: 8px;">
@@ -675,7 +654,7 @@
         </div>
 
         <div style="position: absolute; bottom: 12px; left: 16px; font-size: 11px; color: var(--text-dim); pointer-events: none;">
-          <i data-lucide="mouse-pointer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Drag canvas to Orbit in 3D · Scroll to Zoom · Hover for metadata · Click node to Edit/Inspect
+          <i data-lucide="mouse-pointer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Drag to orbit · Scroll to zoom · Click to inspect
         </div>
       </div>
 
@@ -834,16 +813,16 @@
           </div>
 
           <div class="notes-edit-pane" id="notesEditPane">
-            <div id="noteContentArea" class="notes-editor-surface" contenteditable="true" spellcheck="true" data-placeholder="Type thoughts freely, format with toolbar above, paste images or drag & drop files..."></div>
+            <div id="noteContentArea" class="notes-editor-surface" contenteditable="true" spellcheck="true" data-placeholder="Write a note..."></div>
           </div>
 
           <div class="notes-editor-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
-            <span id="noteSaveStatus" style="font-size: 12px; color: var(--text-muted);">Auto-saved</span>
+            <span id="noteSaveStatus" style="font-size: 12px; color: var(--text-muted);">Saved</span>
             <div style="display: flex; gap: 10px;">
               <button class="action-icon-btn" onclick="Notes.parseCurrentNote()" style="font-weight: 600; color: var(--text-main);">
-                <i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Send to PETTR Parser
+                <i data-lucide="sparkles" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Parse
               </button>
-              <button class="action-icon-btn" onclick="Notes.deleteCurrentNote()" style="color: var(--urgent-orange);">Delete Note</button>
+              <button class="action-icon-btn" onclick="Notes.deleteCurrentNote()" style="color: var(--urgent-orange);">Delete</button>
             </div>
           </div>
         </div>
@@ -852,24 +831,19 @@
         <div class="notes-editor-card notes-media-folder-card" id="notesMediaFolderCard" style="display: none;">
           <!-- Media Folder Header -->
           <div class="notes-media-folder-header">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <h3 style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 8px;">
-                  <i data-lucide="folder-image" style="width:20px;height:20px;color:var(--accent-blue);"></i> Media Folder
-                </h3>
-                <span class="panel-count-badge" id="notesMediaFolderBadge">0 items</span>
-              </div>
-              <p style="color: var(--text-muted); font-size: 12.5px; margin: 4px 0 0 0;">
-                Quickly access, view, select into notes, or delete uploaded media assets.
-              </p>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="font-size: 18px; font-weight: 700; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="folder-image" style="width:20px;height:20px;color:var(--accent-blue);"></i> Media Folder
+              </h3>
+              <span class="panel-count-badge" id="notesMediaFolderBadge">0 items</span>
             </div>
             <div class="notes-media-header-actions">
               <div class="notes-media-search-wrapper">
                 <i data-lucide="search" style="width:13px;height:13px;color:var(--text-muted);"></i>
-                <input type="text" id="notesMediaSearchInput" placeholder="Filter by name..." class="notes-media-search-input" oninput="Notes.searchMedia(this.value)">
+                <input type="text" id="notesMediaSearchInput" placeholder="Filter..." class="notes-media-search-input" oninput="Notes.searchMedia(this.value)">
               </div>
               <button type="button" class="action-icon-btn notes-media-upload-btn" onclick="document.getElementById('notesMediaFolderUploadInput').click()">
-                <i data-lucide="upload" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Upload Media
+                <i data-lucide="upload" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Upload
               </button>
               <input type="file" id="notesMediaFolderUploadInput" multiple style="display: none;" onchange="Notes.handleFolderUploadInput(event)">
             </div>
@@ -881,8 +855,7 @@
               <i data-lucide="cloud-upload" style="width:20px;height:20px;color:var(--focus-indigo);"></i>
             </div>
             <div class="dropzone-text">
-              <strong>Drag &amp; drop media files here</strong> or <span>click to browse</span>
-              <div class="dropzone-sub">Images, videos, audio recordings, PDFs, archives</div>
+              <strong>Drop files</strong> or <span>click to upload</span>
             </div>
           </div>
 
@@ -890,10 +863,10 @@
           <div class="notes-media-active-note-bar" id="notesMediaActiveNoteBar">
             <div style="display: flex; align-items: center; gap: 6px;">
               <i data-lucide="file-text" style="width:13px;height:13px;color:var(--focus-indigo);"></i>
-              <span style="font-size: 12px; color: var(--text-muted);">Current Note: <strong id="notesMediaActiveNoteTitle" style="color: var(--text-main);">Untitled</strong></span>
+              <span style="font-size: 12px; color: var(--text-muted);">Note: <strong id="notesMediaActiveNoteTitle" style="color: var(--text-main);">Untitled</strong></span>
             </div>
             <button type="button" class="notes-media-return-btn" onclick="Notes.switchView('notes')">
-              Return to Note ➔
+              Back ➔
             </button>
           </div>
 
@@ -904,10 +877,7 @@
             </div>
             <div class="notes-media-empty-state" id="notesMediaEmptyState" style="display: none;">
               <i data-lucide="image-off" style="width:36px;height:36px;color:var(--text-muted);margin-bottom:8px;"></i>
-              <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No media in the folder yet</div>
-              <div style="font-size: 12.5px; color: var(--text-muted); max-width: 340px; margin-top: 4px;">
-                Upload images, audio notes or attachments using the button above or paste them directly into any note.
-              </div>
+              <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">No media yet</div>
             </div>
           </div>
         </div>
@@ -917,11 +887,17 @@
     <!-- Tab 5: History -->
     <section id="tabHistory" class="tab-pane">
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Archive</h2>
-        <button class="action-icon-btn" onclick="History.refresh(true)" title="Refresh Archive"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0;">History</h2>
+          <div class="scale-switch-group history-view-switcher" role="tablist" aria-label="History View">
+            <button type="button" class="overview-mode-btn active" id="historyViewStatsBtn" onclick="History.switchView('stats')">Stats</button>
+            <button type="button" class="overview-mode-btn" id="historyViewArchiveBtn" onclick="History.switchView('archive')">Archive</button>
+          </div>
+        </div>
+        <button class="action-icon-btn" onclick="History.refresh(true)" title="Refresh"><i data-lucide="rotate-cw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Refresh</button>
       </div>
 
-      <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
+      <div id="historyStatsView" class="history-grid-container">
         <!-- Panel 0: Your Stats (Unified Focus Telemetry & Productivity Tracking) -->
         <div class="column-card history-panel focus-telemetry-panel" id="focusTelemetryPanel">
           <div class="column-header" style="flex-wrap: wrap; gap: 8px;">
@@ -930,7 +906,7 @@
               <span class="panel-count-badge" id="focusTelemetryWeekBadge">This Week: 0.0 hrs</span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <button class="action-icon-btn" onclick="History.toggleFocusSessionsModal()" style="font-size: 11px; padding: 4px 10px; font-weight: 600;" title="View detailed focus session logs">
+              <button class="action-icon-btn" onclick="History.toggleFocusSessionsModal()" style="font-size: 11px; padding: 4px 10px; font-weight: 600;" title="Focus session logs">
                 <i data-lucide="list" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Sessions
               </button>
             </div>
@@ -943,7 +919,7 @@
               <span class="focus-kpi-val" id="focusKpiThisWeek">0.0h</span>
               <span class="focus-kpi-sub" id="focusKpiDiff">vs last week</span>
             </div>
-            <div class="focus-kpi-card" id="yourStatsCompletionCard" onclick="App.switchTab('dashboard')" style="cursor: pointer;" title="Click to view weekly task breakdown in Dashboard">
+            <div class="focus-kpi-card" id="yourStatsCompletionCard" onclick="App.switchTab('dashboard')" style="cursor: pointer;" title="View weekly breakdown">
               <span class="focus-kpi-label">Task Completion</span>
               <span class="focus-kpi-val" id="focusKpiTaskRate" style="color: var(--normal-green);">0%</span>
               <span class="focus-kpi-sub" id="focusKpiTaskSummary">0 of 0 tasks</span>
@@ -951,7 +927,7 @@
             <div class="focus-kpi-card">
               <span class="focus-kpi-label">Weekly Sprints</span>
               <span class="focus-kpi-val" id="focusKpiSessions">0</span>
-              <span class="focus-kpi-sub">focus periods</span>
+              <span class="focus-kpi-sub">sprints</span>
             </div>
             <div class="focus-kpi-card">
               <span class="focus-kpi-label">Daily Avg</span>
@@ -968,7 +944,7 @@
           <!-- 7-Day Weekly Bar Chart Visualizer -->
           <div class="focus-weekly-chart-card">
             <div class="focus-chart-header">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Current Week Daily Distribution (Mon – Sun)</span>
+              <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">This Week (Mon – Sun)</span>
             </div>
             <div class="focus-bars-container" id="focusWeeklyBars">
               <!-- Rendered 7 daily bars -->
@@ -977,7 +953,7 @@
 
           <!-- Project Attribution Pills for This Week -->
           <div style="margin-top: 14px;">
-            <div style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em;">Weekly Focus by Project</div>
+            <div style="font-size: 11.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em;">By Project</div>
             <div class="focus-proj-wrap" id="focusProjectBreakdown" style="display: flex; gap: 8px; flex-wrap: wrap;">
               <!-- Project pills -->
             </div>
@@ -990,8 +966,8 @@
               <table class="focus-weeks-table" id="focusWeeksTable" style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                   <tr style="border-bottom: 1px solid var(--card-border); font-size: 11px; color: var(--text-muted); text-transform: uppercase;">
-                    <th style="padding: 8px 12px;">Week Period</th>
-                    <th style="padding: 8px 12px;">Total Focus Time</th>
+                    <th style="padding: 8px 12px;">Week</th>
+                    <th style="padding: 8px 12px;">Total</th>
                     <th style="padding: 8px 12px;">Sprints</th>
                     <th style="padding: 8px 12px;">Status</th>
                   </tr>
@@ -1003,7 +979,9 @@
             </div>
           </div>
         </div>
+      </div>
 
+      <div id="historyArchiveView" class="history-grid-container" style="display: none; flex-direction: column; gap: 18px;">
         <!-- Panel 1: Completed Projects -->
         <div class="column-card history-panel">
           <div class="column-header">
@@ -1023,8 +1001,8 @@
               <span class="panel-count-badge" id="historyCountTasks">0 completed</span>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <button class="action-icon-btn" onclick="History.toggleAllDays(true)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" title="Expand all daily archives"><i data-lucide="chevrons-down" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Expand</button>
-              <button class="action-icon-btn" onclick="History.toggleAllDays(false)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" title="Collapse all daily archives"><i data-lucide="chevrons-up" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Collapse</button>
+              <button class="action-icon-btn" onclick="History.toggleAllDays(true)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" title="Expand all"><i data-lucide="chevrons-down" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Expand</button>
+              <button class="action-icon-btn" onclick="History.toggleAllDays(false)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;" title="Collapse all"><i data-lucide="chevrons-up" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Collapse</button>
             </div>
           </div>
           <div id="historyTasksList" style="display: flex; flex-direction: column; gap: 10px;">
@@ -1046,7 +1024,7 @@
         <!-- Panel 4: Ingestion Audit Log (Collapsible) -->
         <div class="column-card history-panel">
           <div class="column-header" style="cursor: pointer;" onclick="History.toggleAuditLog()">
-            <h3 class="column-title"><i data-lucide="file-text" style="width:15px;height:15px;color:var(--text-muted);display:inline-block;vertical-align:-1px;"></i> Ingestion Audit Log</h3>
+            <h3 class="column-title"><i data-lucide="file-text" style="width:15px;height:15px;color:var(--text-muted);display:inline-block;vertical-align:-1px;"></i> Audit Log</h3>
             <div style="display: flex; gap: 8px; align-items: center;">
               <span class="panel-count-badge" id="historyCountAudit">0 entries</span>
               <button class="action-icon-btn" id="auditLogToggleBtn" style="font-size: 11px;"><i data-lucide="chevron-down" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Log</button>
@@ -1062,49 +1040,20 @@
     <!-- Tab 6: Settings -->
     <section id="tabSettings" class="tab-pane">
       <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">Settings</h2>
+        <h2 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0;">Settings</h2>
       </div>
 
-      <div class="history-grid-container" style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="settings-grid">
         <!-- Panel 1: Display Name -->
         <div class="column-card history-panel">
           <div class="column-header">
             <h3 class="column-title"><i data-lucide="user" style="width:15px;height:15px;color:var(--focus-indigo);display:inline-block;vertical-align:-1px;"></i> Display Name</h3>
           </div>
-          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-            Customise the name PETTR uses to greet and address you on the dashboard.
-          </p>
           <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="text" id="settingsProfileNameInput" placeholder="Your Name (e.g. Alex, Me)" class="modal-input" style="max-width: 260px;">
-            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save Name</button>
+            <input type="text" id="settingsProfileNameInput" placeholder="Your name" class="modal-input" style="max-width: 240px;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.saveProfileFromSettings()">Save</button>
           </div>
           <div id="profileNameSaveResult" style="margin-top: 10px; font-size: 13px;"></div>
-        </div>
-
-        <!-- Panel 2: PIN Change & Inspection Card -->
-        <div class="column-card history-panel">
-          <div class="column-header">
-            <h3 class="column-title"><i data-lucide="shield" style="width:15px;height:15px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Security PIN</h3>
-          </div>
-          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-            To prevent remote tampering, the 4-digit PIN can <strong>only</strong> be viewed and changed directly on the hosting PC (localhost).
-          </p>
-
-          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Current Active PIN</div>
-              <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 3px; color: var(--text-main);">••••</div>
-            </div>
-            <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
-          </div>
-
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">Change 4-Digit PIN</div>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="password" id="newPinInput" maxlength="4" placeholder="New 4-Digit PIN" 
-                   style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 10px 14px; border-radius: 6px; width: 180px; font-size: 16px; letter-spacing: 4px; text-align: center;">
-            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
-          </div>
-          <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
         </div>
 
         <!-- Panel 3: Tailscale Access -->
@@ -1112,13 +1061,34 @@
           <div class="column-header">
             <h3 class="column-title"><i data-lucide="network" style="width:15px;height:15px;color:var(--accent-cyan);display:inline-block;vertical-align:-1px;"></i> Tailscale Access</h3>
           </div>
-          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.6;">
-            PETTR binds to <code>0.0.0.0:8000</code>. On your phone or laptop connected to your Tailnet, simply open:
-            <br>
-            <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; color: var(--text-main); display: inline-block; margin-top: 6px;">http://&lt;your-tailscale-pc-name&gt;:8000</code>
-            <br>
-            No router ports are opened, ensuring 100% private data isolation.
+          <p style="color: var(--text-muted); font-size: 13px; line-height: 1.55; margin: 0;">
+            Open <code style="background: var(--bg-tertiary); padding: 3px 7px; border-radius: 4px; color: var(--text-main);">http://&lt;tailscale-host&gt;:8000</code> on your Tailnet.
           </p>
+        </div>
+
+        <!-- Panel 2: PIN Change & Inspection Card -->
+        <div class="column-card history-panel">
+          <div class="column-header">
+            <h3 class="column-title"><i data-lucide="shield" style="width:15px;height:15px;color:var(--urgent-orange);display:inline-block;vertical-align:-1px;"></i> Security PIN</h3>
+          </div>
+          <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 12px;">
+            Manage PIN on host PC (localhost).
+          </p>
+
+          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">Active PIN</div>
+              <div id="currentPinDisplay" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); letter-spacing: 4px; margin-top: 2px; color: var(--text-main);">••••</div>
+            </div>
+            <button class="action-icon-btn" onclick="App.togglePinVisibility()" id="togglePinVisBtn" style="font-size: 12px; font-weight: 600;"><i data-lucide="eye" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Show PIN</button>
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="password" id="newPinInput" maxlength="4" placeholder="New PIN" 
+                   style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-main); padding: 8px 12px; border-radius: 6px; width: 140px; font-size: 15px; letter-spacing: 4px; text-align: center;">
+            <button class="quick-submit-btn" style="position: static; transform: none;" onclick="App.changePin()">Update PIN</button>
+          </div>
+          <div id="pinChangeResult" style="margin-top: 10px; font-size: 13px;"></div>
         </div>
 
         <!-- Panel 4: Local LLM (Ollama) -->
@@ -1132,14 +1102,11 @@
               <span id="llmStatusText">Checking...</span>
             </div>
           </div>
-          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px;">
-            Connect to local Ollama on this mini PC for 100% offline intent classification.
-          </p>
 
-          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="background: var(--bg-secondary); border: 1px solid var(--card-border); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
               <div>
-                <span style="font-size: 12px; color: var(--text-muted);">Model:</span>
+                <span style="font-size: 12px; color: var(--text-muted);">Model</span>
                 <span id="llmActiveModelDisplay" style="font-weight: 700; font-family: var(--font-mono); margin-left: 6px;">llama3.2:3b</span>
               </div>
               <div style="display: flex; gap: 8px;">
@@ -1153,17 +1120,13 @@
           </div>
 
           <!-- Quick Beginner Walkthrough Accordion -->
-          <details style="font-size: 13px; color: var(--text-muted); line-height: 1.6; cursor: pointer;">
-            <summary style="font-weight: 600; color: var(--text-main);"><i data-lucide="book-open" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:4px;"></i> First-time Ollama setup walkthrough</summary>
+          <details style="font-size: 12.5px; color: var(--text-muted); line-height: 1.55; cursor: pointer;">
+            <summary style="font-weight: 600; color: var(--text-main);"><i data-lucide="book-open" style="width:13px;height:13px;display:inline-block;vertical-align:-2px;margin-right:4px;"></i> Ollama setup</summary>
             <div style="padding-top: 10px; font-size: 12px; color: var(--text-muted);">
               <ol style="margin-left: 20px; display: flex; flex-direction: column; gap: 6px;">
-                <li><strong>Download Ollama</strong>: Visit <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a> and install it on your server or PC.</li>
-                <li><strong>Pull your first fast model</strong>: Run in terminal:<br>
-                  <code style="background: var(--bg-tertiary); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; color: var(--text-main);">ollama pull llama3.2:3b</code>
-                  <br><em>(or <code>ollama pull qwen2.5:3b</code> for ultra-compact 1.9GB memory footprint)</em>
-                </li>
-                <li><strong>Running outside Docker?</strong>: If PETTR runs in Docker and Ollama runs natively on the host server, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> in Ollama's systemd environment so Docker can reach it across the bridge.</li>
-                <li><strong>Zero Configuration</strong>: PETTR automatically probes candidate endpoints (<code>host.docker.internal</code>, Docker gateway <code>172.17.0.1</code>, and <code>localhost</code>). When Ollama is offline, PETTR seamlessly uses its deterministic rule engine so nothing ever fails.</li>
+                <li>Install Ollama from <a href="https://ollama.com" target="_blank" style="color: var(--text-main); font-weight: 600;">ollama.com</a>.</li>
+                <li>Run <code style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px; color: var(--text-main);">ollama pull llama3.2:3b</code></li>
+                <li>If PETTR runs in Docker, set <code style="color: var(--accent-cyan);">OLLAMA_HOST=0.0.0.0</code> on host Ollama.</li>
               </ol>
             </div>
           </details>
@@ -1174,11 +1137,11 @@
           <div class="column-header">
             <h3 class="column-title"><i data-lucide="archive" style="width:15px;height:15px;color:var(--recurrence-purple);display:inline-block;vertical-align:-1px;"></i> Backups &amp; Sync</h3>
           </div>
-          <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
-            Archives SQLite, Markdown summary, and JSON into <code>backups/PETTR_&lt;dd_mm_yyyy&gt;.zip</code> with optional <code>rclone</code> sync.
+          <p style="color: var(--text-muted); font-size: 12.5px; margin-bottom: 12px;">
+            Archives database, digest, and config (.zip).
           </p>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="quick-submit-btn" style="position: static; transform: none; display: inline-flex; align-items: center; gap: 6px;" onclick="App.triggerManualBackup()"><i data-lucide="archive" style="width:14px;height:14px;"></i> Run Backup</button>
+            <button class="quick-submit-btn" style="position: static; transform: none; display: inline-flex; align-items: center; gap: 6px;" onclick="App.triggerManualBackup()"><i data-lucide="archive" style="width:14px;height:14px;"></i> Backup</button>
             <button class="action-icon-btn" id="downloadBackupArchiveBtn" style="font-weight: 600; padding: 10px 14px;" onclick="App.downloadLatestBackup()"><i data-lucide="download" style="width:13px;height:13px;"></i> Download (.zip)</button>
           </div>
           <div id="backupStatusMsg" style="margin-top: 10px; font-size: 13px; color: var(--text-muted);"></div>
@@ -1197,7 +1160,7 @@
           </div>
 
           <div id="storageMetricsContainer">
-            <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading real-time storage metrics...</div>
+            <div style="color: var(--text-muted); font-size: 13px; padding: 12px 0;">Loading metrics...</div>
           </div>
         </div>
       </div>
@@ -1826,38 +1789,38 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div id="entityModalOverlay" class="modal-overlay" style="display: none;" onclick="if(event.target===this) EntityModal.close()">
     <div class="modal-card modal-structured">
       <div class="modal-header">
-        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">View/Edit Item</h3>
-        <button type="button" class="action-icon-btn" onclick="EntityModal.close()" title="Close panel"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Edit Item</h3>
+        <button type="button" class="action-icon-btn" onclick="EntityModal.close()" title="Close"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
       </div>
       <div class="modal-body">
         <div>
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Classification &amp; Urgency Tier</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Type</label>
           <div class="type-pill-switcher" id="entityModalTypeSwitcher">
             <button type="button" class="type-pill-btn active" data-type="task" data-tier="focus" onclick="EntityModal.selectType(this)"><i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Focus Task</button>
             <button type="button" class="type-pill-btn" data-type="task" data-tier="trivial" onclick="EntityModal.selectType(this)"><i data-lucide="check-square" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Trivial Task</button>
             <button type="button" class="type-pill-btn" data-type="event" onclick="EntityModal.selectType(this)"><i data-lucide="calendar" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Event</button>
             <button type="button" class="type-pill-btn" data-type="reminder" onclick="EntityModal.selectType(this)"><i data-lucide="bell" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
             <button type="button" class="type-pill-btn" data-type="project" onclick="EntityModal.selectType(this)"><i data-lucide="folder" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project</button>
-            <button type="button" class="type-pill-btn type-pill-unorg" data-type="unorganized" onclick="EntityModal.selectType(this)" title="Return this item to the Unorganised Queue"><i data-lucide="archive-restore" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Unorganised</button>
+            <button type="button" class="type-pill-btn type-pill-unorg" data-type="unorganized" onclick="EntityModal.selectType(this)" title="Move to Unorganised Queue"><i data-lucide="archive-restore" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Unorganised</button>
           </div>
         </div>
         <div>
           <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Title</label>
-          <input type="text" id="entityModalTitle" class="modal-input" placeholder="Item title...">
+          <input type="text" id="entityModalTitle" class="modal-input" placeholder="Title">
         </div>
         <div>
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Notes / Extra Details</label>
-          <textarea id="entityModalDesc" class="modal-input" style="height: 85px; resize: vertical;" placeholder="Add notes, specifications, context..."></textarea>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Notes</label>
+          <textarea id="entityModalDesc" class="modal-input" style="height: 80px; resize: vertical;" placeholder="Notes or context..."></textarea>
         </div>
         <div class="modal-form-grid-2col">
           <div>
-            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Assigned Project</label>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project</label>
             <select id="entityModalProject" class="modal-input">
               <option value="">-- No Project --</option>
             </select>
           </div>
           <div id="entityModalTaskDateContainer">
-            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="entityModalDueDateLabel">Due Date &amp; Time (24hr Military)</label>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="entityModalDueDateLabel">Due</label>
             <div class="date-picker-group">
               <input type="datetime-local" id="entityModalDueDate" class="modal-input modal-datetime-input">
               <div class="date-presets-row">
@@ -1873,20 +1836,20 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             </div>
           </div>
           <div id="entityModalEventPeriodContainer" style="display: none;">
-            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Event Time Period (Start &amp; End Time)</label>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Time</label>
             <div class="date-picker-group">
               <div class="modal-form-grid-2col" style="gap: 8px;">
                 <div>
-                  <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Start Time</span>
+                  <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Start</span>
                   <input type="datetime-local" id="entityModalEventStart" class="modal-input modal-datetime-input">
                 </div>
                 <div>
-                  <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">End Time</span>
+                  <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">End</span>
                   <input type="datetime-local" id="entityModalEventEnd" class="modal-input modal-datetime-input">
                 </div>
               </div>
               <div class="date-presets-row" style="margin-top: 6px;">
-                <span style="font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 2px;">Duration:</span>
+                <span style="font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 2px;">Length:</span>
                 <button type="button" class="preset-chip" onclick="EntityModal.setDuration(30)">+30m</button>
                 <button type="button" class="preset-chip" onclick="EntityModal.setDuration(60)">+1h</button>
                 <button type="button" class="preset-chip" onclick="EntityModal.setDuration(120)">+2h</button>
@@ -1894,7 +1857,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
                 <button type="button" class="preset-chip clear" onclick="EntityModal.clearEnd()">Clear End</button>
               </div>
               <div class="date-presets-row" style="margin-top: 4px;">
-                <span style="font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 2px;">Start at:</span>
+                <span style="font-size: 11px; color: var(--text-muted); align-self: center; margin-right: 2px;">Start:</span>
                 <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_now')">Now</button>
                 <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_12')">12:00</button>
                 <button type="button" class="preset-chip" onclick="EntityModal.setEventStartPreset('today_14')">14:00</button>
@@ -1915,11 +1878,11 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             </select>
           </div>
           <div>
-            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Recurrence Schedule</label>
+            <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Repeat</label>
             <select id="entityModalRecurrence" class="modal-input">
-              <option value="">None (One-time)</option>
+              <option value="">None</option>
               <option value="FREQ=DAILY">Daily</option>
-              <option value="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Weekdays (Mon-Fri)</option>
+              <option value="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Weekdays</option>
               <option value="FREQ=WEEKLY">Weekly</option>
               <option value="FREQ=MONTHLY">Monthly</option>
             </select>
@@ -1929,14 +1892,14 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <div id="entityModalProjectOptionsRow" style="display: none; border-top: 1px solid var(--card-border); padding-top: 12px; margin-top: 6px;">
           <div class="modal-form-grid-2col" style="margin-bottom: 10px;">
             <div>
-              <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Category *</label>
+              <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Category</label>
               <select id="entityModalCategory" class="modal-input">
                 <option value="External">🌐 External / Personal</option>
                 <option value="School">🎓 School / Academic</option>
               </select>
             </div>
             <div>
-              <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Colour Tag</label>
+              <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Colour</label>
               <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                 <input type="color" id="entityModalColorPicker" value="#3b82f6" style="width: 38px; height: 34px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
                 <div id="entityModalColorPalette" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
@@ -1948,7 +1911,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <div style="margin-top: 10px; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-xs);">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: var(--text-main); font-weight: 600;">
             <input type="checkbox" id="entityModalTimeSensitive" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
-            <span>⚡ TIME SENSITIVE <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(Manual high-importance marker)</span></span>
+            <span>⚡ Time sensitive</span>
           </label>
         </div>
       </div>
@@ -1958,7 +1921,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </div>
         <div style="display: flex; gap: 10px;">
           <button type="button" class="action-icon-btn" onclick="EntityModal.close()" style="padding: 8px 16px;">Cancel</button>
-          <button type="button" class="quick-submit-btn" style="position: static; transform: none;" onclick="EntityModal.saveChanges()">Save Changes</button>
+          <button type="button" class="quick-submit-btn" style="position: static; transform: none;" onclick="EntityModal.saveChanges()">Save</button>
         </div>
       </div>
     </div>
@@ -1968,35 +1931,35 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div id="manualCreateModalOverlay" class="modal-overlay" style="display: none;" onclick="if(event.target===this) Dashboard.closeManualCreateModal()">
     <div class="modal-card modal-structured" style="max-width: 520px;">
       <div class="modal-header">
-        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">+ Manual Item Creation</h3>
+        <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">New Item</h3>
         <button type="button" class="action-icon-btn" onclick="Dashboard.closeManualCreateModal()" title="Close"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
       </div>
       <div class="modal-body">
         <div>
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Select Entity Type</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Type</label>
           <div class="type-pill-switcher" id="manualCreateTypeSwitcher">
             <button type="button" class="type-pill-btn active" data-type="focus" onclick="Dashboard.selectManualType('focus')"><i data-lucide="crosshair" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Focus Task</button>
             <button type="button" class="type-pill-btn" data-type="trivial" onclick="Dashboard.selectManualType('trivial')"><i data-lucide="check-square" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Trivial Errand</button>
             <button type="button" class="type-pill-btn" data-type="event" onclick="Dashboard.selectManualType('event')"><i data-lucide="calendar" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Event</button>
             <button type="button" class="type-pill-btn" data-type="reminder" onclick="Dashboard.selectManualType('reminder')"><i data-lucide="bell" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Reminder</button>
             <button type="button" class="type-pill-btn" data-type="project" onclick="Dashboard.selectManualType('project')"><i data-lucide="folder" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Project</button>
-            <button type="button" class="type-pill-btn" data-type="unorganized" onclick="Dashboard.selectManualType('unorganized')"><i data-lucide="archive-restore" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Unorganised</button>
+            <button type="button" class="type-pill-btn type-pill-unorg" data-type="unorganized" onclick="Dashboard.selectManualType('unorganized')"><i data-lucide="archive-restore" style="width:13px;height:13px;display:inline-block;vertical-align:-1px;"></i> Unorganised</button>
           </div>
         </div>
 
         <div>
           <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="manualInputTitleLabel">Title *</label>
-          <input type="text" id="manualInputTitle" class="modal-input" placeholder="e.g. Derive Kalman filter equations">
+          <input type="text" id="manualInputTitle" class="modal-input" placeholder="Title">
         </div>
 
         <div>
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Description / Notes (Optional)</label>
-          <textarea id="manualInputDesc" class="modal-input" style="height: 70px; resize: vertical;" placeholder="Additional specifications, links, or context..."></textarea>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Notes</label>
+          <textarea id="manualInputDesc" class="modal-input" style="height: 66px; resize: vertical;" placeholder="Notes or context..."></textarea>
         </div>
 
         <!-- Project Selection (Tasks &amp; Events) -->
         <div id="manualProjectRow">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Attach to Project</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project</label>
           <select id="manualInputProject" class="modal-input">
             <option value="">-- No Project (Standalone) --</option>
           </select>
@@ -2004,7 +1967,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
         <!-- Date &amp; Time (Tasks, Reminders) -->
         <div id="manualDateRow">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="manualInputDateLabel">Scheduled Date / Time (24hr Military)</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" id="manualInputDateLabel">Due</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="datetime-local" id="manualInputDate" class="modal-input">
           </div>
@@ -2022,19 +1985,19 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
         <!-- Time Period for Events -->
         <div id="manualEventPeriodRow" style="display: none; margin-bottom: 12px;">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Event Time Period (Start &amp; End Time) *</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Time *</label>
           <div class="modal-form-grid-2col" style="gap: 8px;">
             <div>
-              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Start Time</span>
+              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Start</span>
               <input type="datetime-local" id="manualEventStart" class="modal-input">
             </div>
             <div>
-              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">End Time</span>
+              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">End</span>
               <input type="datetime-local" id="manualEventEnd" class="modal-input">
             </div>
           </div>
           <div class="preset-chips-container" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
-            <span style="font-size: 11px; color: var(--text-muted);">Duration:</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Length:</span>
             <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(30)">+30m</button>
             <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(60)">+1h</button>
             <button type="button" class="preset-chip" onclick="Dashboard.setManualDuration(120)">+2h</button>
@@ -2042,7 +2005,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
             <button type="button" class="preset-chip clear" onclick="Dashboard.clearManualEventEnd()">Clear End</button>
           </div>
           <div class="preset-chips-container" style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; align-items: center;">
-            <span style="font-size: 11px; color: var(--text-muted);">Start at:</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Start:</span>
             <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_now')">Now</button>
             <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_12')">12:00</button>
             <button type="button" class="preset-chip" onclick="Dashboard.setManualEventStartPreset('today_14')">14:00</button>
@@ -2054,14 +2017,14 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
         <!-- Project Specific Fields -->
         <div id="manualProjectCategoryRow" style="display: none; margin-bottom: 10px;">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Category *</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Category *</label>
           <select id="manualInputCategory" class="modal-input">
             <option value="External">🌐 External / Personal</option>
             <option value="School">🎓 School / Academic</option>
           </select>
         </div>
         <div id="manualProjectColorRow" style="display: none;">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Project Accent Colour Tag</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Colour</label>
           <div style="display: flex; gap: 8px; align-items: center;">
             <input type="color" id="manualInputColor" value="#3b82f6" style="width: 44px; height: 36px; border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; background: transparent; padding: 2px;">
             <div id="manualColorPalette" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
@@ -2072,13 +2035,13 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <div id="manualTimeSensitiveRow" style="margin-top: 10px; padding: 6px 10px; background: var(--bg-secondary); border: 1px solid var(--card-border); border-radius: var(--radius-xs);">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: var(--text-main); font-weight: 600;">
             <input type="checkbox" id="manualInputTimeSensitive" style="accent-color: #f59e0b; width: 16px; height: 16px; cursor: pointer;">
-            <span>⚡ TIME SENSITIVE <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(Manual high-importance marker)</span></span>
+            <span>⚡ Time sensitive</span>
           </label>
         </div>
       </div>
       <div class="modal-footer" style="justify-content: flex-end;">
         <button type="button" class="action-icon-btn" onclick="Dashboard.closeManualCreateModal()" style="padding: 8px 16px;">Cancel</button>
-        <button type="button" class="quick-submit-btn" style="position: static; transform: none;" onclick="Dashboard.submitManualCreate()">Create Item</button>
+        <button type="button" class="quick-submit-btn" style="position: static; transform: none;" onclick="Dashboard.submitManualCreate()">Create</button>
       </div>
     </div>
   </div>
@@ -2086,14 +2049,14 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <!-- Unorganised Queue Modal -->
   <div id="unorganizedModal" class="modal-overlay" style="display: none;" onclick="if(event.target===this) Dashboard.closeUnorganizedModal()">
     <div class="modal-card" style="max-width: 550px;">
-      <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganised Queue Triaging</h3>
-      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
-        The system routed these inputs here for your manual confirmation:
+      <h3 style="font-size: 17px; font-weight: 700; color: var(--urgent-orange); margin-bottom: 4px;">⚠️ Unorganised</h3>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+        Sort into tasks, events, or reminders:
       </p>
       <!-- Direct Manual Entry to Unorganised Queue -->
       <div style="display: flex; gap: 8px; margin-bottom: 14px;">
-        <input type="text" id="manualUnorgInput" class="modal-input" placeholder="Type a note, thought, or ambiguous item..." style="flex: 1;" onkeydown="if(event.key==='Enter') Dashboard.addDirectUnorg()">
-        <button type="button" class="quick-submit-btn" style="position: static; transform: none; padding: 0 16px; font-size: 12.5px; background: #ea580c; white-space: nowrap;" onclick="Dashboard.addDirectUnorg()">+ Add to Queue</button>
+        <input type="text" id="manualUnorgInput" class="modal-input" placeholder="Add unorganised note..." style="flex: 1;" onkeydown="if(event.key==='Enter') Dashboard.addDirectUnorg()">
+        <button type="button" class="quick-submit-btn" style="position: static; transform: none; padding: 0 16px; font-size: 12.5px; background: #ea580c; white-space: nowrap;" onclick="Dashboard.addDirectUnorg()">+ Add</button>
       </div>
       <div id="unorganizedModalList" style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto;">
         <!-- Injected pending items -->
@@ -2110,16 +2073,16 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     <div class="modal-card" style="max-width: 480px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
-          <i data-lucide="globe" style="width: 16px; height: 16px; color: var(--accent-cyan);"></i> Mission Clock Timezone
+          <i data-lucide="globe" style="width: 16px; height: 16px; color: var(--accent-cyan);"></i> Timezone
         </h3>
         <button class="action-icon-btn" onclick="App.closeTimezoneModal()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
       </div>
-      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
-        Configure your current operational time zone for travel or remote sync. This instantly adjusts the live Mission Clock and header clock.
+      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.45;">
+        Select your active timezone.
       </p>
 
       <div style="margin-bottom: 14px;">
-        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Common Global Hubs</label>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Hubs</label>
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">
           <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('UTC')">UTC (Universal)</button>
           <button type="button" class="preset-chip tz-preset-btn" onclick="App.setTimezone('Asia/Singapore')">Singapore (SGT / UTC+8)</button>
@@ -2133,16 +2096,16 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </div>
 
       <div style="margin-bottom: 16px;">
-        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Custom IANA Timezone (e.g. Europe/Paris, Asia/Hong_Kong)</label>
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Custom IANA Timezone</label>
         <div style="display: flex; gap: 8px;">
-          <input type="text" id="customTimezoneInput" class="modal-input" placeholder="e.g. Europe/Paris" style="flex: 1;">
+          <input type="text" id="customTimezoneInput" class="modal-input" placeholder="Europe/Paris" style="flex: 1;">
           <button type="button" class="quick-submit-btn" style="position: static; transform: none; white-space: nowrap;" onclick="App.applyCustomTimezoneInput()">Apply</button>
         </div>
       </div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 14px;">
         <button class="action-icon-btn" onclick="App.resetTimezoneToLocal()" style="font-size: 12px;">
-          <i data-lucide="rotate-ccw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> Reset to System Local
+          <i data-lucide="rotate-ccw" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;"></i> System Local
         </button>
         <button class="action-icon-btn" onclick="App.closeTimezoneModal()" style="padding: 6px 16px;">Close</button>
       </div>
@@ -2261,20 +2224,21 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <button type="button" class="cockpit-preset-chip active" data-min="25" onclick="FocusCockpit.setPreset(25)">25m</button>
           <button type="button" class="cockpit-preset-chip" data-min="50" onclick="FocusCockpit.setPreset(50)">50m</button>
           <button type="button" class="cockpit-preset-chip" data-min="90" onclick="FocusCockpit.setPreset(90)">90m</button>
-          <button type="button" class="cockpit-preset-chip" data-mode="stopwatch" onclick="FocusCockpit.setStopwatchMode()" title="Count-up stopwatch mode"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Stopwatch</button>
-          <button type="button" class="cockpit-preset-chip overtime-chip" onclick="FocusCockpit.addTime(5)" title="Add 5 minutes overtime to focus sprint">+5m</button>
-          <button type="button" class="cockpit-preset-chip overtime-chip" onclick="FocusCockpit.addTime(15)" title="Add 15 minutes overtime to focus sprint">+15m</button>
+          <button type="button" class="cockpit-preset-chip" id="cockpitCustomDurBtn" onclick="FocusCockpit.toggleCustomDuration()" title="Custom duration">Custom</button>
+          <button type="button" class="cockpit-preset-chip" data-mode="stopwatch" onclick="FocusCockpit.setStopwatchMode()" title="Stopwatch"><i data-lucide="timer" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:2px;"></i>Stopwatch</button>
+          <button type="button" class="cockpit-preset-chip overtime-chip" onclick="FocusCockpit.addTime(5)" title="Add 5m">+5m</button>
+          <button type="button" class="cockpit-preset-chip overtime-chip" onclick="FocusCockpit.addTime(15)" title="Add 15m">+15m</button>
         </div>
 
         <!-- Scale slider to select focus sprint duration up to 3 hours (180 mins) -->
-        <div class="cockpit-duration-slider-wrap" id="cockpitDurationSliderWrap">
+        <div class="cockpit-duration-slider-wrap is-hidden" id="cockpitDurationSliderWrap">
           <div class="cockpit-slider-header">
-            <span class="cockpit-slider-label"><i data-lucide="timer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Focus Sprint Length</span>
+            <span class="cockpit-slider-label"><i data-lucide="timer" style="width:12px;height:12px;display:inline-block;vertical-align:-1px;margin-right:4px;"></i>Duration</span>
           </div>
           <input type="range" id="cockpitDurationSlider" class="cockpit-duration-slider"
                  min="5" max="180" step="5" value="25"
                  oninput="FocusCockpit.onDurationSliderChange(this.value)"
-                 title="Drag to select sprint duration (5m to 3 hours)">
+                 title="Sprint duration (5m to 3h)">
           <div class="cockpit-slider-scale">
             <span>5m</span>
             <span>30m</span>
@@ -2288,9 +2252,9 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
         <div class="cockpit-controls-row">
           <button type="button" class="quick-submit-btn cockpit-action-btn primary" id="cockpitPlayBtn" onclick="FocusCockpit.toggleTimer()" style="position: static; transform: none; display: inline-flex; align-items: center; gap: 6px;">
-            <i data-lucide="play" style="width:16px;height:16px;"></i> Start Sprint
+            <i data-lucide="play" style="width:16px;height:16px;"></i> Start
           </button>
-          <button type="button" class="action-icon-btn cockpit-action-btn" onclick="FocusCockpit.resetTimer()" title="Reset Timer">
+          <button type="button" class="action-icon-btn cockpit-action-btn" onclick="FocusCockpit.resetTimer()" title="Reset">
             <i data-lucide="rotate-ccw" style="width:14px;height:14px;"></i> Reset
           </button>
         </div>
@@ -2298,36 +2262,36 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
 
       <div class="cockpit-ambient-deck">
         <div class="ambient-deck-header">
-          <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="headphones" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Ambient Sound</span>
+          <span style="display:flex; align-items:center; gap:6px;"><i data-lucide="headphones" style="width:13px;height:13px;color:var(--accent-cyan);"></i> Ambient</span>
           <div class="ambient-volume-wrap">
             <i data-lucide="volume-2" style="width:12px;height:12px;opacity:0.6;"></i>
             <input type="range" id="cockpitVolumeSlider" min="0" max="1" step="0.05" value="0.35" oninput="FocusCockpit.setVolume(this.value)" class="ambient-vol-slider" title="Volume">
           </div>
         </div>
         <div class="ambient-buttons-cluster">
-          <button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType('none')" title="Mute ambient sound"><i data-lucide="volume-x" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Mute</button>
-          <button type="button" class="ambient-sound-btn" data-sound="brown" onclick="FocusCockpit.setSoundType('brown')" title="1/f² Deep Warmth Rumble">Brown</button>
-          <button type="button" class="ambient-sound-btn" data-sound="pink" onclick="FocusCockpit.setSoundType('pink')" title="1/f Waterfall Frequency">Pink</button>
-          <button type="button" class="ambient-sound-btn" data-sound="rain" onclick="FocusCockpit.setSoundType('rain')" title="Soft Pitter-Patter Rainfall"><i data-lucide="cloud-rain" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Rain</button>
+          <button type="button" class="ambient-sound-btn active" data-sound="none" onclick="FocusCockpit.setSoundType('none')" title="Mute"><i data-lucide="volume-x" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Mute</button>
+          <button type="button" class="ambient-sound-btn" data-sound="brown" onclick="FocusCockpit.setSoundType('brown')" title="Brown noise">Brown</button>
+          <button type="button" class="ambient-sound-btn" data-sound="pink" onclick="FocusCockpit.setSoundType('pink')" title="Pink noise">Pink</button>
+          <button type="button" class="ambient-sound-btn" data-sound="rain" onclick="FocusCockpit.setSoundType('rain')" title="Rain"><i data-lucide="cloud-rain" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Rain</button>
         </div>
       </div>
 
       <div class="cockpit-scratchpad-section">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <label style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Scratchpad</label>
-          <button type="button" class="action-icon-btn" onclick="FocusCockpit.saveScratchpadToNotes()" style="font-size: 11px; padding: 2px 8px;" title="Create new note tied to this task in Notes tab">
-            <i data-lucide="file-text" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Save to Notes
+          <button type="button" class="action-icon-btn" onclick="FocusCockpit.saveScratchpadToNotes()" style="font-size: 11px; padding: 2px 8px;" title="Save to Notes">
+            <i data-lucide="file-text" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;margin-right:3px;"></i>Save
           </button>
         </div>
-        <textarea id="cockpitScratchpad" class="cockpit-scratchpad-input" placeholder="Capture fleeting thoughts without breaking flow state..."></textarea>
+        <textarea id="cockpitScratchpad" class="cockpit-scratchpad-input" placeholder="Quick notes..."></textarea>
       </div>
 
       <div class="cockpit-footer-actions">
         <div style="display: flex; gap: 8px;">
-          <button type="button" class="action-icon-btn" onclick="FocusCockpit.stopSession()" style="color: var(--urgent-orange);" title="End focus sprint without completing task">Stop Session</button>
+          <button type="button" class="action-icon-btn" onclick="FocusCockpit.stopSession()" style="color: var(--urgent-orange);" title="Stop sprint">Stop</button>
         </div>
         <button type="button" class="quick-submit-btn complete-task-btn" style="position: static; transform: none;" onclick="FocusCockpit.completeCurrentTask()">
-          <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Complete &amp; Advance
+          <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i> Complete &amp; Next
         </button>
       </div>
     </div>
@@ -2379,7 +2343,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   </div>
 
   <!-- Focus Cockpit Corner Mini-Dock (Always visible in Hidden Scenic Mode & when minimized with active sprint) -->
-  <div id="cockpitFloatingPill" class="cockpit-floating-pill" style="display: none;" onclick="FocusCockpit.open()" title="Click to expand Focus Cockpit">
+  <div id="cockpitFloatingPill" class="cockpit-floating-pill" style="display: none;" onclick="FocusCockpit.open()" title="Expand Focus Cockpit">
     <div class="cockpit-mini-left">
       <span class="cockpit-live-dot mini" id="cockpitFloatingDot"></span>
       <div class="cockpit-mini-copy">
@@ -2388,10 +2352,10 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </div>
     </div>
     <div class="cockpit-mini-actions" onclick="event.stopPropagation()">
-      <button type="button" class="cockpit-mini-btn" id="cockpitMiniPlayBtn" onclick="FocusCockpit.toggleTimerFromMini()" title="Start / Pause Focus Timer" aria-label="Start or pause timer">
+      <button type="button" class="cockpit-mini-btn" id="cockpitMiniPlayBtn" onclick="FocusCockpit.toggleTimerFromMini()" title="Start / Pause" aria-label="Start or pause timer">
         <i data-lucide="play" style="width:13px;height:13px;"></i>
       </button>
-      <button type="button" class="cockpit-mini-btn" id="cockpitMiniExpandBtn" onclick="FocusCockpit.open()" title="Expand Focus Cockpit" aria-label="Expand Focus Cockpit">
+      <button type="button" class="cockpit-mini-btn" id="cockpitMiniExpandBtn" onclick="FocusCockpit.open()" title="Expand" aria-label="Expand Focus Cockpit">
         <i data-lucide="maximize-2" style="width:13px;height:13px;"></i>
       </button>
     </div>
@@ -2413,22 +2377,19 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <div class="score-large-num" id="debriefScoreRate">--%</div>
           <div class="score-subtext" id="debriefScoreCount">-- of -- completed</div>
         </div>
-        <div class="debrief-score-desc">
-          Audit open targets, roll unfinished items to tomorrow, and log your takeaway.
-        </div>
       </div>
 
       <div class="debrief-section">
         <div class="debrief-section-title-row">
-          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Unclosed Loops</span>
+          <span style="font-size: 12.5px; font-weight: 700; color: var(--text-main);">Open Loops</span>
           <button type="button" class="action-icon-btn" id="debriefBulkRollBtn" onclick="EveningDebrief.rollAllRemainingToTomorrow()" style="font-size: 11px; padding: 2px 8px;">
-            <i data-lucide="arrow-right-circle" style="width:11px;height:11px;"></i> Roll All to Tomorrow
+            <i data-lucide="arrow-right-circle" style="width:11px;height:11px;"></i> Roll All
           </button>
         </div>
 
         <div id="debriefZeroLoopsNotice" class="debrief-zero-loops" style="display: none;">
           <i data-lucide="sparkles" style="width:18px;height:18px;color:var(--normal-green);"></i>
-          <span>All scheduled tasks for today are completed! Zero open loops.</span>
+          <span>All done for today.</span>
         </div>
 
         <div class="debrief-pending-list" id="debriefPendingList">
@@ -2440,7 +2401,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px; font-weight: 600;">
           Takeaway
         </label>
-        <input type="text" id="debriefRetroInput" class="modal-input" placeholder="e.g. Cleared Kalman filter architecture, stayed focused despite meetings">
+        <input type="text" id="debriefRetroInput" class="modal-input" placeholder="Short takeaway...">
         <div class="debrief-tags-row">
           <button type="button" class="preset-chip" onclick="EveningDebrief.applyQuickRetroTag('Deep flow achieved')">Deep flow</button>
           <button type="button" class="preset-chip" onclick="EveningDebrief.applyQuickRetroTag('Targets conquered')">Targets conquered</button>
@@ -2450,9 +2411,9 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </div>
 
       <div class="debrief-footer">
-        <button class="action-icon-btn" onclick="EveningDebrief.close()" style="padding: 8px 16px;">Keep Open</button>
+        <button class="action-icon-btn" onclick="EveningDebrief.close()" style="padding: 8px 16px;">Close</button>
         <button class="quick-submit-btn" style="position: static; transform: none; background: #6366f1; display: inline-flex; align-items: center; gap: 6px;" onclick="EveningDebrief.sealDayAndWrapUp()">
-          <i data-lucide="moon" style="width:13px;height:13px;"></i> Seal Day &amp; Wrap Up
+          <i data-lucide="moon" style="width:13px;height:13px;"></i> Seal Day
         </button>
       </div>
     </div>
@@ -2478,10 +2439,10 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         </div>
       </div>
       <div class="horace-header-actions">
-        <button class="action-icon-btn horace-action-btn" onclick="HoraceChat.clearChat()" title="Clear Chat History">
+        <button class="action-icon-btn horace-action-btn" onclick="HoraceChat.clearChat()" title="Clear chat">
           <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
         </button>
-        <button class="action-icon-btn horace-action-btn" onclick="HoraceChat.close()" title="Close Panel (Esc)">
+        <button class="action-icon-btn horace-action-btn" onclick="HoraceChat.close()" title="Close (Esc)">
           <i data-lucide="x" style="width:16px;height:16px;"></i>
         </button>
       </div>
@@ -2498,7 +2459,7 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
         <span class="typing-dot"></span>
         <span class="typing-dot"></span>
         <span class="typing-dot"></span>
-        <span class="typing-label">Horace is cooking a response...</span>
+        <span class="typing-label">Thinking...</span>
       </div>
     </div>
 
@@ -2508,9 +2469,9 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       <div class="horace-quick-menu-section" id="horaceQuickMenuSection">
         <div class="horace-quick-menu-header">
           <span class="horace-quick-menu-label">
-            <i data-lucide="sparkles" style="width:11px;height:11px;"></i> Quick Questions
+            <i data-lucide="sparkles" style="width:11px;height:11px;"></i> Prompts
           </span>
-          <button type="button" class="horace-quick-menu-toggle-btn" id="horaceQuickMenuToggleBtn" onclick="HoraceChat.toggleQuickMenuExpanded()" title="Toggle full question list">
+          <button type="button" class="horace-quick-menu-toggle-btn" id="horaceQuickMenuToggleBtn" onclick="HoraceChat.toggleQuickMenuExpanded()" title="Toggle prompts">
             <span id="horaceQuickMenuToggleLabel">View all</span>
             <i data-lucide="chevron-up" id="horaceQuickMenuChevron" style="width:12px;height:12px;"></i>
           </button>
@@ -2545,18 +2506,18 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
           <textarea
             id="horaceInput"
             class="horace-textarea"
-            placeholder="Talk to Horace... (Shift+Enter for newline)"
+            placeholder="Message Horace..."
             rows="1"
             onkeydown="HoraceChat.handleKeyDown(event)"
             oninput="HoraceChat.autoResizeInput(this)"
           ></textarea>
-          <button type="submit" class="horace-send-btn" id="horaceSendBtn" title="Send (Enter)">
+          <button type="submit" class="horace-send-btn" id="horaceSendBtn" title="Send">
             <i data-lucide="send" style="width:14px;height:14px;"></i>
           </button>
         </div>
       </form>
       <div class="horace-footer-caption">
-        <span id="horaceFooterModel">Connected to local node</span> · 100% private
+        <span id="horaceFooterModel">Local node</span> · Private
       </div>
     </div>
   </aside>
@@ -2593,14 +2554,11 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
     <div class="modal-card modal-structured" style="max-width: 620px; width: 94%;">
       <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border);">
         <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin: 0;">
-          <i data-lucide="zap" style="width: 16px; height: 16px; color: var(--focus-indigo);"></i> Focus Sprints History Log
+          <i data-lucide="zap" style="width: 16px; height: 16px; color: var(--focus-indigo);"></i> Focus History
         </h3>
         <button class="action-icon-btn" onclick="History.toggleFocusSessionsModal()"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px;">
-        <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-          Chronological verified log of deep work focus sessions and productivity sprints.
-        </p>
         <div id="focusSessionsModalList" style="display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto;">
           <!-- Injected session cards -->
         </div>
@@ -2629,9 +2587,22 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
       </div>
       <div class="modal-footer">
         <button type="button" class="action-icon-btn" onclick="Dashboard.closeSnapshotUnqueuedModal(); Dashboard.unlockSnapshot();" style="padding: 7px 14px; font-weight: 600;">
-          <i data-lucide="unlock" style="width:13px;height:13px;margin-right:4px;"></i> Unlock &amp; Curate
+          <i data-lucide="unlock" style="width:13px;height:13px;margin-right:4px;"></i> Unlock
         </button>
         <button type="button" class="action-icon-btn" onclick="Dashboard.closeSnapshotUnqueuedModal()" style="padding: 7px 16px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightweight Confirm & Prompt Modal -->
+  <div id="pettrConfirmModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card pettr-confirm-card">
+      <div class="pettr-confirm-title" id="pettrConfirmTitle">Confirm</div>
+      <div class="pettr-confirm-sub" id="pettrConfirmSub" style="display: none;"></div>
+      <input type="text" id="pettrConfirmInput" class="modal-input" style="display: none; margin-top: 10px;" autocomplete="off">
+      <div class="pettr-confirm-actions">
+        <button type="button" class="action-icon-btn" id="pettrConfirmCancelBtn">Cancel</button>
+        <button type="button" class="quick-submit-btn pettr-confirm-ok-btn" id="pettrConfirmOkBtn" style="position: static; transform: none;">Confirm</button>
       </div>
     </div>
   </div>
@@ -2640,24 +2611,24 @@ echo "balance_power" | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/energy_perf
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Scripts -->
-  <script src="/static/js/pin_lock.js?v=13.9"></script>
-  <script src="/static/js/app.js?v=13.9"></script>
-  <script src="/static/js/drag_drop.js?v=13.9"></script>
-  <script src="/static/js/holidays.js?v=13.9"></script>
-  <script src="/static/js/world_gateway.js?v=13.9"></script>
-  <script src="/static/js/world_deepblue.js?v=13.9"></script>
-  <script src="/static/js/wave_canvas.js?v=13.9"></script>
-  <script src="/static/js/tactile.js?v=13.9"></script>
-  <script src="/static/js/entity_modal.js?v=13.9"></script>
-  <script src="/static/js/timeline.js?v=13.9"></script>
-  <script src="/static/js/mindmap.js?v=13.9"></script>
-  <script src="/static/js/dashboard.js?v=13.9"></script>
-  <script src="/static/js/exploded.js?v=13.9"></script>
-  <script src="/static/js/notes.js?v=13.9"></script>
-  <script src="/static/js/history.js?v=13.9"></script>
-  <script src="/static/js/command_palette.js?v=13.9"></script>
-  <script src="/static/js/focus_cockpit.js?v=13.9"></script>
-  <script src="/static/js/evening_debrief.js?v=13.9"></script>
-  <script src="/static/js/horace_chat.js?v=13.9"></script>
+  <script src="/static/js/pin_lock.js?v=14.0"></script>
+  <script src="/static/js/app.js?v=14.0"></script>
+  <script src="/static/js/drag_drop.js?v=14.0"></script>
+  <script src="/static/js/holidays.js?v=14.0"></script>
+  <script src="/static/js/world_gateway.js?v=14.0"></script>
+  <script src="/static/js/world_deepblue.js?v=14.0"></script>
+  <script src="/static/js/wave_canvas.js?v=14.0"></script>
+  <script src="/static/js/tactile.js?v=14.0"></script>
+  <script src="/static/js/entity_modal.js?v=14.0"></script>
+  <script src="/static/js/timeline.js?v=14.0"></script>
+  <script src="/static/js/mindmap.js?v=14.0"></script>
+  <script src="/static/js/dashboard.js?v=14.0"></script>
+  <script src="/static/js/exploded.js?v=14.0"></script>
+  <script src="/static/js/notes.js?v=14.0"></script>
+  <script src="/static/js/history.js?v=14.0"></script>
+  <script src="/static/js/command_palette.js?v=14.0"></script>
+  <script src="/static/js/focus_cockpit.js?v=14.0"></script>
+  <script src="/static/js/evening_debrief.js?v=14.0"></script>
+  <script src="/static/js/horace_chat.js?v=14.0"></script>
 </body>
 </html>

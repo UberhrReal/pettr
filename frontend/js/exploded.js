@@ -156,21 +156,25 @@ const Exploded = {
   },
 
   async deleteProject(projectId, projectName) {
-    if (!confirm(`Are you sure you want to delete project "${projectName}"?\n\nAttached tasks will be kept as standalone backlog items.`)) {
-      return;
-    }
+    const ok = await App.confirmAction({
+      title: `Delete "${projectName}"?`,
+      sub: "Attached tasks stay in backlog.",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
       if (res.ok) {
-        App.showToast(`Project "${projectName}" deleted.`);
+        App.showToast(`Deleted "${projectName}"`);
         await this.refresh();
         Dashboard.refresh();
       } else {
-        App.showToast("Failed to delete project.", true);
+        App.showToast("Could not delete project", true);
       }
     } catch (err) {
       console.error(err);
-      App.showToast("Network error deleting project.", true);
+      App.showToast("Network error deleting project", true);
     }
   },
 

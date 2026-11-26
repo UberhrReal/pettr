@@ -370,7 +370,11 @@ const Notes = {
   },
 
   async promptCreateFolder() {
-    const raw = prompt("New folder name:");
+    const raw = await App.promptAction({
+      title: "New Folder",
+      placeholder: "Folder name",
+      confirmLabel: "Create"
+    });
     if (!raw || !raw.trim()) return;
     const cleanName = raw.trim();
     try {
@@ -389,16 +393,22 @@ const Notes = {
       this.renderSidebar(this.allNotes);
       this.renderFolderContextBar();
       this.updateBulkBarUI();
-      if (typeof App !== "undefined") App.showToast(`Created folder "${createdName}"`);
+      if (typeof App !== "undefined") App.showToast(`Created "${createdName}"`);
     } catch (err) {
       console.error(err);
-      if (typeof App !== "undefined") App.showToast("Could not create folder.", true);
+      if (typeof App !== "undefined") App.showToast("Could not create folder", true);
     }
   },
 
   async deleteCustomFolder(folderName) {
     if (!folderName) return;
-    if (!confirm(`Delete folder "${folderName}"? Notes inside will be moved to General.`)) return;
+    const ok = await App.confirmAction({
+      title: `Delete "${folderName}"?`,
+      sub: "Notes move to General.",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/note-folders/${encodeURIComponent(folderName)}`, { method: "DELETE" });
       if (this.currentFolderName && this.normalizeFolderKey(this.currentFolderName) === this.normalizeFolderKey(folderName)) {
@@ -499,7 +509,12 @@ const Notes = {
       if (typeof App !== "undefined") App.showToast("Select at least one note first.", true);
       return;
     }
-    if (!confirm(`Delete ${ids.length} selected note${ids.length === 1 ? "" : "s"} permanently?`)) return;
+    const ok = await App.confirmAction({
+      title: `Delete ${ids.length} note${ids.length === 1 ? "" : "s"}?`,
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/notes/bulk-delete", {
         method: "POST",
@@ -1045,7 +1060,12 @@ const Notes = {
 
   async deleteCurrentNote() {
     if (!this.currentNoteId) return;
-    if (!confirm("Delete this note?")) return;
+    const ok = await App.confirmAction({
+      title: "Delete note?",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/notes/${this.currentNoteId}`, { method: "DELETE" });
       this.currentNoteId = null;
@@ -1678,9 +1698,12 @@ const Notes = {
   async confirmDeleteMedia(filename) {
     const item = this.mediaItems.find(m => m.filename === filename);
     const displayName = item ? item.display_name : filename;
-    if (!confirm(`Permanently delete '${displayName}' from the media folder?`)) {
-      return;
-    }
+    const ok = await App.confirmAction({
+      title: `Delete "${displayName}"?`,
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/notes/media/${encodeURIComponent(filename)}`, {

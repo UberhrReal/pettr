@@ -399,7 +399,6 @@ const EntityModal = {
   },
 
   async returnToUnorganized(skipConfirm = false) {
-    if (!skipConfirm && !confirm("Return this item back to the Unorganised Queue?")) return;
     try {
       const fallbackDate = (document.getElementById("entityModalEventStart")?.value || document.getElementById("entityModalDueDate")?.value || "").trim() || null;
       const res = await fetch("/api/entities/reclassify", {
@@ -416,7 +415,7 @@ const EntityModal = {
         })
       });
       if (res.ok) {
-        App.showToast((this.fromType === "unorganized" || this.fromType === "unorganised") ? "Changes saved successfully!" : "Item returned to Unorganised Queue!");
+        App.showToast((this.fromType === "unorganized" || this.fromType === "unorganised") ? "Saved" : "Moved to Unorganised");
         this.close();
         if (typeof Dashboard !== "undefined") {
           Dashboard.refresh();
@@ -606,16 +605,21 @@ const EntityModal = {
         if (typeof Exploded !== "undefined") Exploded.refresh();
         if (typeof History !== "undefined") History.refresh();
       } else {
-        alert(data.detail || "Error updating item.");
+        App.showToast(data.detail || "Could not save item", true);
       }
     } catch (err) {
       console.error(err);
-      alert("Network error updating item.");
+      App.showToast("Network error saving item", true);
     }
   },
 
   async deleteEntity() {
-    if (!confirm("Are you sure you want to delete this item?")) return;
+    const ok = await App.confirmAction({
+      title: "Delete item?",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       let endpoint = `/api/tasks/${this.fromId}`;
       if (this.fromType === "event") endpoint = `/api/events/${this.fromId}`;

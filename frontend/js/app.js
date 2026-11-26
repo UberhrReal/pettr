@@ -268,11 +268,11 @@ const App = {
       Intl.DateTimeFormat(undefined, { timeZone: tz });
       localStorage.setItem("pettr_custom_timezone", tz);
       this.closeTimezoneModal();
-      this.showToast(`Mission Clock set to: ${tz}`);
+      this.showToast(`Mission Clock: ${tz}`);
       this.initMissionClock();
       this.renderIcons();
     } catch (e) {
-      alert(`Invalid timezone: "${tz}". Please provide a valid IANA timezone format (e.g. Europe/Paris, Asia/Tokyo).`);
+      this.showToast(`Invalid timezone: "${tz}"`, 3500, true);
     }
   },
 
@@ -687,7 +687,8 @@ const App = {
     localStorage.setItem("pettr_theme_mode", mode);
 
     // Update switcher buttons UI
-    document.querySelectorAll(".theme-switcher-control .theme-btn").forEach(btn => {
+    document.querySelectorAll("#themeSliderDrawer .theme-btn, .theme-switcher-control .theme-btn").forEach(btn => {
+      if (btn.id === "themeBtnSliderToggle") return;
       const modeKey = mode.charAt(0).toUpperCase() + mode.slice(1);
       if (btn.id === `themeBtn${modeKey}` || btn.dataset.themeSet === mode) {
         btn.classList.add("active");
@@ -695,6 +696,12 @@ const App = {
         btn.classList.remove("active");
       }
     });
+
+    const triggerBtn = document.getElementById("themeBtnSliderToggle");
+    if (triggerBtn) {
+      const triggerIcon = mode === "dark" ? "moon" : (mode === "light" ? "sun" : "sun-moon");
+      triggerBtn.innerHTML = `<i id="themeTriggerIcon" data-lucide="${triggerIcon}"></i>`;
+    }
 
     let effectiveTheme = mode;
     if (mode === "auto") {
@@ -716,7 +723,7 @@ const App = {
 
     if (notify) {
       this.haptic("light");
-      this.showToast(`Theme updated: ${mode.toUpperCase()} mode active`);
+      this.showToast(`Theme: ${mode}`);
     }
 
     this.renderIcons();
@@ -905,7 +912,7 @@ const App = {
   toggleVoiceInput() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      this.showToast("Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.", 4000, true);
+      this.showToast("Voice input requires Chrome, Edge, or Safari.", 4000, true);
       return;
     }
 
@@ -925,7 +932,7 @@ const App = {
     // Web Speech API is blocked by browsers on unencrypted HTTP connections (other than localhost)
     if (!isSecure) {
       this.haptic("warning");
-      this.showToast("Voice input requires HTTPS or localhost. Opening troubleshooting.", 5000, true);
+      this.showToast("Voice requires HTTPS or localhost", 4500, true);
       this.openVoiceTroubleshootModal("insecure");
       return;
     }
@@ -960,9 +967,9 @@ const App = {
         if (this._voiceSession !== session) return;
         this.isRecordingVoice = true;
         if (btn) btn.classList.add("recording");
-        if (input) input.placeholder = "Listening... speak clearly, tap mic again when done";
+        if (input) input.placeholder = "Listening...";
         this.haptic("medium");
-        this.showToast("🎙️ Listening... Speak now (tap mic again to stop)", 3200);
+        this.showToast("🎙️ Listening...", 2800);
       };
 
       recognition.onresult = (event) => {
@@ -1004,21 +1011,21 @@ const App = {
 
         this.haptic("warning");
         if (errCode === "not-allowed" || errCode === "permission-denied") {
-          this.showToast("Microphone access blocked. Check site & OS permissions.", 5000, true);
+          this.showToast("Microphone blocked", 4500, true);
           this.openVoiceTroubleshootModal("denied");
         } else if (errCode === "no-speech") {
-          this.showToast("No speech heard — verify your active input mic in system Sound settings.", 4500, true);
+          this.showToast("No speech detected", 3500, true);
         } else if (errCode === "audio-capture") {
-          this.showToast("Microphone unavailable or busy in another app.", 4500, true);
+          this.showToast("Microphone unavailable", 4000, true);
           this.openVoiceTroubleshootModal("audio-capture");
         } else if (errCode === "network") {
-          this.showToast("Speech service network error: browser speech backend could not be reached.", 5000, true);
+          this.showToast("Speech service unreachable", 4500, true);
           this.openVoiceTroubleshootModal("network");
         } else if (errCode === "service-not-allowed") {
-          this.showToast("Browser disabled speech recognition service.", 5000, true);
+          this.showToast("Speech service disabled", 4500, true);
           this.openVoiceTroubleshootModal("service");
         } else {
-          this.showToast(`Voice input error: ${errCode}`, 3500, true);
+          this.showToast(`Voice error: ${errCode}`, 3500, true);
         }
       };
 
@@ -1034,7 +1041,7 @@ const App = {
           if (input && input.value.trim()) input.focus();
         } else if (!session.manualStop && !session.errorCode) {
           this.haptic("warning");
-          this.showToast("Voice dictation ended with no speech registered — tap mic to retry or check system mic.", 4500, true);
+          this.showToast("No speech detected", 3500, true);
         }
       };
 
@@ -1045,7 +1052,7 @@ const App = {
       this.isRecordingVoice = false;
       if (btn) btn.classList.remove("recording");
       if (input && origPlaceholder !== undefined) input.placeholder = origPlaceholder;
-      this.showToast("Could not start voice recognition.", 3500, true);
+      this.showToast("Could not start voice input", 3500, true);
     }
   },
 
@@ -1429,8 +1436,8 @@ const App = {
 
       if (data.connected || isClientTailscale) {
         if (pill) {
-          pill.className = "status-pill online";
-          pill.title = `MagicDNS: ${data.dns_name || clientHost} (Host: ${data.hostname || 'pettr'})`;
+          pill.className = "status-pill online is-healthy";
+          pill.title = `Tailscale · ${data.dns_name || clientHost}`;
           pill.onclick = null;
         }
         const displayIp = data.tailscale_ip || (isClientTailscale ? clientHost : (data.dns_name || 'Online'));
@@ -1438,27 +1445,26 @@ const App = {
         this.hideNetworkSyncBanner();
       } else if (data.state === "NeedsLogin") {
         if (pill) {
-          pill.className = "status-pill warning";
-          pill.title = "Click to open Tailscale login page";
+          pill.className = "status-pill warning is-degraded";
+          pill.title = "Tailscale needs login";
           pill.onclick = () => {
             if (data.auth_url) window.open(data.auth_url, "_blank");
-            else alert("Tailscale login required on host PC. Run 'tailscale up'");
+            else this.showToast("Tailscale login required — run 'tailscale up'", 4500, true);
           };
         }
-        if (text) text.textContent = "Tailscale: Needs Login ↗";
-        this.showNetworkSyncBanner("Tailscale Needs Login", "Authentication required on the host PC to maintain 24/7 private sync.", false);
+        if (text) text.textContent = "Tailscale: Login ↗";
+        this.showNetworkSyncBanner("Tailscale Needs Login", "Run tailscale up on host.", false);
       } else {
+        const isContainer = data.is_container || (data.lan_ip && data.lan_ip.startsWith("172."));
         if (pill) {
-          pill.className = "status-pill offline";
-          pill.title = "Local network mode. Tailscale inactive on container interface.";
+          pill.className = isContainer ? "status-pill offline is-healthy" : "status-pill offline is-degraded";
+          pill.title = isContainer ? `Local (${data.lan_ip})` : `Host LAN: ${data.lan_ip}`;
           pill.onclick = null;
         }
-        const isContainer = data.is_container || (data.lan_ip && data.lan_ip.startsWith("172."));
-        if (text) text.textContent = isContainer ? `Container: ${data.lan_ip}` : `Host LAN: ${data.lan_ip}`;
-        const lanLabel = isContainer ? "internal container network" : "local host LAN";
-        // Suppress false-alarm banner in Docker container since host forwards traffic seamlessly
+        if (text) text.textContent = isContainer ? `Container: ${data.lan_ip}` : `LAN: ${data.lan_ip}`;
+        // Suppress false-alarm banner in Docker container
         if (!isContainer && !data.connected) {
-          this.showNetworkSyncBanner("Tailscale Disconnected", `Operating on ${lanLabel} (${data.lan_ip}). Remote updates from other devices won't synchronise until Tailscale connects.`, false);
+          this.showNetworkSyncBanner("Tailscale Offline", `On LAN (${data.lan_ip}) · Not synchronised`, false);
         } else {
           this.hideNetworkSyncBanner();
         }
@@ -1467,9 +1473,12 @@ const App = {
       console.warn("Network check error:", err);
       const pill = document.getElementById("systemStatusPill");
       const text = document.getElementById("statusText");
-      if (pill) pill.className = "status-pill offline";
+      if (pill) {
+        pill.className = "status-pill offline is-degraded";
+        pill.title = "Server Offline";
+      }
       if (text) text.textContent = "Server Offline";
-      this.showNetworkSyncBanner("Server Unreachable", "Cannot connect to PETTR backend. Dashboard state may not reflect recent updates.", true);
+      this.showNetworkSyncBanner("Server Unreachable", "Offline · Changes not synchronised", true);
     }
   },
 
@@ -1551,7 +1560,10 @@ const App = {
     const indicator = document.getElementById("navTabIndicator");
     if (!nav || !indicator) return;
     const activeBtn = nav.querySelector(".tab-btn.active");
-    if (!activeBtn || activeBtn.offsetWidth === 0) return;
+    if (!activeBtn || activeBtn.offsetWidth === 0) {
+      indicator.style.opacity = "0";
+      return;
+    }
 
     if (instant) {
       indicator.style.transition = "none";
@@ -1583,7 +1595,7 @@ const App = {
   switchTab(tabName) {
     this.currentTab = tabName;
 
-    // Update tab button active states
+    // Update tab button active states (primary nav tabs + header utility buttons)
     document.querySelectorAll(".nav-tabs .tab-btn").forEach(btn => {
       if (btn.dataset.tab === tabName) {
         btn.classList.add("active");
@@ -1593,6 +1605,9 @@ const App = {
       } else {
         btn.classList.remove("active");
       }
+    });
+    document.querySelectorAll(".header-utility-tab-btn[data-utility-tab]").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.utilityTab === tabName);
     });
 
     // Slide the active tab pill smoothly to the selected button
@@ -1938,7 +1953,7 @@ const App = {
     }
   },
 
-  showToast(message, arg2, arg3) {
+  showToast(message, arg2, arg3, arg4) {
     let container = document.getElementById("toastContainer");
     if (!container) {
       container = document.createElement("div");
@@ -1949,8 +1964,13 @@ const App = {
 
     let isError = false;
     let duration = 3500;
+    let actionOpts = (arg4 && typeof arg4 === "object") ? arg4 : null;
 
-    if (typeof arg2 === "boolean") {
+    if (arg2 && typeof arg2 === "object") {
+      actionOpts = arg2;
+      if (typeof arg2.isError === "boolean") isError = arg2.isError;
+      if (typeof arg2.duration === "number") duration = arg2.duration;
+    } else if (typeof arg2 === "boolean") {
       isError = arg2;
       if (typeof arg3 === "number") duration = arg3;
     } else if (typeof arg2 === "string") {
@@ -1959,6 +1979,7 @@ const App = {
     } else if (typeof arg2 === "number") {
       duration = arg2;
       if (typeof arg3 === "boolean") isError = arg3;
+      else if (arg3 && typeof arg3 === "object") actionOpts = arg3;
     }
 
     const toast = document.createElement("div");
@@ -1967,16 +1988,135 @@ const App = {
     const iconColor = isError ? "var(--urgent-orange)" : "var(--normal-green)";
 
     const cleanMsg = typeof message === "string" ? message : String(message);
-    toast.innerHTML = `<i data-lucide="${iconName}" style="width:15px;height:15px;color:${iconColor};flex-shrink:0;"></i> <span>${cleanMsg}</span>`;
-    container.appendChild(toast);
-    this.renderIcons();
+    const iconWrap = document.createElement("span");
+    iconWrap.style.display = "inline-flex";
+    iconWrap.innerHTML = `<i data-lucide="${iconName}" style="width:15px;height:15px;color:${iconColor};flex-shrink:0;"></i>`;
+    const textSpan = document.createElement("span");
+    textSpan.textContent = cleanMsg;
 
-    setTimeout(() => {
+    toast.appendChild(iconWrap);
+    toast.appendChild(textSpan);
+
+    let dismissed = false;
+    const dismissToast = () => {
+      if (dismissed) return;
+      dismissed = true;
       toast.style.opacity = "0";
       toast.style.transform = "translateX(100%) scale(0.95)";
       toast.style.transition = "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
       setTimeout(() => toast.remove(), 260);
-    }, duration);
+    };
+
+    if (actionOpts && actionOpts.actionLabel && typeof actionOpts.onAction === "function") {
+      const actionBtn = document.createElement("button");
+      actionBtn.type = "button";
+      actionBtn.className = "toast-action-btn";
+      actionBtn.textContent = actionOpts.actionLabel;
+      actionBtn.addEventListener("click", async () => {
+        actionBtn.disabled = true;
+        dismissToast();
+        try {
+          await actionOpts.onAction();
+        } catch (err) {
+          console.error("Toast action error:", err);
+        }
+      });
+      toast.appendChild(actionBtn);
+      duration = Math.max(duration, 4500);
+    }
+
+    container.appendChild(toast);
+    this.renderIcons();
+
+    setTimeout(dismissToast, duration);
+  },
+
+  /**
+   * Lightweight frosted-glass confirmation dialog replacing native confirm().
+   * Supports optional text input via promptAction().
+   */
+  confirmAction({ title = "Confirm?", sub = "", confirmLabel = "Confirm", cancelLabel = "Cancel", danger = false, inputMode = false, placeholder = "" } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById("pettrConfirmModal");
+      const titleEl = document.getElementById("pettrConfirmTitle");
+      const subEl = document.getElementById("pettrConfirmSub");
+      const inputEl = document.getElementById("pettrConfirmInput");
+      const okBtn = document.getElementById("pettrConfirmOkBtn");
+      const cancelBtn = document.getElementById("pettrConfirmCancelBtn");
+      if (!modal || !titleEl || !okBtn || !cancelBtn) {
+        resolve(false);
+        return;
+      }
+
+      titleEl.textContent = title;
+      if (subEl) {
+        if (sub) {
+          subEl.textContent = sub;
+          subEl.style.display = "block";
+        } else {
+          subEl.textContent = "";
+          subEl.style.display = "none";
+        }
+      }
+      if (inputEl) {
+        if (inputMode) {
+          inputEl.value = "";
+          inputEl.placeholder = placeholder || "";
+          inputEl.style.display = "block";
+        } else {
+          inputEl.value = "";
+          inputEl.style.display = "none";
+        }
+      }
+
+      okBtn.textContent = confirmLabel;
+      okBtn.classList.toggle("is-danger", Boolean(danger));
+      cancelBtn.textContent = cancelLabel;
+      modal.style.display = "flex";
+
+      let settled = false;
+      const cleanup = (result) => {
+        if (settled) return;
+        settled = true;
+        modal.style.display = "none";
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        modal.removeEventListener("click", onBackdrop);
+        document.removeEventListener("keydown", onKey, true);
+        resolve(result);
+      };
+
+      const onOk = () => cleanup(inputMode ? (inputEl ? inputEl.value : "") : true);
+      const onCancel = () => cleanup(inputMode ? null : false);
+      const onBackdrop = (ev) => {
+        if (ev.target === modal) onCancel();
+      };
+      const onKey = (ev) => {
+        if (ev.key === "Escape") {
+          ev.preventDefault();
+          ev.stopPropagation();
+          onCancel();
+        } else if (ev.key === "Enter" && !ev.shiftKey) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          onOk();
+        }
+      };
+
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      modal.addEventListener("click", onBackdrop);
+      document.addEventListener("keydown", onKey, true);
+
+      requestAnimationFrame(() => {
+        if (inputMode && inputEl) inputEl.focus();
+        else okBtn.focus();
+      });
+    });
+  },
+
+  promptAction({ title = "Enter value", sub = "", placeholder = "", confirmLabel = "Create" } = {}) {
+    return this.confirmAction({ title, sub, placeholder, confirmLabel, inputMode: true });
   },
 
   async logout() {

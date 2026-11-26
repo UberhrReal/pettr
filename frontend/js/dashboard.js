@@ -178,7 +178,8 @@ const Dashboard = {
       if (labelEl) labelEl.textContent = dayName;
       if (this.isDaySealed(this.selectedDate)) {
         if (tagEl) {
-          tagEl.innerHTML = `<i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> SEALED TODAY`;
+          tagEl.style.display = "inline-flex";
+          tagEl.innerHTML = `<i data-lucide="lock" style="width:11px;height:11px;display:inline-block;vertical-align:-1px;"></i> Sealed`;
           tagEl.className = "date-status-tag tag-past";
         }
         if (lockedBanner) {
@@ -187,6 +188,7 @@ const Dashboard = {
         }
       } else {
         if (tagEl) {
+          tagEl.style.display = "none";
           tagEl.textContent = "LIVE TODAY";
           tagEl.className = "date-status-tag tag-today";
         }
@@ -197,7 +199,8 @@ const Dashboard = {
     } else if (this.isFutureDay()) {
       if (labelEl) labelEl.textContent = dayName;
       if (tagEl) {
-        tagEl.textContent = "FUTURE PREVIEW";
+        tagEl.style.display = "inline-flex";
+        tagEl.textContent = "Preview";
         tagEl.className = "date-status-tag tag-future";
       }
       if (jumpBtn) jumpBtn.style.display = "inline-flex";
@@ -209,7 +212,8 @@ const Dashboard = {
     } else {
       if (labelEl) labelEl.textContent = dayName;
       if (tagEl) {
-        tagEl.textContent = "LOCKED ARCHIVE";
+        tagEl.style.display = "inline-flex";
+        tagEl.textContent = "Archived";
         tagEl.className = "date-status-tag tag-past";
       }
       if (jumpBtn) jumpBtn.style.display = "inline-flex";
@@ -925,6 +929,11 @@ const Dashboard = {
     const panelFocus = document.getElementById("focusCardSection");
     const panelTrivial = document.getElementById("trivialCardSection");
     const panelReminders = document.getElementById("remindersCardSection");
+
+    if (panelProjects) panelProjects.classList.toggle("is-empty-panel", countProjects === 0);
+    if (panelFocus) panelFocus.classList.toggle("is-empty-panel", countFocus === 0);
+    if (panelTrivial) panelTrivial.classList.toggle("is-empty-panel", countTrivial === 0);
+    if (panelReminders) panelReminders.classList.toggle("is-empty-panel", countReminders === 0);
 
     const listFocus = document.getElementById("focusTasksList");
     const listTrivial = document.getElementById("trivialTasksList");
@@ -1913,19 +1922,21 @@ const Dashboard = {
     this.ensureDailyOrderDropHandlers();
     this.syncInSequenceCardStates();
     const container = document.getElementById("dailyOrderSlotsList");
+    const outerContainer = document.getElementById("dailyOrderContainer");
     const countBadge = document.getElementById("dailyOrderCountBadge");
     if (!container) return;
 
     const count = this.dailyOrder.length;
+    if (outerContainer) outerContainer.classList.toggle("has-items", count > 0);
     if (countBadge) countBadge.textContent = `${count} item${count === 1 ? "" : "s"}`;
 
     if (count === 0) {
       container.innerHTML = `
         <div class="daily-order-empty-cue">
-          <i data-lucide="list-ordered" style="width:28px;height:28px;color:var(--focus-indigo);opacity:0.6;margin-bottom:4px;"></i>
-          <div style="font-weight:700; color:var(--text-main);">Tasking Priority is Empty</div>
-          <div style="font-size:12px; max-width:240px; line-height:1.5;">
-            Drag any focus task, trivial task, project, or event from the left into this space to lock in your exact execution order.
+          <i data-lucide="list-ordered" style="width:24px;height:24px;color:var(--focus-indigo);opacity:0.6;margin-bottom:4px;"></i>
+          <div style="font-weight:700; color:var(--text-main);">Queue Empty</div>
+          <div style="font-size:12px; max-width:220px; line-height:1.45;">
+            Drag tasks here to lock order.
           </div>
         </div>
       `;
@@ -2289,12 +2300,24 @@ const Dashboard = {
   },
 
   async clearDailyOrder() {
-    if (!confirm("Clear your Daily Order execution list for today?")) return;
+    if (!this.dailyOrder || this.dailyOrder.length === 0) return;
+    const previousOrder = this.dailyOrder.map(item => ({ ...item }));
+    const targetDate = this.selectedDate;
     this.dailyOrder = [];
-    localStorage.setItem("pettr_daily_order_" + this.selectedDate, JSON.stringify([]));
+    localStorage.setItem("pettr_daily_order_" + targetDate, JSON.stringify([]));
     this.renderDailyOrder();
     await this.saveDailyOrder();
-    App.showToast("Daily sequence reset.");
+    App.showToast("Order reset", {
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (this.selectedDate !== targetDate) return;
+        this.dailyOrder = previousOrder;
+        localStorage.setItem("pettr_daily_order_" + targetDate, JSON.stringify(previousOrder));
+        this.renderDailyOrder();
+        await this.saveDailyOrder();
+        App.showToast("Order restored");
+      }
+    });
   },
 
   /* --- v10.0 Lock-In Natural Language Snapshot Briefing --- */
@@ -3706,10 +3729,15 @@ const Dashboard = {
 
   async deleteTask(taskId) {
     if (this.isPastDay()) {
-      App.showToast("Past day records are locked and cannot be deleted.", true);
+      App.showToast("Past day locked.", true);
       return;
     }
-    if (!confirm("Delete this task?")) return;
+    const ok = await App.confirmAction({
+      title: "Delete task?",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
       App.showToast("Task deleted");
@@ -3942,29 +3970,25 @@ const Dashboard = {
       items.forEach(item => { this._unorgItemsById[item.id] = item; });
       
       const permanentList = document.getElementById("unorgPermanentList");
+      const permanentPanel = document.getElementById("unorgPermanentPanel");
       const unorgBadgeCount = document.getElementById("unorgPermanentCount");
+      const unorgInlineBadge = document.getElementById("unorgBadge");
+      const unorgInlineCount = document.getElementById("unorgCount");
       const statPill = document.getElementById("statPillUnorg");
       const pillCount = document.getElementById("statUnorg");
 
       if (unorgBadgeCount) unorgBadgeCount.textContent = items.length;
+      if (unorgInlineCount) unorgInlineCount.textContent = items.length;
       if (pillCount) pillCount.textContent = items.length;
 
-      if (items.length > 0) {
-        if (statPill) statPill.style.display = "inline-flex";
-      } else {
-        if (statPill) statPill.style.display = "none";
-      }
+      const hasUnorg = items.length > 0;
+      if (permanentPanel) permanentPanel.style.display = hasUnorg ? "block" : "none";
+      if (unorgInlineBadge) unorgInlineBadge.style.display = hasUnorg ? "inline-flex" : "none";
+      if (statPill) statPill.style.display = hasUnorg ? "inline-flex" : "none";
 
       if (permanentList) {
         permanentList.innerHTML = "";
-        if (items.length === 0) {
-          permanentList.innerHTML = `
-            <div style="padding: 12px 16px; background: var(--normal-green-bg); border: 1px solid #bbf7d0; border-radius: 8px; font-size: 13px; color: var(--normal-green); display: flex; align-items: center; gap: 8px;">
-              <span>✓</span>
-              <span><strong>Queue is clear.</strong> All logged inputs are organised into projects, tasks, or events.</span>
-            </div>
-          `;
-        } else {
+        if (hasUnorg) {
           items.forEach(item => {
             permanentList.appendChild(this.createUnorgItemCard(item, false));
           });
@@ -4042,21 +4066,26 @@ const Dashboard = {
   },
 
   async deleteUnorg(id) {
-    if (!confirm("Are you sure you want to delete this unorganised item?")) return;
+    const ok = await App.confirmAction({
+      title: "Delete item?",
+      confirmLabel: "Delete",
+      danger: true
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/unorganized/${id}`, { method: "DELETE" });
       if (res.ok) {
-        App.showToast("Item deleted from queue.");
+        App.showToast("Item deleted");
         this.closeUnorganizedModal();
         await this.refresh();
         if (typeof Timeline !== "undefined") Timeline.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
       } else {
-        App.showToast("Failed to delete item.", true);
+        App.showToast("Could not delete item", true);
       }
     } catch (err) {
       console.error(err);
-      App.showToast("Network error deleting item.", true);
+      App.showToast("Network error deleting item", true);
     }
   },
 
@@ -4084,7 +4113,7 @@ const Dashboard = {
         })
       });
       if (!res.ok) {
-        let errMsg = "Failed to sort unorganised item.";
+        let errMsg = "Could not sort item";
         try {
           const errData = await res.json();
           if (errData && errData.detail) errMsg = errData.detail;
@@ -4092,27 +4121,40 @@ const Dashboard = {
         App.showToast(errMsg, true);
         return;
       }
-      App.showToast("Item sorted successfully!");
+      App.showToast("Sorted");
       this.closeUnorganizedModal();
       await this.refresh();
       if (typeof Timeline !== "undefined") Timeline.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
       console.error(err);
-      App.showToast("Network error sorting unorganised item.", true);
+      App.showToast("Network error sorting item", true);
     }
   },
 
   async completeProject(projectId, projectName) {
-    if (!confirm(`Are you sure you want to mark project "${projectName}" as completed? This will wrap up all subtasks and move it to the History archive.`)) {
-      return;
-    }
     try {
       const res = await fetch(`/api/projects/${projectId}/complete`, {
         method: "POST"
       });
       if (res.ok) {
-        App.showToast(`🏆 Project "${projectName}" completed and archived!`);
+        App.showToast(`"${projectName}" completed`, {
+          actionLabel: "Undo",
+          onAction: async () => {
+            try {
+              const r = await fetch(`/api/projects/${projectId}/reopen`, { method: "POST" });
+              if (r.ok) {
+                App.showToast(`Restored "${projectName}"`);
+                await this.refresh();
+                if (typeof Exploded !== "undefined") Exploded.refresh();
+                if (typeof Mindmap !== "undefined") Mindmap.refresh();
+                if (typeof History !== "undefined") History.refresh();
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        });
         const cx = window.innerWidth * 0.5;
         const cy = window.innerHeight * 0.35;
         if (typeof TactileFX !== "undefined") {
@@ -4124,7 +4166,7 @@ const Dashboard = {
         if (typeof Exploded !== "undefined") Exploded.refresh();
         if (typeof Mindmap !== "undefined") Mindmap.refresh();
       } else {
-        App.showToast("Failed to complete project", true);
+        App.showToast("Could not complete project", true);
       }
     } catch (err) {
       console.error(err);
@@ -4136,7 +4178,7 @@ const Dashboard = {
 
   async openManualCreateModal(defaultType = "focus", prefillProject = null) {
     if (this.isPastDay()) {
-      App.showToast("Cannot add new items to a past or sealed day. Return to Today or select a future day.", true);
+      App.showToast("Past day locked.", true);
       return;
     }
     this.selectManualType(defaultType);
@@ -4574,6 +4616,9 @@ const Dashboard = {
   },
 
   scrollToYourStats() {
+    if (typeof History !== "undefined" && History.switchView) {
+      History.switchView("stats");
+    }
     setTimeout(() => {
       const panel = document.getElementById("focusTelemetryPanel");
       if (panel) {

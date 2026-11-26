@@ -13646,3 +13646,411 @@ body.scenic-hidden-mode .toast-container {
     padding: 5px 8px;
   }
 }
+
+/* ==========================================================================
+   v14.0 Visual Streamlining & Zero-Friction Hierarchy Layer
+   ========================================================================== */
+
+/* --- PIN Lock Brand Splash --- */
+.pin-splash-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.pin-splash-head .pin-logo {
+  margin-bottom: 8px;
+}
+
+.pin-acronym-splash {
+  font-family: var(--font-logo);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 280px;
+  text-align: center;
+  opacity: 0.88;
+}
+
+.pin-splash-rule {
+  width: 64px;
+  height: 1px;
+  margin-top: 14px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-muted) 45%, transparent), transparent);
+}
+
+/* --- Header Status & Utility Chrome --- */
+.status-pill.is-healthy {
+  padding: 6px;
+  min-width: 22px;
+  justify-content: center;
+  border-color: color-mix(in srgb, #16a34a 30%, transparent);
+  background: color-mix(in srgb, #16a34a 10%, var(--glass-sheet-subtle));
+}
+
+.status-pill.is-healthy #statusText {
+  display: none;
+}
+
+.status-pill.is-degraded #statusText {
+  display: inline;
+}
+
+.app-header {
+  padding: 18px 28px 10px 28px;
+}
+
+.header-top-row {
+  padding-bottom: 8px;
+}
+
+.header-utility-tab-btn.active {
+  background: color-mix(in srgb, var(--focus-indigo) 16%, var(--bg-primary));
+  border-color: var(--focus-indigo);
+  color: var(--focus-indigo);
+}
+
+/* --- Unified Appearance Popover Controls --- */
+.theme-switcher-control {
+  padding: 2px;
+}
+
+.theme-trigger-btn {
+  padding: 5px 8px;
+}
+
+.theme-mode-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--glass-sheet-subtle) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-edge) 75%, transparent);
+}
+
+.theme-mode-segmented .theme-btn {
+  justify-content: center;
+  border-radius: 7px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+}
+
+/* --- Compact Mission Clock & Quick Input --- */
+.mission-clock-widget {
+  padding: 10px 16px;
+  min-width: 220px;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.mission-clock-tz-row {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.mission-clock-tz {
+  font-size: 10.5px;
+  padding: 2px 7px;
+}
+
+.quick-input-section {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+}
+
+.quick-focus-kbd {
+  position: absolute;
+  left: 14px;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg-tertiary);
+  border: 1px solid color-mix(in srgb, var(--glass-edge) 80%, transparent);
+  padding: 1px 6px;
+  border-radius: 5px;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.quick-input-wrapper .quick-input-box {
+  padding-left: 38px;
+}
+
+.quick-input-wrapper:focus-within .quick-focus-kbd,
+.quick-input-wrapper:has(.quick-input-box:not(:placeholder-shown)) .quick-focus-kbd {
+  opacity: 0;
+}
+
+/* --- Slim Day Navigator & Inline Unorganised Pill --- */
+.dashboard-date-navigator {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+  margin-bottom: 18px;
+}
+
+.date-nav-controls {
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.date-step-btn {
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.date-current-badge {
+  flex: 0 1 auto;
+  min-width: 210px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+}
+
+.unorg-inline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--urgent-orange);
+  background: color-mix(in srgb, var(--urgent-orange) 12%, var(--glass-sheet-subtle));
+  border: 1px solid color-mix(in srgb, var(--urgent-orange) 38%, transparent);
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.unorg-inline-pill:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--urgent-orange) 20%, var(--glass-sheet-subtle));
+}
+
+/* --- Flatten Nested Glass in Snapshot & Tasking Priority --- */
+.briefing-showcase-window {
+  margin-bottom: 24px;
+}
+
+.briefing-dual-layout {
+  gap: 0;
+}
+
+.briefing-formatted-pane {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 8px 20px 8px 4px;
+}
+
+.daily-order-container {
+  background: transparent !important;
+  border: none !important;
+  border-left: 1px solid color-mix(in srgb, var(--glass-edge) 70%, transparent) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 8px 4px 8px 20px;
+}
+
+@media (max-width: 1080px) {
+  .briefing-formatted-pane {
+    padding: 6px 2px 14px 2px;
+  }
+
+  .daily-order-container {
+    border-left: none !important;
+    border-top: 1px solid color-mix(in srgb, var(--glass-edge) 70%, transparent) !important;
+    padding: 16px 2px 6px 2px;
+  }
+}
+
+.daily-order-container.has-items .daily-order-subtitle {
+  display: none;
+}
+
+/* --- Cleaner Overview Pills & Compact Panel Controls --- */
+.summary-pills-row {
+  gap: 6px;
+}
+
+.summary-pills-row .stat-pill {
+  background: transparent;
+  border-color: transparent;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.summary-pills-row .stat-pill:hover {
+  background: color-mix(in srgb, var(--glass-sheet-subtle) 90%, transparent);
+  border-color: color-mix(in srgb, var(--glass-edge) 60%, transparent);
+}
+
+.summary-pills-row .stat-pill.active {
+  background: var(--text-main);
+  border-color: var(--text-main);
+  color: var(--text-inverse);
+}
+
+.panel-icon-add-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+}
+
+/* --- Collapse Empty Working Panels into Compact Single-Line Strips --- */
+.dynamic-panel.is-empty-panel {
+  padding: 13px 18px;
+}
+
+.dynamic-panel.is-empty-panel .column-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.dynamic-panel.is-empty-panel > :not(.column-header) {
+  display: none !important;
+}
+
+/* Soften inner nested card borders across Dashboard */
+.dashboard-master-wrapper .briefing-item-row,
+.dashboard-master-wrapper .daily-order-slot,
+.dashboard-master-wrapper .overview-sub-box,
+.dashboard-master-wrapper .task-item {
+  border-color: color-mix(in srgb, var(--glass-edge) 45%, transparent);
+}
+
+/* --- Settings 2-Column Grid --- */
+.settings-grid {
+  max-width: 1320px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.settings-grid .settings-span-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 860px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Lightweight Custom Confirm & Prompt Modal + Toast Action --- */
+.pettr-confirm-card {
+  max-width: 360px !important;
+  width: calc(100% - 32px) !important;
+  padding: 20px 22px !important;
+}
+
+.pettr-confirm-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.35;
+}
+
+.pettr-confirm-sub {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.pettr-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pettr-confirm-ok-btn.is-danger {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+.toast-action-btn {
+  margin-left: 6px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--focus-indigo) 45%, transparent);
+  background: color-mix(in srgb, var(--focus-indigo) 16%, transparent);
+  color: var(--text-main);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.toast-action-btn:hover {
+  background: color-mix(in srgb, var(--focus-indigo) 28%, transparent);
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 12px 14px 8px 14px;
+  }
+
+  .header-right-controls {
+    gap: 4px !important;
+  }
+
+  .horace-toggle-btn-text {
+    display: none;
+  }
+
+  .quick-focus-kbd {
+    display: none;
+  }
+
+  .quick-input-wrapper .quick-input-box {
+    padding-left: 14px;
+  }
+
+  .brand-title {
+    font-size: 20px !important;
+  }
+
+  .mission-clock-widget {
+    min-width: 0;
+    width: 100%;
+    align-items: center;
+  }
+
+  .mission-clock-tz-row {
+    justify-content: center;
+  }
+
+  .date-current-badge {
+    min-width: 0;
+    flex: 1 1 auto;
+    font-size: 12.5px;
+    padding: 6px 12px;
+  }
+}

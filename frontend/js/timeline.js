@@ -1102,17 +1102,23 @@ const Timeline = {
   },
 
   async clearSampleData() {
-    if (!confirm("⚠️ CLEAR ALL DATA\n\nThis will permanently delete every task, project, event, reminder and note from the database — returning PETTR to a clean slate.\n\nProceed?")) return;
+    const ok = await App.confirmAction({
+      title: "Erase all data?",
+      sub: "Deletes all tasks, projects, events, reminders, and notes.",
+      confirmLabel: "Erase All",
+      danger: true
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/sample-data/clear", { method: "POST" });
       const data = await res.json();
-      App.showToast(data.message || "Database cleared — clean slate.");
+      App.showToast(data.message || "Database cleared");
       await this.refresh();
       await Dashboard.refresh();
       if (typeof Mindmap !== "undefined") Mindmap.refresh();
     } catch (err) {
       console.error(err);
-      App.showToast("Error clearing data. Check server logs.", "error");
+      App.showToast("Could not clear data", "error");
     }
   },
 

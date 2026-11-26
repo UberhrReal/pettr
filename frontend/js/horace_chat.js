@@ -324,17 +324,13 @@ const HoraceChat = {
     const label = document.getElementById("horaceQuickMenuToggleLabel");
 
     if (tray) {
-      if (this.isQuickMenuExpanded) {
-        tray.classList.add("expanded");
-      } else {
-        tray.classList.remove("expanded");
-      }
+      tray.classList.toggle("expanded", this.isQuickMenuExpanded);
     }
     if (chevron) {
       chevron.style.transform = this.isQuickMenuExpanded ? "rotate(180deg)" : "rotate(0deg)";
     }
     if (label) {
-      label.textContent = this.isQuickMenuExpanded ? "Collapse" : "View all";
+      label.textContent = this.isQuickMenuExpanded ? "Hide" : "Prompts";
     }
   },
 
@@ -455,20 +451,21 @@ const HoraceChat = {
   },
 
   async clearChat() {
-    if (!confirm("Wipe conversation history with Horace? He'll reset back to his initial state.")) {
-      return;
-    }
+    const ok = await App.confirmAction({
+      title: "Clear chat history?",
+      confirmLabel: "Clear",
+      danger: true
+    });
+    if (!ok) return;
     try {
       const res = await fetch("/api/llm/chat/history", { method: "DELETE" });
       if (res.ok) {
         this.messages = [];
         this.renderMessages();
-        if (typeof showToast === "function") {
-          showToast("Horace chat history cleared.");
-        }
+        App.showToast("Chat history cleared");
       }
     } catch (e) {
-      alert("Failed to clear chat history.");
+      App.showToast("Could not clear chat", true);
     }
   }
 };
